@@ -1,0 +1,6 @@
+[package]
+name = "infinitier_core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
