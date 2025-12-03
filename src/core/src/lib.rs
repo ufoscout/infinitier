@@ -1,2 +1,3 @@
-pub mod resource;
+pub mod fs;
 pub mod io;
+pub mod resource;
