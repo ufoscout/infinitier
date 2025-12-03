@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Seek},
+    io::{BufRead, BufReader, Read, Seek},
     path::Path,
 };
 
@@ -21,6 +21,7 @@ impl Reader<BufReader<File>> {
             charset,
         })
     }
+
 }
 
 impl<B: BufRead> Reader<B> {
@@ -30,10 +31,13 @@ impl<B: BufRead> Reader<B> {
 
     /// Read the first `n_chars` characters from a byte array interpreted
     /// with the Reader `charset`, and return them as a `String`.
-    pub fn read_string<const N: usize>(&mut self, size: usize) -> std::io::Result<String> {
-        let mut buf = [0u8; N];
-        let n = self.data.read(&mut buf)?;
-        let (decoded, _, had_errors) = self.charset.decode(&buf[..n]);
+    pub fn read_string(&mut self, size: u64) -> std::io::Result<String> {
+        let mut buf = vec![];
+        let mut chunk = (&mut self.data).take(size);
+        // Do appropriate error handling for your situation
+        // Maybe it's OK if you didn't read enough bytes?
+        chunk.read_to_end(&mut buf)?;
+        let (decoded, _, had_errors) = self.charset.decode(&buf);
 
         if had_errors {
             return Err(std::io::Error::new(
@@ -99,9 +103,9 @@ impl<B: BufRead + Seek> Reader<B> {
     }
     
     /// Reads a string from the offset position
-    pub fn read_string_at<const N: usize>(&mut self, offset: u64) -> std::io::Result<String> {
+    pub fn read_string_at(&mut self, offset: u64, size: u64) -> std::io::Result<String> {
         self.data.seek(std::io::SeekFrom::Start(offset))?;
-        self.read_string::<N>()
+        self.read_string(size)
     }
 
     /// Reads a u32 from the offset position
@@ -135,13 +139,13 @@ mod tests {
     #[test]
     fn test_read_string() {
         let mut reader = Reader::new("Hello, world!".as_bytes(), WINDOWS_1252);
-        assert_eq!(reader.read_string::<5>().unwrap(), "Hello");
+        assert_eq!(reader.read_string(5).unwrap(), "Hello");
     }
 
     #[test]
     fn test_read_string_at() {
         let mut reader = Reader::new(Cursor::new("Hello, world!".as_bytes()), WINDOWS_1252);
-        assert_eq!(reader.read_string_at::<5>(7).unwrap(), "world");
+        assert_eq!(reader.read_string_at(7, 5).unwrap(), "world");
     }
 
     #[test]

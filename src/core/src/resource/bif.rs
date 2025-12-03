@@ -17,7 +17,7 @@ fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
     }
 
     let mut reader = Reader::with_file(file_path, WINDOWS_1252)?;
-    let value = reader.read_string::<8>()?;
+    let value = reader.read_string(8)?;
 
     match value.as_str() {
         "BIFFV1  " => Ok(Type::BIFF),
