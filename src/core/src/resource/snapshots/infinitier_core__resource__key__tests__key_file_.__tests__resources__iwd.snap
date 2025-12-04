@@ -1,0 +1,2187 @@
+---
+source: src/core/src/resource/key.rs
+expression: key
+---
+{
+  "file": "",
+  "signature": "KEY",
+  "version": "V1",
+  "resources_offset": 7579,
+  "resources_size": 19992,
+  "bif_offset": 24,
+  "bif_size": 268,
+  "biff_entryies": [
+    {
+      "index": 0,
+      "file_name": "data/splbmp.bif",
+      "file_size": 38552,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 1,
+      "file_name": "data/itmfile.bif",
+      "file_size": 473462,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 2,
+      "file_name": "data/bcsgen.bif",
+      "file_size": 292865,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 3,
+      "file_name": "data/crefile.bif",
+      "file_size": 872643,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 4,
+      "file_name": "data/dlgfile.bif",
+      "file_size": 351125,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 5,
+      "file_name": "data/ar200a.bif",
+      "file_size": 3667881,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 6,
+      "file_name": "data/ar3501.bif",
+      "file_size": 9019677,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 7,
+      "file_name": "data/ar3601.bif",
+      "file_size": 6963039,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 8,
+      "file_name": "data/arfile.bif",
+      "file_size": 1336016,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 9,
+      "file_name": "data/ar3000.bif",
+      "file_size": 10138989,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 10,
+      "file_name": "data/ar3101.bif",
+      "file_size": 2092610,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 11,
+      "file_name": "data/ar3201.bif",
+      "file_size": 2150366,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 12,
+      "file_name": "data/ar3301.bif",
+      "file_size": 5382644,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 13,
+      "file_name": "data/ar3401.bif",
+      "file_size": 2095712,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 14,
+      "file_name": "data/artport.bif",
+      "file_size": 8914440,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 15,
+      "file_name": "data/default.bif",
+      "file_size": 1942156,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 16,
+      "file_name": "data/creanim.bif",
+      "file_size": 98593482,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 17,
+      "file_name": "data/guibam.bif",
+      "file_size": 8746488,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 18,
+      "file_name": "data/guichui.bif",
+      "file_size": 122966,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 19,
+      "file_name": "data/guidesc.bif",
+      "file_size": 2135920,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 20,
+      "file_name": "data/guifont.bif",
+      "file_size": 233357,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 21,
+      "file_name": "data/guiicon.bif",
+      "file_size": 4585658,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 22,
+      "file_name": "data/guimos.bif",
+      "file_size": 43654897,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 23,
+      "file_name": "data/ar2100.bif",
+      "file_size": 17462504,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 24,
+      "file_name": "data/ar100a.bif",
+      "file_size": 6613876,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 25,
+      "file_name": "data/stofiles.bif",
+      "file_size": 40540,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 26,
+      "file_name": "data/ar5001.bif",
+      "file_size": 9269765,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 27,
+      "file_name": "data/splbam.bif",
+      "file_size": 19721700,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 28,
+      "file_name": "data/ar5000.bif",
+      "file_size": 2157958,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 29,
+      "file_name": "data/bcseh.bif",
+      "file_size": 433033,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 30,
+      "file_name": "data/bcsde.bif",
+      "file_size": 132525,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 31,
+      "file_name": "data/bcskp.bif",
+      "file_size": 29575,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 32,
+      "file_name": "data/sndgen.bif",
+      "file_size": 19631807,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 33,
+      "file_name": "data/ar4000.bif",
+      "file_size": 2389710,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 34,
+      "file_name": "data/ar4001.bif",
+      "file_size": 14545582,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 35,
+      "file_name": "data/ar4002.bif",
+      "file_size": 14545235,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 36,
+      "file_name": "data/ar4005.bif",
+      "file_size": 15186450,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 37,
+      "file_name": "data/ar4003.bif",
+      "file_size": 14565249,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 38,
+      "file_name": "data/ar4004.bif",
+      "file_size": 15443613,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 39,
+      "file_name": "data/ar3502.bif",
+      "file_size": 7344630,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 40,
+      "file_name": "data/ar3602.bif",
+      "file_size": 9923804,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 41,
+      "file_name": "data/ar3603.bif",
+      "file_size": 1579480,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 42,
+      "file_name": "data/ar600a.bif",
+      "file_size": 7109249,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 43,
+      "file_name": "data/ar6000.bif",
+      "file_size": 2189048,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 44,
+      "file_name": "data/ar6002.bif",
+      "file_size": 10655253,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 45,
+      "file_name": "data/ar6003.bif",
+      "file_size": 10105025,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 46,
+      "file_name": "data/ar600b.bif",
+      "file_size": 13938861,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 47,
+      "file_name": "data/ar6005.bif",
+      "file_size": 6679418,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 48,
+      "file_name": "data/ar6006.bif",
+      "file_size": 7328922,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 49,
+      "file_name": "data/ar1000.bif",
+      "file_size": 14941010,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 50,
+      "file_name": "data/ar210a.bif",
+      "file_size": 4136600,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 51,
+      "file_name": "data/ar6001.bif",
+      "file_size": 14503189,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 52,
+      "file_name": "data/ar6010.bif",
+      "file_size": 2630418,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 53,
+      "file_name": "data/ar6011.bif",
+      "file_size": 964273,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 54,
+      "file_name": "data/ar100b.bif",
+      "file_size": 8898048,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 55,
+      "file_name": "data/ar3001.bif",
+      "file_size": 2151808,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 56,
+      "file_name": "data/splfile.bif",
+      "file_size": 841330,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 57,
+      "file_name": "data/ar3503.bif",
+      "file_size": 8454668,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 58,
+      "file_name": "data/chranim.bif",
+      "file_size": 109003186,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 59,
+      "file_name": "data/ar3600.bif",
+      "file_size": 2188880,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 60,
+      "file_name": "data/bcsde2.bif",
+      "file_size": 77093,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 61,
+      "file_name": "data/itmbam.bif",
+      "file_size": 12181869,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 62,
+      "file_name": "data/itminv.bif",
+      "file_size": 165287,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 63,
+      "file_name": "data/guimisc.bif",
+      "file_size": 6430,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 64,
+      "file_name": "data/bammisc.bif",
+      "file_size": 5829128,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 65,
+      "file_name": "data/bcsde3.bif",
+      "file_size": 27800,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 66,
+      "file_name": "data/ar5002.bif",
+      "file_size": 10073742,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 67,
+      "file_name": "data/ar5003.bif",
+      "file_size": 8765366,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 68,
+      "file_name": "data/ar5004.bif",
+      "file_size": 8898604,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 69,
+      "file_name": "data/ar800a.bif",
+      "file_size": 2560418,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 70,
+      "file_name": "data/bcsud.bif",
+      "file_size": 127699,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 71,
+      "file_name": "data/bcsku.bif",
+      "file_size": 624193,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 72,
+      "file_name": "data/ar5102.bif",
+      "file_size": 1766417,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 73,
+      "file_name": "data/ar5103.bif",
+      "file_size": 2417345,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 74,
+      "file_name": "data/ar5104.bif",
+      "file_size": 2493504,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 75,
+      "file_name": "data/ar5201.bif",
+      "file_size": 2943334,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 76,
+      "file_name": "data/ar5204.bif",
+      "file_size": 2522711,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 77,
+      "file_name": "data/ar5402.bif",
+      "file_size": 1204497,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 78,
+      "file_name": "data/ar5403.bif",
+      "file_size": 1342471,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 79,
+      "file_name": "data/ar5404.bif",
+      "file_size": 1637104,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 80,
+      "file_name": "data/ar5401.bif",
+      "file_size": 2253451,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 81,
+      "file_name": "data/ar5101.bif",
+      "file_size": 1866089,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 82,
+      "file_name": "data/ar5203.bif",
+      "file_size": 2200362,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 83,
+      "file_name": "data/ar5301.bif",
+      "file_size": 2253959,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 84,
+      "file_name": "data/ar5302.bif",
+      "file_size": 2208051,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 85,
+      "file_name": "data/ar5303.bif",
+      "file_size": 2436076,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 86,
+      "file_name": "data/ar5304.bif",
+      "file_size": 2110617,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 87,
+      "file_name": "data/ar5202.bif",
+      "file_size": 2111358,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 88,
+      "file_name": "data/mvefile1.bif",
+      "file_size": 109932604,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 89,
+      "file_name": "data/bcstfg.bif",
+      "file_size": 61265,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 90,
+      "file_name": "data/ar210b.bif",
+      "file_size": 4267149,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 91,
+      "file_name": "data/ar800b.bif",
+      "file_size": 13601978,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 92,
+      "file_name": "data/bcsde4.bif",
+      "file_size": 78054,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 93,
+      "file_name": "data/bcsde5.bif",
+      "file_size": 76828,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 94,
+      "file_name": "data/ar7000.bif",
+      "file_size": 2233964,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 95,
+      "file_name": "data/ar700a.bif",
+      "file_size": 2930458,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 96,
+      "file_name": "data/ar8008.bif",
+      "file_size": 5893809,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 97,
+      "file_name": "data/ar100c.bif",
+      "file_size": 6199168,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 98,
+      "file_name": "data/ar100d.bif",
+      "file_size": 5072154,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 99,
+      "file_name": "data/ar7004.bif",
+      "file_size": 14535279,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 100,
+      "file_name": "data/ar7005.bif",
+      "file_size": 14670192,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 101,
+      "file_name": "data/ar8001.bif",
+      "file_size": 14816272,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 102,
+      "file_name": "data/ar5502.bif",
+      "file_size": 1479369,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 103,
+      "file_name": "data/ar110a.bif",
+      "file_size": 4723600,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 104,
+      "file_name": "data/ar110b.bif",
+      "file_size": 2418063,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 105,
+      "file_name": "data/ar1105.bif",
+      "file_size": 3915734,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 106,
+      "file_name": "data/ar110c.bif",
+      "file_size": 3511548,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 107,
+      "file_name": "data/bcsvs.bif",
+      "file_size": 184243,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 108,
+      "file_name": "data/ar7001.bif",
+      "file_size": 15083994,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 109,
+      "file_name": "data/ar8010.bif",
+      "file_size": 4113166,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 110,
+      "file_name": "data/ar8009.bif",
+      "file_size": 14691439,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 111,
+      "file_name": "data/ar800c.bif",
+      "file_size": 19307170,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 112,
+      "file_name": "data/ar200b.bif",
+      "file_size": 1939843,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 113,
+      "file_name": "data/ar2000.bif",
+      "file_size": 10094001,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 114,
+      "file_name": "data/ar120x.bif",
+      "file_size": 13040229,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 115,
+      "file_name": "data/ar8011.bif",
+      "file_size": 14506211,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 116,
+      "file_name": "data/ar8012.bif",
+      "file_size": 5337803,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 117,
+      "file_name": "data/ar8013.bif",
+      "file_size": 4327871,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 118,
+      "file_name": "data/bcscv.bif",
+      "file_size": 4236,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 119,
+      "file_name": "data/ar210c.bif",
+      "file_size": 3831256,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 120,
+      "file_name": "data/ar210d.bif",
+      "file_size": 3225671,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 121,
+      "file_name": "data/ar1100.bif",
+      "file_size": 15069309,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 122,
+      "file_name": "data/bcsld.bif",
+      "file_size": 509159,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 123,
+      "file_name": "data/bcssh.bif",
+      "file_size": 759275,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 124,
+      "file_name": "data/bcswt.bif",
+      "file_size": 97519,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 125,
+      "file_name": "data/creanim2.bif",
+      "file_size": 61579058,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 126,
+      "file_name": "data/sndcreat.bif",
+      "file_size": 16328156,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 127,
+      "file_name": "data/bcsee.bif",
+      "file_size": 193078,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 128,
+      "file_name": "data/sndvo.bif",
+      "file_size": 59264631,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 129,
+      "file_name": "data/mvefilel.bif",
+      "file_size": 16833788,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 130,
+      "file_name": "data/mvefile2.bif",
+      "file_size": 149557204,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 131,
+      "file_name": "data/sndspell.bif",
+      "file_size": 22416309,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 132,
+      "file_name": "data/cremshr.bif",
+      "file_size": 5227648,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 133,
+      "file_name": "data/cremgir.bif",
+      "file_size": 12774301,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 134,
+      "file_name": "data/cremetn.bif",
+      "file_size": 12907720,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 135,
+      "file_name": "data/cremcyc.bif",
+      "file_size": 16792327,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 136,
+      "file_name": "data/cremtan.bif",
+      "file_size": 9663354,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 137,
+      "file_name": "data/crembe2.bif",
+      "file_size": 2854311,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 138,
+      "file_name": "data/crembe1.bif",
+      "file_size": 15408869,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 139,
+      "file_name": "data/crembrh.bif",
+      "file_size": 12783242,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 140,
+      "file_name": "data/cremgfi.bif",
+      "file_size": 19824342,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 141,
+      "file_name": "data/cremgfr.bif",
+      "file_size": 20868303,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 142,
+      "file_name": "data/cremli3.bif",
+      "file_size": 10705557,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 143,
+      "file_name": "data/cremyu3.bif",
+      "file_size": 2628488,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 144,
+      "file_name": "data/cremyu2.bif",
+      "file_size": 6295127,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 145,
+      "file_name": "data/cremyu1.bif",
+      "file_size": 4861209,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 146,
+      "file_name": "data/cremaru.bif",
+      "file_size": 2416232,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 147,
+      "file_name": "data/creman2.bif",
+      "file_size": 2697548,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 148,
+      "file_name": "data/creman3.bif",
+      "file_size": 3501319,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 149,
+      "file_name": "data/cremani.bif",
+      "file_size": 3288782,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 150,
+      "file_name": "data/cremno3.bif",
+      "file_size": 6278060,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 151,
+      "file_name": "data/cremler.bif",
+      "file_size": 2135413,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 152,
+      "file_name": "data/cremhis.bif",
+      "file_size": 2349938,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 153,
+      "file_name": "data/cremgve.bif",
+      "file_size": 8112092,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 154,
+      "file_name": "data/cremmy2.bif",
+      "file_size": 5580867,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 155,
+      "file_name": "data/cremmyc.bif",
+      "file_size": 5809548,
+      "file": null,
+      "directory": {
+        "Unknown": 9
+      }
+    },
+    {
+      "index": 156,
+      "file_name": "data/ear9100.bif",
+      "file_size": 14944694,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 157,
+      "file_name": "data/ear910a.bif",
+      "file_size": 7819663,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 158,
+      "file_name": "data/ear910b.bif",
+      "file_size": 4719885,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 159,
+      "file_name": "data/ear9200.bif",
+      "file_size": 14685867,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 160,
+      "file_name": "data/ear9201.bif",
+      "file_size": 1663236,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 161,
+      "file_name": "data/ear9300.bif",
+      "file_size": 14434674,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 162,
+      "file_name": "data/ear9400.bif",
+      "file_size": 14216248,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 163,
+      "file_name": "data/ear9500.bif",
+      "file_size": 14674299,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 164,
+      "file_name": "data/ear9501.bif",
+      "file_size": 14347574,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 165,
+      "file_name": "data/ear9502.bif",
+      "file_size": 14427826,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 166,
+      "file_name": "data/ear9600.bif",
+      "file_size": 7881456,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 167,
+      "file_name": "data/ear9601.bif",
+      "file_size": 3704532,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 168,
+      "file_name": "data/ear9602.bif",
+      "file_size": 14206344,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 169,
+      "file_name": "data/ear9603.bif",
+      "file_size": 7615249,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 170,
+      "file_name": "data/ebcslw.bif",
+      "file_size": 540149,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 171,
+      "file_name": "data/ebcsef.bif",
+      "file_size": 44472,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 172,
+      "file_name": "data/edlg.bif",
+      "file_size": 154347,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 173,
+      "file_name": "data/e2da.bif",
+      "file_size": 3785,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 174,
+      "file_name": "data/eare.bif",
+      "file_size": 303732,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 175,
+      "file_name": "data/espl.bif",
+      "file_size": 104580,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 176,
+      "file_name": "data/esto.bif",
+      "file_size": 16444,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 177,
+      "file_name": "data/ecre.bif",
+      "file_size": 191648,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 178,
+      "file_name": "data/ecmbar.bif",
+      "file_size": 13609654,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 179,
+      "file_name": "data/ecmbas.bif",
+      "file_size": 5770966,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 180,
+      "file_name": "data/ecmbai.bif",
+      "file_size": 2580631,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 181,
+      "file_name": "data/ecmscr.bif",
+      "file_size": 3646655,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 182,
+      "file_name": "data/eitm.bif",
+      "file_size": 81282,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 183,
+      "file_name": "data/ecahrs.bif",
+      "file_size": 118321,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 184,
+      "file_name": "data/egui.bif",
+      "file_size": 7869113,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 185,
+      "file_name": "data/esplbam.bif",
+      "file_size": 14265765,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 186,
+      "file_name": "data/ebcsgn.bif",
+      "file_size": 137195,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 187,
+      "file_name": "data/eitmbam.bif",
+      "file_size": 138554,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 188,
+      "file_name": "data/ecmwav.bif",
+      "file_size": 2148665,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 189,
+      "file_name": "data/ebcsbc.bif",
+      "file_size": 335728,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 190,
+      "file_name": "data/ear9301.bif",
+      "file_size": 423090,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 191,
+      "file_name": "data/eguiico.bif",
+      "file_size": 618435,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 192,
+      "file_name": "data/ebcsba.bif",
+      "file_size": 72157,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 193,
+      "file_name": "data/ebcsil.bif",
+      "file_size": 299648,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 194,
+      "file_name": "data/ebcssc.bif",
+      "file_size": 60791,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 195,
+      "file_name": "data/ebcsid.bif",
+      "file_size": 38602,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 196,
+      "file_name": "data/eartprt.bif",
+      "file_size": 3756576,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 197,
+      "file_name": "data/ecmsah.bif",
+      "file_size": 5198026,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 198,
+      "file_name": "data/ewpnani.bif",
+      "file_size": 19735570,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 199,
+      "file_name": "data/earini.bif",
+      "file_size": 8024,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 200,
+      "file_name": "data/ecmdrd.bif",
+      "file_size": 3663998,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 201,
+      "file_name": "data/ecmgic.bif",
+      "file_size": 7880558,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 202,
+      "file_name": "data/ecmum2.bif",
+      "file_size": 6907157,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 203,
+      "file_name": "data/ecmgla.bif",
+      "file_size": 7060306,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 204,
+      "file_name": "data/ecmcor.bif",
+      "file_size": 9819688,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 205,
+      "file_name": "data/ecmsat.bif",
+      "file_size": 9206251,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 206,
+      "file_name": "data/ecmwi4.bif",
+      "file_size": 3222901,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 207,
+      "file_name": "data/ecmwdr.bif",
+      "file_size": 25006358,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 208,
+      "file_name": "data/ecmgwe.bif",
+      "file_size": 715714,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 209,
+      "file_name": "data/ecmeae.bif",
+      "file_size": 4242176,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 210,
+      "file_name": "data/ecmrem.bif",
+      "file_size": 13062299,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 211,
+      "file_name": "data/eids.bif",
+      "file_size": 1365,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 212,
+      "file_name": "data/emovwotc.bif",
+      "file_size": 1336706,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 213,
+      "file_name": "data/ecmsee.bif",
+      "file_size": 1584215,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 214,
+      "file_name": "data/esfxspl.bif",
+      "file_size": 5445533,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 215,
+      "file_name": "data/emov1.bif",
+      "file_size": 68943642,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 216,
+      "file_name": "data/esfxamb.bif",
+      "file_size": 23278839,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 217,
+      "file_name": "data/esfxvo.bif",
+      "file_size": 24766169,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 218,
+      "file_name": "data/ecmwwe.bif",
+      "file_size": 3938541,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 219,
+      "file_name": "data/ecmwy2.bif",
+      "file_size": 2264566,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 220,
+      "file_name": "data/esfxcre.bif",
+      "file_size": 2999439,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 221,
+      "file_name": "data/ear9604.bif",
+      "file_size": 7797986,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 222,
+      "file_name": "data/esfxmsc.bif",
+      "file_size": 181179,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 223,
+      "file_name": "data/emovcred.bif",
+      "file_size": 12851448,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 224,
+      "file_name": "data/eplt.bif",
+      "file_size": 246020,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 225,
+      "file_name": "data/ecmba4.bif",
+      "file_size": 2587013,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 226,
+      "file_name": "data/esfxvoh.bif",
+      "file_size": 13956216,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 227,
+      "file_name": "data/emov2.bif",
+      "file_size": 48522336,
+      "file": null,
+      "directory": {
+        "Unknown": 17
+      }
+    },
+    {
+      "index": 228,
+      "file_name": "data/zar9800.bif",
+      "file_size": 14602057,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 229,
+      "file_name": "data/zare.bif",
+      "file_size": 331504,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 230,
+      "file_name": "data/zcre.bif",
+      "file_size": 137540,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 231,
+      "file_name": "data/zar9801.bif",
+      "file_size": 14209264,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 232,
+      "file_name": "data/zar9713.bif",
+      "file_size": 971123,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 233,
+      "file_name": "data/zar9700.bif",
+      "file_size": 6215609,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 234,
+      "file_name": "data/zar9701.bif",
+      "file_size": 950986,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 235,
+      "file_name": "data/zar9702.bif",
+      "file_size": 1500844,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 236,
+      "file_name": "data/zar9703.bif",
+      "file_size": 950926,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 237,
+      "file_name": "data/zar9704.bif",
+      "file_size": 1495728,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 238,
+      "file_name": "data/zar9705.bif",
+      "file_size": 1029352,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 239,
+      "file_name": "data/zar9706.bif",
+      "file_size": 1490126,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 240,
+      "file_name": "data/zar9707.bif",
+      "file_size": 1028872,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 241,
+      "file_name": "data/zar9708.bif",
+      "file_size": 1490344,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 242,
+      "file_name": "data/zar9709.bif",
+      "file_size": 1255452,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 243,
+      "file_name": "data/zar9710.bif",
+      "file_size": 1285064,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 244,
+      "file_name": "data/zar9711.bif",
+      "file_size": 7233704,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 245,
+      "file_name": "data/zar9712.bif",
+      "file_size": 7140689,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 246,
+      "file_name": "data/zar9714.bif",
+      "file_size": 15534652,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 247,
+      "file_name": "data/zar9715.bif",
+      "file_size": 253790,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 248,
+      "file_name": "data/zar9716.bif",
+      "file_size": 4050972,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 249,
+      "file_name": "data/zcmdog.bif",
+      "file_size": 182379,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 250,
+      "file_name": "data/zbcs.bif",
+      "file_size": 1706532,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 251,
+      "file_name": "data/zcmbeh.bif",
+      "file_size": 5703018,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 252,
+      "file_name": "data/zcmrak.bif",
+      "file_size": 1654800,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 253,
+      "file_name": "data/zcmsli.bif",
+      "file_size": 528911,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 254,
+      "file_name": "data/zcmhar.bif",
+      "file_size": 7057186,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 255,
+      "file_name": "data/zids.bif",
+      "file_size": 273,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 256,
+      "file_name": "data/zcmdjl.bif",
+      "file_size": 1521797,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 257,
+      "file_name": "data/zspl.bif",
+      "file_size": 10680,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 258,
+      "file_name": "data/zini.bif",
+      "file_size": 12288,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 259,
+      "file_name": "data/zgui.bif",
+      "file_size": 1025020,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 260,
+      "file_name": "data/zitm.bif",
+      "file_size": 27586,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 261,
+      "file_name": "data/zport.bif",
+      "file_size": 1609952,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 262,
+      "file_name": "data/zsto.bif",
+      "file_size": 3576,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 263,
+      "file_name": "data/zdlg.bif",
+      "file_size": 20836,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 264,
+      "file_name": "data/zsfxcre.bif",
+      "file_size": 1146687,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 265,
+      "file_name": "data/zar9717.bif",
+      "file_size": 8455316,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 266,
+      "file_name": "data/zar9718.bif",
+      "file_size": 3084980,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 267,
+      "file_name": "data/zguiico.bif",
+      "file_size": 54909,
+      "file": null,
+      "directory": "Cache"
+    }
+  ]
+}

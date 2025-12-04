@@ -1,0 +1,2901 @@
+---
+source: src/core/src/resource/key.rs
+expression: key
+---
+{
+  "file": "",
+  "signature": "KEY",
+  "version": "V1",
+  "resources_offset": 8759,
+  "resources_size": 12135,
+  "bif_offset": 24,
+  "bif_size": 372,
+  "biff_entryies": [
+    {
+      "index": 0,
+      "file_name": "irongolm.bif",
+      "file_size": 946875,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 1,
+      "file_name": "pillar.bif",
+      "file_size": 1242602,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 2,
+      "file_name": "idsfiles.bif",
+      "file_size": 52992,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 3,
+      "file_name": "palette.bif",
+      "file_size": 790628,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 4,
+      "file_name": "ar0500.bif",
+      "file_size": 16730088,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 5,
+      "file_name": "ar0501.bif",
+      "file_size": 2988316,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 6,
+      "file_name": "ar0503.bif",
+      "file_size": 7902208,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 7,
+      "file_name": "ar0504.bif",
+      "file_size": 4588942,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 8,
+      "file_name": "ar0505.bif",
+      "file_size": 1257898,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 9,
+      "file_name": "ar0506.bif",
+      "file_size": 1206014,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 10,
+      "file_name": "ar0507.bif",
+      "file_size": 754210,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 11,
+      "file_name": "ar0508.bif",
+      "file_size": 18357508,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 12,
+      "file_name": "ar0509.bif",
+      "file_size": 1150511,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 13,
+      "file_name": "ar0510.bif",
+      "file_size": 5086456,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 14,
+      "file_name": "ar0600.bif",
+      "file_size": 19572906,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 15,
+      "file_name": "ar0601.bif",
+      "file_size": 12050314,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 16,
+      "file_name": "ar0602.bif",
+      "file_size": 8460848,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 17,
+      "file_name": "ar0603.bif",
+      "file_size": 6363532,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 18,
+      "file_name": "ar0604.bif",
+      "file_size": 2546106,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 19,
+      "file_name": "ar0605.bif",
+      "file_size": 8616040,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 20,
+      "file_name": "ar0606.bif",
+      "file_size": 7002160,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 21,
+      "file_name": "ar0607.bif",
+      "file_size": 1594728,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 22,
+      "file_name": "ar0608.bif",
+      "file_size": 2913854,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 23,
+      "file_name": "ar0609.bif",
+      "file_size": 1093796,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 24,
+      "file_name": "ar0610.bif",
+      "file_size": 25137808,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 25,
+      "file_name": "ar0611.bif",
+      "file_size": 2304186,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 26,
+      "file_name": "ar0612.bif",
+      "file_size": 1095002,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 27,
+      "file_name": "ar0100.bif",
+      "file_size": 6584190,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 28,
+      "file_name": "ar0101.bif",
+      "file_size": 9975504,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 29,
+      "file_name": "ar0102.bif",
+      "file_size": 526114,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 30,
+      "file_name": "ar0103.bif",
+      "file_size": 924932,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 31,
+      "file_name": "ar0104.bif",
+      "file_size": 735476,
+      "file": null,
+      "directory": {
+        "Unknown": 40
+      }
+    },
+    {
+      "index": 32,
+      "file_name": "ar0105.bif",
+      "file_size": 19110848,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 33,
+      "file_name": "ar0106.bif",
+      "file_size": 2854990,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 34,
+      "file_name": "ar0107.bif",
+      "file_size": 2856832,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 35,
+      "file_name": "ar0108.bif",
+      "file_size": 22668376,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 36,
+      "file_name": "ar0109.bif",
+      "file_size": 19978460,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 37,
+      "file_name": "ar0110.bif",
+      "file_size": 10868462,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 38,
+      "file_name": "ar0200.bif",
+      "file_size": 19177818,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 39,
+      "file_name": "ar0201.bif",
+      "file_size": 20534870,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 40,
+      "file_name": "ar0202.bif",
+      "file_size": 22008356,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 41,
+      "file_name": "ar0203.bif",
+      "file_size": 17403120,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 42,
+      "file_name": "ar0205.bif",
+      "file_size": 3374018,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 43,
+      "file_name": "ar0206.bif",
+      "file_size": 956042,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 44,
+      "file_name": "ar0207.bif",
+      "file_size": 955694,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 45,
+      "file_name": "ar0208.bif",
+      "file_size": 20131014,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 46,
+      "file_name": "ar0300.bif",
+      "file_size": 11381472,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 47,
+      "file_name": "ar0301.bif",
+      "file_size": 8201842,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 48,
+      "file_name": "ar0302.bif",
+      "file_size": 1362722,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 49,
+      "file_name": "ar0303.bif",
+      "file_size": 757962,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 50,
+      "file_name": "ar0304.bif",
+      "file_size": 821418,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 51,
+      "file_name": "ar0305.bif",
+      "file_size": 1072676,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 52,
+      "file_name": "ar0306.bif",
+      "file_size": 694994,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 53,
+      "file_name": "ar0700.bif",
+      "file_size": 18158144,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 54,
+      "file_name": "ar0701.bif",
+      "file_size": 20776178,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 55,
+      "file_name": "ar0702.bif",
+      "file_size": 25585249,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 56,
+      "file_name": "ar0703.bif",
+      "file_size": 2345546,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 57,
+      "file_name": "ar0704.bif",
+      "file_size": 12234840,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 58,
+      "file_name": "ar0705.bif",
+      "file_size": 1918848,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 59,
+      "file_name": "ar0706.bif",
+      "file_size": 786412,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 60,
+      "file_name": "ar0707.bif",
+      "file_size": 579420,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 61,
+      "file_name": "ar0708.bif",
+      "file_size": 20697048,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 62,
+      "file_name": "ar0800.bif",
+      "file_size": 25087602,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 63,
+      "file_name": "ar0900.bif",
+      "file_size": 20689594,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 64,
+      "file_name": "ar0901.bif",
+      "file_size": 25873372,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 65,
+      "file_name": "ar0902.bif",
+      "file_size": 2355098,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 66,
+      "file_name": "ar0903.bif",
+      "file_size": 786982,
+      "file": null,
+      "directory": {
+        "Unknown": 40
+      }
+    },
+    {
+      "index": 67,
+      "file_name": "ar0904.bif",
+      "file_size": 578856,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 68,
+      "file_name": "ar1000.bif",
+      "file_size": 19269294,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 69,
+      "file_name": "ar1001.bif",
+      "file_size": 5992834,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 70,
+      "file_name": "ar1100.bif",
+      "file_size": 14484682,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 71,
+      "file_name": "ar1200.bif",
+      "file_size": 14389562,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 72,
+      "file_name": "ar1201.bif",
+      "file_size": 26070384,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 73,
+      "file_name": "ar1202.bif",
+      "file_size": 7594250,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 74,
+      "file_name": "ar1203.bif",
+      "file_size": 3223704,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 75,
+      "file_name": "ar1204.bif",
+      "file_size": 6705773,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 76,
+      "file_name": "ar1400.bif",
+      "file_size": 17495456,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 77,
+      "file_name": "ar1401.bif",
+      "file_size": 2767122,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 78,
+      "file_name": "ar1402.bif",
+      "file_size": 2304940,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 79,
+      "file_name": "ar1403.bif",
+      "file_size": 5101224,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 80,
+      "file_name": "ar1404.bif",
+      "file_size": 3264470,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 81,
+      "file_name": "ar1405.bif",
+      "file_size": 3989822,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 82,
+      "file_name": "ar1500.bif",
+      "file_size": 21662026,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 83,
+      "file_name": "ar1501.bif",
+      "file_size": 6770036,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 84,
+      "file_name": "ar1600.bif",
+      "file_size": 25587172,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 85,
+      "file_name": "ar0400.bif",
+      "file_size": 13629328,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 86,
+      "file_name": "ar0401.bif",
+      "file_size": 9296506,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 87,
+      "file_name": "ar0402.bif",
+      "file_size": 5701368,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 88,
+      "file_name": "ar0403.bif",
+      "file_size": 20978169,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 89,
+      "file_name": "ar0404.bif",
+      "file_size": 3402042,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 90,
+      "file_name": "ar1601.bif",
+      "file_size": 5362280,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 91,
+      "file_name": "ar1700.bif",
+      "file_size": 23083066,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 92,
+      "file_name": "ar1800.bif",
+      "file_size": 16462716,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 93,
+      "file_name": "ar1101.bif",
+      "file_size": 4625496,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 94,
+      "file_name": "interfacedbg.bif",
+      "file_size": 256522,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 95,
+      "file_name": "interface.bif",
+      "file_size": 22568037,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 96,
+      "file_name": "cs_0202.bif",
+      "file_size": 89897,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 97,
+      "file_name": "cs_0203.bif",
+      "file_size": 49149,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 98,
+      "file_name": "ca_adv.bif",
+      "file_size": 1885052,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 99,
+      "file_name": "ca_col.bif",
+      "file_size": 1836949,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 100,
+      "file_name": "ca_cor.bif",
+      "file_size": 5394326,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 101,
+      "file_name": "ca_crn.bif",
+      "file_size": 184739,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 102,
+      "file_name": "ca_cgd.bif",
+      "file_size": 3714230,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 103,
+      "file_name": "ca_ctm.bif",
+      "file_size": 2165726,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 104,
+      "file_name": "ca_ctf.bif",
+      "file_size": 1674588,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 105,
+      "file_name": "ca_dab.bif",
+      "file_size": 1856847,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 106,
+      "file_name": "ca_dhl.bif",
+      "file_size": 2741854,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 107,
+      "file_name": "ca_dei.bif",
+      "file_size": 1462691,
+      "file": null,
+      "directory": {
+        "Unknown": 40
+      }
+    },
+    {
+      "index": 108,
+      "file_name": "ca_hkm.bif",
+      "file_size": 9053505,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 109,
+      "file_name": "ca_lkm.bif",
+      "file_size": 2253922,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 110,
+      "file_name": "ca_wiz.bif",
+      "file_size": 4938142,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 111,
+      "file_name": "ca_dtm.bif",
+      "file_size": 2128768,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 112,
+      "file_name": "ca_dtf.bif",
+      "file_size": 1775453,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 113,
+      "file_name": "ca_ebb.bif",
+      "file_size": 3100948,
+      "file": null,
+      "directory": {
+        "Unknown": 40
+      }
+    },
+    {
+      "index": 114,
+      "file_name": "ca_cam.bif",
+      "file_size": 4296203,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 115,
+      "file_name": "ca_gla.bif",
+      "file_size": 5125615,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 116,
+      "file_name": "ca_gri.bif",
+      "file_size": 1693360,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 117,
+      "file_name": "ca_grk.bif",
+      "file_size": 4062214,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 118,
+      "file_name": "ca_hrs.bif",
+      "file_size": 3787251,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 119,
+      "file_name": "ca_thk.bif",
+      "file_size": 5192103,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 120,
+      "file_name": "ca_tre.bif",
+      "file_size": 2266384,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 121,
+      "file_name": "ca_tgt.bif",
+      "file_size": 4687454,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 122,
+      "file_name": "ca_trc.bif",
+      "file_size": 3846880,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 123,
+      "file_name": "ca_wrm.bif",
+      "file_size": 5902118,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 124,
+      "file_name": "ca_fel.bif",
+      "file_size": 2008606,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 125,
+      "file_name": "ca_fhj.bif",
+      "file_size": 5517055,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 126,
+      "file_name": "ca_gar.bif",
+      "file_size": 1796017,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 127,
+      "file_name": "ca_ghf.bif",
+      "file_size": 1993721,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 128,
+      "file_name": "ca_ghm.bif",
+      "file_size": 1907881,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 129,
+      "file_name": "ca_gst.bif",
+      "file_size": 1412985,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 130,
+      "file_name": "ca_aca.bif",
+      "file_size": 2215273,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 131,
+      "file_name": "ca_god.bif",
+      "file_size": 2012986,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 132,
+      "file_name": "ca_gdg.bif",
+      "file_size": 3135184,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 133,
+      "file_name": "ca_gyt.bif",
+      "file_size": 1728404,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 134,
+      "file_name": "ca_jbr.bif",
+      "file_size": 1128373,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 135,
+      "file_name": "ca_jft.bif",
+      "file_size": 460303,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 136,
+      "file_name": "ca_lop.bif",
+      "file_size": 2265510,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 137,
+      "file_name": "ca_lem.bif",
+      "file_size": 2400835,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 138,
+      "file_name": "ca_lth.bif",
+      "file_size": 2367818,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 139,
+      "file_name": "ca_mht.bif",
+      "file_size": 1693106,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 140,
+      "file_name": "ca_mkl.bif",
+      "file_size": 3142895,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 141,
+      "file_name": "ca_mid.bif",
+      "file_size": 1673552,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 142,
+      "file_name": "ca_mdr.bif",
+      "file_size": 5331639,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 143,
+      "file_name": "ca_npr.bif",
+      "file_size": 1979037,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 144,
+      "file_name": "ca_phd.bif",
+      "file_size": 1238578,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 145,
+      "file_name": "ca_ann.bif",
+      "file_size": 1901144,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 146,
+      "file_name": "ca_dkk.bif",
+      "file_size": 2798344,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 147,
+      "file_name": "ca_ffg.bif",
+      "file_size": 3747849,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 148,
+      "file_name": "ca_igy.bif",
+      "file_size": 4833434,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 149,
+      "file_name": "ca_mrt.bif",
+      "file_size": 431822,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 150,
+      "file_name": "ca_nof.bif",
+      "file_size": 6658545,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 151,
+      "file_name": "ca_noh.bif",
+      "file_size": 4024099,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 152,
+      "file_name": "ca_nod.bif",
+      "file_size": 3150983,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 153,
+      "file_name": "ca_noc.bif",
+      "file_size": 3571118,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 154,
+      "file_name": "ca_noa.bif",
+      "file_size": 3725539,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 155,
+      "file_name": "ca_ndm.bif",
+      "file_size": 4782876,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 156,
+      "file_name": "ca_vha.bif",
+      "file_size": 3830415,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 157,
+      "file_name": "ca_pro.bif",
+      "file_size": 1251194,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 158,
+      "file_name": "ca_puz.bif",
+      "file_size": 2799269,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 159,
+      "file_name": "ca_sm1.bif",
+      "file_size": 2009096,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 160,
+      "file_name": "ca_sm2.bif",
+      "file_size": 1825002,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 161,
+      "file_name": "ca_sm3.bif",
+      "file_size": 4180612,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 162,
+      "file_name": "ca_arm.bif",
+      "file_size": 3738085,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 163,
+      "file_name": "ca_spt.bif",
+      "file_size": 3293417,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 164,
+      "file_name": "ca_skw.bif",
+      "file_size": 1621880,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 165,
+      "file_name": "ca_cth.bif",
+      "file_size": 2021447,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 166,
+      "file_name": "ca_tlr.bif",
+      "file_size": 2650403,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 167,
+      "file_name": "ca_hlf.bif",
+      "file_size": 1629943,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 168,
+      "file_name": "ca_huf.bif",
+      "file_size": 1631168,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 169,
+      "file_name": "ca_hlm.bif",
+      "file_size": 2066706,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 170,
+      "file_name": "ca_hum.bif",
+      "file_size": 2064676,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 171,
+      "file_name": "ca_trz.bif",
+      "file_size": 8682273,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 172,
+      "file_name": "ca_trs.bif",
+      "file_size": 4245620,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 173,
+      "file_name": "ca_vgy.bif",
+      "file_size": 1487649,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 174,
+      "file_name": "ca_wre.bif",
+      "file_size": 3321109,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 175,
+      "file_name": "ca_zmf.bif",
+      "file_size": 1024485,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 176,
+      "file_name": "ca_zmm.bif",
+      "file_size": 1293476,
+      "file": null,
+      "directory": {
+        "Unknown": 25
+      }
+    },
+    {
+      "index": 177,
+      "file_name": "ca_wur.bif",
+      "file_size": 1537395,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 178,
+      "file_name": "ca_abs.bif",
+      "file_size": 4502064,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 179,
+      "file_name": "dlgfiles.bif",
+      "file_size": 3274108,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 180,
+      "file_name": "ar0502.bif",
+      "file_size": 17135426,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 181,
+      "file_name": "cs_9999.bif",
+      "file_size": 2735,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 182,
+      "file_name": "cs_0000.bif",
+      "file_size": 57977,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 183,
+      "file_name": "cs_0103.bif",
+      "file_size": 13339,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 184,
+      "file_name": "cs_0107.bif",
+      "file_size": 3284,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 185,
+      "file_name": "cs_0108.bif",
+      "file_size": 83497,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 186,
+      "file_name": "cs_0302.bif",
+      "file_size": 3865,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 187,
+      "file_name": "cs_0403.bif",
+      "file_size": 67697,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 188,
+      "file_name": "cs_0404.bif",
+      "file_size": 7597,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 189,
+      "file_name": "cs_0509.bif",
+      "file_size": 10075,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 190,
+      "file_name": "cs_1101.bif",
+      "file_size": 33040,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 191,
+      "file_name": "cursors.bif",
+      "file_size": 55373,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 192,
+      "file_name": "roundbmp.bif",
+      "file_size": 2230,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 193,
+      "file_name": "cs_0200.bif",
+      "file_size": 277787,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 194,
+      "file_name": "cs_0300.bif",
+      "file_size": 442265,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 195,
+      "file_name": "effects.bif",
+      "file_size": 1349447,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 196,
+      "file_name": "ar0511.bif",
+      "file_size": 1757803,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 197,
+      "file_name": "ar0512.bif",
+      "file_size": 3267166,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 198,
+      "file_name": "ar0513.bif",
+      "file_size": 3266118,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 199,
+      "file_name": "cs_0902.bif",
+      "file_size": 25476,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 200,
+      "file_name": "ca_bau.bif",
+      "file_size": 3240524,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 201,
+      "file_name": "spells.bif",
+      "file_size": 112396125,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 202,
+      "file_name": "ca_nos.bif",
+      "file_size": 6007190,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 203,
+      "file_name": "ca_noz.bif",
+      "file_size": 3146922,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 204,
+      "file_name": "cs_0100.bif",
+      "file_size": 293448,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 205,
+      "file_name": "cs_0400.bif",
+      "file_size": 434388,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 206,
+      "file_name": "cs_0101.bif",
+      "file_size": 117500,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 207,
+      "file_name": "genmova.bif",
+      "file_size": 63750188,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 208,
+      "file_name": "ar13wz.bif",
+      "file_size": 4554379,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 209,
+      "file_name": "ar13en.bif",
+      "file_size": 2551026,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 210,
+      "file_name": "ar13fd.bif",
+      "file_size": 2417320,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 211,
+      "file_name": "ar13g1.bif",
+      "file_size": 3020512,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 212,
+      "file_name": "ar13g2.bif",
+      "file_size": 2537652,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 213,
+      "file_name": "ar13g3.bif",
+      "file_size": 2535678,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 214,
+      "file_name": "cs_0102.bif",
+      "file_size": 5446,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 215,
+      "file_name": "ar13fy.bif",
+      "file_size": 2497162,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 216,
+      "file_name": "cs_0205.bif",
+      "file_size": 111591,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 217,
+      "file_name": "cs_0301.bif",
+      "file_size": 145598,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 218,
+      "file_name": "cs_0402.bif",
+      "file_size": 78728,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 219,
+      "file_name": "cs_0201.bif",
+      "file_size": 51138,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 220,
+      "file_name": "cs_0106.bif",
+      "file_size": 605,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 221,
+      "file_name": "ar1900.bif",
+      "file_size": 25066296,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 222,
+      "file_name": "ar2000.bif",
+      "file_size": 25409568,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 223,
+      "file_name": "arescrpt.bif",
+      "file_size": 772030,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 224,
+      "file_name": "store.bif",
+      "file_size": 67112,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 225,
+      "file_name": "cs_0512.bif",
+      "file_size": 119494,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 226,
+      "file_name": "cs_1500.bif",
+      "file_size": 379088,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 227,
+      "file_name": "cachemos.bif",
+      "file_size": 16490278,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 228,
+      "file_name": "jrnlpic.bif",
+      "file_size": 32756088,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 229,
+      "file_name": "ca_tff.bif",
+      "file_size": 1655911,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 230,
+      "file_name": "cs_1405.bif",
+      "file_size": 4717,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 231,
+      "file_name": "cs_1601.bif",
+      "file_size": 42004,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 232,
+      "file_name": "cs_0511.bif",
+      "file_size": 17507,
+      "file": "/home/ufo/workspaces/github_ufoscout/baldurs_gate/infinitier/src/core/tests/resources/pst/CS_0511.bif",
+      "directory": "Cache"
+    },
+    {
+      "index": 233,
+      "file_name": "startup.bif",
+      "file_size": 58784,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 234,
+      "file_name": "ca_tfm.bif",
+      "file_size": 2239255,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 235,
+      "file_name": "cs_1700.bif",
+      "file_size": 70302,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 236,
+      "file_name": "cs_0109.bif",
+      "file_size": 137132,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 237,
+      "file_name": "ca_har.bif",
+      "file_size": 3384523,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 238,
+      "file_name": "ca_aaf.bif",
+      "file_size": 1848821,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 239,
+      "file_name": "cs_0601.bif",
+      "file_size": 349964,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 240,
+      "file_name": "cs_0602.bif",
+      "file_size": 40414,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 241,
+      "file_name": "cs_0604.bif",
+      "file_size": 39657,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 242,
+      "file_name": "cs_0305.bif",
+      "file_size": 16621,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 243,
+      "file_name": "ar0613.bif",
+      "file_size": 577150,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 244,
+      "file_name": "cs_0608.bif",
+      "file_size": 29687,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 245,
+      "file_name": "cs_0612.bif",
+      "file_size": 40317,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 246,
+      "file_name": "cs_0600.bif",
+      "file_size": 279395,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 247,
+      "file_name": "ar0209.bif",
+      "file_size": 2170138,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 248,
+      "file_name": "cs_0208.bif",
+      "file_size": 74441,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 249,
+      "file_name": "cs_0209.bif",
+      "file_size": 7513,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 250,
+      "file_name": "cs_0504.bif",
+      "file_size": 240962,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 251,
+      "file_name": "inifiles.bif",
+      "file_size": 377076,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 252,
+      "file_name": "cs_0500.bif",
+      "file_size": 196303,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 253,
+      "file_name": "cs_0611.bif",
+      "file_size": 23038,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 254,
+      "file_name": "cs_0603.bif",
+      "file_size": 30723,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 255,
+      "file_name": "cs_0607.bif",
+      "file_size": 9857,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 256,
+      "file_name": "cs_0513.bif",
+      "file_size": 5769,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 257,
+      "file_name": "cs_0110.bif",
+      "file_size": 31482,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 258,
+      "file_name": "cs_1404.bif",
+      "file_size": 2821,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 259,
+      "file_name": "ca_twz.bif",
+      "file_size": 2631355,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 260,
+      "file_name": "2dafiles.bif",
+      "file_size": 103613,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 261,
+      "file_name": "sound.bif",
+      "file_size": 93967727,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 262,
+      "file_name": "ca_gab.bif",
+      "file_size": 4514080,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 263,
+      "file_name": "ca_rab.bif",
+      "file_size": 4593011,
+      "file": null,
+      "directory": {
+        "Unknown": 48
+      }
+    },
+    {
+      "index": 264,
+      "file_name": "cs_0503.bif",
+      "file_size": 31471,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 265,
+      "file_name": "cs_1100.bif",
+      "file_size": 70570,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 266,
+      "file_name": "ar3002.bif",
+      "file_size": 758236,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 267,
+      "file_name": "ar3003.bif",
+      "file_size": 759762,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 268,
+      "file_name": "ar3004.bif",
+      "file_size": 751974,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 269,
+      "file_name": "ar3005.bif",
+      "file_size": 755143,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 270,
+      "file_name": "ar3006.bif",
+      "file_size": 752006,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 271,
+      "file_name": "ar3007.bif",
+      "file_size": 420638,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 272,
+      "file_name": "ar3008.bif",
+      "file_size": 420070,
+      "file": null,
+      "directory": {
+        "Unknown": 24
+      }
+    },
+    {
+      "index": 273,
+      "file_name": "ar3009.bif",
+      "file_size": 2168414,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 274,
+      "file_name": "ar3010.bif",
+      "file_size": 420930,
+      "file": null,
+      "directory": {
+        "Unknown": 40
+      }
+    },
+    {
+      "index": 275,
+      "file_name": "ar3011.bif",
+      "file_size": 420242,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 276,
+      "file_name": "ar3012.bif",
+      "file_size": 1779340,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 277,
+      "file_name": "ar3013.bif",
+      "file_size": 1101614,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 278,
+      "file_name": "ar3001.bif",
+      "file_size": 3925552,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 279,
+      "file_name": "ar3014.bif",
+      "file_size": 752420,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 280,
+      "file_name": "cs_1800.bif",
+      "file_size": 23844,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 281,
+      "file_name": "cs_1400.bif",
+      "file_size": 54751,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 282,
+      "file_name": "cs_1401.bif",
+      "file_size": 1135,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 283,
+      "file_name": "cs_1501.bif",
+      "file_size": 41349,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 284,
+      "file_name": "ca_nod2.bif",
+      "file_size": 2129173,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 285,
+      "file_name": "ar0405.bif",
+      "file_size": 1864522,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 286,
+      "file_name": "cs_0506.bif",
+      "file_size": 5131,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 287,
+      "file_name": "cs_1000.bif",
+      "file_size": 22703,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 288,
+      "file_name": "cs_1600.bif",
+      "file_size": 221890,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 289,
+      "file_name": "items.bif",
+      "file_size": 1908997,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 290,
+      "file_name": "crefiles.bif",
+      "file_size": 1440518,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 291,
+      "file_name": "voice.bif",
+      "file_size": 57916644,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 292,
+      "file_name": "cs_1402.bif",
+      "file_size": 935,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 293,
+      "file_name": "cs_1403.bif",
+      "file_size": 1240,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 294,
+      "file_name": "cs_0502.bif",
+      "file_size": 87321,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 295,
+      "file_name": "ar3015.bif",
+      "file_size": 2997466,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 296,
+      "file_name": "ar3016.bif",
+      "file_size": 752042,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 297,
+      "file_name": "cs_1300.bif",
+      "file_size": 24350,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 298,
+      "file_name": "traps.bif",
+      "file_size": 671918,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 299,
+      "file_name": "ar3017.bif",
+      "file_size": 17494662,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 300,
+      "file_name": "ca_uhd.bif",
+      "file_size": 23460,
+      "file": null,
+      "directory": {
+        "Unknown": 16
+      }
+    },
+    {
+      "index": 301,
+      "file_name": "cs_3006a.bif",
+      "file_size": 14717,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 302,
+      "file_name": "cs_3004a.bif",
+      "file_size": 2622,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 303,
+      "file_name": "cs_3005a.bif",
+      "file_size": 2622,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 304,
+      "file_name": "cs_3010a.bif",
+      "file_size": 2901,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 305,
+      "file_name": "cs_3004b.bif",
+      "file_size": 1825,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 306,
+      "file_name": "cs_3005b.bif",
+      "file_size": 1825,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 307,
+      "file_name": "cs_0903.bif",
+      "file_size": 1825,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 308,
+      "file_name": "cs_3009.bif",
+      "file_size": 7099,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 309,
+      "file_name": "cs_0306a.bif",
+      "file_size": 4395,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 310,
+      "file_name": "cs_3006d.bif",
+      "file_size": 3038,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 311,
+      "file_name": "cs_0104a.bif",
+      "file_size": 1059,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 312,
+      "file_name": "cs_3007a.bif",
+      "file_size": 1134,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 313,
+      "file_name": "cs_0401.bif",
+      "file_size": 11866,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 314,
+      "file_name": "cs_3007c.bif",
+      "file_size": 2996,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 315,
+      "file_name": "cs_3012.bif",
+      "file_size": 88210,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 316,
+      "file_name": "cs_0610.bif",
+      "file_size": 198161,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 317,
+      "file_name": "mrtghost.bif",
+      "file_size": 10571,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 318,
+      "file_name": "cs_0304.bif",
+      "file_size": 3948,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 319,
+      "file_name": "cs_3002a.bif",
+      "file_size": 1825,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 320,
+      "file_name": "cs_3003.bif",
+      "file_size": 1825,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 321,
+      "file_name": "cs_0605.bif",
+      "file_size": 464714,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 322,
+      "file_name": "cs_0700.bif",
+      "file_size": 70178,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 323,
+      "file_name": "ca_nom.bif",
+      "file_size": 2537915,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 324,
+      "file_name": "cs_0606.bif",
+      "file_size": 27034,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 325,
+      "file_name": "arefiles.bif",
+      "file_size": 1313176,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 326,
+      "file_name": "cs_0701.bif",
+      "file_size": 205151,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 327,
+      "file_name": "cs_0505.bif",
+      "file_size": 16310,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 328,
+      "file_name": "cs_0508.bif",
+      "file_size": 26812,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 329,
+      "file_name": "cs_pc.bif",
+      "file_size": 11750,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 330,
+      "file_name": "cs_0405.bif",
+      "file_size": 20764,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 331,
+      "file_name": "cs_3005c.bif",
+      "file_size": 424,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 332,
+      "file_name": "cs_1900.bif",
+      "file_size": 60022,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 333,
+      "file_name": "cs_0609.bif",
+      "file_size": 43376,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 334,
+      "file_name": "cs_0706b.bif",
+      "file_size": 7779,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 335,
+      "file_name": "cs_0510.bif",
+      "file_size": 3393,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 336,
+      "file_name": "cs_0705.bif",
+      "file_size": 1655,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 337,
+      "file_name": "ca_qui.bif",
+      "file_size": 605588,
+      "file": null,
+      "directory": {
+        "Unknown": 56
+      }
+    },
+    {
+      "index": 338,
+      "file_name": "cs_0702.bif",
+      "file_size": 23901,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 339,
+      "file_name": "cs_0105.bif",
+      "file_size": 884,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 340,
+      "file_name": "cs_2000.bif",
+      "file_size": 120346,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 341,
+      "file_name": "cs_0303.bif",
+      "file_size": 1230,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 342,
+      "file_name": "cs_3008b.bif",
+      "file_size": 776,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 343,
+      "file_name": "cs_3008d.bif",
+      "file_size": 776,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 344,
+      "file_name": "cs_3008e.bif",
+      "file_size": 776,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 345,
+      "file_name": "cs_3008f.bif",
+      "file_size": 776,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 346,
+      "file_name": "cs_0704.bif",
+      "file_size": 37157,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 347,
+      "file_name": "cs_0708.bif",
+      "file_size": 33046,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 348,
+      "file_name": "cs_0703.bif",
+      "file_size": 15867,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 349,
+      "file_name": "cs_0901.bif",
+      "file_size": 71132,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 350,
+      "file_name": "cs_0900.bif",
+      "file_size": 254936,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 351,
+      "file_name": "cs_0800.bif",
+      "file_size": 321,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 352,
+      "file_name": "cs_1001.bif",
+      "file_size": 10586,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 353,
+      "file_name": "cs_0706.bif",
+      "file_size": 2437,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 354,
+      "file_name": "cs_0707.bif",
+      "file_size": 1535,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 355,
+      "file_name": "cs_3001.bif",
+      "file_size": 36728,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 356,
+      "file_name": "cs_1201.bif",
+      "file_size": 183195,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 357,
+      "file_name": "cs_3015.bif",
+      "file_size": 6822,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 358,
+      "file_name": "cs_0904.bif",
+      "file_size": 1234,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 359,
+      "file_name": "cs_3016.bif",
+      "file_size": 5864,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 360,
+      "file_name": "cs_1202.bif",
+      "file_size": 30080,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 361,
+      "file_name": "movies2.bif",
+      "file_size": 79991492,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 362,
+      "file_name": "movies4.bif",
+      "file_size": 131208652,
+      "file": null,
+      "directory": {
+        "Unknown": 32
+      }
+    },
+    {
+      "index": 363,
+      "file_name": "cs_1204.bif",
+      "file_size": 126384,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 364,
+      "file_name": "cs_1203.bif",
+      "file_size": 25729,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 365,
+      "file_name": "cs_3006c.bif",
+      "file_size": 3977,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 366,
+      "file_name": "cs_0501.bif",
+      "file_size": 1616,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 367,
+      "file_name": "cs_1200.bif",
+      "file_size": 5889,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 368,
+      "file_name": "genmovb.bif",
+      "file_size": 16673242,
+      "file": null,
+      "directory": "Cd7"
+    },
+    {
+      "index": 369,
+      "file_name": "cs_0104c.bif",
+      "file_size": 6218,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 370,
+      "file_name": "cs_3014.bif",
+      "file_size": 2507,
+      "file": null,
+      "directory": "Cache"
+    },
+    {
+      "index": 371,
+      "file_name": "cs_3017.bif",
+      "file_size": 30175,
+      "file": null,
+      "directory": "Cache"
+    }
+  ]
+}

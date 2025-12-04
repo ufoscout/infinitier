@@ -18,7 +18,7 @@ impl CaseInsensitiveFS {
     /// where the keys are the lowercased path strings and the values are the
     /// corresponding absolute paths.
     pub fn new<P: AsRef<Path>>(root: P) -> io::Result<CaseInsensitiveFS> {
-        let root = root.as_ref().to_path_buf();
+        let root = root.as_ref().canonicalize()?;
         let paths = list_real_entries_recursive(&root)?;
         // println!("paths: \n{:#?}", paths);
         Ok(CaseInsensitiveFS { root, paths })
@@ -55,8 +55,9 @@ impl CaseInsensitiveFS {
 /// Reads a directory and returns a map of all the files in it
 /// recursively and their absolute path lowercased
 fn list_real_entries_recursive(path: &Path) -> io::Result<BTreeMap<String, PathBuf>> {
+    let path = path.canonicalize()?;
     let mut results = BTreeMap::new();
-    recurse(path, path, &mut results)?;
+    recurse(&path, &path, &mut results)?;
     Ok(results)
 }
 

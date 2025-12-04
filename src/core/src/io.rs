@@ -6,12 +6,20 @@ use std::{
 
 use encoding_rs::Encoding;
 
+/// A trait for importing data
+pub trait Importer: Sized {
+    fn import() -> std::io::Result<Self>;
+}
+
+/// A reader that reads a byte array with a specific encoding
 pub struct Reader<B: BufRead> {
     data: B,
     charset: &'static Encoding,
 }
 
 impl Reader<BufReader<File>> {
+
+    /// Reads a file with a specific encoding
     pub fn with_file(
         path: &Path,
         charset: &'static Encoding,
@@ -24,6 +32,8 @@ impl Reader<BufReader<File>> {
 }
 
 impl<B: BufRead> Reader<B> {
+
+    /// Creates a new Reader
     pub fn new(data: B, charset: &'static Encoding) -> Reader<B> {
         Reader { data, charset }
     }
@@ -172,5 +182,17 @@ mod tests {
             WINDOWS_1252,
         );
         assert_eq!(reader.read_i32_at(2).unwrap(), 0x04010201);
+    }
+
+    #[test]
+    fn test_read_u16() {
+        let mut reader = Reader::new(Cursor::new(&[0x01, 0x02]), WINDOWS_1252);
+        assert_eq!(reader.read_u16().unwrap(), 0x0201);
+    }
+
+    #[test]
+    fn test_read_u16_at() {
+        let mut reader = Reader::new(Cursor::new(&[0x01, 0x02, 0x03, 0x04]), WINDOWS_1252);
+        assert_eq!(reader.read_u16_at(2).unwrap(), 0x0403);
     }
 }
