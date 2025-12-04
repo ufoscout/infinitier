@@ -1,4 +1,8 @@
-use std::{fs::File, io::{self, BufReader}, path::{Path, PathBuf}};
+use std::{
+    fs::File,
+    io::{self, BufReader},
+    path::{Path, PathBuf},
+};
 
 use encoding_rs::WINDOWS_1252;
 
@@ -76,16 +80,13 @@ impl Key {
 
         // checking for BG1 Demo variant of KEY file format
         let is_demo = reader.read_u32_at(bif_offset as u64)? - bif_offset == bif_size * 0x8
-                && reader.read_u32_at(bif_offset as u64 + 4)? - bif_offset != bif_size * 0xc;
-        
+            && reader.read_u32_at(bif_offset as u64 + 4)? - bif_offset != bif_size * 0xc;
 
         reader.set_position(offset_position)?;
         let mut biff_entryies = Vec::new();
         for i in 0..bif_size as u64 {
-           biff_entryies.push(BiffEntry::read_biff_entry(fs, &mut reader, i, is_demo)?);
+            biff_entryies.push(BiffEntry::read_biff_entry(fs, &mut reader, i, is_demo)?);
         }
-
-
 
         Ok(Key {
             file: key_file_path.to_path_buf(),
@@ -101,54 +102,49 @@ impl Key {
 }
 
 impl BiffEntry {
-    
-    fn read_biff_entry(fs: &CaseInsensitiveFS, reader: &mut Reader<BufReader<File>>, index: u64, is_demo: bool) -> std::io::Result<BiffEntry> {
+    fn read_biff_entry(
+        fs: &CaseInsensitiveFS,
+        reader: &mut Reader<BufReader<File>>,
+        index: u64,
+        is_demo: bool,
+    ) -> std::io::Result<BiffEntry> {
+        if !is_demo {
+            let file_size = reader.read_u32()?;
+        }
 
-    if !is_demo {
-      let file_size = reader.read_u32()?;
+        let string_offset = reader.read_u32()?;
+        let string_length = reader.read_u16()?;
+        let location = reader.read_u16()? & 0xffff;
+
+        let offset_position = reader.position()?;
+
+        let mut file_name = reader
+            .read_string_at(string_offset as u64, string_length as u64 - 1)?
+            .trim()
+            .to_lowercase()
+            .replace("\\", "/")
+            .replace(":", "/");
+
+        if file_name.starts_with("/") {
+            file_name = file_name[1..].to_string();
+        }
+
+        println!("file_name: {}", file_name);
+
+        reader.set_position(offset_position)?;
+
+        Ok(BiffEntry {
+            file: find_biff_file(fs, &file_name),
+            index,
+            file_name,
+            directory: BiffDirectory::from(location),
+        })
     }
-
-    let string_offset = reader.read_u32()?;
-    let string_length = reader.read_u16()?;
-    let location = reader.read_u16()? & 0xffff;
-
-    let offset_position= reader.position()?;
-
-    let mut file_name = reader.read_string_at(string_offset as u64, string_length as u64 -1)?
-        .trim().to_lowercase().replace("\\", "/").replace(":", "/");
-    
-    if file_name.starts_with("/") {
-        file_name = file_name[1..].to_string();
-    }
-
-    println!("file_name: {}", file_name);
-
-    reader.set_position(offset_position)?;
-
-    Ok(BiffEntry { 
-        file: find_biff_file(fs, &file_name),
-        index,
-        file_name,
-        directory: BiffDirectory::from(location)
-     })
-
-    }
-
 }
 
 fn find_biff_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
-
     let paths = vec![
-        "",
-        "data/",
-        "cache/",
-        "cd1/",
-        "cd2/",
-        "cd3/",
-        "cd4/",
-        "cd5/",
-        "cd6/",
-        "cd7/",
+        "", "data/", "cache/", "cd1/", "cd2/", "cd3/", "cd4/", "cd5/", "cd6/", "cd7/",
     ];
 
     for path in paths {
@@ -176,7 +172,9 @@ mod tests {
         assert_eq!(
             key,
             Key {
-                file: PathBuf::from("/home/ufo/Temp/Games/Baldur's Gate - Enhanced Edition/chitin.key"),
+                file: PathBuf::from(
+                    "/home/ufo/Temp/Games/Baldur's Gate - Enhanced Edition/chitin.key"
+                ),
                 signature: "KEY".to_string(),
                 version: "V1".to_string(),
                 resources_offset: 2376,

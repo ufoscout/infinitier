@@ -1,4 +1,3 @@
-
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
@@ -11,14 +10,13 @@ pub struct CaseInsensitiveFS {
 }
 
 impl CaseInsensitiveFS {
-
     /// Creates a new `CaseInsensitiveFS` from the given root path.
     ///
     /// The given root path is used as the root directory for the file system.
     /// All files and directories underneath the given root path are then
     /// traversed recursively, and their paths are stored in a map
     /// where the keys are the lowercased path strings and the values are the
-    /// corresponding absolute paths. 
+    /// corresponding absolute paths.
     pub fn new<P: AsRef<Path>>(root: P) -> io::Result<CaseInsensitiveFS> {
         let root = root.as_ref().to_path_buf();
         let paths = list_real_entries_recursive(&root)?;
@@ -46,7 +44,10 @@ impl CaseInsensitiveFS {
     pub fn get_path(&self, path: &str) -> io::Result<PathBuf> {
         match self.get_path_opt(path) {
             Some(path) => Ok(path),
-            None => Err(io::Error::new(io::ErrorKind::NotFound, format!("File not found: {}", path))),
+            None => Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("File not found: {}", path),
+            )),
         }
     }
 }
@@ -64,12 +65,15 @@ fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) ->
         let entry = entry?;
         let metadata = entry.metadata()?;
         let entry_path = entry.path().canonicalize()?;
-        let relative_path = entry_path.strip_prefix(root)
+        let relative_path = entry_path
+            .strip_prefix(root)
             .expect(&format!("Cannot strip prefix from path {}", path.display()))
-            .to_str().expect(&format!("Cannot convert path to string {}", path.display())).to_lowercase();
+            .to_str()
+            .expect(&format!("Cannot convert path to string {}", path.display()))
+            .to_lowercase();
 
         if metadata.is_file() {
-            results.insert(relative_path,entry_path);
+            results.insert(relative_path, entry_path);
         } else if metadata.is_dir() {
             recurse(root, &entry_path, results)?;
             results.insert(relative_path, entry_path);
@@ -92,7 +96,13 @@ mod tests {
 
     #[test]
     fn test_case_insensitive_fs() {
-        let current_path = std::env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+        let current_path = std::env::current_dir()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf();
         let fs = CaseInsensitiveFS::new(current_path).unwrap();
         assert!(fs.get_path_opt("cargo.toml").is_some());
         assert!(fs.get_path_opt("Cargo.TOML").is_some());

@@ -2,7 +2,7 @@ use std::{io, path::Path};
 
 use encoding_rs::WINDOWS_1252;
 
-use crate::{io::Reader};
+use crate::io::Reader;
 
 #[derive(Debug, PartialEq, Eq)]
 enum Type {
@@ -23,16 +23,25 @@ fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
         "BIFFV1  " => Ok(Type::BIFF),
         "BIF V1.0" => Ok(Type::BIF),
         "BIFCV1.0" => Ok(Type::BIFC),
-        val => Err(io::Error::new(io::ErrorKind::Other, format!("Unsupported BIFF file: {}", val))),
+        val => Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!("Unsupported BIFF file: {}", val),
+        )),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;   
+    use super::*;
 
     #[test]
     fn test_detect_biff_type() {
-        assert_eq!(detect_biff_type(&Path::new("/home/ufo/Temp/Games/Baldur's Gate2 - Enhanced Edition/data/25effect.bif")).unwrap(), Type::BIFF);
+        assert_eq!(
+            detect_biff_type(&Path::new(
+                "/home/ufo/Temp/Games/Baldur's Gate2 - Enhanced Edition/data/25effect.bif"
+            ))
+            .unwrap(),
+            Type::BIFF
+        );
     }
 }

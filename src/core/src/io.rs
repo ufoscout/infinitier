@@ -21,7 +21,6 @@ impl Reader<BufReader<File>> {
             charset,
         })
     }
-
 }
 
 impl<B: BufRead> Reader<B> {
@@ -50,7 +49,7 @@ impl<B: BufRead> Reader<B> {
     }
 
     /// Reads exactly `N` bytes from the current position and returns them as a byte array.
-    /// 
+    ///
     /// If the end of the file is reached before `N` bytes could be read, an `io::Error` is returned.
     pub fn read_exact<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
         let mut buf = [0u8; N];
@@ -91,7 +90,6 @@ impl<B: BufRead> Reader<B> {
 }
 
 impl<B: BufRead + Seek> Reader<B> {
-
     /// Returns the current position of the cursor
     pub fn position(&mut self) -> std::io::Result<u64> {
         self.data.seek(std::io::SeekFrom::Current(0))
@@ -101,7 +99,7 @@ impl<B: BufRead + Seek> Reader<B> {
     pub fn set_position(&mut self, pos: u64) -> std::io::Result<u64> {
         self.data.seek(std::io::SeekFrom::Start(pos))
     }
-    
+
     /// Reads a string from the offset position
     pub fn read_string_at(&mut self, offset: u64, size: u64) -> std::io::Result<String> {
         self.data.seek(std::io::SeekFrom::Start(offset))?;
@@ -126,7 +124,6 @@ impl<B: BufRead + Seek> Reader<B> {
         self.read_u16()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -156,7 +153,10 @@ mod tests {
 
     #[test]
     fn test_read_u32_at() {
-        let mut reader = Reader::new(Cursor::new(&[0x01, 0x02, 0x01, 0x01, 0x03, 0x04]), WINDOWS_1252);
+        let mut reader = Reader::new(
+            Cursor::new(&[0x01, 0x02, 0x01, 0x01, 0x03, 0x04]),
+            WINDOWS_1252,
+        );
         assert_eq!(reader.read_u32_at(2).unwrap(), 0x04030101);
     }
 
@@ -168,9 +168,10 @@ mod tests {
 
     #[test]
     fn test_read_i32_at() {
-        let mut reader = Reader::new(Cursor::new(&[0x01, 0x01, 0x01, 0x02, 0x01, 0x04]), WINDOWS_1252);
+        let mut reader = Reader::new(
+            Cursor::new(&[0x01, 0x01, 0x01, 0x02, 0x01, 0x04]),
+            WINDOWS_1252,
+        );
         assert_eq!(reader.read_i32_at(2).unwrap(), 0x04010201);
     }
-
-
 }
