@@ -10,7 +10,7 @@ expression: key
   "resources_size": 14569,
   "bif_offset": 24,
   "bif_size": 249,
-  "biff_entryies": [
+  "bif_entryies": [
     {
       "index": 0,
       "file_name": "data/irongolm.bif",

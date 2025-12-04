@@ -10,7 +10,7 @@ expression: key
   "resources_size": 62570,
   "bif_offset": 24,
   "bif_size": 191,
-  "biff_entryies": [
+  "bif_entryies": [
     {
       "index": 0,
       "file_name": "data/default.bif",

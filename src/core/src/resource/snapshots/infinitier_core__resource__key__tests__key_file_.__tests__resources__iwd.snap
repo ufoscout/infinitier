@@ -1,5 +1,6 @@
 ---
 source: src/core/src/resource/key.rs
+assertion_line: 219
 expression: key
 ---
 {
@@ -10,7 +11,7 @@ expression: key
   "resources_size": 19992,
   "bif_offset": 24,
   "bif_size": 268,
-  "biff_entryies": [
+  "bif_entryies": [
     {
       "index": 0,
       "file_name": "data/splbmp.bif",
@@ -340,7 +341,7 @@ expression: key
       "index": 41,
       "file_name": "data/ar3603.bif",
       "file_size": 1579480,
-      "file": null,
+      "file": "/home/ufo/workspaces/github_ufoscout/baldurs_gate/infinitier/src/core/tests/resources/iwd/CD2/Data/AR3603.cbf",
       "directory": {
         "Unknown": 9
       }
