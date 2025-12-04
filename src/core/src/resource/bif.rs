@@ -5,10 +5,10 @@ use encoding_rs::WINDOWS_1252;
 use crate::io::Reader;
 
 #[derive(Debug, PartialEq, Eq)]
-enum Type {
-    BIF,
-    BIFF,
-    BIFC,
+pub enum Type {
+    Bif,
+    Biff,
+    Bifc,
 }
 
 fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
@@ -20,27 +20,35 @@ fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
     let value = reader.read_string(8)?;
 
     match value.as_str() {
-        "BIFFV1  " => Ok(Type::BIFF),
-        "BIF V1.0" => Ok(Type::BIF),
-        "BIFCV1.0" => Ok(Type::BIFC),
-        val => Err(io::Error::other(
-            format!("Unsupported BIFF file: {}", val),
-        )),
+        "BIFFV1  " => Ok(Type::Biff),
+        "BIF V1.0" => Ok(Type::Bif),
+        "BIFCV1.0" => Ok(Type::Bifc),
+        val => Err(io::Error::other(format!("Unsupported BIFF file: {}", val))),
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::RESOURCES_DIR;
+
     use super::*;
+
+    #[test]
+    fn test_detect_bif_type() {
+        assert_eq!(
+            detect_biff_type(Path::new(&format!(
+                "{RESOURCES_DIR}iwd/CD2/Data/AR3603.cbf"
+            )))
+            .unwrap(),
+            Type::Bif
+        );
+    }
 
     #[test]
     fn test_detect_biff_type() {
         assert_eq!(
-            detect_biff_type(Path::new(
-                "/home/ufo/Temp/Games/Baldur's Gate2 - Enhanced Edition/data/25effect.bif"
-            ))
-            .unwrap(),
-            Type::BIFF
+            detect_biff_type(Path::new(&format!("{RESOURCES_DIR}pst/CS_0511.bif"))).unwrap(),
+            Type::Biff
         );
     }
 }

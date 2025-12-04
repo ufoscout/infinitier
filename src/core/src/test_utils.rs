@@ -1,4 +1,3 @@
-
 pub const RESOURCES_DIR: &str = "./tests/resources/";
 
 pub const BG_RESOURCES_DIR: &str = "./tests/resources/bg";

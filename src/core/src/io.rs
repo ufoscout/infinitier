@@ -18,7 +18,6 @@ pub struct Reader<B: BufRead> {
 }
 
 impl Reader<BufReader<File>> {
-
     /// Reads a file with a specific encoding
     pub fn with_file(
         path: &Path,
@@ -32,7 +31,6 @@ impl Reader<BufReader<File>> {
 }
 
 impl<B: BufRead> Reader<B> {
-
     /// Creates a new Reader
     pub fn new(data: B, charset: &'static Encoding) -> Reader<B> {
         Reader { data, charset }

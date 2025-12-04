@@ -80,7 +80,6 @@ impl BifDirectory {
 }
 
 impl Key {
-
     /// Reads a KEY file
     pub fn import(fs: &CaseInsensitiveFS, file_name: &str) -> Result<Key, io::Error> {
         let key_file_path = fs.get_path(file_name)?;
@@ -123,7 +122,6 @@ impl Key {
 }
 
 impl BifEntry {
-
     /// Reads a BIF entry inside a KEY file
     fn read_bif_entry(
         fs: &CaseInsensitiveFS,
@@ -131,7 +129,6 @@ impl BifEntry {
         index: u64,
         is_demo: bool,
     ) -> std::io::Result<BifEntry> {
-
         let file_size = if !is_demo {
             Some(reader.read_u32()?)
         } else {
@@ -158,7 +155,7 @@ impl BifEntry {
         reader.set_position(offset_position)?;
 
         let bif_file = find_bif_file(fs, &file_name)
-        .or_else(|| find_bif_file(fs, &file_name.replace(".bif", ".cbf"))); 
+            .or_else(|| find_bif_file(fs, &file_name.replace(".bif", ".cbf")));
 
         Ok(BifEntry {
             file: bif_file,
@@ -174,9 +171,10 @@ fn find_bif_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
     for path in FILE_FOLDERS {
         let search_name = format!("{}{}", path, file_name);
         if let Some(path) = fs.get_path_opt(&search_name)
-            && path.is_file() {
-                return Some(path);
-            }
+            && path.is_file()
+        {
+            return Some(path);
+        }
     }
     None
 }
@@ -209,7 +207,6 @@ mod tests {
 
     #[test]
     fn test_read_key_file() {
-
         for i in ALL_RESOURCES_DIRS {
             let fs = CaseInsensitiveFS::new(i).unwrap();
             let key = Key::import(&fs, "/CHITIN.KEY").unwrap();
@@ -220,7 +217,5 @@ mod tests {
                 ".file" => ""
             });
         }
-
     }
-
 }
