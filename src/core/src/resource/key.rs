@@ -2,7 +2,7 @@ use std::{fs::File, io::{self, BufReader}, path::{Path, PathBuf}};
 
 use encoding_rs::WINDOWS_1252;
 
-use crate::io::Reader;
+use crate::{fs::CaseInsensitiveFS, io::Reader};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Key {
@@ -20,10 +20,11 @@ pub struct Key {
 pub struct BiffEntry {
     pub index: u64,
     pub file_name: String,
-    pub file: PathBuf,
+    pub file: Option<PathBuf>,
     pub directory: BiffDirectory,
 }
 
+/// Baldur's Gate 2 BIFF directory where a file "could" be found
 #[derive(Debug, PartialEq, Eq)]
 pub enum BiffDirectory {
     Root,
@@ -35,28 +36,30 @@ pub enum BiffDirectory {
     Cd5,
     Cd6,
     Cd7,
+    Unknown(u16),
 }
 
 impl BiffDirectory {
-    fn from(bit: u16) -> std::io::Result<Self> {
+    fn from(bit: u16) -> Self {
         match bit {
-            0 => Ok(BiffDirectory::Root),
-            1 => Ok(BiffDirectory::Cache),
-            2 => Ok(BiffDirectory::Cd1),
-            3 => Ok(BiffDirectory::Cd2),
-            4 => Ok(BiffDirectory::Cd3),
-            5 => Ok(BiffDirectory::Cd4),
-            6 => Ok(BiffDirectory::Cd5),
-            7 => Ok(BiffDirectory::Cd6),
-            8 => Ok(BiffDirectory::Cd7),
-            i => Err(io::Error::new(io::ErrorKind::Other, format!("Unknown directory bit: {}", i))),
+            0 => BiffDirectory::Root,
+            1 => BiffDirectory::Cache,
+            2 => BiffDirectory::Cd1,
+            3 => BiffDirectory::Cd2,
+            4 => BiffDirectory::Cd3,
+            5 => BiffDirectory::Cd4,
+            6 => BiffDirectory::Cd5,
+            7 => BiffDirectory::Cd6,
+            8 => BiffDirectory::Cd7,
+            i => BiffDirectory::Unknown(i),
         }
     }
 }
 
 impl Key {
-    fn read_key_file(file_path: &Path) -> Result<Key, io::Error> {
-        let mut reader = Reader::with_file(file_path, WINDOWS_1252)?;
+    fn read_key_file(fs: &CaseInsensitiveFS, file_name: &str) -> Result<Key, io::Error> {
+        let key_file_path = fs.get_path(file_name)?;
+        let mut reader = Reader::with_file(&key_file_path, WINDOWS_1252)?;
         let signature = reader.read_string(4)?.trim().to_string();
         let version = reader.read_string(4)?.trim().to_string();
 
@@ -79,13 +82,13 @@ impl Key {
         reader.set_position(offset_position)?;
         let mut biff_entryies = Vec::new();
         for i in 0..bif_size as u64 {
-           biff_entryies.push(BiffEntry::read_biff_entry(&mut reader, file_path, i, is_demo)?);
+           biff_entryies.push(BiffEntry::read_biff_entry(fs, &mut reader, i, is_demo)?);
         }
 
 
 
         Ok(Key {
-            file: file_path.to_path_buf(),
+            file: key_file_path.to_path_buf(),
             signature,
             version,
             resources_offset,
@@ -99,7 +102,7 @@ impl Key {
 
 impl BiffEntry {
     
-    fn read_biff_entry(reader: &mut Reader<BufReader<File>>, key_file: &Path, index: u64, is_demo: bool) -> std::io::Result<BiffEntry> {
+    fn read_biff_entry(fs: &CaseInsensitiveFS, reader: &mut Reader<BufReader<File>>, index: u64, is_demo: bool) -> std::io::Result<BiffEntry> {
 
     if !is_demo {
       let file_size = reader.read_u32()?;
@@ -111,47 +114,54 @@ impl BiffEntry {
 
     let offset_position= reader.position()?;
 
-    let file_name = reader.read_string_at(string_offset as u64, string_length as u64 -1)?.to_lowercase().replace("\\", "/");
-    //                  StreamUtils.readString(buffer, this.stringOffset, stringLength - 1);
+    let mut file_name = reader.read_string_at(string_offset as u64, string_length as u64 -1)?
+        .trim().to_lowercase().replace("\\", "/").replace(":", "/");
+    
+    if file_name.starts_with("/") {
+        file_name = file_name[1..].to_string();
+    }
 
+    println!("file_name: {}", file_name);
 
     reader.set_position(offset_position)?;
 
     Ok(BiffEntry { 
-        file: find_biff_file(key_file, &file_name)?,
+        file: find_biff_file(fs, &file_name),
         index,
         file_name,
-        directory: BiffDirectory::from(location)?
+        directory: BiffDirectory::from(location)
      })
 
     }
 
 }
 
-fn find_biff_file(key_file: &Path, file_name: &str) -> std::io::Result<PathBuf> {
-    let parent = key_file.parent().expect("Key file has no parent directory");
+fn find_biff_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
 
     let paths = vec![
-        parent.to_path_buf(),
-        parent.join("data"),
-        parent.join("cache"),
-        parent.join("cd1"),
-        parent.join("cd2"),
-        parent.join("cd3"),
-        parent.join("cd4"),
-        parent.join("cd5"),
-        parent.join("cd6"),
-        parent.join("cd7"),
+        "",
+        "data/",
+        "cache/",
+        "cd1/",
+        "cd2/",
+        "cd3/",
+        "cd4/",
+        "cd5/",
+        "cd6/",
+        "cd7/",
     ];
 
     for path in paths {
-        let file_path = path.join(file_name);
-        if file_path.is_file() {
-            return Ok(file_path);
+        let search_name = format!("{}{}", path, file_name);
+        // println!("search_name: {}", search_name);
+        if let Some(path) = fs.get_path_opt(&search_name) {
+            if path.is_file() {
+                return Some(path);
+            }
         }
     }
 
-    Err(io::Error::new(io::ErrorKind::NotFound, format!("File not found: {}", file_name)))
+    None
 }
 
 #[cfg(test)]
@@ -160,11 +170,9 @@ mod tests {
 
     #[test]
     fn test_read_key_file() {
-        let key = Key::read_key_file(&Path::new(
-            // "/home/ufo/Temp/Games/Baldur's Gate 2 - Enhanced Edition/chitin.key",
-            "/home/ufo/Temp/Games/Baldur's Gate 2/CHITIN.KEY",
-        ))
-        .unwrap();
+        let fs = CaseInsensitiveFS::new("/home/ufo/Temp/Games/Baldur's Gate 2/").unwrap();
+        let key = Key::read_key_file(&fs, "/CHITIN.KEY").unwrap();
+
         assert_eq!(
             key,
             Key {
