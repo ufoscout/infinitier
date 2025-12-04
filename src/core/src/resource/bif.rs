@@ -13,7 +13,7 @@ enum Type {
 
 fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
     if !file_path.is_file() {
-        return Err(io::Error::new(io::ErrorKind::Other, "Not a file"));
+        return Err(io::Error::other("Not a file"));
     }
 
     let mut reader = Reader::with_file(file_path, WINDOWS_1252)?;
@@ -23,8 +23,7 @@ fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
         "BIFFV1  " => Ok(Type::BIFF),
         "BIF V1.0" => Ok(Type::BIF),
         "BIFCV1.0" => Ok(Type::BIFC),
-        val => Err(io::Error::new(
-            io::ErrorKind::Other,
+        val => Err(io::Error::other(
             format!("Unsupported BIFF file: {}", val),
         )),
     }
@@ -37,7 +36,7 @@ mod tests {
     #[test]
     fn test_detect_biff_type() {
         assert_eq!(
-            detect_biff_type(&Path::new(
+            detect_biff_type(Path::new(
                 "/home/ufo/Temp/Games/Baldur's Gate2 - Enhanced Edition/data/25effect.bif"
             ))
             .unwrap(),

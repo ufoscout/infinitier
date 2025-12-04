@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{self, BufReader},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use encoding_rs::WINDOWS_1252;
@@ -68,7 +68,7 @@ impl Key {
         let version = reader.read_string(4)?.trim().to_string();
 
         if !(signature.eq("KEY") && version.eq("V1")) {
-            return Err(io::Error::new(io::ErrorKind::Other, "Wrong file type"));
+            return Err(io::Error::other("Wrong file type"));
         }
 
         let bif_size = reader.read_u32()?;
@@ -114,7 +114,7 @@ impl BiffEntry {
 
         let string_offset = reader.read_u32()?;
         let string_length = reader.read_u16()?;
-        let location = reader.read_u16()? & 0xffff;
+        let location = reader.read_u16()?;
 
         let offset_position = reader.position()?;
 
@@ -150,11 +150,10 @@ fn find_biff_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
     for path in paths {
         let search_name = format!("{}{}", path, file_name);
         // println!("search_name: {}", search_name);
-        if let Some(path) = fs.get_path_opt(&search_name) {
-            if path.is_file() {
+        if let Some(path) = fs.get_path_opt(&search_name)
+            && path.is_file() {
                 return Some(path);
             }
-        }
     }
 
     None

@@ -67,9 +67,9 @@ fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) ->
         let entry_path = entry.path().canonicalize()?;
         let relative_path = entry_path
             .strip_prefix(root)
-            .expect(&format!("Cannot strip prefix from path {}", path.display()))
+            .unwrap_or_else(|_| panic!("Cannot strip prefix from path {}", path.display()))
             .to_str()
-            .expect(&format!("Cannot convert path to string {}", path.display()))
+            .unwrap_or_else(|| panic!("Cannot convert path to string {}", path.display()))
             .to_lowercase();
 
         if metadata.is_file() {

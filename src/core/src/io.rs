@@ -39,8 +39,7 @@ impl<B: BufRead> Reader<B> {
         let (decoded, _, had_errors) = self.charset.decode(&buf);
 
         if had_errors {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 "Decoding error: input is not valid for this charset",
             ));
         }
@@ -92,7 +91,7 @@ impl<B: BufRead> Reader<B> {
 impl<B: BufRead + Seek> Reader<B> {
     /// Returns the current position of the cursor
     pub fn position(&mut self) -> std::io::Result<u64> {
-        self.data.seek(std::io::SeekFrom::Current(0))
+        self.data.stream_position()
     }
 
     /// Sets the position of the cursor
