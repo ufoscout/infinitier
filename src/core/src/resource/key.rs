@@ -223,7 +223,7 @@ impl ResourceEntry {
     /// Reads a Resource entry inside a KEY file
     fn read_entry(reader: &mut Reader<BufReader<File>>) -> std::io::Result<ResourceEntry> {
         let resource_name = reader.read_string(8)?.trim().to_string();
-        let resource_type = reader.read_u16()? & 0xffff;
+        let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;
 
         Ok(ResourceEntry {
