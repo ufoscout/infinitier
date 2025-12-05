@@ -11,7 +11,7 @@ pub enum Type {
     Bifc,
 }
 
-fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
+pub fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
     if !file_path.is_file() {
         return Err(io::Error::other("Not a file"));
     }

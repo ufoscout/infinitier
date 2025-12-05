@@ -2,11 +2,13 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// A file system that is case insensitive
+#[derive(Debug, Clone)]
 pub struct CaseInsensitiveFS {
     root: PathBuf,
-    paths: BTreeMap<String, PathBuf>,
+    paths: Arc<BTreeMap<String, PathBuf>>,
 }
 
 impl CaseInsensitiveFS {
@@ -19,7 +21,7 @@ impl CaseInsensitiveFS {
     /// corresponding absolute paths.
     pub fn new<P: AsRef<Path>>(root: P) -> io::Result<CaseInsensitiveFS> {
         let root = root.as_ref().canonicalize()?;
-        let paths = list_real_entries_recursive(&root)?;
+        let paths = Arc::new(list_real_entries_recursive(&root)?);
         // println!("paths: \n{:#?}", paths);
         Ok(CaseInsensitiveFS { root, paths })
     }
