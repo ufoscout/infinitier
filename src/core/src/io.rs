@@ -1,5 +1,7 @@
 use std::{
-    fs::File, io::{BufRead, BufReader, Read, Seek}, path::Path
+    fs::File,
+    io::{BufRead, BufReader, Read, Seek},
+    path::Path,
 };
 
 use encoding_rs::Encoding;
@@ -52,7 +54,11 @@ impl<B: BufRead> Reader<B> {
         }
 
         // Trim trailing null bytes at the end as the strings use the C string convention for null-termination
-        Ok(decoded.chars().collect::<String>().trim_end_matches(char::from(0)).to_owned())
+        Ok(decoded
+            .chars()
+            .collect::<String>()
+            .trim_end_matches(char::from(0))
+            .to_owned())
     }
 
     /// Reads exactly `N` bytes from the current position and returns them as a byte array.

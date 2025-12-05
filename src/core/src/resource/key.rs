@@ -106,13 +106,12 @@ impl BifDirectory {
 /// A resource entry inside a KEY file
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceEntry {
+    /// Resource name without extension.
+    pub resource_name: String,
+    /// Resource type.
+    pub r#type: ResourceType,
 
-  /// Resource name without extension.
-  pub resource_name: String,
-  /// Resource type.
-  pub r#type: ResourceType,
-
-  pub locator: u32,
+    pub locator: u32,
 }
 
 impl Key {
@@ -132,16 +131,13 @@ impl Key {
         let bif_offset = reader.read_u32()?;
         let resources_offset = reader.read_u32()?;
 
-
         // checking for BG1 Demo variant of KEY file format
         let is_demo = reader.read_u32_at(bif_offset as u64)? - bif_offset == bif_size * 0x8
             && reader.read_u32_at(bif_offset as u64 + 4)? - bif_offset != bif_size * 0xc;
 
-
-
         // reading BIF entries
         let mut bif_entries = Vec::new();
-                reader.set_position(bif_offset as u64)?;
+        reader.set_position(bif_offset as u64)?;
         for i in 0..bif_size as u64 {
             bif_entries.push(BifEntry::read_entry(fs, &mut reader, i, is_demo)?);
         }
@@ -225,17 +221,15 @@ fn find_bif_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
 
 impl ResourceEntry {
     /// Reads a Resource entry inside a KEY file
-    fn read_entry(reader: &mut Reader<BufReader<File>>,
-    ) -> std::io::Result<ResourceEntry> {
-
+    fn read_entry(reader: &mut Reader<BufReader<File>>) -> std::io::Result<ResourceEntry> {
         let resource_name = reader.read_string(8)?.trim().to_string();
         let resource_type = reader.read_u16()? & 0xffff;
         let locator = reader.read_u32()?;
-            
-        Ok(ResourceEntry { 
-            resource_name, 
-            r#type: ResourceType::from(resource_type), 
-            locator
+
+        Ok(ResourceEntry {
+            resource_name,
+            r#type: ResourceType::from(resource_type),
+            locator,
         })
     }
 }
@@ -402,7 +396,7 @@ impl ResourceType {
         }
     }
 
-        /// Returns the extension of the `ResourceType` enum variant as a string, or `None` if it is unknown.
+    /// Returns the extension of the `ResourceType` enum variant as a string, or `None` if it is unknown.
     pub fn get_extension(&self) -> Option<&str> {
         match self {
             ResourceType::Bmp => Some("bmp"),
