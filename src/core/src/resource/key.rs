@@ -110,8 +110,8 @@ pub struct ResourceEntry {
     pub resource_name: String,
     /// Resource type.
     pub r#type: ResourceType,
-
-    pub locator: u32,
+    /// Index of the BIFF entry in the key file that contains the resource
+    pub bif_entry_index: u64,
 }
 
 impl Key {
@@ -226,10 +226,12 @@ impl ResourceEntry {
         let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;
 
+        let bif_entry_index = ((locator >> 20) & 0xfff) as u64;
+
         Ok(ResourceEntry {
             resource_name,
             r#type: ResourceType::from(resource_type),
-            locator,
+            bif_entry_index,
         })
     }
 }
