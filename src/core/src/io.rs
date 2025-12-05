@@ -37,6 +37,15 @@ impl<B: BufRead> Reader<B> {
         Reader { data, charset }
     }
 
+    /// Reads a line from the current position
+    /// and returns it as a `String` and the number of bytes read.
+    /// If bytes read is 0, then EOF has been reached
+    pub fn read_line(&mut self) -> std::io::Result<(String, usize)> {
+        let mut buf = String::new();
+        let bytes  = self.data.read_line(&mut buf)?;
+        Ok((buf, bytes))
+    }
+
     /// Read the first `n_chars` characters from a byte array interpreted
     /// with the Reader `charset`, and return them as a `String`.
     pub fn read_string(&mut self, size: u64) -> std::io::Result<String> {
@@ -111,6 +120,14 @@ impl<B: BufRead + Seek> Reader<B> {
     /// Sets the position of the cursor
     pub fn set_position(&mut self, pos: u64) -> std::io::Result<u64> {
         self.data.seek(std::io::SeekFrom::Start(pos))
+    }
+
+    /// Reads a line from the offset position
+    /// and returns it as a `String` and the number of bytes read.
+    /// If bytes read is 0, then EOF has been reached
+    pub fn read_line_at(&mut self, offset: u64) -> std::io::Result<(String, usize)> {
+        self.data.seek(std::io::SeekFrom::Start(offset))?;
+        self.read_line()
     }
 
     /// Reads a string from the offset position

@@ -14,19 +14,19 @@ use crate::{
 };
 
 /// A KEY file importer
-pub struct KeyImporter {
-    fs: CaseInsensitiveFS,
-    file_name: String,
+pub struct KeyImporter<'a> {
+    fs: &'a CaseInsensitiveFS,
+    file_name: &'a str,
 }
 
-impl KeyImporter {
+impl <'a> KeyImporter<'a> {
     /// Creates a new KEY file importer
-    pub fn new(fs: CaseInsensitiveFS, file_name: String) -> KeyImporter {
+    pub fn new(fs: &'a CaseInsensitiveFS, file_name: &'a str) -> KeyImporter<'a> {
         KeyImporter { fs, file_name }
     }
 }
 
-impl Importer for KeyImporter {
+impl <'a> Importer for KeyImporter<'a> {
     type T = Key;
 
     fn import(&self) -> std::io::Result<Key> {

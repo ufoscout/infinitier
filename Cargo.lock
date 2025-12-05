@@ -1590,6 +1590,7 @@ dependencies = [
  "encoding_rs",
  "insta",
  "itertools",
+ "log",
  "serde",
 ]
 

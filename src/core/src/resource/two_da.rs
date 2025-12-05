@@ -1,7 +1,63 @@
+use std::collections::HashMap;
+
+use encoding_rs::WINDOWS_1252;
 use itertools::{Itertools, chain};
+use log::warn;
+
+use crate::{fs::CaseInsensitiveFS, io::{Importer, Reader}};
+
+/// A 2DA file importer
+pub struct TwoDAImporter<'a> {
+    fs: &'a CaseInsensitiveFS,
+    file_name: &'a str,
+}
+
+impl <'a> TwoDAImporter<'a> {
+    /// Creates a new 2DA file importer
+    pub fn new(fs: &'a CaseInsensitiveFS, file_name: &'a str) -> TwoDAImporter<'a> {
+        TwoDAImporter { fs, file_name }
+    }
+}
+
+impl <'a> Importer for TwoDAImporter<'a> {
+    type T = TwoDA;
+
+    fn import(&self) -> std::io::Result<TwoDA> {
+        let key_file_path = self.fs.get_path(self.file_name)?;
+        let mut reader = Reader::with_file(&key_file_path, WINDOWS_1252)?;
+
+        let signature = reader.read_line()?.0.trim().to_string();
+
+        if signature != "2DA V1.0" {
+    		warn!("TwoDAImporter - File [{}] has a bad signature [{signature}]! Complaining, but ignoring...", self.file_name);
+    	}
+
+        let default_value = reader.read_line()?.0.trim().to_string();
+        let (headers, columns) = parse_headers(&reader.read_line()?.0);
+
+        let mut rows = HashMap::new();
+        loop { 
+            let (line, bytes) = reader.read_line()?;
+            if bytes == 0 {
+                break;
+            }
+            let (key, value) = parse_data_row(line.trim(), &columns, &default_value);
+            rows.insert(key, value);
+        }
+
+        Ok(TwoDA { headers, columns, rows })
+    }
+}
+
+/// Represents a 2DA file.
+pub struct TwoDA {
+    pub headers: Vec<String>,
+    pub columns: Vec<usize>,
+    pub rows: HashMap<String, Vec<String>>,
+}
 
 /// Splits a string into (word, byte_start_index).
-pub fn split_words_with_positions(input: &str) -> (Vec<String>, Vec<usize>) {
+fn parse_headers(input: &str) -> (Vec<String>, Vec<usize>) {
     let mut headers = Vec::new();
     let mut columns = Vec::new();
     let mut in_word = false;
@@ -32,7 +88,7 @@ pub fn split_words_with_positions(input: &str) -> (Vec<String>, Vec<usize>) {
 
 /// Parse a single row using precomputed column positions.
 /// `columns` must come from `split_words_with_positions(header_line)`.
-pub fn parse_row(
+fn parse_data_row(
     line: &str,
     columns: &[usize],
     default: &str,
@@ -69,12 +125,14 @@ pub fn parse_row(
 mod tests {
     use std::collections::HashMap;
 
+    use crate::test_utils::BG2_RESOURCES_DIR;
+
     use super::*;
 
     #[test]
     fn test_split_words_simple() {
         let input = "  MIN_STR MIN_DEX   MIN_CON ";
-        let (headers, columns) = split_words_with_positions(input);
+        let (headers, columns) = parse_headers(input);
 
         assert_eq!(
             headers,
@@ -91,7 +149,7 @@ mod tests {
     #[test]
     fn test_split_words_only_whitespace() {
         let input = "       ";
-        let (headers, columns) = split_words_with_positions(input);
+        let (headers, columns) = parse_headers(input);
         assert!(headers.is_empty());
         assert!(columns.is_empty());
     }
@@ -99,10 +157,10 @@ mod tests {
     #[test]
     fn test_parse_row_basic() {
         let header = "     A B C D";
-        let (_, columns) = split_words_with_positions(header);
+        let (_, columns) = parse_headers(header);
 
         let row = "ROW  1 2 3 4";
-        let (key, values) = parse_row(row, &columns, "0");
+        let (key, values) = parse_data_row(row, &columns, "0");
 
         assert_eq!(key, "ROW");
         assert_eq!(values, vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()]);
@@ -111,11 +169,11 @@ mod tests {
     #[test]
     fn test_parse_row_missing_values() {
         let header = "    A B C D";
-        let (_, columns) = split_words_with_positions(header);
+        let (_, columns) = parse_headers(header);
 
         // missing C entirely
         let row = "ROW 1   2      ";
-        let (key, values) = parse_row(row, &columns, "default");
+        let (key, values) = parse_data_row(row, &columns, "default");
 
         assert_eq!(key, "ROW");
         assert_eq!(values, vec!["1".to_owned(), "default".to_owned(), "2".to_owned(), "default".to_owned(), ]); // defaults filled
@@ -124,11 +182,11 @@ mod tests {
         #[test]
     fn test_parse_row_missing_all_values() {
         let header = "    A B C D";
-        let (_, columns) = split_words_with_positions(header);
+        let (_, columns) = parse_headers(header);
 
         // missing C entirely
         let row = "ROW";
-        let (key, values) = parse_row(row, &columns, "default");
+        let (key, values) = parse_data_row(row, &columns, "default");
 
         assert_eq!(key, "ROW");
         assert_eq!(values, vec!["default".to_owned(), "default".to_owned(), "default".to_owned(), "default".to_owned(), ]); // defaults filled
@@ -137,26 +195,41 @@ mod tests {
     #[test]
     fn test_full_processing_multiline() {
         let text =
-"MAGE                    0       0       0       9       0       0
+"MAGE                            0       0       9       0       0
 FIGHTER                 9       0       0       0               9
 CLERIC                  0       0       0       0       9       
 THIEF                   0       9       0       0       0       0";
 
-        let mut lines = text.lines();
+        let lines = text.lines();
 
         let header = "                        MIN_STR MIN_DEX MIN_CON MIN_INT MIN_WIS MIN_CHR";
-        let (headers, columns) = split_words_with_positions(header);
+        let (_, columns) = parse_headers(header);
 
         let mut result = HashMap::new();
 
         for line in lines {
-            let (key, vals) = parse_row(line, &columns, "0");
+            let (key, vals) = parse_data_row(line, &columns, "1");
             result.insert(key, vals);
         }
 
-        assert_eq!(result["MAGE"],    vec!["0".to_string(),"0".to_string(),"0".to_string(),"9".to_string(),"0".to_string(),"0".to_string()]);
-        assert_eq!(result["FIGHTER"], vec!["9".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"9".to_string()]); // gap filled
-        assert_eq!(result["CLERIC"],  vec!["0".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"9".to_string(),"0".to_string()]);
+        assert_eq!(result["MAGE"],    vec!["1".to_string(),"0".to_string(),"0".to_string(),"9".to_string(),"0".to_string(),"0".to_string()]);
+        assert_eq!(result["FIGHTER"], vec!["9".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"1".to_string(),"9".to_string()]); // gap filled
+        assert_eq!(result["CLERIC"],  vec!["0".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"9".to_string(),"1".to_string()]);
         assert_eq!(result["THIEF"],   vec!["0".to_string(),"9".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"0".to_string()]);
+    }
+
+    #[test]
+    fn test_parse_2da_file() {
+        let fs = CaseInsensitiveFS::new(BG2_RESOURCES_DIR).unwrap();
+        let two_da = TwoDAImporter::new(&fs, "override/AbClasRq.2DA").import().unwrap();
+
+        assert_eq!(two_da.headers, vec!["MIN_STR".to_string(), "MIN_DEX".to_string(), "MIN_CON".to_string(), "MIN_INT".to_string(), "MIN_WIS".to_string(), "MIN_CHR".to_string()]);
+        assert_eq!(two_da.columns, vec![24, 32, 40, 48, 56, 64]);
+        assert_eq!(two_da.rows.len(), 51);
+
+        assert_eq!(two_da.rows.get("MAGE"), Some(&vec!["0".to_string(), "0".to_string(), "0".to_string(), "9".to_string(), "0".to_string(), "0".to_string()]));
+        assert_eq!(two_da.rows.get("FIGHTER_MAGE_CLERIC"), Some(&vec!["9".to_string(), "0".to_string(), "0".to_string(), "9".to_string(), "9".to_string(), "0".to_string()]));
+        assert_eq!(two_da.rows.get("PALADIN"), Some(&vec!["12".to_string(), "0".to_string(), "9".to_string(), "0".to_string(), "13".to_string(), "17".to_string()]));
+        
     }
 }
