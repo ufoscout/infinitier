@@ -13,6 +13,7 @@ infinitier_core = { path = "src/core" }
 
 encoding_rs = "0.8"
 insta = { version = "1", features = ["json", "redactions", "filters"] }
+itertools = "0.14"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 
