@@ -7,6 +7,8 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::constants::FILE_FOLDERS;
+
 /// A file system that is case insensitive
 #[derive(Debug, Clone)]
 pub struct CaseInsensitiveFS {
@@ -50,6 +52,21 @@ impl CaseInsensitiveFS {
                 format!("File not found: {}", path.path),
             )),
         }
+    }
+
+    /// Searches for a path in the root directory, if it does not exists, it search in a set of predefined folders
+    pub fn search_path_opt(&self, path: &CaseInsensitivePath) -> Option<PathBuf> {
+        if let Some(path) = self.get_path_opt(path) {
+            return Some(path);
+        }
+
+        for dir in FILE_FOLDERS {
+            let search_name = format!("{}/{}", dir, path.path);
+            if let Some(path) = self.paths.get(&search_name) {
+                return Some(path.to_owned());
+            }
+        }
+        None
     }
 }
 
@@ -125,6 +142,8 @@ fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) ->
 
 #[cfg(test)]
 mod tests {
+    use crate::test_utils::{BG_RESOURCES_DIR, IWD_RESOURCES_DIR};
+
     use super::*;
 
     #[test]
@@ -170,5 +189,38 @@ mod tests {
                 .is_ok()
         );
         assert!(fs.get_path(&CaseInsensitivePath::new("/Targets")).is_err());
+    }
+
+    #[test]
+    fn test_search_path_in_exact_path() {
+        let fs = CaseInsensitiveFS::new(BG_RESOURCES_DIR).unwrap();
+
+        let path = fs.search_path_opt(&CaseInsensitivePath::new("/chitin.key"));
+
+        assert_eq!(
+            path,
+            Some(
+                PathBuf::from(BG_RESOURCES_DIR)
+                    .join("Chitin.key")
+                    .canonicalize()
+                    .unwrap()
+            )
+        );
+    }
+
+    #[test]
+    fn test_search_path_in_subfolder() {
+        let fs = CaseInsensitiveFS::new(IWD_RESOURCES_DIR).unwrap();
+
+        let path = fs.search_path_opt(&CaseInsensitivePath::new("/DATA/AR3603.cbf"));
+        assert_eq!(
+            path,
+            Some(
+                PathBuf::from(IWD_RESOURCES_DIR)
+                    .join("CD2/Data/AR3603.cbf")
+                    .canonicalize()
+                    .unwrap()
+            )
+        );
     }
 }
