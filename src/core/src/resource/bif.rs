@@ -1,8 +1,5 @@
-use std::{io, path::Path};
 
-use encoding_rs::WINDOWS_1252;
-
-use crate::io::Reader;
+use crate::datasource::Reader;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Type {
@@ -11,34 +8,35 @@ pub enum Type {
     Bifc,
 }
 
-pub fn detect_biff_type(file_path: &Path) -> Result<Type, io::Error> {
-    if !file_path.is_file() {
-        return Err(io::Error::other("Not a file"));
-    }
+/// Detects the type of a BIFF file
+pub fn detect_biff_type(reader: &mut Reader) -> std::io::Result<Type> {
 
-    let mut reader = Reader::with_file(file_path, WINDOWS_1252)?;
     let value = reader.read_string(8)?;
 
     match value.as_str() {
         "BIFFV1  " => Ok(Type::Biff),
         "BIF V1.0" => Ok(Type::Bif),
         "BIFCV1.0" => Ok(Type::Bifc),
-        val => Err(io::Error::other(format!("Unsupported BIFF file: {}", val))),
+        val => Err(std::io::Error::other(format!("Unsupported BIFF file: {}", val))),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::RESOURCES_DIR;
+    use std::path::Path;
+
+    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
 
     use super::*;
 
     #[test]
     fn test_detect_bif_type() {
-        assert_eq!(
-            detect_biff_type(Path::new(&format!(
+        let data = DataSource::new(Path::new(&format!(
                 "{RESOURCES_DIR}iwd/CD2/Data/AR3603.cbf"
-            )))
+            )));
+
+        assert_eq!(
+            detect_biff_type(&mut data.reader().unwrap())
             .unwrap(),
             Type::Bif
         );
@@ -46,8 +44,12 @@ mod tests {
 
     #[test]
     fn test_detect_biff_type() {
+                let data = DataSource::new(Path::new(&format!(
+                "{RESOURCES_DIR}pst/CS_0511.bif"
+            )));
+
         assert_eq!(
-            detect_biff_type(Path::new(&format!("{RESOURCES_DIR}pst/CS_0511.bif"))).unwrap(),
+            detect_biff_type(&mut data.reader().unwrap()).unwrap(),
             Type::Biff
         );
     }
