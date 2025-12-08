@@ -1,35 +1,23 @@
 use std::collections::HashMap;
 
-use encoding_rs::WINDOWS_1252;
 use itertools::{Itertools, chain};
 use log::warn;
 
-use crate::{fs::CaseInsensitiveFS, io::{Importer, Reader}};
+use crate::datasource::{DataSource, Importer};
 
 /// A 2DA file importer
-pub struct TwoDAImporter<'a> {
-    fs: &'a CaseInsensitiveFS,
-    file_name: &'a str,
-}
+pub struct TwoDAImporter;
 
-impl <'a> TwoDAImporter<'a> {
-    /// Creates a new 2DA file importer
-    pub fn new(fs: &'a CaseInsensitiveFS, file_name: &'a str) -> TwoDAImporter<'a> {
-        TwoDAImporter { fs, file_name }
-    }
-}
-
-impl <'a> Importer for TwoDAImporter<'a> {
+impl Importer for TwoDAImporter {
     type T = TwoDA;
 
-    fn import(&self) -> std::io::Result<TwoDA> {
-        let key_file_path = self.fs.get_path(self.file_name)?;
-        let mut reader = Reader::with_file(&key_file_path, WINDOWS_1252)?;
+    fn import(source: &DataSource) -> std::io::Result<TwoDA> {
+        let mut reader = source.reader()?;
 
         let signature = reader.read_line()?.0.trim().to_string();
 
         if signature != "2DA V1.0" {
-    		warn!("TwoDAImporter - File [{}] has a bad signature [{signature}]! Complaining, but ignoring...", self.file_name);
+    		warn!("TwoDAImporter - DataSource [{:?}] has a bad signature [{signature}]! Complaining, but ignoring...", source);
     	}
 
         let default_value = reader.read_line()?.0.trim().to_string();
@@ -125,7 +113,7 @@ fn parse_data_row(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::test_utils::BG2_RESOURCES_DIR;
+    use crate::{fs::{CaseInsensitiveFS, CaseInsensitivePath}, test_utils::BG2_RESOURCES_DIR};
 
     use super::*;
 
@@ -220,8 +208,8 @@ THIEF                   0       9       0       0       0       0";
 
     #[test]
     fn test_parse_2da_file() {
-        let fs = CaseInsensitiveFS::new(BG2_RESOURCES_DIR).unwrap();
-        let two_da = TwoDAImporter::new(&fs, "override/AbClasRq.2DA").import().unwrap();
+        let path = CaseInsensitiveFS::new(BG2_RESOURCES_DIR).unwrap().get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA")).unwrap();
+        let two_da = TwoDAImporter::import(&DataSource::new(path)).unwrap();
 
         assert_eq!(two_da.headers, vec!["MIN_STR".to_string(), "MIN_DEX".to_string(), "MIN_CON".to_string(), "MIN_INT".to_string(), "MIN_WIS".to_string(), "MIN_CHR".to_string()]);
         assert_eq!(two_da.columns, vec![24, 32, 40, 48, 56, 64]);
