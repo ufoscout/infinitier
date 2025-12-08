@@ -166,7 +166,7 @@ impl DataSource {
                     data,
                     charset: encoding,
                 })
-            },
+            }
         }
     }
 }
@@ -178,7 +178,6 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-
     /// Returns a zip reader
     pub fn as_zip_reader(&mut self) -> ZipReader<'_> {
         ZipReader {
@@ -310,7 +309,6 @@ pub struct ZipReader<'a> {
 }
 
 impl<'a> ZipReader<'a> {
-
     /// Skips `size` bytes
     pub fn skip(&mut self, size: u64) -> std::io::Result<()> {
         for _ in 0..size {

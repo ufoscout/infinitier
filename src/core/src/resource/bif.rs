@@ -1,4 +1,3 @@
-
 use crate::datasource::Reader;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -131,81 +130,80 @@ impl BifImporter {
         let uncompressed_data_lenght = reader.read_u32()? as u64;
         let compressed_data_lenght = reader.read_u32()? as u64;
 
-            let mut zip = reader.as_zip_reader();
+        let mut zip = reader.as_zip_reader();
 
-            let signature = zip.read_string(8)?;
+        let signature = zip.read_string(8)?;
 
-            if !signature.eq("BIFFV1  ") {
-                return Err(std::io::Error::other(format!(
-                    "Wrong file type: {}",
-                    signature
-                )));
-            }
+        if !signature.eq("BIFFV1  ") {
+            return Err(std::io::Error::other(format!(
+                "Wrong file type: {}",
+                signature
+            )));
+        }
 
-            let files_number = zip.read_u32()? as usize;
-            let tilesets_number = zip.read_u32()? as usize;
-            let files_offset = zip.read_u32()? as u64;
+        let files_number = zip.read_u32()? as usize;
+        let tilesets_number = zip.read_u32()? as usize;
+        let files_offset = zip.read_u32()? as u64;
 
-            println!("files_number: {}", files_number);
-            println!("tilesets_number: {}", tilesets_number);
-            println!("files_offset: {}", files_offset);
+        println!("files_number: {}", files_number);
+        println!("tilesets_number: {}", tilesets_number);
+        println!("files_offset: {}", files_offset);
 
-            let current_offset = 20;
-            if files_offset < current_offset {
-                return Err(std::io::Error::other(format!(
-                    "Invalid decompressed BIFF header offset: {}",
-                    files_offset
-                )));
-            }
+        let current_offset = 20;
+        if files_offset < current_offset {
+            return Err(std::io::Error::other(format!(
+                "Invalid decompressed BIFF header offset: {}",
+                files_offset
+            )));
+        }
 
-            let remaining_bytes = files_offset - current_offset;
+        let remaining_bytes = files_offset - current_offset;
 
-            zip.skip(remaining_bytes)?;
+        zip.skip(remaining_bytes)?;
 
-            let mut bif = Bif {
-                r#type: Type::Biff,
-                files: Vec::with_capacity(files_number),
-                tilesets: Vec::with_capacity(tilesets_number),
-            };
+        let mut bif = Bif {
+            r#type: Type::Biff,
+            files: Vec::with_capacity(files_number),
+            tilesets: Vec::with_capacity(tilesets_number),
+        };
 
-            // reading file entries
-            for i in 0..files_number {
-                let locator = zip.read_u32()? & 0xfffff;
-                let offset = zip.read_u32()? as u64;
-                let size = zip.read_u32()?;
-                let r#type = zip.read_u16()?;
-                zip.read_u16()?; // unknown data
+        // reading file entries
+        for i in 0..files_number {
+            let locator = zip.read_u32()? & 0xfffff;
+            let offset = zip.read_u32()? as u64;
+            let size = zip.read_u32()?;
+            let r#type = zip.read_u16()?;
+            zip.read_u16()?; // unknown data
 
-                bif.files.push(BifEmbeddedFile {
-                    locator,
-                    offset,
-                    size,
-                    r#type,
-                })
-                // addEntry(new Entry(locator, offset, size, type));
-            }
+            bif.files.push(BifEmbeddedFile {
+                locator,
+                offset,
+                size,
+                r#type,
+            })
+            // addEntry(new Entry(locator, offset, size, type));
+        }
 
-            // reading tileset entries
-            for i in 0..tilesets_number {
-                let locator = zip.read_u32()? & 0xfffff;
-                let offset = zip.read_u32()? as u64;
-                let count = zip.read_u32()?;
-                let size = zip.read_u32()?;
-                let r#type = zip.read_u16()?;
-                zip.read_u16()?; // unknown data
+        // reading tileset entries
+        for i in 0..tilesets_number {
+            let locator = zip.read_u32()? & 0xfffff;
+            let offset = zip.read_u32()? as u64;
+            let count = zip.read_u32()?;
+            let size = zip.read_u32()?;
+            let r#type = zip.read_u16()?;
+            zip.read_u16()?; // unknown data
 
-                bif.tilesets.push(BifEmbeddedTileset {
-                    locator,
-                    offset,
-                    count,
-                    size,
-                    r#type,
-                })
-                // addEntry(new Entry(locator, offset, count, size, type));
-            }
+            bif.tilesets.push(BifEmbeddedTileset {
+                locator,
+                offset,
+                count,
+                size,
+                r#type,
+            })
+            // addEntry(new Entry(locator, offset, count, size, type));
+        }
 
         Ok(bif)
-
     }
 }
 
@@ -234,7 +232,7 @@ mod tests {
         assert_eq!(bif.files.len(), 5);
         assert_eq!(bif.tilesets.len(), 1);
 
-                assert_eq!(
+        assert_eq!(
             bif.files[0],
             BifEmbeddedFile {
                 locator: 0,
@@ -274,7 +272,6 @@ mod tests {
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
             Type::Bifc
         );
-
     }
 
     #[test]
