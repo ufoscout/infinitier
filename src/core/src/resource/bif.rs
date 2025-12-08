@@ -1,4 +1,4 @@
-use crate::datasource::Reader;
+use crate::{datasource::Reader, resource::key::ResourceType};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Type {
@@ -19,7 +19,7 @@ pub struct BifEmbeddedFile {
     pub locator: u32,
     pub size: u32,
     pub offset: u64,
-    pub r#type: u16,
+    pub r#type: ResourceType,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -28,7 +28,7 @@ pub struct BifEmbeddedTileset {
     pub size: u32,
     pub count: u32,
     pub offset: u64,
-    pub r#type: u16,
+    pub r#type: ResourceType,
 }
 
 /// Detects the type of a BIFF file
@@ -72,7 +72,7 @@ impl BiffImporter {
         };
 
         // reading file entries
-        for i in 0..files_number {
+        for _ in 0..files_number {
             let locator = reader.read_u32()? & 0xfffff;
             let offset = reader.read_u32()? as u64;
             let size = reader.read_u32()?;
@@ -83,13 +83,13 @@ impl BiffImporter {
                 locator,
                 offset,
                 size,
-                r#type,
+                r#type: ResourceType::from(r#type),
             })
             // addEntry(new Entry(locator, offset, size, type));
         }
 
         // reading tileset entries
-        for i in 0..tilesets_number {
+        for _ in 0..tilesets_number {
             let locator = reader.read_u32()? & 0xfffff;
             let offset = reader.read_u32()? as u64;
             let count = reader.read_u32()?;
@@ -102,7 +102,7 @@ impl BiffImporter {
                 offset,
                 count,
                 size,
-                r#type,
+                r#type: ResourceType::from(r#type),
             })
             // addEntry(new Entry(locator, offset, count, size, type));
         }
@@ -127,8 +127,8 @@ impl BifImporter {
         let name_length = reader.read_u32()? as u64;
         let _name = reader.read_string(name_length)?;
 
-        let uncompressed_data_lenght = reader.read_u32()? as u64;
-        let compressed_data_lenght = reader.read_u32()? as u64;
+        let _uncompressed_data_lenght = reader.read_u32()? as u64;
+        let _compressed_data_lenght = reader.read_u32()? as u64;
 
         let mut zip = reader.as_zip_reader();
 
@@ -168,7 +168,7 @@ impl BifImporter {
         };
 
         // reading file entries
-        for i in 0..files_number {
+        for _ in 0..files_number {
             let locator = zip.read_u32()? & 0xfffff;
             let offset = zip.read_u32()? as u64;
             let size = zip.read_u32()?;
@@ -179,13 +179,13 @@ impl BifImporter {
                 locator,
                 offset,
                 size,
-                r#type,
+                r#type: ResourceType::from(r#type),
             })
             // addEntry(new Entry(locator, offset, size, type));
         }
 
         // reading tileset entries
-        for i in 0..tilesets_number {
+        for _ in 0..tilesets_number {
             let locator = zip.read_u32()? & 0xfffff;
             let offset = zip.read_u32()? as u64;
             let count = zip.read_u32()?;
@@ -198,7 +198,7 @@ impl BifImporter {
                 offset,
                 count,
                 size,
-                r#type,
+                r#type: ResourceType::from(r#type),
             })
             // addEntry(new Entry(locator, offset, count, size, type));
         }
@@ -238,7 +238,7 @@ mod tests {
                 locator: 0,
                 size: 3850,
                 offset: 120,
-                r#type: 1001
+                r#type: ResourceType::Wed
             }
         );
         assert_eq!(
@@ -247,7 +247,7 @@ mod tests {
                 locator: 2,
                 size: 7480,
                 offset: 7288,
-                r#type: 1
+                r#type: ResourceType::Bmp
             }
         );
         assert_eq!(
@@ -257,7 +257,7 @@ mod tests {
                 size: 5120,
                 offset: 43480,
                 count: 300,
-                r#type: 1003
+                r#type: ResourceType::Tis
             }
         );
     }
@@ -294,7 +294,7 @@ mod tests {
                 locator: 1,
                 size: 4050,
                 offset: 7952,
-                r#type: 1007
+                r#type: ResourceType::Bcs
             }
         );
         assert_eq!(
@@ -303,7 +303,7 @@ mod tests {
                 locator: 3,
                 size: 285,
                 offset: 17222,
-                r#type: 1007
+                r#type: ResourceType::Bcs
             }
         );
     }
@@ -330,7 +330,7 @@ mod tests {
                 locator: 0,
                 size: 315816,
                 offset: 24,
-                r#type: 1004
+                r#type: ResourceType::Mos
             }
         );
         assert_eq!(
@@ -340,7 +340,7 @@ mod tests {
                 size: 12,
                 offset: 461932,
                 count: 2507,
-                r#type: 1003
+                r#type: ResourceType::Tis
             }
         );
     }
