@@ -1,42 +1,161 @@
-use std::{
-    fs::File,
-    io::{BufRead, BufReader, Read, Seek},
-    path::Path,
-};
+use std::{fs::File, io::{BufRead, BufReader, Cursor, Read, Seek}, path::{Path, PathBuf}, sync::Arc};
 
-use encoding_rs::Encoding;
+use encoding_rs::{Encoding, WINDOWS_1252};
 
-/// A trait for importing data
+/// A data importer.
+/// Parses data from a data source and returns the parsed data
 pub trait Importer {
     type T;
-    fn import(&self) -> std::io::Result<Self::T>;
+    /// Imports a data source
+    fn import(source: &DataSource) -> std::io::Result<Self::T>;
 }
 
+/// A data source
+#[derive(Debug, Clone)]
+pub enum Data {
+    FileSource(PathBuf),
+    MemorySource(Arc<Vec<u8>>)
+}
+
+impl From<PathBuf> for Data {
+    fn from(value: PathBuf) -> Self {
+        Data::FileSource(value)
+    }
+}
+
+impl From<&Path> for Data {
+    fn from(value: &Path) -> Self {
+        Data::FileSource(value.to_path_buf())
+    }
+}
+
+impl From<&str> for Data {
+    fn from(value: &str) -> Self {
+        Data::FileSource(PathBuf::from(value))
+    }
+}
+
+impl From<Vec<u8>> for Data {
+    fn from(value: Vec<u8>) -> Self {
+        Data::MemorySource(Arc::new(value))
+    }
+}
+
+impl From<&[u8]> for Data {
+    fn from(value: &[u8]) -> Self {
+        Data::MemorySource(Arc::new(value.to_vec()))
+    }
+}
+
+impl <const N: usize> From<&[u8; N]> for Data { 
+    fn from(value: &[u8; N]) -> Self { 
+        Data::MemorySource(Arc::new(value.to_vec())) 
+    } 
+}
+
+pub trait DataTrait: BufRead + Seek {}
+
+impl DataTrait for BufReader<File> {}
+impl DataTrait for Cursor<&[u8]> {}
+
+
+impl Data {
+
+    /// Returns a reader for the data
+    pub fn data(&self) -> std::io::Result<Box<dyn DataTrait + '_>> {
+        match self {
+            Data::FileSource(reader) => Ok(Box::new(BufReader::new(File::open(reader)?))),
+            Data::MemorySource(reader) => Ok(Box::new(Cursor::new(reader.as_slice()))),
+        }
+    }
+}
+
+
+/// A data source with a specific encoding
+#[derive(Debug, Clone)]
+pub enum DataSource {
+    Full{
+        encoding: &'static Encoding,
+        data: Data,
+    },
+    Embedded{
+        encoding: &'static Encoding,
+        data: Data,
+        offset: u64,
+    },
+}
+
+impl From<Data> for DataSource {
+    fn from(value: Data) -> Self {
+        DataSource::new(value)
+    }
+}
+
+impl DataSource {
+
+    /// Creates a new data source
+    pub fn new<D: Into<Data>>(data: D) -> Self {
+        DataSource::Full{encoding: WINDOWS_1252, data: data.into()}
+    }
+
+    /// Creates a new data source with an offset
+    pub fn new_with_offset<D: Into<Data>>(data: D, offset: u64) -> Self {
+        DataSource::Embedded{encoding: WINDOWS_1252, data: data.into(), offset}
+    }
+
+    /// Sets the encoding
+    pub fn with_encoding(self, encoding: &'static Encoding) -> Self {
+        match self {
+            DataSource::Full{data, ..} => DataSource::Full{encoding, data},
+            DataSource::Embedded{data, offset, ..} => DataSource::Embedded{encoding, data, offset},            
+        }
+    }
+
+    /// Sets the offset
+    pub fn with_offset(self, offset: u64) -> Self {
+        match self {
+            DataSource::Full{encoding, data} => DataSource::Embedded{encoding, data, offset},
+            DataSource::Embedded{encoding, data, ..} => DataSource::Embedded{encoding, data, offset},            
+        }
+    }
+
+    /// Returns the encoding
+    pub fn encoding(&self) -> &'static Encoding {
+        match self {
+            DataSource::Full{encoding, ..} => encoding,
+            DataSource::Embedded{encoding, ..} => encoding,            
+        }
+    }
+
+    /// Creates a data reader
+    pub fn reader(&self) -> std::io::Result<Reader<'_>> {
+        match self {
+            DataSource::Full{encoding, data} => Ok(Reader {
+                data: data.data()?,
+                charset: encoding
+            }),
+            DataSource::Embedded{encoding, data, offset} => {
+                let mut data =data.data()?;
+                data.seek(std::io::SeekFrom::Start(*offset))?;
+                Ok(Reader {
+                    data,
+                    charset: encoding
+                })
+            }
+        }
+    }
+}
+
+
 /// A reader that reads a byte array with a specific encoding
-pub struct Reader<B: BufRead> {
-    data: B,
+pub struct Reader<'a> {
+    data: Box<dyn DataTrait + 'a>,
     charset: &'static Encoding,
 }
 
-impl Reader<BufReader<File>> {
-    /// Reads a file with a specific encoding
-    pub fn with_file(
-        path: &Path,
-        charset: &'static Encoding,
-    ) -> Result<Reader<BufReader<File>>, std::io::Error> {
-        Ok(Reader {
-            data: BufReader::new(File::open(path)?),
-            charset,
-        })
-    }
-}
 
-impl<B: BufRead> Reader<B> {
-    /// Creates a new Reader
-    pub fn new(data: B, charset: &'static Encoding) -> Reader<B> {
-        Reader { data, charset }
-    }
-
+impl <'a> Reader<'a> {
+    
     /// Reads a line from the current position
     /// and returns it as a `String` and the number of bytes read.
     /// If bytes read is 0, then EOF has been reached
@@ -109,9 +228,7 @@ impl<B: BufRead> Reader<B> {
     pub fn read_u16(&mut self) -> std::io::Result<u16> {
         Ok(u16::from_le_bytes(self.read_exact::<2>()?))
     }
-}
 
-impl<B: BufRead + Seek> Reader<B> {
     /// Returns the current position of the cursor
     pub fn position(&mut self) -> std::io::Result<u64> {
         self.data.stream_position()
@@ -155,65 +272,69 @@ impl<B: BufRead + Seek> Reader<B> {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-
-    use encoding_rs::WINDOWS_1252;
 
     use super::*;
 
     #[test]
     fn test_read_string() {
-        let mut reader = Reader::new("Hello, world!".as_bytes(), WINDOWS_1252);
+        let reader = DataSource::new("Hello, world!".as_bytes());
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_string(5).unwrap(), "Hello");
     }
 
     #[test]
     fn test_read_string_at() {
-        let mut reader = Reader::new(Cursor::new("Hello, world!".as_bytes()), WINDOWS_1252);
+        let reader = DataSource::new("Hello, world!".as_bytes());
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_string_at(7, 5).unwrap(), "world");
     }
 
     #[test]
     fn test_read_u32() {
-        let mut reader = Reader::new(Cursor::new(&[0x01, 0x02, 0x03, 0x04]), WINDOWS_1252);
+        let reader = DataSource::new(&[0x01u8, 0x02, 0x03, 0x04]);
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_u32().unwrap(), 0x04030201);
     }
 
     #[test]
     fn test_read_u32_at() {
-        let mut reader = Reader::new(
-            Cursor::new(&[0x01, 0x02, 0x01, 0x01, 0x03, 0x04]),
-            WINDOWS_1252,
+        let reader = DataSource::new(
+            &[0x01, 0x02, 0x01, 0x01, 0x03, 0x04],
         );
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_u32_at(2).unwrap(), 0x04030101);
     }
 
     #[test]
     fn test_read_i32() {
-        let mut reader = Reader::new(Cursor::new(&[0x01, 0x02, 0x03, 0x04]), WINDOWS_1252);
+        let reader = DataSource::new(&[0x01, 0x02, 0x03, 0x04]);
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_i32().unwrap(), 0x04030201);
     }
 
     #[test]
     fn test_read_i32_at() {
-        let mut reader = Reader::new(
-            Cursor::new(&[0x01, 0x01, 0x01, 0x02, 0x01, 0x04]),
-            WINDOWS_1252,
+        let reader = DataSource::new(
+            &[0x01, 0x01, 0x01, 0x02, 0x01, 0x04],
         );
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_i32_at(2).unwrap(), 0x04010201);
     }
 
     #[test]
     fn test_read_u16() {
-        let mut reader = Reader::new(Cursor::new(&[0x01, 0x02]), WINDOWS_1252);
+        let reader = DataSource::new(&[0x01, 0x02]);
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_u16().unwrap(), 0x0201);
     }
 
     #[test]
     fn test_read_u16_at() {
-        let mut reader = Reader::new(Cursor::new(&[0x01, 0x02, 0x03, 0x04]), WINDOWS_1252);
+        let reader = DataSource::new(&[0x01, 0x02, 0x03, 0x04]);
+        let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_u16_at(2).unwrap(), 0x0403);
     }
 }

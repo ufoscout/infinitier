@@ -3,7 +3,6 @@ source: src/core/src/resource/key.rs
 expression: key
 ---
 {
-  "file": "",
   "signature": "KEY",
   "version": "V1",
   "resources_offset": 3746,
@@ -11,1081 +10,1214 @@ expression: key
   "bif_entries": [
     {
       "index": 0,
-      "file_name": "data/2da.bif",
+      "file_name": {
+        "path": "data/2da.bif"
+      },
       "file_size": 414954,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 1,
-      "file_name": "data/guibam.bif",
+      "file_name": {
+        "path": "data/guibam.bif"
+      },
       "file_size": 1056087,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 2,
-      "file_name": "data/guichu.bif",
+      "file_name": {
+        "path": "data/guichu.bif"
+      },
       "file_size": 143666,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 3,
-      "file_name": "data/guifont.bif",
+      "file_name": {
+        "path": "data/guifont.bif"
+      },
       "file_size": 94579,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 4,
-      "file_name": "data/guimos.bif",
+      "file_name": {
+        "path": "data/guimos.bif"
+      },
       "file_size": 26991200,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 5,
-      "file_name": "data/ids.bif",
+      "file_name": {
+        "path": "data/ids.bif"
+      },
       "file_size": 84176,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 6,
-      "file_name": "data/misc.bif",
+      "file_name": {
+        "path": "data/misc.bif"
+      },
       "file_size": 580407,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 7,
-      "file_name": "data/splspl.bif",
+      "file_name": {
+        "path": "data/splspl.bif"
+      },
       "file_size": 545368,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 8,
-      "file_name": "data/splbmp.bif",
+      "file_name": {
+        "path": "data/splbmp.bif"
+      },
       "file_size": 38552,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 9,
-      "file_name": "data/splbam.bif",
+      "file_name": {
+        "path": "data/splbam.bif"
+      },
       "file_size": 23483588,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 10,
-      "file_name": "data/anmchar.bif",
+      "file_name": {
+        "path": "data/anmchar.bif"
+      },
       "file_size": 113988470,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 11,
-      "file_name": "data/splsfx.bif",
+      "file_name": {
+        "path": "data/splsfx.bif"
+      },
       "file_size": 31027123,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 12,
-      "file_name": "data/sndcre.bif",
+      "file_name": {
+        "path": "data/sndcre.bif"
+      },
       "file_size": 247277,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 13,
-      "file_name": "data/sndsfx.bif",
+      "file_name": {
+        "path": "data/sndsfx.bif"
+      },
       "file_size": 98237795,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 14,
-      "file_name": "data/guiicon.bif",
+      "file_name": {
+        "path": "data/guiicon.bif"
+      },
       "file_size": 3514168,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 15,
-      "file_name": "data/guispl.bif",
+      "file_name": {
+        "path": "data/guispl.bif"
+      },
       "file_size": 3169265,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 16,
-      "file_name": "data/anmcre.bif",
+      "file_name": {
+        "path": "data/anmcre.bif"
+      },
       "file_size": 685963,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 17,
-      "file_name": "data/anmgen.bif",
+      "file_name": {
+        "path": "data/anmgen.bif"
+      },
       "file_size": 1223314,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 18,
-      "file_name": "data/anmweap.bif",
+      "file_name": {
+        "path": "data/anmweap.bif"
+      },
       "file_size": 26149980,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 19,
-      "file_name": "data/artpal.bif",
+      "file_name": {
+        "path": "data/artpal.bif"
+      },
       "file_size": 1522254,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 20,
-      "file_name": "data/artport.bif",
+      "file_name": {
+        "path": "data/artport.bif"
+      },
       "file_size": 17982610,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 21,
-      "file_name": "data/sndmon.bif",
+      "file_name": {
+        "path": "data/sndmon.bif"
+      },
       "file_size": 32312114,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 22,
-      "file_name": "data/dev.bif",
+      "file_name": {
+        "path": "data/dev.bif"
+      },
       "file_size": 5838872,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 23,
-      "file_name": "data/anmnpc.bif",
+      "file_name": {
+        "path": "data/anmnpc.bif"
+      },
       "file_size": 2335351,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 24,
-      "file_name": "data/ar3000.bif",
+      "file_name": {
+        "path": "data/ar3000.bif"
+      },
       "file_size": 14309244,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 25,
-      "file_name": "data/cre.bif",
+      "file_name": {
+        "path": "data/cre.bif"
+      },
       "file_size": 4002262,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 26,
-      "file_name": "data/are.bif",
+      "file_name": {
+        "path": "data/are.bif"
+      },
       "file_size": 2051396,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 27,
-      "file_name": "data/ar3101.bif",
+      "file_name": {
+        "path": "data/ar3101.bif"
+      },
       "file_size": 6005205,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 28,
-      "file_name": "data/ar3100.bif",
+      "file_name": {
+        "path": "data/ar3100.bif"
+      },
       "file_size": 6269690,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 29,
-      "file_name": "data/itm.bif",
+      "file_name": {
+        "path": "data/itm.bif"
+      },
       "file_size": 842634,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 30,
-      "file_name": "data/sto.bif",
+      "file_name": {
+        "path": "data/sto.bif"
+      },
       "file_size": 95608,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 31,
-      "file_name": "data/ar3001.bif",
+      "file_name": {
+        "path": "data/ar3001.bif"
+      },
       "file_size": 14350343,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 32,
-      "file_name": "data/ar3002.bif",
+      "file_name": {
+        "path": "data/ar3002.bif"
+      },
       "file_size": 14316521,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 33,
-      "file_name": "data/ar1000.bif",
+      "file_name": {
+        "path": "data/ar1000.bif"
+      },
       "file_size": 9732494,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 34,
-      "file_name": "data/dlg.bif",
+      "file_name": {
+        "path": "data/dlg.bif"
+      },
       "file_size": 1531162,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 35,
-      "file_name": "data/bcs.bif",
+      "file_name": {
+        "path": "data/bcs.bif"
+      },
       "file_size": 14971533,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 36,
-      "file_name": "data/ar1100.bif",
+      "file_name": {
+        "path": "data/ar1100.bif"
+      },
       "file_size": 9011590,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 37,
-      "file_name": "data/ar1200.bif",
+      "file_name": {
+        "path": "data/ar1200.bif"
+      },
       "file_size": 15352470,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 38,
-      "file_name": "data/ar1201.bif",
+      "file_name": {
+        "path": "data/ar1201.bif"
+      },
       "file_size": 796010,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 39,
-      "file_name": "data/ar2000.bif",
+      "file_name": {
+        "path": "data/ar2000.bif"
+      },
       "file_size": 12757399,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 40,
-      "file_name": "data/ar2001.bif",
+      "file_name": {
+        "path": "data/ar2001.bif"
+      },
       "file_size": 8559448,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 41,
-      "file_name": "data/ar2002.bif",
+      "file_name": {
+        "path": "data/ar2002.bif"
+      },
       "file_size": 14040019,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 42,
-      "file_name": "data/ar2100.bif",
+      "file_name": {
+        "path": "data/ar2100.bif"
+      },
       "file_size": 4500008,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 43,
-      "file_name": "data/ar2101.bif",
+      "file_name": {
+        "path": "data/ar2101.bif"
+      },
       "file_size": 6914509,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 44,
-      "file_name": "data/ar2102.bif",
+      "file_name": {
+        "path": "data/ar2102.bif"
+      },
       "file_size": 6144690,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 45,
-      "file_name": "data/ar4000.bif",
+      "file_name": {
+        "path": "data/ar4000.bif"
+      },
       "file_size": 12771837,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 46,
-      "file_name": "data/ar4001.bif",
+      "file_name": {
+        "path": "data/ar4001.bif"
+      },
       "file_size": 445319,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 47,
-      "file_name": "data/ar4100.bif",
+      "file_name": {
+        "path": "data/ar4100.bif"
+      },
       "file_size": 14168687,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 48,
-      "file_name": "data/ar4101.bif",
+      "file_name": {
+        "path": "data/ar4101.bif"
+      },
       "file_size": 15152028,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 49,
-      "file_name": "data/ar4102.bif",
+      "file_name": {
+        "path": "data/ar4102.bif"
+      },
       "file_size": 15869624,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 50,
-      "file_name": "data/ar5200.bif",
+      "file_name": {
+        "path": "data/ar5200.bif"
+      },
       "file_size": 7925846,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 51,
-      "file_name": "data/ar5000.bif",
+      "file_name": {
+        "path": "data/ar5000.bif"
+      },
       "file_size": 6555465,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 52,
-      "file_name": "data/ar5001.bif",
+      "file_name": {
+        "path": "data/ar5001.bif"
+      },
       "file_size": 5677127,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 53,
-      "file_name": "data/ar5002.bif",
+      "file_name": {
+        "path": "data/ar5002.bif"
+      },
       "file_size": 513855,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 54,
-      "file_name": "data/ar5004.bif",
+      "file_name": {
+        "path": "data/ar5004.bif"
+      },
       "file_size": 11290588,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 55,
-      "file_name": "data/ar5005.bif",
+      "file_name": {
+        "path": "data/ar5005.bif"
+      },
       "file_size": 2199716,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 56,
-      "file_name": "data/ar5100.bif",
+      "file_name": {
+        "path": "data/ar5100.bif"
+      },
       "file_size": 1831645,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 57,
-      "file_name": "data/ar5101.bif",
+      "file_name": {
+        "path": "data/ar5101.bif"
+      },
       "file_size": 10756582,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 58,
-      "file_name": "data/ar5102.bif",
+      "file_name": {
+        "path": "data/ar5102.bif"
+      },
       "file_size": 4347314,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 59,
-      "file_name": "data/ar5201.bif",
+      "file_name": {
+        "path": "data/ar5201.bif"
+      },
       "file_size": 4718355,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 60,
-      "file_name": "data/ar5202.bif",
+      "file_name": {
+        "path": "data/ar5202.bif"
+      },
       "file_size": 8441230,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 61,
-      "file_name": "data/ar5203.bif",
+      "file_name": {
+        "path": "data/ar5203.bif"
+      },
       "file_size": 5834134,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 62,
-      "file_name": "data/ar5300.bif",
+      "file_name": {
+        "path": "data/ar5300.bif"
+      },
       "file_size": 14615803,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 63,
-      "file_name": "data/ar5301.bif",
+      "file_name": {
+        "path": "data/ar5301.bif"
+      },
       "file_size": 15816014,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 64,
-      "file_name": "data/ar5302.bif",
+      "file_name": {
+        "path": "data/ar5302.bif"
+      },
       "file_size": 14386911,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 65,
-      "file_name": "data/ar5303.bif",
+      "file_name": {
+        "path": "data/ar5303.bif"
+      },
       "file_size": 2326725,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 66,
-      "file_name": "data/ar6000.bif",
+      "file_name": {
+        "path": "data/ar6000.bif"
+      },
       "file_size": 9568081,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 67,
-      "file_name": "data/ar6001.bif",
+      "file_name": {
+        "path": "data/ar6001.bif"
+      },
       "file_size": 14245930,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 68,
-      "file_name": "data/ar6050.bif",
+      "file_name": {
+        "path": "data/ar6050.bif"
+      },
       "file_size": 7000009,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 69,
-      "file_name": "data/ar6100.bif",
+      "file_name": {
+        "path": "data/ar6100.bif"
+      },
       "file_size": 1576775,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 70,
-      "file_name": "data/ar6101.bif",
+      "file_name": {
+        "path": "data/ar6101.bif"
+      },
       "file_size": 14607008,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 71,
-      "file_name": "data/ar6201.bif",
+      "file_name": {
+        "path": "data/ar6201.bif"
+      },
       "file_size": 4119279,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 72,
-      "file_name": "data/ar6051.bif",
+      "file_name": {
+        "path": "data/ar6051.bif"
+      },
       "file_size": 16622606,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 73,
-      "file_name": "data/ar6102.bif",
+      "file_name": {
+        "path": "data/ar6102.bif"
+      },
       "file_size": 14646449,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 74,
-      "file_name": "data/ar6103.bif",
+      "file_name": {
+        "path": "data/ar6103.bif"
+      },
       "file_size": 14555213,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 75,
-      "file_name": "data/ar6104.bif",
+      "file_name": {
+        "path": "data/ar6104.bif"
+      },
       "file_size": 16241396,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 76,
-      "file_name": "data/ar6300.bif",
+      "file_name": {
+        "path": "data/ar6300.bif"
+      },
       "file_size": 1547819,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 77,
-      "file_name": "data/ar6400.bif",
+      "file_name": {
+        "path": "data/ar6400.bif"
+      },
       "file_size": 1107644,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 78,
-      "file_name": "data/ar6401.bif",
+      "file_name": {
+        "path": "data/ar6401.bif"
+      },
       "file_size": 2010034,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 79,
-      "file_name": "data/ar6402.bif",
+      "file_name": {
+        "path": "data/ar6402.bif"
+      },
       "file_size": 1255397,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 80,
-      "file_name": "data/ar6403.bif",
+      "file_name": {
+        "path": "data/ar6403.bif"
+      },
       "file_size": 1251682,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 81,
-      "file_name": "data/ar6500.bif",
+      "file_name": {
+        "path": "data/ar6500.bif"
+      },
       "file_size": 2542652,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 82,
-      "file_name": "data/ar6501.bif",
+      "file_name": {
+        "path": "data/ar6501.bif"
+      },
       "file_size": 1895495,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 83,
-      "file_name": "data/ar6502.bif",
+      "file_name": {
+        "path": "data/ar6502.bif"
+      },
       "file_size": 1881985,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 84,
-      "file_name": "data/ar6503.bif",
+      "file_name": {
+        "path": "data/ar6503.bif"
+      },
       "file_size": 1949534,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 85,
-      "file_name": "data/ar6200.bif",
+      "file_name": {
+        "path": "data/ar6200.bif"
+      },
       "file_size": 14495290,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 86,
-      "file_name": "data/ar6600.bif",
+      "file_name": {
+        "path": "data/ar6600.bif"
+      },
       "file_size": 1955944,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 87,
-      "file_name": "data/ar6601.bif",
+      "file_name": {
+        "path": "data/ar6601.bif"
+      },
       "file_size": 1885837,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 88,
-      "file_name": "data/ar6602.bif",
+      "file_name": {
+        "path": "data/ar6602.bif"
+      },
       "file_size": 1885070,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 89,
-      "file_name": "data/ar6603.bif",
+      "file_name": {
+        "path": "data/ar6603.bif"
+      },
       "file_size": 1247233,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 90,
-      "file_name": "data/ar6301.bif",
+      "file_name": {
+        "path": "data/ar6301.bif"
+      },
       "file_size": 9028085,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 91,
-      "file_name": "data/ar6302.bif",
+      "file_name": {
+        "path": "data/ar6302.bif"
+      },
       "file_size": 9876845,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 92,
-      "file_name": "data/ar6304.bif",
+      "file_name": {
+        "path": "data/ar6304.bif"
+      },
       "file_size": 8459564,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 93,
-      "file_name": "data/ar6700.bif",
+      "file_name": {
+        "path": "data/ar6700.bif"
+      },
       "file_size": 1785084,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 94,
-      "file_name": "data/ar6701.bif",
+      "file_name": {
+        "path": "data/ar6701.bif"
+      },
       "file_size": 882012,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 95,
-      "file_name": "data/ar6702.bif",
+      "file_name": {
+        "path": "data/ar6702.bif"
+      },
       "file_size": 1183525,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 96,
-      "file_name": "data/ar6703.bif",
+      "file_name": {
+        "path": "data/ar6703.bif"
+      },
       "file_size": 1105986,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 97,
-      "file_name": "data/ar6303.bif",
+      "file_name": {
+        "path": "data/ar6303.bif"
+      },
       "file_size": 8661928,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 98,
-      "file_name": "data/ar6800.bif",
+      "file_name": {
+        "path": "data/ar6800.bif"
+      },
       "file_size": 1164184,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 99,
-      "file_name": "data/areini.bif",
+      "file_name": {
+        "path": "data/areini.bif"
+      },
       "file_size": 57493,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 100,
-      "file_name": "data/sndvo.bif",
+      "file_name": {
+        "path": "data/sndvo.bif"
+      },
       "file_size": 102721547,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 101,
-      "file_name": "data/ar5010.bif",
+      "file_name": {
+        "path": "data/ar5010.bif"
+      },
       "file_size": 1102435,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 102,
-      "file_name": "data/ar5011.bif",
+      "file_name": {
+        "path": "data/ar5011.bif"
+      },
       "file_size": 1178020,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 103,
-      "file_name": "data/anmdemn.bif",
+      "file_name": {
+        "path": "data/anmdemn.bif"
+      },
       "file_size": 26442165,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 104,
-      "file_name": "data/anmbarb.bif",
+      "file_name": {
+        "path": "data/anmbarb.bif"
+      },
       "file_size": 7927106,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 105,
-      "file_name": "data/anmelem.bif",
+      "file_name": {
+        "path": "data/anmelem.bif"
+      },
       "file_size": 34174767,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 106,
-      "file_name": "data/anmgolm.bif",
+      "file_name": {
+        "path": "data/anmgolm.bif"
+      },
       "file_size": 23805857,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 107,
-      "file_name": "data/anmbeet.bif",
+      "file_name": {
+        "path": "data/anmbeet.bif"
+      },
       "file_size": 11724950,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 108,
-      "file_name": "data/anmuni2.bif",
+      "file_name": {
+        "path": "data/anmuni2.bif"
+      },
       "file_size": 22472672,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 109,
-      "file_name": "data/anmuni1.bif",
+      "file_name": {
+        "path": "data/anmuni1.bif"
+      },
       "file_size": 25803788,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 110,
-      "file_name": "data/anmanim.bif",
+      "file_name": {
+        "path": "data/anmanim.bif"
+      },
       "file_size": 15053068,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 111,
-      "file_name": "data/anmgobl.bif",
+      "file_name": {
+        "path": "data/anmgobl.bif"
+      },
       "file_size": 45534805,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 112,
-      "file_name": "data/anmcycl.bif",
+      "file_name": {
+        "path": "data/anmcycl.bif"
+      },
       "file_size": 10386979,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 113,
-      "file_name": "data/anmundd.bif",
+      "file_name": {
+        "path": "data/anmundd.bif"
+      },
       "file_size": 12643786,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 114,
-      "file_name": "data/anmwigt.bif",
+      "file_name": {
+        "path": "data/anmwigt.bif"
+      },
       "file_size": 3836297,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 115,
-      "file_name": "data/anmskel.bif",
+      "file_name": {
+        "path": "data/anmskel.bif"
+      },
       "file_size": 10065994,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 116,
-      "file_name": "data/anmundr.bif",
+      "file_name": {
+        "path": "data/anmundr.bif"
+      },
       "file_size": 26920736,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 117,
-      "file_name": "data/anmwird.bif",
+      "file_name": {
+        "path": "data/anmwird.bif"
+      },
       "file_size": 41094944,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 118,
-      "file_name": "data/anmgian.bif",
+      "file_name": {
+        "path": "data/anmgian.bif"
+      },
       "file_size": 36662980,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 119,
-      "file_name": "data/anmkeg.bif",
+      "file_name": {
+        "path": "data/anmkeg.bif"
+      },
       "file_size": 132837,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 120,
-      "file_name": "data/anmlizd.bif",
+      "file_name": {
+        "path": "data/anmlizd.bif"
+      },
       "file_size": 10321186,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 121,
-      "file_name": "data/anmspid.bif",
+      "file_name": {
+        "path": "data/anmspid.bif"
+      },
       "file_size": 609626,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 122,
-      "file_name": "data/anmtrol.bif",
+      "file_name": {
+        "path": "data/anmtrol.bif"
+      },
       "file_size": 10213425,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 123,
-      "file_name": "data/anmwdrg.bif",
+      "file_name": {
+        "path": "data/anmwdrg.bif"
+      },
       "file_size": 10315060,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 124,
-      "file_name": "data/anmlycn.bif",
+      "file_name": {
+        "path": "data/anmlycn.bif"
+      },
       "file_size": 2908170,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 125,
-      "file_name": "data/anmyuan.bif",
+      "file_name": {
+        "path": "data/anmyuan.bif"
+      },
       "file_size": 10114255,
-      "file": null,
       "directory": {
         "Unknown": 9
       }
     },
     {
       "index": 126,
-      "file_name": "data/anmdrg2.bif",
+      "file_name": {
+        "path": "data/anmdrg2.bif"
+      },
       "file_size": 21687376,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 127,
-      "file_name": "data/ar100a.bif",
+      "file_name": {
+        "path": "data/ar100a.bif"
+      },
       "file_size": 6295756,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 128,
-      "file_name": "data/ar100b.bif",
+      "file_name": {
+        "path": "data/ar100b.bif"
+      },
       "file_size": 4314267,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 129,
-      "file_name": "data/ar110a.bif",
+      "file_name": {
+        "path": "data/ar110a.bif"
+      },
       "file_size": 6316678,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 130,
-      "file_name": "data/ar501a.bif",
+      "file_name": {
+        "path": "data/ar501a.bif"
+      },
       "file_size": 5786173,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 131,
-      "file_name": "data/ar502a.bif",
+      "file_name": {
+        "path": "data/ar502a.bif"
+      },
       "file_size": 6535624,
-      "file": null,
       "directory": "Cd7"
     },
     {
       "index": 132,
-      "file_name": "data/ar600a.bif",
+      "file_name": {
+        "path": "data/ar600a.bif"
+      },
       "file_size": 6337802,
-      "file": null,
       "directory": "Cd7"
     }
   ],

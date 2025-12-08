@@ -1,43 +1,66 @@
 use std::{
-    fs::File,
-    io::{self, BufReader},
+    io,
     path::PathBuf,
 };
 
-use encoding_rs::WINDOWS_1252;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constants::FILE_FOLDERS,
-    fs::CaseInsensitiveFS,
-    io::{Importer, Reader},
+    constants::FILE_FOLDERS, datasource::{DataSource, Importer, Reader}, fs::{CaseInsensitiveFS, CaseInsensitivePath}
 };
 
 /// A KEY file importer
-pub struct KeyImporter<'a> {
-    fs: &'a CaseInsensitiveFS,
-    file_name: &'a str,
-}
+pub struct KeyImporter {}
 
-impl <'a> KeyImporter<'a> {
-    /// Creates a new KEY file importer
-    pub fn new(fs: &'a CaseInsensitiveFS, file_name: &'a str) -> KeyImporter<'a> {
-        KeyImporter { fs, file_name }
-    }
-}
-
-impl <'a> Importer for KeyImporter<'a> {
+impl Importer for KeyImporter {
     type T = Key;
 
-    fn import(&self) -> std::io::Result<Key> {
-        Key::import(&self.fs, &self.file_name)
+    fn import(data: &DataSource) -> std::io::Result<Key> {
+        let mut reader = data.reader()?;
+        let signature = reader.read_string(4)?.trim().to_string();
+        let version = reader.read_string(4)?.trim().to_string();
+
+        if !(signature.eq("KEY") && version.eq("V1")) {
+            return Err(io::Error::other("Wrong file type"));
+        }
+
+        let bif_size = reader.read_u32()?;
+        let resources_size = reader.read_u32()?;
+        let bif_offset = reader.read_u32()?;
+        let resources_offset = reader.read_u32()?;
+
+        // checking for BG1 Demo variant of KEY file format
+        let is_demo = reader.read_u32_at(bif_offset as u64)? - bif_offset == bif_size * 0x8
+            && reader.read_u32_at(bif_offset as u64 + 4)? - bif_offset != bif_size * 0xc;
+
+        // reading BIF entries
+        let mut bif_entries = Vec::new();
+        reader.set_position(bif_offset as u64)?;
+        for i in 0..bif_size as u64 {
+            bif_entries.push(BifEntry::read_entry(&mut reader, i, is_demo)?);
+        }
+
+        // reading resource entries
+        let mut resource_entries = Vec::new();
+        reader.set_position(resources_offset as u64)?;
+        for _ in 0..resources_size as u64 {
+            resource_entries.push(ResourceEntry::read_entry(&mut reader)?);
+        }
+
+        Ok(Key {
+            signature,
+            version,
+            resources_offset,
+            bif_offset,
+            bif_entries,
+            resource_entries,
+        })
     }
 }
 
 /// A KEY file
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Key {
-    pub file: PathBuf,
     pub signature: String,
     pub version: String,
     pub resources_offset: u32,
@@ -50,9 +73,8 @@ pub struct Key {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BifEntry {
     pub index: u64,
-    pub file_name: String,
+    pub file_name: CaseInsensitivePath,
     pub file_size: Option<u32>,
-    pub file: Option<PathBuf>,
     pub directory: BifDirectory,
 }
 
@@ -114,58 +136,10 @@ pub struct ResourceEntry {
     pub bif_entry_index: u64,
 }
 
-impl Key {
-    /// Reads a KEY file
-    fn import(fs: &CaseInsensitiveFS, file_name: &str) -> Result<Key, io::Error> {
-        let key_file_path = fs.get_path(file_name)?;
-        let mut reader = Reader::with_file(&key_file_path, WINDOWS_1252)?;
-        let signature = reader.read_string(4)?.trim().to_string();
-        let version = reader.read_string(4)?.trim().to_string();
-
-        if !(signature.eq("KEY") && version.eq("V1")) {
-            return Err(io::Error::other("Wrong file type"));
-        }
-
-        let bif_size = reader.read_u32()?;
-        let resources_size = reader.read_u32()?;
-        let bif_offset = reader.read_u32()?;
-        let resources_offset = reader.read_u32()?;
-
-        // checking for BG1 Demo variant of KEY file format
-        let is_demo = reader.read_u32_at(bif_offset as u64)? - bif_offset == bif_size * 0x8
-            && reader.read_u32_at(bif_offset as u64 + 4)? - bif_offset != bif_size * 0xc;
-
-        // reading BIF entries
-        let mut bif_entries = Vec::new();
-        reader.set_position(bif_offset as u64)?;
-        for i in 0..bif_size as u64 {
-            bif_entries.push(BifEntry::read_entry(fs, &mut reader, i, is_demo)?);
-        }
-
-        // reading resource entries
-        let mut resource_entries = Vec::new();
-        reader.set_position(resources_offset as u64)?;
-        for _ in 0..resources_size as u64 {
-            resource_entries.push(ResourceEntry::read_entry(&mut reader)?);
-        }
-
-        Ok(Key {
-            file: key_file_path.to_path_buf(),
-            signature,
-            version,
-            resources_offset,
-            bif_offset,
-            bif_entries,
-            resource_entries,
-        })
-    }
-}
-
 impl BifEntry {
     /// Reads a BIF entry inside a KEY file
     fn read_entry(
-        fs: &CaseInsensitiveFS,
-        reader: &mut Reader<BufReader<File>>,
+        reader: &mut Reader,
         index: u64,
         is_demo: bool,
     ) -> std::io::Result<BifEntry> {
@@ -194,14 +168,10 @@ impl BifEntry {
 
         reader.set_position(offset_position)?;
 
-        let bif_file = find_bif_file(fs, &file_name)
-            .or_else(|| find_bif_file(fs, &file_name.replace(".bif", ".cbf")));
-
         Ok(BifEntry {
-            file: bif_file,
             file_size,
             index,
-            file_name,
+            file_name: CaseInsensitivePath::new(&file_name),
             directory: BifDirectory::from(location),
         })
     }
@@ -209,19 +179,19 @@ impl BifEntry {
 
 fn find_bif_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
     for path in FILE_FOLDERS {
-        let search_name = format!("{}{}", path, file_name);
-        if let Some(path) = fs.get_path_opt(&search_name)
-            && path.is_file()
-        {
-            return Some(path);
-        }
+        // let search_name = format!("{}{}", path, file_name);
+        // if let Some(path) = fs.get_path_opt(&search_name)
+        //     && path.is_file()
+        // {
+        //     return Some(path);
+        // }
     }
     None
 }
 
 impl ResourceEntry {
     /// Reads a Resource entry inside a KEY file
-    fn read_entry(reader: &mut Reader<BufReader<File>>) -> std::io::Result<ResourceEntry> {
+    fn read_entry(reader: &mut Reader) -> std::io::Result<ResourceEntry> {
         let resource_name = reader.read_string(8)?.trim().to_string();
         let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;
@@ -482,14 +452,10 @@ mod tests {
     #[test]
     fn test_read_key_file() {
         for i in ALL_RESOURCES_DIRS {
-            let fs = CaseInsensitiveFS::new(i).unwrap();
-            let key = Key::import(&fs, "/CHITIN.KEY").unwrap();
+            let path = CaseInsensitiveFS::new(i).unwrap().get_path(&CaseInsensitivePath::new("/CHITIN.KEY")).unwrap();
+            let key = KeyImporter::import(&DataSource::new(path)).unwrap();
 
-            assert_eq!(key.file, fs.get_path("CHITIN.KEY").unwrap());
-
-            assert_json_snapshot!(format!("key_file_{i}"), key, {
-                ".file" => ""
-            });
+            assert_json_snapshot!(format!("key_file_{i}"), key);
         }
     }
 

@@ -4,6 +4,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use serde::Deserialize;
+use serde::Serialize;
+
 /// A file system that is case insensitive
 #[derive(Debug, Clone)]
 pub struct CaseInsensitiveFS {
@@ -33,24 +36,46 @@ impl CaseInsensitiveFS {
 
     /// Returns the absolute path of the file or directory with the given path relative to root.
     /// The path is matched case insensitively
-    pub fn get_path_opt(&self, path: &str) -> Option<PathBuf> {
-        let mut path = path.to_lowercase();
-        if path.starts_with("/") {
-            path = path[1..].to_string();
-        }
-        self.paths.get(&path).cloned()
+    pub fn get_path_opt(&self, path: &CaseInsensitivePath) -> Option<PathBuf> {
+        self.paths.get(path.as_str()).cloned()
     }
 
     /// Tries to get the absolute path of the file or directory with the given path relative to root.
     /// The path is matched case insensitively. If the path is not found, an `io::Error` is returned.
-    pub fn get_path(&self, path: &str) -> io::Result<PathBuf> {
+    pub fn get_path(&self, path: &CaseInsensitivePath) -> io::Result<PathBuf> {
         match self.get_path_opt(path) {
             Some(path) => Ok(path),
             None => Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("File not found: {}", path),
+                format!("File not found: {}", path.path),
             )),
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+/// A path that is case insensitive
+pub struct CaseInsensitivePath {
+    path: String
+}
+
+impl CaseInsensitivePath {
+
+    /// Creates a new `CaseInsensitivePath` from the given path
+    pub fn new(path: &str) -> Self {
+        let mut path = path.trim()
+            .to_lowercase()
+            .replace("\\", "/")
+            .replace(":", "/");
+        while path.starts_with("/") {
+            path = path[1..].to_string();
+        }
+        CaseInsensitivePath { path }
+    }
+
+    /// Returns the path as a string
+    pub fn as_str(&self) -> &str {
+        &self.path
     }
 }
 
@@ -107,13 +132,13 @@ mod tests {
             .unwrap()
             .to_path_buf();
         let fs = CaseInsensitiveFS::new(current_path).unwrap();
-        assert!(fs.get_path_opt("cargo.toml").is_some());
-        assert!(fs.get_path_opt("Cargo.TOML").is_some());
-        assert!(fs.get_path_opt("/cargo.TOML").is_some());
-        assert!(fs.get_path_opt("/src/core/cargo.TOML").is_some());
-        assert!(fs.get_path_opt("/Target").is_some());
+        assert!(fs.get_path_opt(&CaseInsensitivePath::new("cargo.toml")).is_some());
+        assert!(fs.get_path_opt(&CaseInsensitivePath::new("Cargo.TOML")).is_some());
+        assert!(fs.get_path_opt(&CaseInsensitivePath::new("/cargo.TOML")).is_some());
+        assert!(fs.get_path_opt(&CaseInsensitivePath::new("/src/core/cargo.TOML")).is_some());
+        assert!(fs.get_path_opt(&CaseInsensitivePath::new("/Target")).is_some());
 
-        assert!(fs.get_path("/src/core/cargo.TOML").is_ok());
-        assert!(fs.get_path("/Targets").is_err());
+        assert!(fs.get_path(&CaseInsensitivePath::new("/src/core/cargo.TOML")).is_ok());
+        assert!(fs.get_path(&CaseInsensitivePath::new("/Targets")).is_err());
     }
 }

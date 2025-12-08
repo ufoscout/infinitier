@@ -3,7 +3,6 @@ source: src/core/src/resource/key.rs
 expression: key
 ---
 {
-  "file": "",
   "signature": "KEY",
   "version": "V1",
   "resources_offset": 2376,
@@ -11,576 +10,658 @@ expression: key
   "bif_entries": [
     {
       "index": 0,
-      "file_name": "data/ar02xx.bif",
+      "file_name": {
+        "path": "data/ar02xx.bif"
+      },
       "file_size": 18872640,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 1,
-      "file_name": "data/ar10xx.bif",
+      "file_name": {
+        "path": "data/ar10xx.bif"
+      },
       "file_size": 6173152,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 2,
-      "file_name": "data/ar1xxx.bif",
+      "file_name": {
+        "path": "data/ar1xxx.bif"
+      },
       "file_size": 118910400,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 3,
-      "file_name": "data/ar01xx.bif",
+      "file_name": {
+        "path": "data/ar01xx.bif"
+      },
       "file_size": 36504036,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 4,
-      "file_name": "data/ar07xx.bif",
+      "file_name": {
+        "path": "data/ar07xx.bif"
+      },
       "file_size": 15857548,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 5,
-      "file_name": "data/ar08xx.bif",
+      "file_name": {
+        "path": "data/ar08xx.bif"
+      },
       "file_size": 13862628,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 6,
-      "file_name": "data/ar03xx.bif",
+      "file_name": {
+        "path": "data/ar03xx.bif"
+      },
       "file_size": 12829228,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 7,
-      "file_name": "data/ar0002.bif",
+      "file_name": {
+        "path": "data/ar0002.bif"
+      },
       "file_size": 139920,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 8,
-      "file_name": "data/ar04xx.bif",
+      "file_name": {
+        "path": "data/ar04xx.bif"
+      },
       "file_size": 8898092,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 9,
-      "file_name": "data/ar05xx.bif",
+      "file_name": {
+        "path": "data/ar05xx.bif"
+      },
       "file_size": 26131816,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 10,
-      "file_name": "data/ar09xx.bif",
+      "file_name": {
+        "path": "data/ar09xx.bif"
+      },
       "file_size": 16076616,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 11,
-      "file_name": "data/ar06xx.bif",
+      "file_name": {
+        "path": "data/ar06xx.bif"
+      },
       "file_size": 21124324,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 12,
-      "file_name": "data/ar20xx.bif",
+      "file_name": {
+        "path": "data/ar20xx.bif"
+      },
       "file_size": 9669752,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 13,
-      "file_name": "data/ar2xxx.bif",
+      "file_name": {
+        "path": "data/ar2xxx.bif"
+      },
       "file_size": 109151668,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 14,
-      "file_name": "data/ar30xx.bif",
+      "file_name": {
+        "path": "data/ar30xx.bif"
+      },
       "file_size": 8817296,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 15,
-      "file_name": "data/ar3xxx.bif",
+      "file_name": {
+        "path": "data/ar3xxx.bif"
+      },
       "file_size": 112532648,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 16,
-      "file_name": "data/ar40xx.bif",
+      "file_name": {
+        "path": "data/ar40xx.bif"
+      },
       "file_size": 9422040,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 17,
-      "file_name": "data/ar4xxx.bif",
+      "file_name": {
+        "path": "data/ar4xxx.bif"
+      },
       "file_size": 109933424,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 18,
-      "file_name": "data/ar50xx.bif",
+      "file_name": {
+        "path": "data/ar50xx.bif"
+      },
       "file_size": 9048500,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 19,
-      "file_name": "data/ar5xxx.bif",
+      "file_name": {
+        "path": "data/ar5xxx.bif"
+      },
       "file_size": 64673684,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 20,
-      "file_name": "data/mpgui.bif",
+      "file_name": {
+        "path": "data/mpgui.bif"
+      },
       "file_size": 6296,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 21,
-      "file_name": "data/loccha.bif",
+      "file_name": {
+        "path": "data/loccha.bif"
+      },
       "file_size": 129175368,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 22,
-      "file_name": "data/chasound.bif",
+      "file_name": {
+        "path": "data/chasound.bif"
+      },
       "file_size": 2517124,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 23,
-      "file_name": "data/default.bif",
+      "file_name": {
+        "path": "data/default.bif"
+      },
       "file_size": 6290772,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 24,
-      "file_name": "data/ar7xxx.bif",
+      "file_name": {
+        "path": "data/ar7xxx.bif"
+      },
       "file_size": 3012,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 25,
-      "file_name": "data/items.bif",
+      "file_name": {
+        "path": "data/items.bif"
+      },
       "file_size": 527108,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 26,
-      "file_name": "data/effects.bif",
+      "file_name": {
+        "path": "data/effects.bif"
+      },
       "file_size": 568716,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 27,
-      "file_name": "data/25effect.bif",
+      "file_name": {
+        "path": "data/25effect.bif"
+      },
       "file_size": 44732,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 28,
-      "file_name": "data/gui.bif",
+      "file_name": {
+        "path": "data/gui.bif"
+      },
       "file_size": 134432,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 29,
-      "file_name": "data/ohareas.bif",
+      "file_name": {
+        "path": "data/ohareas.bif"
+      },
       "file_size": 44289688,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 30,
-      "file_name": "data/scripts.bif",
+      "file_name": {
+        "path": "data/scripts.bif"
+      },
       "file_size": 6005884,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 31,
-      "file_name": "data/sfxsound.bif",
+      "file_name": {
+        "path": "data/sfxsound.bif"
+      },
       "file_size": 41630836,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 32,
-      "file_name": "data/locsfx.bif",
+      "file_name": {
+        "path": "data/locsfx.bif"
+      },
       "file_size": 3400756,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 33,
-      "file_name": "data/missound.bif",
+      "file_name": {
+        "path": "data/missound.bif"
+      },
       "file_size": 69404,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 34,
-      "file_name": "data/25guibam.bif",
+      "file_name": {
+        "path": "data/25guibam.bif"
+      },
       "file_size": 942036,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 35,
-      "file_name": "data/25guides.bif",
+      "file_name": {
+        "path": "data/25guides.bif"
+      },
       "file_size": 100648,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 36,
-      "file_name": "data/25items.bif",
+      "file_name": {
+        "path": "data/25items.bif"
+      },
       "file_size": 149908,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 37,
-      "file_name": "data/25creani.bif",
+      "file_name": {
+        "path": "data/25creani.bif"
+      },
       "file_size": 43907284,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 38,
-      "file_name": "data/cd4crea2.bif",
+      "file_name": {
+        "path": "data/cd4crea2.bif"
+      },
       "file_size": 7371108,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 39,
-      "file_name": "data/guibgee.bif",
+      "file_name": {
+        "path": "data/guibgee.bif"
+      },
       "file_size": 50035640,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 40,
-      "file_name": "data/25guimos.bif",
+      "file_name": {
+        "path": "data/25guimos.bif"
+      },
       "file_size": 308,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 41,
-      "file_name": "data/creanim.bif",
+      "file_name": {
+        "path": "data/creanim.bif"
+      },
       "file_size": 41710052,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 42,
-      "file_name": "data/spells.bif",
+      "file_name": {
+        "path": "data/spells.bif"
+      },
       "file_size": 2672588,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 43,
-      "file_name": "data/misc.bif",
+      "file_name": {
+        "path": "data/misc.bif"
+      },
       "file_size": 18636,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 44,
-      "file_name": "data/creature.bif",
+      "file_name": {
+        "path": "data/creature.bif"
+      },
       "file_size": 2786644,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 45,
-      "file_name": "data/guiicon.bif",
+      "file_name": {
+        "path": "data/guiicon.bif"
+      },
       "file_size": 4214372,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 46,
-      "file_name": "data/chaanim.bif",
+      "file_name": {
+        "path": "data/chaanim.bif"
+      },
       "file_size": 142418088,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 47,
-      "file_name": "data/objanim.bif",
+      "file_name": {
+        "path": "data/objanim.bif"
+      },
       "file_size": 67619772,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 48,
-      "file_name": "data/project.bif",
+      "file_name": {
+        "path": "data/project.bif"
+      },
       "file_size": 130348,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 49,
-      "file_name": "data/25deflt.bif",
+      "file_name": {
+        "path": "data/25deflt.bif"
+      },
       "file_size": 2830504,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 50,
-      "file_name": "data/spelanim.bif",
+      "file_name": {
+        "path": "data/spelanim.bif"
+      },
       "file_size": 21986140,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 51,
-      "file_name": "data/portrait.bif",
+      "file_name": {
+        "path": "data/portrait.bif"
+      },
       "file_size": 24480732,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 52,
-      "file_name": "data/guifont.bif",
+      "file_name": {
+        "path": "data/guifont.bif"
+      },
       "file_size": 19045728,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 53,
-      "file_name": "data/guimosc.bif",
+      "file_name": {
+        "path": "data/guimosc.bif"
+      },
       "file_size": 64584,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 54,
-      "file_name": "data/hd0gmosc.bif",
+      "file_name": {
+        "path": "data/hd0gmosc.bif"
+      },
       "file_size": 2274272,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 55,
-      "file_name": "data/dialog.bif",
+      "file_name": {
+        "path": "data/dialog.bif"
+      },
       "file_size": 1413008,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 56,
-      "file_name": "data/ar60xx.bif",
+      "file_name": {
+        "path": "data/ar60xx.bif"
+      },
       "file_size": 529556,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 57,
-      "file_name": "data/ar6xxx.bif",
+      "file_name": {
+        "path": "data/ar6xxx.bif"
+      },
       "file_size": 675732,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 58,
-      "file_name": "data/creanim1.bif",
+      "file_name": {
+        "path": "data/creanim1.bif"
+      },
       "file_size": 74673892,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 59,
-      "file_name": "data/paperdol.bif",
+      "file_name": {
+        "path": "data/paperdol.bif"
+      },
       "file_size": 971796,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 60,
-      "file_name": "data/guidesc.bif",
+      "file_name": {
+        "path": "data/guidesc.bif"
+      },
       "file_size": 62443920,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 61,
-      "file_name": "data/cresound.bif",
+      "file_name": {
+        "path": "data/cresound.bif"
+      },
       "file_size": 12447204,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 62,
-      "file_name": "data/loccre.bif",
+      "file_name": {
+        "path": "data/loccre.bif"
+      },
       "file_size": 1165324,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 63,
-      "file_name": "data/criwanim.bif",
+      "file_name": {
+        "path": "data/criwanim.bif"
+      },
       "file_size": 61110976,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 64,
-      "file_name": "data/locmp.bif",
+      "file_name": {
+        "path": "data/locmp.bif"
+      },
       "file_size": 4618056,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 65,
-      "file_name": "data/mpsounds.bif",
+      "file_name": {
+        "path": "data/mpsounds.bif"
+      },
       "file_size": 1104888,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 66,
-      "file_name": "data/25store.bif",
+      "file_name": {
+        "path": "data/25store.bif"
+      },
       "file_size": 19556,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 67,
-      "file_name": "data/locnpc.bif",
+      "file_name": {
+        "path": "data/locnpc.bif"
+      },
       "file_size": 52603640,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 68,
-      "file_name": "data/npcsound.bif",
+      "file_name": {
+        "path": "data/npcsound.bif"
+      },
       "file_size": 4735812,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 69,
-      "file_name": "data/areas.bif",
+      "file_name": {
+        "path": "data/areas.bif"
+      },
       "file_size": 41180,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 70,
-      "file_name": "data/armisc.bif",
+      "file_name": {
+        "path": "data/armisc.bif"
+      },
       "file_size": 2380956,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 71,
-      "file_name": "data/guibam.bif",
+      "file_name": {
+        "path": "data/guibam.bif"
+      },
       "file_size": 5939012,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 72,
-      "file_name": "data/npcanim.bif",
+      "file_name": {
+        "path": "data/npcanim.bif"
+      },
       "file_size": 15989952,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 73,
-      "file_name": "data/guichui.bif",
+      "file_name": {
+        "path": "data/guichui.bif"
+      },
       "file_size": 193804,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 74,
-      "file_name": "data/tutorial.bif",
+      "file_name": {
+        "path": "data/tutorial.bif"
+      },
       "file_size": 5851892,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 75,
-      "file_name": "data/loctut.bif",
+      "file_name": {
+        "path": "data/loctut.bif"
+      },
       "file_size": 3120076,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 76,
-      "file_name": "data/v2017.bif",
+      "file_name": {
+        "path": "data/v2017.bif"
+      },
       "file_size": 33108,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 77,
-      "file_name": "data/patch20.bif",
+      "file_name": {
+        "path": "data/patch20.bif"
+      },
       "file_size": 50718820,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 78,
-      "file_name": "data/area0900.bif",
+      "file_name": {
+        "path": "data/area0900.bif"
+      },
       "file_size": 81348,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 79,
-      "file_name": "data/patch25.bif",
+      "file_name": {
+        "path": "data/patch25.bif"
+      },
       "file_size": 1010520,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 80,
-      "file_name": "data/patch26.bif",
+      "file_name": {
+        "path": "data/patch26.bif"
+      },
       "file_size": 11767116,
-      "file": null,
       "directory": "Cache"
     },
     {
       "index": 81,
-      "file_name": "data/bdtp_dlc.bif",
+      "file_name": {
+        "path": "data/bdtp_dlc.bif"
+      },
       "file_size": 7080400,
-      "file": null,
       "directory": "Cache"
     }
   ],
