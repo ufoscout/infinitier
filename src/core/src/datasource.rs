@@ -1,4 +1,9 @@
-use std::{fs::File, io::{BufRead, BufReader, Cursor, Read, Seek}, path::{Path, PathBuf}, sync::Arc};
+use std::{
+    fs::File,
+    io::{BufRead, BufReader, Cursor, Read, Seek},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use encoding_rs::{Encoding, WINDOWS_1252};
 
@@ -14,7 +19,7 @@ pub trait Importer {
 #[derive(Debug, Clone)]
 pub enum Data {
     FileSource(PathBuf),
-    MemorySource(Arc<Vec<u8>>)
+    MemorySource(Arc<Vec<u8>>),
 }
 
 impl From<PathBuf> for Data {
@@ -47,10 +52,10 @@ impl From<&[u8]> for Data {
     }
 }
 
-impl <const N: usize> From<&[u8; N]> for Data { 
-    fn from(value: &[u8; N]) -> Self { 
-        Data::MemorySource(Arc::new(value.to_vec())) 
-    } 
+impl<const N: usize> From<&[u8; N]> for Data {
+    fn from(value: &[u8; N]) -> Self {
+        Data::MemorySource(Arc::new(value.to_vec()))
+    }
 }
 
 pub trait DataTrait: BufRead + Seek {}
@@ -58,9 +63,7 @@ pub trait DataTrait: BufRead + Seek {}
 impl DataTrait for BufReader<File> {}
 impl DataTrait for Cursor<&[u8]> {}
 
-
 impl Data {
-
     /// Returns a reader for the data
     pub fn data(&self) -> std::io::Result<Box<dyn DataTrait + '_>> {
         match self {
@@ -70,15 +73,14 @@ impl Data {
     }
 }
 
-
 /// A data source with a specific encoding
 #[derive(Debug, Clone)]
 pub enum DataSource {
-    Full{
+    Full {
         encoding: &'static Encoding,
         data: Data,
     },
-    Embedded{
+    Embedded {
         encoding: &'static Encoding,
         data: Data,
         offset: u64,
@@ -92,60 +94,81 @@ impl From<Data> for DataSource {
 }
 
 impl DataSource {
-
     /// Creates a new data source
     pub fn new<D: Into<Data>>(data: D) -> Self {
-        DataSource::Full{encoding: WINDOWS_1252, data: data.into()}
+        DataSource::Full {
+            encoding: WINDOWS_1252,
+            data: data.into(),
+        }
     }
 
     /// Creates a new data source with an offset
     pub fn new_with_offset<D: Into<Data>>(data: D, offset: u64) -> Self {
-        DataSource::Embedded{encoding: WINDOWS_1252, data: data.into(), offset}
+        DataSource::Embedded {
+            encoding: WINDOWS_1252,
+            data: data.into(),
+            offset,
+        }
     }
 
     /// Sets the encoding
     pub fn with_encoding(self, encoding: &'static Encoding) -> Self {
         match self {
-            DataSource::Full{data, ..} => DataSource::Full{encoding, data},
-            DataSource::Embedded{data, offset, ..} => DataSource::Embedded{encoding, data, offset},            
+            DataSource::Full { data, .. } => DataSource::Full { encoding, data },
+            DataSource::Embedded { data, offset, .. } => DataSource::Embedded {
+                encoding,
+                data,
+                offset,
+            },
         }
     }
 
     /// Sets the offset
     pub fn with_offset(self, offset: u64) -> Self {
         match self {
-            DataSource::Full{encoding, data} => DataSource::Embedded{encoding, data, offset},
-            DataSource::Embedded{encoding, data, ..} => DataSource::Embedded{encoding, data, offset},            
+            DataSource::Full { encoding, data } => DataSource::Embedded {
+                encoding,
+                data,
+                offset,
+            },
+            DataSource::Embedded { encoding, data, .. } => DataSource::Embedded {
+                encoding,
+                data,
+                offset,
+            },
         }
     }
 
     /// Returns the encoding
     pub fn encoding(&self) -> &'static Encoding {
         match self {
-            DataSource::Full{encoding, ..} => encoding,
-            DataSource::Embedded{encoding, ..} => encoding,            
+            DataSource::Full { encoding, .. } => encoding,
+            DataSource::Embedded { encoding, .. } => encoding,
         }
     }
 
     /// Creates a data reader
     pub fn reader(&self) -> std::io::Result<Reader<'_>> {
         match self {
-            DataSource::Full{encoding, data} => Ok(Reader {
+            DataSource::Full { encoding, data } => Ok(Reader {
                 data: data.data()?,
-                charset: encoding
+                charset: encoding,
             }),
-            DataSource::Embedded{encoding, data, offset} => {
-                let mut data =data.data()?;
+            DataSource::Embedded {
+                encoding,
+                data,
+                offset,
+            } => {
+                let mut data = data.data()?;
                 data.seek(std::io::SeekFrom::Start(*offset))?;
                 Ok(Reader {
                     data,
-                    charset: encoding
+                    charset: encoding,
                 })
             }
         }
     }
 }
-
 
 /// A reader that reads a byte array with a specific encoding
 pub struct Reader<'a> {
@@ -153,15 +176,13 @@ pub struct Reader<'a> {
     charset: &'static Encoding,
 }
 
-
-impl <'a> Reader<'a> {
-    
+impl<'a> Reader<'a> {
     /// Reads a line from the current position
     /// and returns it as a `String` and the number of bytes read.
     /// If bytes read is 0, then EOF has been reached
     pub fn read_line(&mut self) -> std::io::Result<(String, usize)> {
         let mut buf = String::new();
-        let bytes  = self.data.read_line(&mut buf)?;
+        let bytes = self.data.read_line(&mut buf)?;
         Ok((buf, bytes))
     }
 
@@ -272,7 +293,6 @@ impl <'a> Reader<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
 
@@ -301,9 +321,7 @@ mod tests {
 
     #[test]
     fn test_read_u32_at() {
-        let reader = DataSource::new(
-            &[0x01, 0x02, 0x01, 0x01, 0x03, 0x04],
-        );
+        let reader = DataSource::new(&[0x01, 0x02, 0x01, 0x01, 0x03, 0x04]);
         let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_u32_at(2).unwrap(), 0x04030101);
     }
@@ -317,9 +335,7 @@ mod tests {
 
     #[test]
     fn test_read_i32_at() {
-        let reader = DataSource::new(
-            &[0x01, 0x01, 0x01, 0x02, 0x01, 0x04],
-        );
+        let reader = DataSource::new(&[0x01, 0x01, 0x01, 0x02, 0x01, 0x04]);
         let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_i32_at(2).unwrap(), 0x04010201);
     }

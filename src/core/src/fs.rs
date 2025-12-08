@@ -53,17 +53,29 @@ impl CaseInsensitiveFS {
     }
 }
 
+// fn find_bif_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
+//     for path in FILE_FOLDERS {
+//         let search_name = format!("{}{}", path, file_name);
+//         if let Some(path) = fs.get_path_opt(&search_name)
+//             && path.is_file()
+//         {
+//             return Some(path);
+//         }
+//     }
+//     None
+// }
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 /// A path that is case insensitive
 pub struct CaseInsensitivePath {
-    path: String
+    path: String,
 }
 
 impl CaseInsensitivePath {
-
     /// Creates a new `CaseInsensitivePath` from the given path
     pub fn new(path: &str) -> Self {
-        let mut path = path.trim()
+        let mut path = path
+            .trim()
             .to_lowercase()
             .replace("\\", "/")
             .replace(":", "/");
@@ -132,13 +144,31 @@ mod tests {
             .unwrap()
             .to_path_buf();
         let fs = CaseInsensitiveFS::new(current_path).unwrap();
-        assert!(fs.get_path_opt(&CaseInsensitivePath::new("cargo.toml")).is_some());
-        assert!(fs.get_path_opt(&CaseInsensitivePath::new("Cargo.TOML")).is_some());
-        assert!(fs.get_path_opt(&CaseInsensitivePath::new("/cargo.TOML")).is_some());
-        assert!(fs.get_path_opt(&CaseInsensitivePath::new("/src/core/cargo.TOML")).is_some());
-        assert!(fs.get_path_opt(&CaseInsensitivePath::new("/Target")).is_some());
+        assert!(
+            fs.get_path_opt(&CaseInsensitivePath::new("cargo.toml"))
+                .is_some()
+        );
+        assert!(
+            fs.get_path_opt(&CaseInsensitivePath::new("Cargo.TOML"))
+                .is_some()
+        );
+        assert!(
+            fs.get_path_opt(&CaseInsensitivePath::new("/cargo.TOML"))
+                .is_some()
+        );
+        assert!(
+            fs.get_path_opt(&CaseInsensitivePath::new("/src/core/cargo.TOML"))
+                .is_some()
+        );
+        assert!(
+            fs.get_path_opt(&CaseInsensitivePath::new("/Target"))
+                .is_some()
+        );
 
-        assert!(fs.get_path(&CaseInsensitivePath::new("/src/core/cargo.TOML")).is_ok());
+        assert!(
+            fs.get_path(&CaseInsensitivePath::new("/src/core/cargo.TOML"))
+                .is_ok()
+        );
         assert!(fs.get_path(&CaseInsensitivePath::new("/Targets")).is_err());
     }
 }

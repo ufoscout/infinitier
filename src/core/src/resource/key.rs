@@ -1,12 +1,10 @@
-use std::{
-    io,
-    path::PathBuf,
-};
+use std::io;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constants::FILE_FOLDERS, datasource::{DataSource, Importer, Reader}, fs::{CaseInsensitiveFS, CaseInsensitivePath}
+    datasource::{DataSource, Importer, Reader},
+    fs::CaseInsensitivePath,
 };
 
 /// A KEY file importer
@@ -138,11 +136,7 @@ pub struct ResourceEntry {
 
 impl BifEntry {
     /// Reads a BIF entry inside a KEY file
-    fn read_entry(
-        reader: &mut Reader,
-        index: u64,
-        is_demo: bool,
-    ) -> std::io::Result<BifEntry> {
+    fn read_entry(reader: &mut Reader, index: u64, is_demo: bool) -> std::io::Result<BifEntry> {
         let file_size = if !is_demo {
             Some(reader.read_u32()?)
         } else {
@@ -175,18 +169,6 @@ impl BifEntry {
             directory: BifDirectory::from(location),
         })
     }
-}
-
-fn find_bif_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
-    for path in FILE_FOLDERS {
-        // let search_name = format!("{}{}", path, file_name);
-        // if let Some(path) = fs.get_path_opt(&search_name)
-        //     && path.is_file()
-        // {
-        //     return Some(path);
-        // }
-    }
-    None
 }
 
 impl ResourceEntry {
@@ -427,7 +409,7 @@ impl ResourceType {
 mod tests {
     use insta::assert_json_snapshot;
 
-    use crate::test_utils::ALL_RESOURCES_DIRS;
+    use crate::{fs::CaseInsensitiveFS, test_utils::ALL_RESOURCES_DIRS};
 
     use super::*;
 
@@ -452,10 +434,13 @@ mod tests {
     #[test]
     fn test_read_key_file() {
         for i in ALL_RESOURCES_DIRS {
-            let path = CaseInsensitiveFS::new(i).unwrap().get_path(&CaseInsensitivePath::new("/CHITIN.KEY")).unwrap();
+            let path = CaseInsensitiveFS::new(i)
+                .unwrap()
+                .get_path(&CaseInsensitivePath::new("/CHITIN.KEY"))
+                .unwrap();
             let key = KeyImporter::import(&DataSource::new(path)).unwrap();
 
-            assert_json_snapshot!(format!("key_file_{i}"), key);
+            assert_json_snapshot!(format!("key_file_{i}"), key, {});
         }
     }
 

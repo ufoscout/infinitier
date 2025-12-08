@@ -17,14 +17,17 @@ impl Importer for TwoDAImporter {
         let signature = reader.read_line()?.0.trim().to_string();
 
         if signature != "2DA V1.0" {
-    		warn!("TwoDAImporter - DataSource [{:?}] has a bad signature [{signature}]! Complaining, but ignoring...", source);
-    	}
+            warn!(
+                "TwoDAImporter - DataSource [{:?}] has a bad signature [{signature}]! Complaining, but ignoring...",
+                source
+            );
+        }
 
         let default_value = reader.read_line()?.0.trim().to_string();
         let (headers, columns) = parse_headers(&reader.read_line()?.0);
 
         let mut rows = HashMap::new();
-        loop { 
+        loop {
             let (line, bytes) = reader.read_line()?;
             if bytes == 0 {
                 break;
@@ -33,7 +36,11 @@ impl Importer for TwoDAImporter {
             rows.insert(key, value);
         }
 
-        Ok(TwoDA { headers, columns, rows })
+        Ok(TwoDA {
+            headers,
+            columns,
+            rows,
+        })
     }
 }
 
@@ -76,12 +83,7 @@ fn parse_headers(input: &str) -> (Vec<String>, Vec<usize>) {
 
 /// Parse a single row using precomputed column positions.
 /// `columns` must come from `split_words_with_positions(header_line)`.
-fn parse_data_row(
-    line: &str,
-    columns: &[usize],
-    default: &str,
-) -> (String, Vec<String>) {
-
+fn parse_data_row(line: &str, columns: &[usize], default: &str) -> (String, Vec<String>) {
     let max_len = line.len();
     let key = line[0..columns[0].min(max_len)].trim().to_string();
 
@@ -113,7 +115,10 @@ fn parse_data_row(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{fs::{CaseInsensitiveFS, CaseInsensitivePath}, test_utils::BG2_RESOURCES_DIR};
+    use crate::{
+        fs::{CaseInsensitiveFS, CaseInsensitivePath},
+        test_utils::BG2_RESOURCES_DIR,
+    };
 
     use super::*;
 
@@ -151,7 +156,15 @@ mod tests {
         let (key, values) = parse_data_row(row, &columns, "0");
 
         assert_eq!(key, "ROW");
-        assert_eq!(values, vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()]);
+        assert_eq!(
+            values,
+            vec![
+                "1".to_string(),
+                "2".to_string(),
+                "3".to_string(),
+                "4".to_string()
+            ]
+        );
     }
 
     #[test]
@@ -164,10 +177,18 @@ mod tests {
         let (key, values) = parse_data_row(row, &columns, "default");
 
         assert_eq!(key, "ROW");
-        assert_eq!(values, vec!["1".to_owned(), "default".to_owned(), "2".to_owned(), "default".to_owned(), ]); // defaults filled
+        assert_eq!(
+            values,
+            vec![
+                "1".to_owned(),
+                "default".to_owned(),
+                "2".to_owned(),
+                "default".to_owned(),
+            ]
+        ); // defaults filled
     }
 
-        #[test]
+    #[test]
     fn test_parse_row_missing_all_values() {
         let header = "    A B C D";
         let (_, columns) = parse_headers(header);
@@ -177,13 +198,20 @@ mod tests {
         let (key, values) = parse_data_row(row, &columns, "default");
 
         assert_eq!(key, "ROW");
-        assert_eq!(values, vec!["default".to_owned(), "default".to_owned(), "default".to_owned(), "default".to_owned(), ]); // defaults filled
+        assert_eq!(
+            values,
+            vec![
+                "default".to_owned(),
+                "default".to_owned(),
+                "default".to_owned(),
+                "default".to_owned(),
+            ]
+        ); // defaults filled
     }
 
     #[test]
     fn test_full_processing_multiline() {
-        let text =
-"MAGE                            0       0       9       0       0
+        let text = "MAGE                            0       0       9       0       0
 FIGHTER                 9       0       0       0               9
 CLERIC                  0       0       0       0       9       
 THIEF                   0       9       0       0       0       0";
@@ -200,24 +228,106 @@ THIEF                   0       9       0       0       0       0";
             result.insert(key, vals);
         }
 
-        assert_eq!(result["MAGE"],    vec!["1".to_string(),"0".to_string(),"0".to_string(),"9".to_string(),"0".to_string(),"0".to_string()]);
-        assert_eq!(result["FIGHTER"], vec!["9".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"1".to_string(),"9".to_string()]); // gap filled
-        assert_eq!(result["CLERIC"],  vec!["0".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"9".to_string(),"1".to_string()]);
-        assert_eq!(result["THIEF"],   vec!["0".to_string(),"9".to_string(),"0".to_string(),"0".to_string(),"0".to_string(),"0".to_string()]);
+        assert_eq!(
+            result["MAGE"],
+            vec![
+                "1".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "9".to_string(),
+                "0".to_string(),
+                "0".to_string()
+            ]
+        );
+        assert_eq!(
+            result["FIGHTER"],
+            vec![
+                "9".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "1".to_string(),
+                "9".to_string()
+            ]
+        ); // gap filled
+        assert_eq!(
+            result["CLERIC"],
+            vec![
+                "0".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "9".to_string(),
+                "1".to_string()
+            ]
+        );
+        assert_eq!(
+            result["THIEF"],
+            vec![
+                "0".to_string(),
+                "9".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "0".to_string()
+            ]
+        );
     }
 
     #[test]
     fn test_parse_2da_file() {
-        let path = CaseInsensitiveFS::new(BG2_RESOURCES_DIR).unwrap().get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA")).unwrap();
+        let path = CaseInsensitiveFS::new(BG2_RESOURCES_DIR)
+            .unwrap()
+            .get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA"))
+            .unwrap();
         let two_da = TwoDAImporter::import(&DataSource::new(path)).unwrap();
 
-        assert_eq!(two_da.headers, vec!["MIN_STR".to_string(), "MIN_DEX".to_string(), "MIN_CON".to_string(), "MIN_INT".to_string(), "MIN_WIS".to_string(), "MIN_CHR".to_string()]);
+        assert_eq!(
+            two_da.headers,
+            vec![
+                "MIN_STR".to_string(),
+                "MIN_DEX".to_string(),
+                "MIN_CON".to_string(),
+                "MIN_INT".to_string(),
+                "MIN_WIS".to_string(),
+                "MIN_CHR".to_string()
+            ]
+        );
         assert_eq!(two_da.columns, vec![24, 32, 40, 48, 56, 64]);
         assert_eq!(two_da.rows.len(), 51);
 
-        assert_eq!(two_da.rows.get("MAGE"), Some(&vec!["0".to_string(), "0".to_string(), "0".to_string(), "9".to_string(), "0".to_string(), "0".to_string()]));
-        assert_eq!(two_da.rows.get("FIGHTER_MAGE_CLERIC"), Some(&vec!["9".to_string(), "0".to_string(), "0".to_string(), "9".to_string(), "9".to_string(), "0".to_string()]));
-        assert_eq!(two_da.rows.get("PALADIN"), Some(&vec!["12".to_string(), "0".to_string(), "9".to_string(), "0".to_string(), "13".to_string(), "17".to_string()]));
-        
+        assert_eq!(
+            two_da.rows.get("MAGE"),
+            Some(&vec![
+                "0".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "9".to_string(),
+                "0".to_string(),
+                "0".to_string()
+            ])
+        );
+        assert_eq!(
+            two_da.rows.get("FIGHTER_MAGE_CLERIC"),
+            Some(&vec![
+                "9".to_string(),
+                "0".to_string(),
+                "0".to_string(),
+                "9".to_string(),
+                "9".to_string(),
+                "0".to_string()
+            ])
+        );
+        assert_eq!(
+            two_da.rows.get("PALADIN"),
+            Some(&vec![
+                "12".to_string(),
+                "0".to_string(),
+                "9".to_string(),
+                "0".to_string(),
+                "13".to_string(),
+                "17".to_string()
+            ])
+        );
     }
 }
