@@ -23,7 +23,7 @@ impl Importer for TwoDAImporter {
             );
         }
 
-        let default_value = reader.read_line()?.0.trim().to_string();
+        let default = reader.read_line()?.0.trim().to_string();
         let (headers, columns) = parse_headers(&reader.read_line()?.0);
 
         let mut rows = HashMap::new();
@@ -32,13 +32,14 @@ impl Importer for TwoDAImporter {
             if bytes == 0 {
                 break;
             }
-            let (key, value) = parse_data_row(line.trim(), &columns, &default_value);
+            let (key, value) = parse_data_row(line.trim(), &columns, &default);
             rows.insert(key, value);
         }
 
         Ok(TwoDA {
             headers,
             columns,
+            default,
             rows,
         })
     }
@@ -48,6 +49,7 @@ impl Importer for TwoDAImporter {
 pub struct TwoDA {
     pub headers: Vec<String>,
     pub columns: Vec<usize>,
+    pub default: String,
     pub rows: HashMap<String, Vec<String>>,
 }
 
@@ -293,6 +295,7 @@ THIEF                   0       9       0       0       0       0";
         );
         assert_eq!(two_da.columns, vec![24, 32, 40, 48, 56, 64]);
         assert_eq!(two_da.rows.len(), 51);
+        assert_eq!(two_da.default, "0");
 
         assert_eq!(
             two_da.rows.get("MAGE"),
