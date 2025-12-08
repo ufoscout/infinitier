@@ -311,9 +311,10 @@ pub struct ZipReader<'a> {
 impl<'a> ZipReader<'a> {
     /// Skips `size` bytes
     pub fn skip(&mut self, size: u64) -> std::io::Result<()> {
-        for _ in 0..size {
-            self.read_u8()?;
-        }
+        std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())?;
+        // for _ in 0..size {
+        //     self.read_u8()?;
+        // }
         Ok(())
     }
 

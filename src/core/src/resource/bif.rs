@@ -1,4 +1,31 @@
-use crate::{datasource::Reader, resource::key::ResourceType};
+use crate::{
+    datasource::{Importer, Reader},
+    resource::key::ResourceType,
+};
+
+/// A BIF file importer
+pub struct BifImporter {}
+
+impl Importer for BiffParser {
+    type T = Bif;
+
+    fn import(source: &crate::datasource::DataSource) -> std::io::Result<Self::T> {
+        let reader = &mut source.reader()?;
+        let position = reader.position()?;
+
+        match detect_biff_type(reader)? {
+            Type::Biff => {
+                reader.set_position(position)?;
+                BiffParser::import(reader)
+            }
+            Type::Bif => {
+                reader.set_position(position)?;
+                BifParser::import(reader)
+            }
+            Type::Bifc => todo!(),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Type {
@@ -46,9 +73,9 @@ fn detect_biff_type(reader: &mut Reader) -> std::io::Result<Type> {
     }
 }
 
-pub struct BiffImporter;
+pub struct BiffParser;
 
-impl BiffImporter {
+impl BiffParser {
     pub fn import(reader: &mut Reader) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
 
@@ -111,9 +138,9 @@ impl BiffImporter {
     }
 }
 
-pub struct BifImporter;
+pub struct BifParser;
 
-impl BifImporter {
+impl BifParser {
     pub fn import(reader: &mut Reader) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
 
@@ -162,7 +189,7 @@ impl BifImporter {
         zip.skip(remaining_bytes)?;
 
         let mut bif = Bif {
-            r#type: Type::Biff,
+            r#type: Type::Bif,
             files: Vec::with_capacity(files_number),
             tilesets: Vec::with_capacity(tilesets_number),
         };
@@ -181,7 +208,6 @@ impl BifImporter {
                 size,
                 r#type: ResourceType::from(r#type),
             })
-            // addEntry(new Entry(locator, offset, size, type));
         }
 
         // reading tileset entries
@@ -200,7 +226,6 @@ impl BifImporter {
                 size,
                 r#type: ResourceType::from(r#type),
             })
-            // addEntry(new Entry(locator, offset, count, size, type));
         }
 
         Ok(bif)
@@ -227,8 +252,9 @@ mod tests {
         );
 
         let mut reader = data.reader().unwrap();
-        let bif = BifImporter::import(&mut reader).unwrap();
+        let bif = BifParser::import(&mut reader).unwrap();
 
+        assert_eq!(bif.r#type, Type::Bif);
         assert_eq!(bif.files.len(), 5);
         assert_eq!(bif.tilesets.len(), 1);
 
@@ -283,8 +309,9 @@ mod tests {
             Type::Biff
         );
 
-        let bif = BiffImporter::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
 
+        assert_eq!(bif.r#type, Type::Biff);
         assert_eq!(bif.files.len(), 4);
         assert_eq!(bif.tilesets.len(), 0);
 
@@ -319,7 +346,7 @@ mod tests {
             Type::Biff
         );
 
-        let bif = BiffImporter::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
 
         assert_eq!(bif.files.len(), 5);
         assert_eq!(bif.tilesets.len(), 1);
