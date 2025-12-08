@@ -65,11 +65,9 @@ fn parse_headers(input: &str) -> (Vec<String>, Vec<usize>) {
                 columns.push(start);
                 in_word = false;
             }
-        } else {
-            if !in_word {
-                start = i;
-                in_word = true;
-            }
+        } else if !in_word {
+            start = i;
+            in_word = true;
         }
     }
 
