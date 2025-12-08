@@ -12,6 +12,7 @@ version = "0.1.0"
 infinitier_core = { path = "src/core" }
 
 encoding_rs = "0.8"
+flate2 = "1"
 insta = { version = "1", features = ["json", "redactions", "filters"] }
 itertools = "0.14"
 log = "0.4"

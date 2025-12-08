@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 encoding_rs =  { workspace = true }
+flate2 = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }

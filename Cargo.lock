@@ -1588,6 +1588,7 @@ name = "infinitier_core"
 version = "0.1.0"
 dependencies = [
  "encoding_rs",
+ "flate2",
  "insta",
  "itertools",
  "log",

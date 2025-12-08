@@ -1,4 +1,5 @@
-use crate::datasource::{DataSource, Importer, Reader};
+
+use crate::datasource::Reader;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Type {
@@ -53,7 +54,10 @@ impl BiffImporter {
         let signature = reader.read_string(8)?;
 
         if !signature.eq("BIFFV1  ") {
-            return Err(std::io::Error::other(format!("Wrong file type: {}", signature)));
+            return Err(std::io::Error::other(format!(
+                "Wrong file type: {}",
+                signature
+            )));
         }
 
         let files_number = reader.read_u32()? as usize;
@@ -68,7 +72,7 @@ impl BiffImporter {
             tilesets: Vec::with_capacity(tilesets_number),
         };
 
-            // reading file entries
+        // reading file entries
         for i in 0..files_number {
             let locator = reader.read_u32()? & 0xfffff;
             let offset = reader.read_u32()? as u64;
@@ -87,12 +91,108 @@ impl BiffImporter {
 
         // reading tileset entries
         for i in 0..tilesets_number {
-                        let locator = reader.read_u32()? & 0xfffff;
-                let offset = reader.read_u32()? as u64;
-                let count = reader.read_u32()?;
-                let size = reader.read_u32()?;
-                let r#type = reader.read_u16()?;
-                reader.read_u16()?; // unknown data
+            let locator = reader.read_u32()? & 0xfffff;
+            let offset = reader.read_u32()? as u64;
+            let count = reader.read_u32()?;
+            let size = reader.read_u32()?;
+            let r#type = reader.read_u16()?;
+            reader.read_u16()?; // unknown data
+
+            bif.tilesets.push(BifEmbeddedTileset {
+                locator,
+                offset,
+                count,
+                size,
+                r#type,
+            })
+            // addEntry(new Entry(locator, offset, count, size, type));
+        }
+
+        Ok(bif)
+    }
+}
+
+pub struct BifImporter;
+
+impl BifImporter {
+    pub fn import(reader: &mut Reader) -> std::io::Result<Bif> {
+        let signature = reader.read_string(8)?;
+
+        if !signature.eq("BIF V1.0") {
+            return Err(std::io::Error::other(format!(
+                "Wrong file type: {}",
+                signature
+            )));
+        }
+
+        let name_length = reader.read_u32()? as u64;
+        let _name = reader.read_string(name_length)?;
+
+        let uncompressed_data_lenght = reader.read_u32()? as u64;
+        let compressed_data_lenght = reader.read_u32()? as u64;
+
+            let mut zip = reader.as_zip_reader();
+
+            let signature = zip.read_string(8)?;
+
+            if !signature.eq("BIFFV1  ") {
+                return Err(std::io::Error::other(format!(
+                    "Wrong file type: {}",
+                    signature
+                )));
+            }
+
+            let files_number = zip.read_u32()? as usize;
+            let tilesets_number = zip.read_u32()? as usize;
+            let files_offset = zip.read_u32()? as u64;
+
+            println!("files_number: {}", files_number);
+            println!("tilesets_number: {}", tilesets_number);
+            println!("files_offset: {}", files_offset);
+
+            let current_offset = 20;
+            if files_offset < current_offset {
+                return Err(std::io::Error::other(format!(
+                    "Invalid decompressed BIFF header offset: {}",
+                    files_offset
+                )));
+            }
+
+            let remaining_bytes = files_offset - current_offset;
+
+            zip.skip(remaining_bytes)?;
+
+            let mut bif = Bif {
+                r#type: Type::Biff,
+                files: Vec::with_capacity(files_number),
+                tilesets: Vec::with_capacity(tilesets_number),
+            };
+
+            // reading file entries
+            for i in 0..files_number {
+                let locator = zip.read_u32()? & 0xfffff;
+                let offset = zip.read_u32()? as u64;
+                let size = zip.read_u32()?;
+                let r#type = zip.read_u16()?;
+                zip.read_u16()?; // unknown data
+
+                bif.files.push(BifEmbeddedFile {
+                    locator,
+                    offset,
+                    size,
+                    r#type,
+                })
+                // addEntry(new Entry(locator, offset, size, type));
+            }
+
+            // reading tileset entries
+            for i in 0..tilesets_number {
+                let locator = zip.read_u32()? & 0xfffff;
+                let offset = zip.read_u32()? as u64;
+                let count = zip.read_u32()?;
+                let size = zip.read_u32()?;
+                let r#type = zip.read_u16()?;
+                zip.read_u16()?; // unknown data
 
                 bif.tilesets.push(BifEmbeddedTileset {
                     locator,
@@ -102,9 +202,10 @@ impl BiffImporter {
                     r#type,
                 })
                 // addEntry(new Entry(locator, offset, count, size, type));
-        }
+            }
 
         Ok(bif)
+
     }
 }
 
@@ -126,6 +227,41 @@ mod tests {
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
             Type::Bif
         );
+
+        let mut reader = data.reader().unwrap();
+        let bif = BifImporter::import(&mut reader).unwrap();
+
+        assert_eq!(bif.files.len(), 5);
+        assert_eq!(bif.tilesets.len(), 1);
+
+                assert_eq!(
+            bif.files[0],
+            BifEmbeddedFile {
+                locator: 0,
+                size: 3850,
+                offset: 120,
+                r#type: 1001
+            }
+        );
+        assert_eq!(
+            bif.files[2],
+            BifEmbeddedFile {
+                locator: 2,
+                size: 7480,
+                offset: 7288,
+                r#type: 1
+            }
+        );
+        assert_eq!(
+            bif.tilesets[0],
+            BifEmbeddedTileset {
+                locator: 16384,
+                size: 5120,
+                offset: 43480,
+                count: 300,
+                r#type: 1003
+            }
+        );
     }
 
     #[test]
@@ -138,6 +274,7 @@ mod tests {
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
             Type::Bifc
         );
+
     }
 
     #[test]
@@ -154,23 +291,31 @@ mod tests {
         assert_eq!(bif.files.len(), 4);
         assert_eq!(bif.tilesets.len(), 0);
 
-        assert_eq!(bif.files[1], BifEmbeddedFile {
-            locator: 1,
-            size: 4050,
-            offset: 7952,
-            r#type: 1007
-        });
-        assert_eq!(bif.files[3], BifEmbeddedFile {
-            locator: 3,
-            size: 285,
-            offset: 17222,
-            r#type: 1007
-        });
+        assert_eq!(
+            bif.files[1],
+            BifEmbeddedFile {
+                locator: 1,
+                size: 4050,
+                offset: 7952,
+                r#type: 1007
+            }
+        );
+        assert_eq!(
+            bif.files[3],
+            BifEmbeddedFile {
+                locator: 3,
+                size: 285,
+                offset: 17222,
+                r#type: 1007
+            }
+        );
     }
 
     #[test]
     fn test_import_biff() {
-        let data = DataSource::new(Path::new(&format!("{RESOURCES_DIR}bg2_ee/data/area500c.bif")));
+        let data = DataSource::new(Path::new(&format!(
+            "{RESOURCES_DIR}bg2_ee/data/area500c.bif"
+        )));
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
@@ -182,18 +327,24 @@ mod tests {
         assert_eq!(bif.files.len(), 5);
         assert_eq!(bif.tilesets.len(), 1);
 
-        assert_eq!(bif.files[0], BifEmbeddedFile {
-            locator: 0,
-            size: 315816,
-            offset: 24,
-            r#type: 1004
-        });
-        assert_eq!(bif.tilesets[0], BifEmbeddedTileset {
-            locator: 16384,
-            size: 12,
-            offset: 461932,
-            count: 2507,
-            r#type: 1003
-        });
+        assert_eq!(
+            bif.files[0],
+            BifEmbeddedFile {
+                locator: 0,
+                size: 315816,
+                offset: 24,
+                r#type: 1004
+            }
+        );
+        assert_eq!(
+            bif.tilesets[0],
+            BifEmbeddedTileset {
+                locator: 16384,
+                size: 12,
+                offset: 461932,
+                count: 2507,
+                r#type: 1003
+            }
+        );
     }
 }
