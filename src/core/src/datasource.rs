@@ -171,13 +171,111 @@ impl DataSource {
     }
 }
 
+pub trait ReaderTrait {
+
+    /// Returns the Reader charset
+    fn charset(&self) -> &'static Encoding;
+
+            /// Reads exactly `N` bytes from the current position and returns them as a byte array.
+    ///
+    /// If the end of the file is reached before `N` bytes could be read, an `io::Error` is returned.
+    fn read_exact<const N: usize>(&mut self) -> std::io::Result<[u8; N]>;
+
+    /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
+    fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)>;
+
+    /// Reads up to `N` bytes from the current position and returns them as a `Vec<u8>`.
+    ///
+    /// If the end of the file is reached before `N` bytes could be read, the returned
+    /// `Vec<u8>` will contain less than `N` elements.
+    fn take_to_vec(&mut self, size: u64) -> std::io::Result<Vec<u8>>;
+
+    /// Skips `size` bytes and returns the number of bytes skipped
+    fn skip(&mut self, size: u64) -> std::io::Result<u64>;
+
+    /// Read the first `n_chars` characters from a byte array interpreted
+    /// with the Reader `charset`, and return them as a `String`.
+    fn read_string(&mut self, size: u64) -> std::io::Result<String> {
+        let buf = self.take_to_vec(size)?;
+        let (decoded, _, had_errors) = self.charset().decode(&buf);
+
+        if had_errors {
+            return Err(std::io::Error::other(
+                "Decoding error: input is not valid for this charset",
+            ));
+        }
+
+        // Trim trailing null bytes at the end as the strings use the C string convention for null-termination
+        Ok(decoded
+            .chars()
+            .collect::<String>()
+            .trim_end_matches(char::from(0))
+            .to_owned())
+   }
+
+
+    /// Reads a i32 from the current position
+    fn read_i32(&mut self) -> std::io::Result<i32> {
+        Ok(i32::from_le_bytes(self.read_exact::<4>()?))
+    }
+
+    /// Reads a u32 from the current position
+    fn read_u32(&mut self) -> std::io::Result<u32> {
+        Ok(u32::from_le_bytes(self.read_exact::<4>()?))
+    }
+
+    /// Reads a u16 from the current position
+    fn read_u16(&mut self) -> std::io::Result<u16> {
+        Ok(u16::from_le_bytes(self.read_exact::<2>()?))
+    }
+
+    /// Reads a u8 from the current position
+    #[inline]
+    fn read_u8(&mut self) -> std::io::Result<u8> {
+        Ok(u8::from_le_bytes(self.read_exact::<1>()?))
+    }
+
+}
+
 /// A reader that reads a byte array with a specific encoding
 pub struct Reader<'a> {
-    data: Box<dyn DataTrait + 'a>,
-    charset: &'static Encoding,
+    pub data: Box<dyn DataTrait + 'a>,
+    pub charset: &'static Encoding,
+}
+
+impl<'a> ReaderTrait for Reader<'a> {
+
+    fn charset(&self) -> &'static Encoding {
+        self.charset
+    }
+
+    fn skip(&mut self, size: u64) -> std::io::Result<u64> {
+        std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())
+    }
+
+    fn read_exact<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
+        let mut buf = [0u8; N];
+        self.data.read_exact(&mut buf)?;
+        Ok(buf)
+    }
+
+    fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
+        let mut buf = [0u8; N];
+        let n = self.data.read(&mut buf)?;
+        Ok((buf, n))
+    }
+
+    fn take_to_vec(&mut self, size: u64) -> std::io::Result<Vec<u8>> {
+        let mut buf = vec![];
+        let mut chunk = (&mut self.data).take(size);
+        chunk.read_to_end(&mut buf)?;
+        Ok(buf)
+    }   
+
 }
 
 impl<'a> Reader<'a> {
+
     /// Returns a zip reader
     pub fn as_zip_reader(&mut self) -> ZipReader<'_> {
         ZipReader {
@@ -193,70 +291,6 @@ impl<'a> Reader<'a> {
         let mut buf = String::new();
         let bytes = self.data.read_line(&mut buf)?;
         Ok((buf, bytes))
-    }
-
-    /// Read the first `n_chars` characters from a byte array interpreted
-    /// with the Reader `charset`, and return them as a `String`.
-    pub fn read_string(&mut self, size: u64) -> std::io::Result<String> {
-        let mut buf = vec![];
-        let mut chunk = (&mut self.data).take(size);
-        // Do appropriate error handling for your situation
-        // Maybe it's OK if you didn't read enough bytes?
-        chunk.read_to_end(&mut buf)?;
-        let (decoded, _, had_errors) = self.charset.decode(&buf);
-
-        if had_errors {
-            return Err(std::io::Error::other(
-                "Decoding error: input is not valid for this charset",
-            ));
-        }
-
-        // Trim trailing null bytes at the end as the strings use the C string convention for null-termination
-        Ok(decoded
-            .chars()
-            .collect::<String>()
-            .trim_end_matches(char::from(0))
-            .to_owned())
-    }
-
-    /// Reads exactly `N` bytes from the current position and returns them as a byte array.
-    ///
-    /// If the end of the file is reached before `N` bytes could be read, an `io::Error` is returned.
-    pub fn read_exact<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
-        let mut buf = [0u8; N];
-        self.data.read_exact(&mut buf)?;
-        Ok(buf)
-    }
-
-    /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
-    pub fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
-        let mut buf = [0u8; N];
-        let n = self.data.read(&mut buf)?;
-        Ok((buf, n))
-    }
-
-    /// Reads up to `N` bytes from the current position and returns them as a `Vec<u8>`.
-    ///
-    /// If the end of the file is reached before `N` bytes could be read, the returned
-    /// `Vec<u8>` will contain less than `N` elements.
-    pub fn read_at_most_to_vec<const N: usize>(&mut self) -> std::io::Result<Vec<u8>> {
-        let (buf, n) = self.read_at_most::<N>()?;
-        Ok(buf[..n].to_vec())
-    }
-
-    /// Reads a i32 from the current position
-    pub fn read_i32(&mut self) -> std::io::Result<i32> {
-        Ok(i32::from_le_bytes(self.read_exact::<4>()?))
-    }
-
-    /// Reads a u32 from the current position
-    pub fn read_u32(&mut self) -> std::io::Result<u32> {
-        Ok(u32::from_le_bytes(self.read_exact::<4>()?))
-    }
-
-    /// Reads a u16 from the current position
-    pub fn read_u16(&mut self) -> std::io::Result<u16> {
-        Ok(u16::from_le_bytes(self.read_exact::<2>()?))
     }
 
     /// Returns the current position of the cursor
@@ -304,90 +338,41 @@ impl<'a> Reader<'a> {
 
 /// A reader that reads a byte array with a specific encoding from a zip encoded source
 pub struct ZipReader<'a> {
-    data: ZlibDecoder<&'a mut dyn DataTrait>,
+    data: ZlibDecoder<&'a mut dyn BufRead>,
     charset: &'static Encoding,
 }
 
-impl<'a> ZipReader<'a> {
-    /// Skips `size` bytes
-    pub fn skip(&mut self, size: u64) -> std::io::Result<()> {
-        std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())?;
-        // for _ in 0..size {
-        //     self.read_u8()?;
-        // }
-        Ok(())
+impl<'a> ReaderTrait for ZipReader<'a> {
+
+    fn skip(&mut self, size: u64) -> std::io::Result<u64> {
+        std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())
     }
 
-    /// Read the first `n_chars` characters from a byte array interpreted
-    /// with the Reader `charset`, and return them as a `String`.
-    pub fn read_string(&mut self, size: u64) -> std::io::Result<String> {
-        let mut buf = vec![];
-        let mut chunk = (&mut self.data).take(size);
-        // Do appropriate error handling for your situation
-        // Maybe it's OK if you didn't read enough bytes?
-        chunk.read_to_end(&mut buf)?;
-        let (decoded, _, had_errors) = self.charset.decode(&buf);
-
-        if had_errors {
-            return Err(std::io::Error::other(
-                "Decoding error: input is not valid for this charset",
-            ));
-        }
-
-        // Trim trailing null bytes at the end as the strings use the C string convention for null-termination
-        Ok(decoded
-            .chars()
-            .collect::<String>()
-            .trim_end_matches(char::from(0))
-            .to_owned())
-    }
-
-    /// Reads exactly `N` bytes from the current position and returns them as a byte array.
-    ///
-    /// If the end of the file is reached before `N` bytes could be read, an `io::Error` is returned.
-    pub fn read_exact<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
+    fn read_exact<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
         let mut buf = [0u8; N];
         self.data.read_exact(&mut buf)?;
         Ok(buf)
     }
 
-    /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
-    pub fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
+    fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
         let mut buf = [0u8; N];
         let n = self.data.read(&mut buf)?;
         Ok((buf, n))
     }
 
-    /// Reads up to `N` bytes from the current position and returns them as a `Vec<u8>`.
-    ///
-    /// If the end of the file is reached before `N` bytes could be read, the returned
-    /// `Vec<u8>` will contain less than `N` elements.
-    pub fn read_at_most_to_vec<const N: usize>(&mut self) -> std::io::Result<Vec<u8>> {
-        let (buf, n) = self.read_at_most::<N>()?;
-        Ok(buf[..n].to_vec())
+    fn take_to_vec(&mut self, size: u64) -> std::io::Result<Vec<u8>> {
+        let mut buf = vec![];
+        let mut chunk = (&mut self.data).take(size);
+        chunk.read_to_end(&mut buf)?;
+        Ok(buf)
     }
-
-    /// Reads a i32 from the current position
-    pub fn read_i32(&mut self) -> std::io::Result<i32> {
-        Ok(i32::from_le_bytes(self.read_exact::<4>()?))
+    
+    fn charset(&self) -> &'static Encoding {
+        self.charset
     }
-
-    /// Reads a u32 from the current position
-    pub fn read_u32(&mut self) -> std::io::Result<u32> {
-        Ok(u32::from_le_bytes(self.read_exact::<4>()?))
-    }
-
-    /// Reads a u16 from the current position
-    pub fn read_u16(&mut self) -> std::io::Result<u16> {
-        Ok(u16::from_le_bytes(self.read_exact::<2>()?))
-    }
-
-    /// Reads a u8 from the current position
-    #[inline]
-    pub fn read_u8(&mut self) -> std::io::Result<u8> {
-        Ok(u8::from_le_bytes(self.read_exact::<1>()?))
-    }
+    
 }
+
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@ use std::io;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    datasource::{DataSource, Importer, Reader},
+    datasource::{DataSource, Importer, Reader, ReaderTrait},
     fs::CaseInsensitivePath,
 };
 
