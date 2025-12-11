@@ -2,14 +2,15 @@ use std::io::{Read, Seek};
 
 use crate::{
     datasource::Reader,
-    resource::bif::{BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset},
+    resource::bif::{
+        BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset,
+    },
 };
 
 /// A BIFF V1 file importer
 pub struct BiffParser;
 
 impl BiffParser {
-
     /// Imports a BIFF V1 file
     pub fn import<R: Read + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
@@ -51,7 +52,14 @@ impl BiffParser {
 mod tests {
     use std::path::Path;
 
-    use crate::{datasource::DataSource, resource::{bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type}, key::ResourceType}, test_utils::RESOURCES_DIR};
+    use crate::{
+        datasource::DataSource,
+        resource::{
+            bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type},
+            key::ResourceType,
+        },
+        test_utils::RESOURCES_DIR,
+    };
 
     use super::*;
 

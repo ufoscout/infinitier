@@ -6,7 +6,10 @@ use std::io::Read;
 
 use crate::{
     datasource::{Importer, Reader},
-    resource::{bif::{bif::BifParser, bifc::BifcParser, biff::BiffParser}, key::ResourceType},
+    resource::{
+        bif::{bif::BifParser, bifc::BifcParser, biff::BiffParser},
+        key::ResourceType,
+    },
 };
 
 /// A BIF file importer
@@ -48,21 +51,13 @@ pub const BIF_V1_0_SIGNATURE: &'static str = "BIF V1.0";
 pub const BIFCV1_0_SIGNATURE: &'static str = "BIFCV1.0";
 
 impl Type {
-
-    pub fn signature(&self) -> &'static str {   
+    pub fn signature(&self) -> &'static str {
         match self {
-            Type::Biff => {
-                BIFFV1_SIGNATURE
-            },
-            Type::Bif => {
-                BIF_V1_0_SIGNATURE
-            },
-            Type::Bifc => {
-                BIFCV1_0_SIGNATURE
-            },
+            Type::Biff => BIFFV1_SIGNATURE,
+            Type::Bif => BIF_V1_0_SIGNATURE,
+            Type::Bifc => BIFCV1_0_SIGNATURE,
         }
     }
-
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -106,34 +101,36 @@ fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
 
 fn parse_bif_embedded_file<R: Read>(reader: &mut Reader<R>) -> std::io::Result<BifEmbeddedFile> {
     let locator = reader.read_u32()? & 0xfffff;
-            let offset = reader.read_u32()? as u64;
-            let size = reader.read_u32()?;
-            let r#type = reader.read_u16()?;
-            reader.read_u16()?; // unknown data
+    let offset = reader.read_u32()? as u64;
+    let size = reader.read_u32()?;
+    let r#type = reader.read_u16()?;
+    reader.read_u16()?; // unknown data
 
-            Ok(BifEmbeddedFile {
-                locator,
-                offset,
-                size,
-                r#type: ResourceType::from(r#type),
-            })
+    Ok(BifEmbeddedFile {
+        locator,
+        offset,
+        size,
+        r#type: ResourceType::from(r#type),
+    })
 }
 
-fn parse_bif_embedded_tileset<R: Read>(reader: &mut Reader<R>) -> std::io::Result<BifEmbeddedTileset> {
+fn parse_bif_embedded_tileset<R: Read>(
+    reader: &mut Reader<R>,
+) -> std::io::Result<BifEmbeddedTileset> {
     let locator = reader.read_u32()? & 0xfffff;
-            let offset = reader.read_u32()? as u64;
-            let count = reader.read_u32()?;
-            let size = reader.read_u32()?;
-            let r#type = reader.read_u16()?;
-            reader.read_u16()?; // unknown data
+    let offset = reader.read_u32()? as u64;
+    let count = reader.read_u32()?;
+    let size = reader.read_u32()?;
+    let r#type = reader.read_u16()?;
+    reader.read_u16()?; // unknown data
 
-            Ok(BifEmbeddedTileset {
-                locator,
-                offset,
-                count,
-                size,
-                r#type: ResourceType::from(r#type), 
-            })
+    Ok(BifEmbeddedTileset {
+        locator,
+        offset,
+        count,
+        size,
+        r#type: ResourceType::from(r#type),
+    })
 }
 
 #[cfg(test)]
@@ -183,8 +180,7 @@ mod tests {
             Type::Biff
         );
 
-                let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
         assert_eq!(bif.r#type, Type::Biff);
     }
-
 }

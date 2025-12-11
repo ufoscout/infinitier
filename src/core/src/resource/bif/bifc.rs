@@ -143,7 +143,12 @@ impl<'a, R: BufRead + Seek> BifcCompressedReader<'a, R> {
 mod tests {
     use super::*;
     use crate::{
-        datasource::DataSource, resource::{bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type}, key::ResourceType}, test_utils::RESOURCES_DIR,
+        datasource::DataSource,
+        resource::{
+            bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type},
+            key::ResourceType,
+        },
+        test_utils::RESOURCES_DIR,
     };
     use std::path::Path;
 

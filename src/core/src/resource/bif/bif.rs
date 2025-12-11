@@ -2,14 +2,16 @@ use std::io::BufRead;
 
 use crate::{
     datasource::Reader,
-    resource::bif::{BIF_V1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset},
+    resource::bif::{
+        BIF_V1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
+        parse_bif_embedded_tileset,
+    },
 };
 
 /// A BIFC V1 file importer
 pub struct BifParser;
 
 impl BifParser {
-
     /// Imports a BIFC V1 file
     pub fn import<R: BufRead>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
@@ -78,7 +80,14 @@ impl BifParser {
 mod tests {
     use std::path::Path;
 
-    use crate::{datasource::DataSource, resource::{bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type}, key::ResourceType}, test_utils::RESOURCES_DIR};
+    use crate::{
+        datasource::DataSource,
+        resource::{
+            bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type},
+            key::ResourceType,
+        },
+        test_utils::RESOURCES_DIR,
+    };
 
     use super::*;
 
@@ -91,7 +100,7 @@ mod tests {
         let mut reader = data.reader().unwrap();
         let bif = BifParser::import(&mut reader).unwrap();
 
-                assert_eq!(
+        assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
             Type::Bif
         );
@@ -129,5 +138,4 @@ mod tests {
             }
         );
     }
-
 }

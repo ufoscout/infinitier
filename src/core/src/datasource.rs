@@ -178,7 +178,6 @@ pub struct Reader<T> {
 }
 
 impl<T: Read> Reader<T> {
-
     /// Skips `size` bytes and returns the number of bytes skipped.
     /// This operation has cost O(n), if the Reader is Seekable, use `seek` instead.
     pub fn skip(&mut self, size: u64) -> std::io::Result<u64> {
@@ -199,7 +198,7 @@ impl<T: Read> Reader<T> {
         Ok(buf)
     }
 
-        /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
+    /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
 
     pub fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
         let mut buf = [0u8; N];
@@ -231,7 +230,7 @@ impl<T: Read> Reader<T> {
         (&mut self.data).take(bytes).read_to_end(buf)
     }
 
-        /// Read the first `n_chars` characters from a byte array interpreted
+    /// Read the first `n_chars` characters from a byte array interpreted
     /// with the Reader `charset`, and return them as a `String`.
     pub fn read_string(&mut self, size: u64) -> std::io::Result<String> {
         let buf = self.take_to_vec(size)?;
@@ -249,8 +248,7 @@ impl<T: Read> Reader<T> {
             .collect::<String>()
             .trim_end_matches(char::from(0))
             .to_owned())
-   }
-
+    }
 
     /// Reads a i32 from the current position
     pub fn read_i32(&mut self) -> std::io::Result<i32> {
@@ -272,11 +270,9 @@ impl<T: Read> Reader<T> {
     pub fn read_u8(&mut self) -> std::io::Result<u8> {
         Ok(u8::from_le_bytes(self.read_exact::<1>()?))
     }
-
 }
 
 impl<T: Read + Seek> Reader<T> {
-
     /// Returns the current position of the cursor
     pub fn position(&mut self) -> std::io::Result<u64> {
         self.data.stream_position()
@@ -317,7 +313,6 @@ impl<T: Read + Seek> Reader<T> {
 }
 
 impl<T: BufRead> Reader<T> {
-
     /// Returns a zip reader
     pub fn as_zip_reader(&mut self) -> Reader<ZlibDecoder<&mut T>> {
         Reader {
@@ -334,11 +329,9 @@ impl<T: BufRead> Reader<T> {
         let bytes = self.data.read_line(&mut buf)?;
         Ok((buf, bytes))
     }
-
 }
 
 impl<T: BufRead + Seek> Reader<T> {
-
     /// Reads a line from the offset position
     /// and returns it as a `String` and the number of bytes read.
     /// If bytes read is 0, then EOF has been reached
