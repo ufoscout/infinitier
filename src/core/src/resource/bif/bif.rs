@@ -2,7 +2,7 @@ use std::io::BufRead;
 
 use crate::{
     datasource::Reader,
-    resource::bif::{Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset},
+    resource::bif::{BIF_V1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset},
 };
 
 /// A BIFC V1 file importer
@@ -14,7 +14,7 @@ impl BifParser {
     pub fn import<R: BufRead>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
 
-        if !signature.eq("BIF V1.0") {
+        if !signature.eq(BIF_V1_0_SIGNATURE) {
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature
@@ -31,7 +31,7 @@ impl BifParser {
 
         let signature = zip.read_string(8)?;
 
-        if !signature.eq("BIFFV1  ") {
+        if !signature.eq(BIFFV1_SIGNATURE) {
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature

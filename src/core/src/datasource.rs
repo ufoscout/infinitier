@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Cursor, Read, Seek, Take},
+    io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom, Take},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -179,9 +179,15 @@ pub struct Reader<T> {
 
 impl<T: Read> Reader<T> {
 
-    /// Skips `size` bytes and returns the number of bytes skipped
+    /// Skips `size` bytes and returns the number of bytes skipped.
+    /// This operation has cost O(n), if the Reader is Seekable, use `seek` instead.
     pub fn skip(&mut self, size: u64) -> std::io::Result<u64> {
         std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())
+    }
+
+    /// Reads a byte array from the current position and returns the number of bytes read
+    pub fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.data.read(buf)
     }
 
     /// Reads exactly `N` bytes from the current position and returns them as a byte array.
@@ -274,6 +280,10 @@ impl<T: Read + Seek> Reader<T> {
     /// Returns the current position of the cursor
     pub fn position(&mut self) -> std::io::Result<u64> {
         self.data.stream_position()
+    }
+
+    pub fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        self.data.seek(pos)
     }
 
     /// Sets the position of the cursor

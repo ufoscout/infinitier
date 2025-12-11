@@ -43,6 +43,28 @@ pub enum Type {
     Bifc, // BIFC V1.0 (compressed)
 }
 
+pub const BIFFV1_SIGNATURE: &'static str = "BIFFV1  ";
+pub const BIF_V1_0_SIGNATURE: &'static str = "BIF V1.0";
+pub const BIFCV1_0_SIGNATURE: &'static str = "BIFCV1.0";
+
+impl Type {
+
+    pub fn signature(&self) -> &'static str {   
+        match self {
+            Type::Biff => {
+                BIFFV1_SIGNATURE
+            },
+            Type::Bif => {
+                BIF_V1_0_SIGNATURE
+            },
+            Type::Bifc => {
+                BIFCV1_0_SIGNATURE
+            },
+        }
+    }
+
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bif {
     pub r#type: Type,
@@ -72,9 +94,9 @@ fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
     let value = reader.read_string(8)?;
 
     match value.as_str() {
-        "BIFFV1  " => Ok(Type::Biff),
-        "BIF V1.0" => Ok(Type::Bif),
-        "BIFCV1.0" => Ok(Type::Bifc),
+        BIFFV1_SIGNATURE => Ok(Type::Biff),
+        BIF_V1_0_SIGNATURE => Ok(Type::Bif),
+        BIFCV1_0_SIGNATURE => Ok(Type::Bifc),
         val => Err(std::io::Error::other(format!(
             "Unsupported BIFF file: {}",
             val
