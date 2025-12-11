@@ -1,13 +1,13 @@
-mod bif;
-mod bifc;
-mod biff;
+mod bif_reader;
+mod bifc_reader;
+mod biff_reader;
 
 use std::io::Read;
 
 use crate::{
     datasource::{Importer, Reader},
     resource::{
-        bif::{bif::BifParser, bifc::BifcParser, biff::BiffParser},
+        bif::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser},
         key::ResourceType,
     },
 };
@@ -46,9 +46,9 @@ pub enum Type {
     Bifc, // BIFC V1.0 (compressed)
 }
 
-pub const BIFFV1_SIGNATURE: &'static str = "BIFFV1  ";
-pub const BIF_V1_0_SIGNATURE: &'static str = "BIF V1.0";
-pub const BIFCV1_0_SIGNATURE: &'static str = "BIFCV1.0";
+pub const BIFFV1_SIGNATURE: &str = "BIFFV1  ";
+pub const BIF_V1_0_SIGNATURE: &str = "BIF V1.0";
+pub const BIFCV1_0_SIGNATURE: &str = "BIFCV1.0";
 
 impl Type {
     pub fn signature(&self) -> &'static str {

@@ -199,7 +199,6 @@ impl<T: Read> Reader<T> {
     }
 
     /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
-
     pub fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
         let mut buf = [0u8; N];
         let n = self.data.read(&mut buf)?;

@@ -136,7 +136,7 @@ pub struct ResourceEntry {
 
 impl BifEntry {
     /// Reads a BIF entry inside a KEY file
-    fn read_entry<'a, R: BufRead + Seek>(
+    fn read_entry<R: BufRead + Seek>(
         reader: &mut Reader<R>,
         index: u64,
         is_demo: bool,
@@ -177,7 +177,7 @@ impl BifEntry {
 
 impl ResourceEntry {
     /// Reads a Resource entry inside a KEY file
-    fn read_entry<'a, R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<ResourceEntry> {
+    fn read_entry<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<ResourceEntry> {
         let resource_name = reader.read_string(8)?.trim().to_string();
         let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;
