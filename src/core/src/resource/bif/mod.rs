@@ -2,8 +2,10 @@ mod bif;
 mod bifc;
 mod biff;
 
+use std::io::Read;
+
 use crate::{
-    datasource::{Importer, Reader, ReaderTrait},
+    datasource::{Importer, Reader},
     resource::{bif::{bif::BifParser, bifc::BifcParser, biff::BiffParser}, key::ResourceType},
 };
 
@@ -66,7 +68,7 @@ pub struct BifEmbeddedTileset {
 }
 
 /// Detects the type of a BIFF file
-fn detect_biff_type(reader: &mut Reader) -> std::io::Result<Type> {
+fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
     let value = reader.read_string(8)?;
 
     match value.as_str() {
@@ -80,7 +82,7 @@ fn detect_biff_type(reader: &mut Reader) -> std::io::Result<Type> {
     }
 }
 
-fn parse_bif_embedded_file<R: ReaderTrait>(reader: &mut R) -> std::io::Result<BifEmbeddedFile> {
+fn parse_bif_embedded_file<R: Read>(reader: &mut Reader<R>) -> std::io::Result<BifEmbeddedFile> {
     let locator = reader.read_u32()? & 0xfffff;
             let offset = reader.read_u32()? as u64;
             let size = reader.read_u32()?;
@@ -95,7 +97,7 @@ fn parse_bif_embedded_file<R: ReaderTrait>(reader: &mut R) -> std::io::Result<Bi
             })
 }
 
-fn parse_bif_embedded_tileset<R: ReaderTrait>(reader: &mut R) -> std::io::Result<BifEmbeddedTileset> {
+fn parse_bif_embedded_tileset<R: Read>(reader: &mut Reader<R>) -> std::io::Result<BifEmbeddedTileset> {
     let locator = reader.read_u32()? & 0xfffff;
             let offset = reader.read_u32()? as u64;
             let count = reader.read_u32()?;

@@ -1,9 +1,5 @@
 use std::{collections::VecDeque, io::{BufRead, Read}};
-
-use encoding_rs::WINDOWS_1252;
-use flate2::bufread::ZlibDecoder;
-
-use crate::{datasource::{Reader, ReaderTrait, ZipReader}, resource::bif::{Bif, Type}};
+use crate::{datasource::Reader, resource::bif::{Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset}};
 
 /// A BIFC V1.0 file importer
 pub struct BifcParser;
@@ -11,7 +7,7 @@ pub struct BifcParser;
 impl BifcParser {
 
     /// Imports a BIFC V1.0 file
-    pub fn import<'a: 'b, 'b>(reader: &'b mut Reader<'a>) -> std::io::Result<Bif> {
+    pub fn import<'a: 'b, 'b, R: BufRead>(reader: &'b mut Reader<R>) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
 
         if !signature.eq("BIFCV1.0") {
@@ -23,27 +19,39 @@ impl BifcParser {
 
         let uncompressed_size = reader.read_u32()?;
 
-        let files_number= 0;
-        let tilesets_number = 0;
+        let bif = {
 
-        {
-            let mut compressed_reader = BifcCompressedReader{
-                reader,
-                offset: 0,
-                buffer: VecDeque::new()
+            let mut zip = Reader{
+                charset: reader.charset,
+                data: BifcCompressedReader{
+                    reader,
+                    buffer: VecDeque::new()
+                }, 
             };
+        let signature = zip.read_string(8)?;
 
-            let mut buf = [0u8; 4];
-            compressed_reader.read_exact(&mut buf)?;
-            let uncompressed_size = u32::from_le_bytes(buf);
-
-            let mut buf = [0u8; 4];
-            compressed_reader.read_exact(&mut buf)?;
-            let compressed_size = u32::from_le_bytes(buf);
-
-            
-            compressed_reader.read(&mut buf).unwrap();
+        if !signature.eq("BIFFV1  ") {
+            return Err(std::io::Error::other(format!(
+                "Wrong file type: {}",
+                signature
+            )));
         }
+
+        let files_number = zip.read_u32()? as usize;
+        let tilesets_number = zip.read_u32()? as usize;
+        let files_offset = zip.read_u32()? as u64;
+
+        let current_offset = 20;
+        if files_offset < current_offset {
+            return Err(std::io::Error::other(format!(
+                "Invalid decompressed BIFF header offset: {}",
+                files_offset
+            )));
+        }
+
+        let remaining_bytes = files_offset - current_offset;
+
+        zip.skip(remaining_bytes)?;
 
         let mut bif = Bif {
             r#type: Type::Bifc,
@@ -51,18 +59,30 @@ impl BifcParser {
             tilesets: Vec::with_capacity(tilesets_number),
         };
 
+        // reading file entries
+        for _ in 0..files_number {
+            bif.files.push(parse_bif_embedded_file(&mut zip)?);
+        }
+
+        // reading tileset entries
+        for _ in 0..tilesets_number {
+            bif.tilesets.push(parse_bif_embedded_tileset(&mut zip)?);
+        }
+
+            bif
+        };
+
         Ok(bif)
     }
 }
 
 
-struct BifcCompressedReader<'a: 'b, 'b>{
-    reader: &'b mut Reader<'a>,
-    offset: u64,
+struct BifcCompressedReader<'a, R: BufRead>{
+    reader: &'a mut Reader<R>,
     buffer: VecDeque<u8>
 }
 
-impl <'a: 'b, 'b> Read for BifcCompressedReader<'a, 'b> {
+impl <'a, R: BufRead> Read for BifcCompressedReader<'a, R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let len = buf.len();
 
@@ -71,23 +91,22 @@ impl <'a: 'b, 'b> Read for BifcCompressedReader<'a, 'b> {
         }
 
         let len = std::cmp::min(len, self.buffer.len());
-        // This is probably inefficient. We only care that it works for now
-        // for i in 0..len {
-        //     buf[i] = self.buffer.pop_front().unwrap();
-        // }
         self.buffer.read(buf)?;
 
         Ok(len)
     }
 }
 
-impl <'a: 'b, 'b> BifcCompressedReader<'a, 'b> {
+impl <'a, R: BufRead> BifcCompressedReader<'a, R> {
     fn fill_buffer(&mut self) -> std::io::Result<usize> {
 
-        let uncompressed_size = self.reader.read_u32()? as u64;
-        let compressed_size = self.reader.read_u32()?;
+        println!("Filling buffer");
 
-        let mut reader = self.reader.as_zip_reader();
+        let uncompressed_size = self.reader.read_u32()? as u64;
+        let compressed_size = self.reader.read_u32()? as u64;
+
+        let mut take = self.reader.take(compressed_size);
+        let mut reader = take.as_zip_reader();
 
         // Inefficient but works for now
         let data = reader.take_to_vec(uncompressed_size)?;
@@ -101,7 +120,7 @@ impl <'a: 'b, 'b> BifcCompressedReader<'a, 'b> {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
-    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
+    use crate::{datasource::DataSource, resource::bif::detect_biff_type, test_utils::RESOURCES_DIR};
     use super::*;
 
 
@@ -111,8 +130,16 @@ mod tests {
             "{RESOURCES_DIR}bg2/data/Data/AREA070C.bif"
         )));
 
+                assert_eq!(
+            detect_biff_type(&mut data.reader().unwrap()).unwrap(),
+            Type::Bifc
+        );
+        
         let bif = BifcParser::import(&mut data.reader().unwrap()).unwrap();
         assert_eq!(bif.r#type, Type::Bifc);
+
+        println!("{:#?}", bif);
+
     }
 
 }

@@ -1,9 +1,9 @@
-use std::io;
+use std::io::{self, BufRead, Seek};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    datasource::{DataSource, Importer, Reader, ReaderTrait},
+    datasource::{DataSource, Importer, Reader},
     fs::CaseInsensitivePath,
 };
 
@@ -136,7 +136,7 @@ pub struct ResourceEntry {
 
 impl BifEntry {
     /// Reads a BIF entry inside a KEY file
-    fn read_entry(reader: &mut Reader, index: u64, is_demo: bool) -> std::io::Result<BifEntry> {
+    fn read_entry<'a, R: BufRead + Seek>(reader: &mut Reader<R>, index: u64, is_demo: bool) -> std::io::Result<BifEntry> {
         let file_size = if !is_demo {
             Some(reader.read_u32()?)
         } else {
@@ -173,7 +173,7 @@ impl BifEntry {
 
 impl ResourceEntry {
     /// Reads a Resource entry inside a KEY file
-    fn read_entry(reader: &mut Reader) -> std::io::Result<ResourceEntry> {
+    fn read_entry<'a, R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<ResourceEntry> {
         let resource_name = reader.read_string(8)?.trim().to_string();
         let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;

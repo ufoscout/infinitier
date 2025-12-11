@@ -1,5 +1,7 @@
+use std::io::{Read, Seek};
+
 use crate::{
-    datasource::{Reader, ReaderTrait},
+    datasource::Reader,
     resource::bif::{Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset},
 };
 
@@ -9,7 +11,7 @@ pub struct BiffParser;
 impl BiffParser {
 
     /// Imports a BIFF V1 file
-    pub fn import(reader: &mut Reader) -> std::io::Result<Bif> {
+    pub fn import<R: Read + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
 
         if !signature.eq("BIFFV1  ") {
@@ -49,7 +51,7 @@ impl BiffParser {
 mod tests {
     use std::path::Path;
 
-    use crate::{datasource::DataSource, resource::{bif::{BifEmbeddedFile, BifEmbeddedTileset}, key::ResourceType}, test_utils::RESOURCES_DIR};
+    use crate::{datasource::DataSource, resource::{bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type}, key::ResourceType}, test_utils::RESOURCES_DIR};
 
     use super::*;
 
@@ -58,6 +60,11 @@ mod tests {
         let data = DataSource::new(Path::new(&format!("{RESOURCES_DIR}pst/CS_0511.bif")));
 
         let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
+
+        assert_eq!(
+            detect_biff_type(&mut data.reader().unwrap()).unwrap(),
+            Type::Biff
+        );
 
         assert_eq!(bif.r#type, Type::Biff);
         assert_eq!(bif.files.len(), 4);
@@ -90,6 +97,11 @@ mod tests {
         )));
 
         let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
+
+        assert_eq!(
+            detect_biff_type(&mut data.reader().unwrap()).unwrap(),
+            Type::Biff
+        );
 
         assert_eq!(bif.r#type, Type::Biff);
         assert_eq!(bif.files.len(), 5);
