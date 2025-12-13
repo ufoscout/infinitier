@@ -22,7 +22,7 @@ impl Importer for KeyImporter {
             return Err(io::Error::other("Wrong file type"));
         }
 
-        let bif_size = reader.read_u32()?  as u64;
+        let bif_size = reader.read_u32()? as u64;
         let resources_size = reader.read_u32()? as u64;
         let bif_offset = reader.read_u32()? as u64;
         let resources_offset = reader.read_u32()? as u64;
@@ -42,7 +42,10 @@ impl Importer for KeyImporter {
         let mut resource_entries = Vec::new();
         reader.set_position(resources_offset)?;
         for _ in 0..resources_size {
-            resource_entries.push(ResourceEntry::read_entry(&mut reader, resource_entries.last())?);
+            resource_entries.push(ResourceEntry::read_entry(
+                &mut reader,
+                resource_entries.last(),
+            )?);
         }
 
         Ok(Key {
@@ -179,7 +182,10 @@ impl BifEntry {
 
 impl ResourceEntry {
     /// Reads a Resource entry inside a KEY file
-    fn read_entry<R: BufRead + Seek>(reader: &mut Reader<R>, previous_entry: Option<&Self>) -> std::io::Result<ResourceEntry> {
+    fn read_entry<R: BufRead + Seek>(
+        reader: &mut Reader<R>,
+        previous_entry: Option<&Self>,
+    ) -> std::io::Result<ResourceEntry> {
         let resource_name = reader.read_string(8)?.trim().to_string();
         let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;

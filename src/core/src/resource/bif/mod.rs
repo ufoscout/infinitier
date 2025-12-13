@@ -68,19 +68,19 @@ pub struct Bif {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum BifEmbeddedResource {
-   File {
-       locator: u32,
-       size: u32,
-       offset: u64,
-       r#type: ResourceType,
-   },
-   Tileset {
-       locator: u32,
-       size: u32,
-       count: u32,
-       offset: u64,
-       r#type: ResourceType,
-   }
+    File {
+        locator: u32,
+        size: u32,
+        offset: u64,
+        r#type: ResourceType,
+    },
+    Tileset {
+        locator: u32,
+        size: u32,
+        count: u32,
+        offset: u64,
+        r#type: ResourceType,
+    },
 }
 
 /// Detects the type of a BIFF file
@@ -98,7 +98,9 @@ fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
     }
 }
 
-fn parse_bif_embedded_file<R: Read>(reader: &mut Reader<R>) -> std::io::Result<BifEmbeddedResource> {
+fn parse_bif_embedded_file<R: Read>(
+    reader: &mut Reader<R>,
+) -> std::io::Result<BifEmbeddedResource> {
     let locator = reader.read_u32()? & 0xfffff;
     let offset = reader.read_u32()? as u64;
     let size = reader.read_u32()?;

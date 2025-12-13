@@ -127,7 +127,7 @@ mod tests {
         );
         assert_eq!(
             bif.resources[5],
-            BifEmbeddedResource::Tileset { 
+            BifEmbeddedResource::Tileset {
                 locator: 16384,
                 size: 5120,
                 offset: 43480,
