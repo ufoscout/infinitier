@@ -111,6 +111,8 @@ mod tests {
             Type::Biff
         );
 
+        println!("{:#?}", bif);
+
         assert_eq!(bif.r#type, Type::Biff);
         assert_eq!(bif.files.len(), 5);
         assert_eq!(bif.tilesets.len(), 1);

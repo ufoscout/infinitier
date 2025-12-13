@@ -22,27 +22,27 @@ impl Importer for KeyImporter {
             return Err(io::Error::other("Wrong file type"));
         }
 
-        let bif_size = reader.read_u32()?;
-        let resources_size = reader.read_u32()?;
-        let bif_offset = reader.read_u32()?;
-        let resources_offset = reader.read_u32()?;
+        let bif_size = reader.read_u32()?  as u64;
+        let resources_size = reader.read_u32()? as u64;
+        let bif_offset = reader.read_u32()? as u64;
+        let resources_offset = reader.read_u32()? as u64;
 
         // checking for BG1 Demo variant of KEY file format
-        let is_demo = reader.read_u32_at(bif_offset as u64)? - bif_offset == bif_size * 0x8
-            && reader.read_u32_at(bif_offset as u64 + 4)? - bif_offset != bif_size * 0xc;
+        let is_demo = reader.read_u32_at(bif_offset)? as u64 - bif_offset == bif_size * 0x8
+            && reader.read_u32_at(bif_offset + 4)? as u64 - bif_offset != bif_size * 0xc;
 
         // reading BIF entries
         let mut bif_entries = Vec::new();
-        reader.set_position(bif_offset as u64)?;
-        for i in 0..bif_size as u64 {
+        reader.set_position(bif_offset)?;
+        for i in 0..bif_size {
             bif_entries.push(BifEntry::read_entry(&mut reader, i, is_demo)?);
         }
 
         // reading resource entries
         let mut resource_entries = Vec::new();
-        reader.set_position(resources_offset as u64)?;
-        for _ in 0..resources_size as u64 {
-            resource_entries.push(ResourceEntry::read_entry(&mut reader)?);
+        reader.set_position(resources_offset)?;
+        for _ in 0..resources_size {
+            resource_entries.push(ResourceEntry::read_entry(&mut reader, resource_entries.last())?);
         }
 
         Ok(Key {
@@ -61,8 +61,8 @@ impl Importer for KeyImporter {
 pub struct Key {
     pub signature: String,
     pub version: String,
-    pub resources_offset: u32,
-    pub bif_offset: u32,
+    pub resources_offset: u64,
+    pub bif_offset: u64,
     pub bif_entries: Vec<BifEntry>,
     pub resource_entries: Vec<ResourceEntry>,
 }
@@ -130,8 +130,10 @@ pub struct ResourceEntry {
     pub resource_name: String,
     /// Resource type.
     pub r#type: ResourceType,
-    /// Index of the BIFF entry in the key file that contains the resource
-    pub bif_entry_index: u64,
+    /// Index of the entry in the key.bif_entries vector that contains this resource
+    pub bif_entries_index: u64,
+    /// Index of this resource into the bif.entries vector
+    pub index_into_bif_file: u64,
 }
 
 impl BifEntry {
@@ -177,17 +179,25 @@ impl BifEntry {
 
 impl ResourceEntry {
     /// Reads a Resource entry inside a KEY file
-    fn read_entry<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<ResourceEntry> {
+    fn read_entry<R: BufRead + Seek>(reader: &mut Reader<R>, previous_entry: Option<&Self>) -> std::io::Result<ResourceEntry> {
         let resource_name = reader.read_string(8)?.trim().to_string();
         let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;
 
-        let bif_entry_index = ((locator >> 20) & 0xfff) as u64;
+        let bif_entries_index = ((locator >> 20) & 0xfff) as u64;
+
+        let mut index_inside_bif_file = 0;
+        if let Some(previous_entry) = previous_entry {
+            if bif_entries_index == previous_entry.bif_entries_index {
+                index_inside_bif_file = previous_entry.index_into_bif_file + 1;
+            };
+        };
 
         Ok(ResourceEntry {
             resource_name,
             r#type: ResourceType::from(resource_type),
-            bif_entry_index,
+            bif_entries_index,
+            index_into_bif_file: index_inside_bif_file,
         })
     }
 }
@@ -213,7 +223,7 @@ pub enum ResourceType {
     Cre,
     Are,
     Dlg,
-    Two,
+    TwoDA,
     Gam,
     Sto,
     Wmp,
@@ -267,7 +277,7 @@ impl ResourceType {
             0x3f1 => ResourceType::Cre,
             0x3f2 => ResourceType::Are,
             0x3f3 => ResourceType::Dlg,
-            0x3f4 => ResourceType::Two,
+            0x3f4 => ResourceType::TwoDA,
             0x3f5 => ResourceType::Gam,
             0x3f6 => ResourceType::Sto,
             0x3f7 => ResourceType::Wmp,
@@ -321,7 +331,7 @@ impl ResourceType {
             ResourceType::Cre => 0x3f1,
             ResourceType::Are => 0x3f2,
             ResourceType::Dlg => 0x3f3,
-            ResourceType::Two => 0x3f4,
+            ResourceType::TwoDA => 0x3f4,
             ResourceType::Gam => 0x3f5,
             ResourceType::Sto => 0x3f6,
             ResourceType::Wmp => 0x3f7,
@@ -375,7 +385,7 @@ impl ResourceType {
             ResourceType::Cre => Some("cre"),
             ResourceType::Are => Some("are"),
             ResourceType::Dlg => Some("dlg"),
-            ResourceType::Two => Some("two"),
+            ResourceType::TwoDA => Some("two"),
             ResourceType::Gam => Some("gam"),
             ResourceType::Sto => Some("sto"),
             ResourceType::Wmp => Some("wmp"),
