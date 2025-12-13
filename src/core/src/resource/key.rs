@@ -193,10 +193,10 @@ impl ResourceEntry {
         let bif_entries_index = ((locator >> 20) & 0xfff) as u64;
 
         let mut index_inside_bif_file = 0;
-        if let Some(previous_entry) = previous_entry {
-            if bif_entries_index == previous_entry.bif_entries_index {
-                index_inside_bif_file = previous_entry.index_into_bif_file + 1;
-            };
+        if let Some(previous_entry) = previous_entry
+            && bif_entries_index == previous_entry.bif_entries_index
+        {
+            index_inside_bif_file = previous_entry.index_into_bif_file + 1;
         };
 
         Ok(ResourceEntry {
