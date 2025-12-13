@@ -164,7 +164,7 @@ pub struct WedPolygon {
 
 bitflags::bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-    struct WedPolygonFlag: u8 {
+    pub struct WedPolygonFlag: u8 {
         const ShadeWall =       1 << 0;
         const SemiTransparent = 1 << 1;
         const HoveringWall = 1 << 2;
