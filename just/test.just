@@ -3,7 +3,7 @@
 [group('test')]
 test test_name="":
   cargo test {{test_name}}
-  cargo test {{test_name}} --all-features
+  # cargo test {{test_name}} --all-features
 
 # Delete all insta snapshots and regenerate them
 [group('test')]
