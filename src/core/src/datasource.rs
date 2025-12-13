@@ -266,6 +266,11 @@ impl<T: Read> Reader<T> {
             .to_owned())
     }
 
+    /// Reads a i16 from the current position
+    pub fn read_i16(&mut self) -> std::io::Result<i16> {
+        Ok(i16::from_le_bytes(self.read_exact::<2>()?))
+    }
+
     /// Reads a i32 from the current position
     pub fn read_i32(&mut self) -> std::io::Result<i32> {
         Ok(i32::from_le_bytes(self.read_exact::<4>()?))
@@ -285,6 +290,11 @@ impl<T: Read> Reader<T> {
     #[inline]
     pub fn read_u8(&mut self) -> std::io::Result<u8> {
         Ok(u8::from_le_bytes(self.read_exact::<1>()?))
+    }
+
+    /// Reads a i8 from the current position
+    pub fn read_i8(&mut self) -> std::io::Result<i8> {
+        Ok(i8::from_le_bytes(self.read_exact::<1>()?))
     }
 }
 

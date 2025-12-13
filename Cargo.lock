@@ -1587,6 +1587,7 @@ dependencies = [
 name = "infinitier_core"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.10.0",
  "encoding_rs",
  "flate2",
  "insta",
