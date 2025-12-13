@@ -30,18 +30,17 @@ impl BiffParser {
 
         let mut bif = Bif {
             r#type: Type::Biff,
-            files: Vec::with_capacity(files_number),
-            tilesets: Vec::with_capacity(tilesets_number),
+            resources: Vec::with_capacity(files_number + tilesets_number),
         };
 
         // reading file entries
         for _ in 0..files_number {
-            bif.files.push(parse_bif_embedded_file(reader)?)
+            bif.resources.push(parse_bif_embedded_file(reader)?)
         }
 
         // reading tileset entries
         for _ in 0..tilesets_number {
-            bif.tilesets.push(parse_bif_embedded_tileset(reader)?)
+            bif.resources.push(parse_bif_embedded_tileset(reader)?)
         }
 
         Ok(bif)
@@ -55,7 +54,7 @@ mod tests {
     use crate::{
         datasource::DataSource,
         resource::{
-            bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type},
+            bif::{BifEmbeddedResource, detect_biff_type},
             key::ResourceType,
         },
         test_utils::RESOURCES_DIR,
@@ -75,12 +74,11 @@ mod tests {
         );
 
         assert_eq!(bif.r#type, Type::Biff);
-        assert_eq!(bif.files.len(), 4);
-        assert_eq!(bif.tilesets.len(), 0);
+        assert_eq!(bif.resources.len(), 4);
 
         assert_eq!(
-            bif.files[1],
-            BifEmbeddedFile {
+            bif.resources[1],
+            BifEmbeddedResource::File {
                 locator: 1,
                 size: 4050,
                 offset: 7952,
@@ -88,8 +86,8 @@ mod tests {
             }
         );
         assert_eq!(
-            bif.files[3],
-            BifEmbeddedFile {
+            bif.resources[3],
+            BifEmbeddedResource::File {
                 locator: 3,
                 size: 285,
                 offset: 17222,
@@ -114,12 +112,11 @@ mod tests {
         println!("{:#?}", bif);
 
         assert_eq!(bif.r#type, Type::Biff);
-        assert_eq!(bif.files.len(), 5);
-        assert_eq!(bif.tilesets.len(), 1);
+        assert_eq!(bif.resources.len(), 6);
 
         assert_eq!(
-            bif.files[0],
-            BifEmbeddedFile {
+            bif.resources[0],
+            BifEmbeddedResource::File {
                 locator: 0,
                 size: 315816,
                 offset: 24,
@@ -127,8 +124,8 @@ mod tests {
             }
         );
         assert_eq!(
-            bif.tilesets[0],
-            BifEmbeddedTileset {
+            bif.resources[5],
+            BifEmbeddedResource::Tileset {
                 locator: 16384,
                 size: 12,
                 offset: 461932,

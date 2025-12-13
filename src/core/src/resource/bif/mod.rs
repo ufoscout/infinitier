@@ -63,25 +63,24 @@ impl Type {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bif {
     pub r#type: Type,
-    pub files: Vec<BifEmbeddedFile>,
-    pub tilesets: Vec<BifEmbeddedTileset>,
+    pub resources: Vec<BifEmbeddedResource>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct BifEmbeddedFile {
-    pub locator: u32,
-    pub size: u32,
-    pub offset: u64,
-    pub r#type: ResourceType,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct BifEmbeddedTileset {
-    pub locator: u32,
-    pub size: u32,
-    pub count: u32,
-    pub offset: u64,
-    pub r#type: ResourceType,
+pub enum BifEmbeddedResource {
+   File {
+       locator: u32,
+       size: u32,
+       offset: u64,
+       r#type: ResourceType,
+   },
+   Tileset {
+       locator: u32,
+       size: u32,
+       count: u32,
+       offset: u64,
+       r#type: ResourceType,
+   }
 }
 
 /// Detects the type of a BIFF file
@@ -99,14 +98,14 @@ fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
     }
 }
 
-fn parse_bif_embedded_file<R: Read>(reader: &mut Reader<R>) -> std::io::Result<BifEmbeddedFile> {
+fn parse_bif_embedded_file<R: Read>(reader: &mut Reader<R>) -> std::io::Result<BifEmbeddedResource> {
     let locator = reader.read_u32()? & 0xfffff;
     let offset = reader.read_u32()? as u64;
     let size = reader.read_u32()?;
     let r#type = reader.read_u16()?;
     reader.read_u16()?; // unknown data
 
-    Ok(BifEmbeddedFile {
+    Ok(BifEmbeddedResource::File {
         locator,
         offset,
         size,
@@ -116,7 +115,7 @@ fn parse_bif_embedded_file<R: Read>(reader: &mut Reader<R>) -> std::io::Result<B
 
 fn parse_bif_embedded_tileset<R: Read>(
     reader: &mut Reader<R>,
-) -> std::io::Result<BifEmbeddedTileset> {
+) -> std::io::Result<BifEmbeddedResource> {
     let locator = reader.read_u32()? & 0xfffff;
     let offset = reader.read_u32()? as u64;
     let count = reader.read_u32()?;
@@ -124,7 +123,7 @@ fn parse_bif_embedded_tileset<R: Read>(
     let r#type = reader.read_u16()?;
     reader.read_u16()?; // unknown data
 
-    Ok(BifEmbeddedTileset {
+    Ok(BifEmbeddedResource::Tileset {
         locator,
         offset,
         count,

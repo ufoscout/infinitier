@@ -61,18 +61,17 @@ impl BifcParser {
 
             let mut bif = Bif {
                 r#type: Type::Bifc,
-                files: Vec::with_capacity(files_number),
-                tilesets: Vec::with_capacity(tilesets_number),
+                resources: Vec::with_capacity(files_number + tilesets_number),
             };
 
             // reading file entries
             for _ in 0..files_number {
-                bif.files.push(parse_bif_embedded_file(&mut zip)?);
+                bif.resources.push(parse_bif_embedded_file(&mut zip)?);
             }
 
             // reading tileset entries
             for _ in 0..tilesets_number {
-                bif.tilesets.push(parse_bif_embedded_tileset(&mut zip)?);
+                bif.resources.push(parse_bif_embedded_tileset(&mut zip)?);
             }
 
             bif
@@ -145,7 +144,7 @@ mod tests {
     use crate::{
         datasource::DataSource,
         resource::{
-            bif::{BifEmbeddedFile, BifEmbeddedTileset, detect_biff_type},
+            bif::{BifEmbeddedResource, detect_biff_type},
             key::ResourceType,
         },
         test_utils::RESOURCES_DIR,
@@ -166,12 +165,11 @@ mod tests {
         let bif = BifcParser::import(&mut data.reader().unwrap()).unwrap();
         assert_eq!(bif.r#type, Type::Bifc);
 
-        assert_eq!(bif.files.len(), 5);
-        assert_eq!(bif.tilesets.len(), 1);
+        assert_eq!(bif.resources.len(), 6);
 
         assert_eq!(
-            bif.files[1],
-            BifEmbeddedFile {
+            bif.resources[1],
+            BifEmbeddedResource::File {
                 locator: 1,
                 size: 3574,
                 offset: 4204,
@@ -179,8 +177,8 @@ mod tests {
             }
         );
         assert_eq!(
-            bif.files[4],
-            BifEmbeddedFile {
+            bif.resources[4],
+            BifEmbeddedResource::File {
                 locator: 4,
                 size: 98002,
                 offset: 19342,
@@ -189,8 +187,8 @@ mod tests {
         );
 
         assert_eq!(
-            bif.tilesets[0],
-            BifEmbeddedTileset {
+            bif.resources[5],
+            BifEmbeddedResource::Tileset {
                 locator: 16384,
                 size: 5120,
                 count: 324,
