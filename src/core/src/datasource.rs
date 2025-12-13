@@ -1,8 +1,5 @@
 use std::{
-    fs::File,
-    io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom, Take},
-    path::{Path, PathBuf},
-    sync::Arc,
+    fs::File, io::{BufRead, BufReader, Cursor, Read, Seek, Take}, path::{Path, PathBuf}, sync::Arc
 };
 
 use encoding_rs::{Encoding, WINDOWS_1252};
@@ -63,13 +60,31 @@ pub trait DataTrait: BufRead + Seek {}
 
 impl DataTrait for BufReader<File> {}
 impl DataTrait for Cursor<&[u8]> {}
+impl <D: DataTrait> DataTrait for Take<D> {}
 
 impl Data {
+
     /// Returns a reader for the data
-    pub fn data(&self) -> std::io::Result<Box<dyn DataTrait + '_>> {
+    pub fn data(&self, offset: u64, limit: Option<u64>) -> std::io::Result<Box<dyn DataTrait + '_>> {
         match self {
-            Data::FileSource(reader) => Ok(Box::new(BufReader::new(File::open(reader)?))),
-            Data::MemorySource(reader) => Ok(Box::new(Cursor::new(reader.as_slice()))),
+            Data::FileSource(reader) => {
+                let mut data = BufReader::new(File::open(reader)?);
+                data.seek(std::io::SeekFrom::Start(offset))?;
+                if let Some(limit) = limit {
+                    Ok(Box::new(data.take(limit)))
+                } else {
+                    Ok(Box::new(data))
+                }
+            },
+            Data::MemorySource(reader) => {
+                let mut data = Cursor::new(reader.as_slice());
+                data.seek(std::io::SeekFrom::Start(offset))?;
+                if let Some(limit) = limit {
+                    Ok(Box::new(data.take(limit)))
+                } else {
+                    Ok(Box::new(data))
+                }
+            },
         }
     }
 }
@@ -85,6 +100,7 @@ pub enum DataSource {
         encoding: &'static Encoding,
         data: Data,
         offset: u64,
+        limit: Option<u64>,
     },
 }
 
@@ -104,11 +120,12 @@ impl DataSource {
     }
 
     /// Creates a new data source with an offset
-    pub fn new_with_offset<D: Into<Data>>(data: D, offset: u64) -> Self {
+    pub fn new_with_offset<D: Into<Data>>(data: D, offset: u64, limit: Option<u64>) -> Self {
         DataSource::Embedded {
             encoding: WINDOWS_1252,
             data: data.into(),
             offset,
+            limit,
         }
     }
 
@@ -116,26 +133,29 @@ impl DataSource {
     pub fn with_encoding(self, encoding: &'static Encoding) -> Self {
         match self {
             DataSource::Full { data, .. } => DataSource::Full { encoding, data },
-            DataSource::Embedded { data, offset, .. } => DataSource::Embedded {
+            DataSource::Embedded { data, offset, limit, .. } => DataSource::Embedded {
                 encoding,
                 data,
                 offset,
+                limit,
             },
         }
     }
 
     /// Sets the offset
-    pub fn with_offset(self, offset: u64) -> Self {
+    pub fn with_offset(self, offset: u64, limit: Option<u64>) -> Self {
         match self {
             DataSource::Full { encoding, data } => DataSource::Embedded {
                 encoding,
                 data,
                 offset,
+                limit,
             },
             DataSource::Embedded { encoding, data, .. } => DataSource::Embedded {
                 encoding,
                 data,
                 offset,
+                limit,
             },
         }
     }
@@ -152,21 +172,18 @@ impl DataSource {
     pub fn reader(&self) -> std::io::Result<Reader<Box<dyn DataTrait + '_>>> {
         match self {
             DataSource::Full { encoding, data } => Ok(Reader {
-                data: data.data()?,
+                data: data.data(0, None)?,
                 charset: encoding,
             }),
             DataSource::Embedded {
                 encoding,
                 data,
                 offset,
-            } => {
-                let mut data = data.data()?;
-                data.seek(std::io::SeekFrom::Start(*offset))?;
-                Ok(Reader {
-                    data,
-                    charset: encoding,
-                })
-            }
+                limit
+            } => Ok(Reader {
+                        data: data.data(*offset, *limit)?,
+                        charset: encoding,
+                    })
         }
     }
 }
@@ -272,41 +289,39 @@ impl<T: Read> Reader<T> {
 }
 
 impl<T: Read + Seek> Reader<T> {
-    /// Returns the current position of the cursor
+    /// Returns the current position of the cursor.
+    /// The position is relative to the Reader offset
     pub fn position(&mut self) -> std::io::Result<u64> {
         self.data.stream_position()
     }
 
-    pub fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
-        self.data.seek(pos)
-    }
-
-    /// Sets the position of the cursor
+    /// Sets the position of the cursor.
+    /// The position is relative to the Reader offset.
     pub fn set_position(&mut self, pos: u64) -> std::io::Result<u64> {
-        self.data.seek(std::io::SeekFrom::Start(pos))
+        self.data.seek(std::io::SeekFrom::Start(pos))//.map(|pos| pos - self.offset)
     }
 
     /// Reads a string from the offset position
     pub fn read_string_at(&mut self, offset: u64, size: u64) -> std::io::Result<String> {
-        self.data.seek(std::io::SeekFrom::Start(offset))?;
+        self.set_position(offset)?;
         self.read_string(size)
     }
 
     /// Reads a u32 from the offset position
     pub fn read_u32_at(&mut self, offset: u64) -> std::io::Result<u32> {
-        self.data.seek(std::io::SeekFrom::Start(offset))?;
+        self.set_position(offset)?;
         self.read_u32()
     }
 
     /// Reads a i32 from the offset position
     pub fn read_i32_at(&mut self, offset: u64) -> std::io::Result<i32> {
-        self.data.seek(std::io::SeekFrom::Start(offset))?;
+        self.set_position(offset)?;
         self.read_i32()
     }
 
     /// Reads a u16 from the offset position
     pub fn read_u16_at(&mut self, offset: u64) -> std::io::Result<u16> {
-        self.data.seek(std::io::SeekFrom::Start(offset))?;
+        self.set_position(offset)?;
         self.read_u16()
     }
 }
@@ -317,6 +332,7 @@ impl<T: BufRead> Reader<T> {
         Reader {
             data: ZlibDecoder::new(&mut self.data),
             charset: self.charset,
+            // offset: self.offset,
         }
     }
 
@@ -350,6 +366,26 @@ mod tests {
         let reader = DataSource::new("Hello, world!".as_bytes());
         let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_string(5).unwrap(), "Hello");
+    }
+
+    #[test]
+    fn test_read_with_offset() {
+        let reader = DataSource::new_with_offset("Hello, world! Hello, world!".as_bytes(), 5, Some(7));
+        let mut reader = reader.reader().unwrap();
+        assert_eq!(reader.position().unwrap(), 0);
+        assert_eq!(reader.read_string(5).unwrap(), ", wor");
+        assert_eq!(reader.position().unwrap(), 5);
+        assert_eq!(reader.read_string(10).unwrap(), "ld");
+        assert_eq!(reader.position().unwrap(), 7);
+    }
+
+        #[test]
+    fn test_read_with_offset_and_position() {
+        let reader = DataSource::new_with_offset("Hello, world! Hello, world!".as_bytes(), 5, Some(8));
+        let mut reader = reader.reader().unwrap();
+        assert_eq!(reader.set_position(3).unwrap(), 3);
+        assert_eq!(reader.position().unwrap(), 3);
+        assert_eq!(reader.read_string(5).unwrap(), "orld!");
     }
 
     #[test]

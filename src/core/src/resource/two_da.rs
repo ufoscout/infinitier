@@ -107,10 +107,6 @@ fn parse_data_row(line: &str, columns: &[usize], default: &str) -> (String, Vec<
     (key, result)
 }
 
-//////////////////////////////////////////////////////////////////////
-//                           UNIT TESTS                             //
-//////////////////////////////////////////////////////////////////////
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
