@@ -56,6 +56,7 @@ impl Type {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Bam {
+    pub r#type: Type,
 }
 
 /// Detects the type of a BAM file
