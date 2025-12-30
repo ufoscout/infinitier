@@ -1,11 +1,11 @@
-use std::{io::{BufRead, Seek}, path::Path};
+use std::{
+    io::{BufRead, Seek},
+    path::Path,
+};
 
 use image::{ImageBuffer, Rgba};
 
-use crate::{
-    datasource::Reader,
-    resource::bam::Type,
-};
+use crate::{datasource::Reader, resource::bam::Type};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BamV1 {
@@ -19,7 +19,6 @@ pub struct BamV1 {
     pub cycles: Vec<BamV1Cycle>,
     /// The index of the RLE compressed color in the palette
     pub rle_compressed_color_index: u8,
-
 }
 
 /// A BAM V1 file importer
@@ -104,7 +103,6 @@ impl BamV1Parser {
                 let mut pixel_palette_indexes = Vec::with_capacity(size);
                 reader.set_position(data_offset)?;
                 while pixel_palette_indexes.len() < size {
-
                     let pixel_index = reader.read_u8()?;
 
                     if compressed && (pixel_index == rle_compressed_color_index) {
@@ -115,7 +113,6 @@ impl BamV1Parser {
                     } else {
                         pixel_palette_indexes.push(pixel_index);
                     }
-
                 }
 
                 reader.set_position(position)?;
@@ -151,13 +148,11 @@ impl BamV1Parser {
                     frame_indices.push(frame_index as usize);
                 }
 
-                cycles.push(BamV1Cycle {
-                    frame_indices,
-                });
+                cycles.push(BamV1Cycle { frame_indices });
 
                 reader.set_position(position)?;
             }
-           cycles     
+            cycles
         };
 
         // for frame in frames {
@@ -188,7 +183,7 @@ impl BamV1Parser {
             frames,
             cycles,
             palette,
-            rle_compressed_color_index
+            rle_compressed_color_index,
         })
     }
 }
@@ -217,15 +212,15 @@ pub struct BamV1Frame {
 }
 
 impl BamV1Frame {
-    
     /// Exports the frame to an image file.
     /// The image type is determined by the file extension.
     pub fn export_image<Q: AsRef<Path>>(&self, path: Q, palette: &[Rgb]) -> image::ImageResult<()> {
-        let img: ImageBuffer<Rgba<u8>, _> = ImageBuffer::from_fn(self.width, self.height, |x, y| {
-            let idx = (y * self.width + x) as usize;
-            let p = &palette[self.pixel_palette_indexes[idx] as usize];
-            Rgba([p.r, p.g, p.b, p.alpha])
-        });
+        let img: ImageBuffer<Rgba<u8>, _> =
+            ImageBuffer::from_fn(self.width, self.height, |x, y| {
+                let idx = (y * self.width + x) as usize;
+                let p = &palette[self.pixel_palette_indexes[idx] as usize];
+                Rgba([p.r, p.g, p.b, p.alpha])
+            });
         img.save(path)
     }
 }
@@ -264,7 +259,6 @@ mod tests {
         );
     }
 
-
     /// Asserts that two png images are equal
     pub fn assert_png_images_are_equal<A: AsRef<Path>, B: AsRef<Path>>(path_a: A, path_b: B) {
         let img_a = image::open(path_a).unwrap();
@@ -281,6 +275,5 @@ mod tests {
         if img_a.to_rgba8() != img_b.to_rgba8() {
             panic!("Images bytes are different");
         }
-
     }
 }
