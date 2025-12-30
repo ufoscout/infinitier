@@ -5,6 +5,8 @@ use crate::{
     resource::bam::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser},
 };
 
+pub use bam_v1::BamV1;
+
 mod bam_v1;
 mod bam_v2;
 mod bamc;
@@ -22,7 +24,7 @@ impl Importer for BamImporter {
         match detect_bam_type(reader)? {
             Type::BamV1 => {
                 reader.set_position(position)?;
-                BamV1Parser::import(reader)
+                BamV1Parser::import(reader).map(|bam| Bam::V1(bam))
             }
             Type::BamV2 => {
                 reader.set_position(position)?;
@@ -58,8 +60,8 @@ impl Type {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Bam {
-    pub r#type: Type,
+pub enum Bam {
+    V1(BamV1),
 }
 
 /// Detects the type of a BAM file

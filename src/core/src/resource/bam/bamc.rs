@@ -7,7 +7,7 @@ pub struct BamcParser;
 
 impl BamcParser {
     /// Imports a BAMC file
-    pub fn import<R: BufRead>(reader: &mut Reader<R>) -> std::io::Result<Bam> {
+    pub fn import<R: BufRead>(_reader: &mut Reader<R>) -> std::io::Result<Bam> {
         todo!()
     }
 }
