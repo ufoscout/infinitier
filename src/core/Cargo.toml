@@ -12,6 +12,8 @@ itertools = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
 
+texture2ddecoder = "0.1"
+
 [dev-dependencies]
 insta = { workspace = true }
 tempfile = { workspace = true }

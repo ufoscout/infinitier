@@ -292,6 +292,11 @@ impl<T: Read> Reader<T> {
         Ok(u32::from_le_bytes(self.read_exact::<4>()?))
     }
 
+    /// Reads a u64 from the current position
+    pub fn read_u64(&mut self) -> std::io::Result<u64> {
+        Ok(u64::from_le_bytes(self.read_exact::<8>()?))
+    }
+
     /// Reads a u16 from the current position
     pub fn read_u16(&mut self) -> std::io::Result<u16> {
         Ok(u16::from_le_bytes(self.read_exact::<2>()?))
