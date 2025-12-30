@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{BufRead, Read, Seek};
 
 use crate::{
     datasource::{Importer, Reader},
@@ -19,6 +19,29 @@ impl Importer for BamImporter {
 
     fn import(source: &crate::datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
+        let position = reader.position()?;
+
+        match detect_bam_type(reader)? {
+            Type::BamV1 => {
+                reader.set_position(position)?;
+                BamV1Parser::import(reader).map(Bam::V1)
+            }
+            Type::BamV2 => {
+                reader.set_position(position)?;
+                BamV2Parser::import(reader)
+            }
+            Type::BamC => {
+                reader.set_position(position)?;
+                BamcParser::import(reader)
+            }
+        }
+    }
+}
+
+impl BamImporter {
+
+    /// Imports a BAM file
+    fn from_reader<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bam> {
         let position = reader.position()?;
 
         match detect_bam_type(reader)? {
@@ -90,7 +113,7 @@ mod tests {
     #[test]
     fn test_detect_bam_v1_type() {
         let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/1chan03B_decompressed.BAM"
+            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_decompressed.BAM"
         )));
 
         assert_eq!(
@@ -102,7 +125,7 @@ mod tests {
     #[test]
     fn test_detect_bam_v2_type() {
         let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V2/SPHEART.BAM"
+            "{RESOURCES_DIR}/resources/BAM_V2/01/SPHEART.BAM"
         )));
 
         assert_eq!(
@@ -114,7 +137,7 @@ mod tests {
     #[test]
     fn test_detect_bamc_type() {
         let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/1chan03B_compressed.BAM"
+            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_compressed.BAM"
         )));
 
         assert_eq!(
