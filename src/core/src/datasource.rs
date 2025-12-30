@@ -378,7 +378,6 @@ impl<T: BufRead + Seek> Reader<T> {
 }
 
 impl<R: BufRead> Reader<ZlibDecoder<R>> {
-
     /// Decodes the entire zlib stream into memory
     pub fn decode_all(&mut self) -> std::io::Result<Reader<std::io::Cursor<Vec<u8>>>> {
         let mut data = Vec::new();
@@ -387,7 +386,7 @@ impl<R: BufRead> Reader<ZlibDecoder<R>> {
             data: std::io::Cursor::new(data),
             charset: self.charset,
         })
-    }   
+    }
 }
 
 #[cfg(test)]

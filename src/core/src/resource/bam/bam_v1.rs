@@ -1,6 +1,9 @@
 use std::io::{BufRead, Seek};
 
-use crate::{datasource::Reader, resource::bam::{Bam, Type}};
+use crate::{
+    datasource::Reader,
+    resource::bam::{Bam, Type},
+};
 
 /// A BAM V1 file importer
 pub struct BamV1Parser;
@@ -28,7 +31,12 @@ impl BamV1Parser {
 
         println!(
             "frames_count: {}, cycles_count: {}, rle_compressed_color_index: {}, frames_offset: {}, palette_offset: {}, lookup_offset: {}",
-            frames_count, cycles_count, rle_compressed_color_index, frames_offset, palette_offset, lookup_offset
+            frames_count,
+            cycles_count,
+            rle_compressed_color_index,
+            frames_offset,
+            palette_offset,
+            lookup_offset
         );
 
         // initializing frames
@@ -66,27 +74,25 @@ impl BamV1Parser {
             // Index into frame lookup table of first frame in this cycle
             let lookup_table_index = (reader.read_u16()? & 0xffff) as u64;
 
-            
             let position = reader.position()?;
-            
+
             // list of frame indices used in this cycle
             let mut frame_indices = Vec::with_capacity(indices_count);
-            reader.set_position(lookup_offset + (2*lookup_table_index))?;
+            reader.set_position(lookup_offset + (2 * lookup_table_index))?;
             for _ in 0..indices_count {
                 let frame_index = reader.read_u16()?;
                 frame_indices.push(frame_index);
             }
-            
+
             println!(
                 "indices_count: {}, lookup_table_index: {}, frame_indices: {:?}",
                 indices_count, lookup_table_index, frame_indices
             );
 
-
             reader.set_position(position)?;
         }
 
-        let palette_entries = 256.min((lookup_offset - palette_offset) / 4)as usize;
+        let palette_entries = 256.min((lookup_offset - palette_offset) / 4) as usize;
         let mut palette = Vec::with_capacity(palette_entries);
         reader.set_position(palette_offset)?;
 
@@ -98,26 +104,34 @@ impl BamV1Parser {
             let r = reader.read_u8()?;
             let alpha = match reader.read_u8()? {
                 0 => 255, // BAM in EE supports alpha, but for backwards compatibility an alpha of 0 is still 255
-                x => x, // Alpha values of 01h .. FFh indicate transparency ranging from almost completely transparent to fully opaque. Full transparency can be realized by using palette index 0.  
+                x => x, // Alpha values of 01h .. FFh indicate transparency ranging from almost completely transparent to fully opaque. Full transparency can be realized by using palette index 0.
             };
 
-            // The transparency index is set to the first occurence of RGB(0,255,0). 
+            // The transparency index is set to the first occurence of RGB(0,255,0).
             // If RGB(0,255,0) does not exist in the palette then transparency index is set to 0
             if transparency_index == 0 && r == 0 && g == 255 && b == 0 {
                 transparency_index = i;
             }
 
             // println!("r: {}, g: {}, b: {}, alpha: {}", r, g, b, alpha);
-            palette.push( RGB { r, g, b, alpha });
+            palette.push(RGB { r, g, b, alpha });
         }
 
-        let _ = std::mem::replace(&mut palette[transparency_index], RGB { r: 0, g: 0, b: 0, alpha: 0 });
+        let _ = std::mem::replace(
+            &mut palette[transparency_index],
+            RGB {
+                r: 0,
+                g: 0,
+                b: 0,
+                alpha: 0,
+            },
+        );
 
         for frame in frames {
             reader.set_position(frame.data_offset)?;
 
             let mut frame_colors = Vec::with_capacity((frame.width * frame.height) as usize);
-            while frame_colors.len() < (frame.width * frame.height) as usize{
+            while frame_colors.len() < (frame.width * frame.height) as usize {
                 // println!("frame_colors.len(): {}", frame_colors.len());
                 let pixel_index = reader.read_u8()?;
                 let color = &palette[pixel_index as usize];
@@ -136,11 +150,13 @@ impl BamV1Parser {
                 // frame_colors.push(reader.read_u8()?);
             }
 
-            println!("last frame_colors: {:?}", frame_colors.last().as_ref().unwrap());
+            println!(
+                "last frame_colors: {:?}",
+                frame_colors.last().as_ref().unwrap()
+            );
             // println!("frame_data: {:?}, width: {}, height: {}", frame_data, frame.width, frame.height);
             save_png_rgba("./test.png", &frame_colors, frame.width, frame.height).unwrap();
         }
-
 
         Ok(Bam {
             r#type: expected_type,
@@ -153,19 +169,19 @@ pub struct RGB {
     r: u8,
     g: u8,
     b: u8,
-    alpha: u8
+    alpha: u8,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Frame {
-                width: u32,
-                height: u32,
-                center_x: u16,
-                center_y: u16,
-                data_bits: u32,
-                data_offset: u64,
-                compressed: bool,
-            }
+    width: u32,
+    height: u32,
+    center_x: u16,
+    center_y: u16,
+    data_bits: u32,
+    data_offset: u64,
+    compressed: bool,
+}
 
 use image::{ImageBuffer, Rgba};
 
@@ -177,12 +193,11 @@ pub fn save_png_rgba(
 ) -> image::ImageResult<()> {
     assert_eq!(pixels.len(), (width * height) as usize);
 
-    let img: ImageBuffer<Rgba<u8>, _> =
-        ImageBuffer::from_fn(width, height, |x, y| {
-            let idx = (y * width + x) as usize;
-            let p = &pixels[idx];
-            Rgba([p.r, p.g, p.b, p.alpha])
-        });
+    let img: ImageBuffer<Rgba<u8>, _> = ImageBuffer::from_fn(width, height, |x, y| {
+        let idx = (y * width + x) as usize;
+        let p = &pixels[idx];
+        Rgba([p.r, p.g, p.b, p.alpha])
+    });
 
     img.save(path)
 }
@@ -192,8 +207,8 @@ mod tests {
 
     use std::path::Path;
 
-    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
     use super::*;
+    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
 
     #[test]
     fn test_detect_bam_v1_type() {
@@ -206,6 +221,4 @@ mod tests {
 
         assert_eq!(bam.r#type, Type::BamV1);
     }
-
 }
-    

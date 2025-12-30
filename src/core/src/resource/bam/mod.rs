@@ -1,6 +1,9 @@
 use std::io::Read;
 
-use crate::{datasource::{Importer, Reader}, resource::bam::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser}};
+use crate::{
+    datasource::{Importer, Reader},
+    resource::bam::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser},
+};
 
 mod bam_v1;
 mod bam_v2;
@@ -117,5 +120,4 @@ mod tests {
             Type::BamC
         );
     }
-
 }
