@@ -213,7 +213,7 @@ mod tests {
     use super::*;
     use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
 
-        #[test]
+    #[test]
     fn test_parse_bam_v1_should_fail_if_wrong_signature() {
         let data = DataSource::new(Path::new(&format!(
             "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_compressed.BAM"
@@ -238,9 +238,12 @@ mod tests {
         assert_eq!(bam.rle_compressed_color_index, 0);
 
         assert_eq!(bam.cycles.len(), 1);
-        assert_eq!(bam.cycles[0], BamV1Cycle {
-            frame_indices: vec![0, 0]
-        });
+        assert_eq!(
+            bam.cycles[0],
+            BamV1Cycle {
+                frame_indices: vec![0, 0]
+            }
+        );
 
         assert_eq!(bam.frames.len(), 1);
         assert_eq!(bam.frames[0].width, 50);
@@ -254,7 +257,7 @@ mod tests {
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().join("test.png");
             bam.frames[0].export_image(&path, &bam.palette).unwrap();
-            
+
             assert_png_images_are_equal(
                 Path::new(&format!(
                     "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B00000.PNG"
@@ -275,12 +278,15 @@ mod tests {
 
         assert_eq!(bam.r#type, Type::BamV1);
 
-                assert_eq!(bam.rle_compressed_color_index, 0);
+        assert_eq!(bam.rle_compressed_color_index, 0);
 
         assert_eq!(bam.cycles.len(), 1);
-        assert_eq!(bam.cycles[0], BamV1Cycle {
-            frame_indices: vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        });
+        assert_eq!(
+            bam.cycles[0],
+            BamV1Cycle {
+                frame_indices: vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+            }
+        );
 
         assert_eq!(bam.frames.len(), 15);
 
@@ -290,13 +296,16 @@ mod tests {
             assert!(frame.center_x < frame.width);
             assert!(frame.center_y > 0);
             assert!(frame.center_y < frame.height);
-            assert_eq!(frame.pixel_palette_indexes.len(), (frame.width * frame.height) as usize);
+            assert_eq!(
+                frame.pixel_palette_indexes.len(),
+                (frame.width * frame.height) as usize
+            );
 
             // Assert that the image is the same as the reference
             {
                 let path = tmp_dir.path().join(format!("test_{i}.png"));
                 frame.export_image(&path, &bam.palette).unwrap();
-                
+
                 assert_png_images_are_equal(
                     Path::new(&format!(
                         "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART000{i:02}.PNG"
@@ -305,7 +314,6 @@ mod tests {
                 );
             }
         }
-
     }
 
     /// Asserts that two png images are equal

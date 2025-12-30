@@ -39,7 +39,6 @@ impl Importer for BamImporter {
 }
 
 impl BamImporter {
-
     /// Imports a BAM file
     fn from_reader<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bam> {
         let position = reader.position()?;
