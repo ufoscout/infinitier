@@ -91,8 +91,8 @@ impl BamV1Parser {
             for _ in 0..frames_count {
                 let width = reader.read_u16()? as u32;
                 let height = reader.read_u16()? as u32;
-                let center_x = reader.read_u16()?;
-                let center_y = reader.read_u16()?;
+                let center_x = reader.read_u16()? as u32;
+                let center_y = reader.read_u16()? as u32;
                 let data_bits = reader.read_u32()?;
                 let data_offset = (data_bits & 0x7fffffff) as u64;
                 let compressed = (data_bits & 0x80000000) == 0;
@@ -155,29 +155,6 @@ impl BamV1Parser {
             cycles
         };
 
-        // for frame in frames {
-        //     reader.set_position(frame.data_offset)?;
-
-        //     let mut frame_colors = Vec::with_capacity((frame.width * frame.height) as usize);
-        //     while frame_colors.len() < (frame.width * frame.height) as usize {
-
-        //         let pixel_index = reader.read_u8()?;
-        //         let color = &palette[pixel_index as usize];
-
-        //         if frame.compressed && (pixel_index == rle_compressed_color_index) {
-        //             let pixels_count = reader.read_u8()?;
-        //             for _ in 0..=pixels_count {
-        //                 frame_colors.push(color);
-        //             }
-        //         } else {
-        //             frame_colors.push(color);
-        //         }
-
-        //     }
-
-        //     save_png_rgba("./test.png", &frame_colors, frame.width, frame.height).unwrap();
-        // }
-
         Ok(BamV1 {
             r#type: expected_type,
             frames,
@@ -205,8 +182,8 @@ pub struct BamV1Cycle {
 pub struct BamV1Frame {
     pub width: u32,
     pub height: u32,
-    pub center_x: u16,
-    pub center_y: u16,
+    pub center_x: u32,
+    pub center_y: u32,
     /// The indexes of the pixels in the palette
     pub pixel_palette_indexes: Vec<u8>,
 }
@@ -237,9 +214,9 @@ mod tests {
     use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
 
     #[test]
-    fn test_detect_bam_v1_type() {
+    fn test_parse_bam_v1_01() {
         let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/1chan03B_decompressed.BAM"
+            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_decompressed.BAM"
         )));
 
         let mut reader = data.reader().unwrap();
@@ -247,16 +224,77 @@ mod tests {
 
         assert_eq!(bam.r#type, Type::BamV1);
 
-        let tmp_dir = TempDir::new().unwrap();
-        let path = tmp_dir.path().join("test.png");
-        bam.frames[0].export_image(&path, &bam.palette).unwrap();
+        assert_eq!(bam.rle_compressed_color_index, 0);
 
-        assert_png_images_are_equal(
-            Path::new(&format!(
-                "{RESOURCES_DIR}/resources/BAM_V1/1chan03B00000.PNG"
-            )),
-            &path,
-        );
+        assert_eq!(bam.cycles.len(), 1);
+        assert_eq!(bam.cycles[0], BamV1Cycle {
+            frame_indices: vec![0, 0]
+        });
+
+        assert_eq!(bam.frames.len(), 1);
+        assert_eq!(bam.frames[0].width, 50);
+        assert_eq!(bam.frames[0].height, 60);
+        assert_eq!(bam.frames[0].center_x, 25);
+        assert_eq!(bam.frames[0].center_y, 30);
+        assert_eq!(bam.frames[0].pixel_palette_indexes.len(), 50 * 60);
+
+        // Assert that the image is the same as the reference
+        {
+            let tmp_dir = TempDir::new().unwrap();
+            let path = tmp_dir.path().join("test.png");
+            bam.frames[0].export_image(&path, &bam.palette).unwrap();
+            
+            assert_png_images_are_equal(
+                Path::new(&format!(
+                    "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B00000.PNG"
+                )),
+                &path,
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_bam_v1_02() {
+        let data = DataSource::new(Path::new(&format!(
+            "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART_decompressed.BAM"
+        )));
+
+        let mut reader = data.reader().unwrap();
+        let bam = BamV1Parser::import(&mut reader).unwrap();
+
+        assert_eq!(bam.r#type, Type::BamV1);
+
+                assert_eq!(bam.rle_compressed_color_index, 0);
+
+        assert_eq!(bam.cycles.len(), 1);
+        assert_eq!(bam.cycles[0], BamV1Cycle {
+            frame_indices: vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        });
+
+        assert_eq!(bam.frames.len(), 15);
+
+        let tmp_dir = TempDir::new().unwrap();
+        for (i, frame) in bam.frames.iter().enumerate() {
+            assert!(frame.center_x > 0);
+            assert!(frame.center_x < frame.width);
+            assert!(frame.center_y > 0);
+            assert!(frame.center_y < frame.height);
+            assert_eq!(frame.pixel_palette_indexes.len(), (frame.width * frame.height) as usize);
+
+            // Assert that the image is the same as the reference
+            {
+                let path = tmp_dir.path().join(format!("test_{i}.png"));
+                frame.export_image(&path, &bam.palette).unwrap();
+                
+                assert_png_images_are_equal(
+                    Path::new(&format!(
+                        "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART000{i:02}.PNG"
+                    )),
+                    &path,
+                );
+            }
+        }
+
     }
 
     /// Asserts that two png images are equal
