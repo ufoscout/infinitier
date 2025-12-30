@@ -15,7 +15,7 @@ pub struct BamV1 {
     pub frames: Vec<BamV1Frame>,
     /// The colors palette
     pub palette: Vec<Rgb>,
-    /// The imagecycles
+    /// The image cycles
     pub cycles: Vec<BamV1Cycle>,
     /// The index of the RLE compressed color in the palette
     pub rle_compressed_color_index: u8,

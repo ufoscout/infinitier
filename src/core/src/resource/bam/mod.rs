@@ -6,6 +6,7 @@ use crate::{
 };
 
 pub use bam_v1::BamV1;
+pub use bam_v2::BamV2;
 
 mod bam_v1;
 mod bam_v2;
@@ -19,22 +20,7 @@ impl Importer for BamImporter {
 
     fn import(source: &crate::datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
-        let position = reader.position()?;
-
-        match detect_bam_type(reader)? {
-            Type::BamV1 => {
-                reader.set_position(position)?;
-                BamV1Parser::import(reader).map(Bam::V1)
-            }
-            Type::BamV2 => {
-                reader.set_position(position)?;
-                BamV2Parser::import(reader)
-            }
-            Type::BamC => {
-                reader.set_position(position)?;
-                BamcParser::import(reader)
-            }
-        }
+        Self::from_reader(reader)
     }
 }
 
@@ -50,7 +36,7 @@ impl BamImporter {
             }
             Type::BamV2 => {
                 reader.set_position(position)?;
-                BamV2Parser::import(reader)
+                BamV2Parser::import(reader).map(Bam::V2)
             }
             Type::BamC => {
                 reader.set_position(position)?;
@@ -84,6 +70,7 @@ impl Type {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Bam {
     V1(BamV1),
+    V2(BamV2),
 }
 
 /// Detects the type of a BAM file
