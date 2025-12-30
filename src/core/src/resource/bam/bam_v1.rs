@@ -218,21 +218,14 @@ pub struct BamV1Frame {
 
 impl BamV1Frame {
     
-    /// Exports the frame to a PNG file
-    pub fn export_png<Q: AsRef<Path>>(&self, path: Q, palette: &[Rgb]) -> image::ImageResult<()> {
-        let mut frame_colors = Vec::with_capacity((self.width * self.height) as usize);
-
-        for pixel_index in &self.pixel_palette_indexes {
-            let color = &palette[*pixel_index as usize];
-            frame_colors.push(color);
-        }
-
+    /// Exports the frame to an image file.
+    /// The image type is determined by the file extension.
+    pub fn export_image<Q: AsRef<Path>>(&self, path: Q, palette: &[Rgb]) -> image::ImageResult<()> {
         let img: ImageBuffer<Rgba<u8>, _> = ImageBuffer::from_fn(self.width, self.height, |x, y| {
             let idx = (y * self.width + x) as usize;
-            let p = frame_colors[idx];
+            let p = &palette[self.pixel_palette_indexes[idx] as usize];
             Rgba([p.r, p.g, p.b, p.alpha])
         });
-
         img.save(path)
     }
 }
@@ -261,7 +254,7 @@ mod tests {
 
         let tmp_dir = TempDir::new().unwrap();
         let path = tmp_dir.path().join("test.png");
-        bam.frames[0].export_png(&path, &bam.palette).unwrap();
+        bam.frames[0].export_image(&path, &bam.palette).unwrap();
 
         assert_png_images_are_equal(
             Path::new(&format!(
