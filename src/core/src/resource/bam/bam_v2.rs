@@ -2,7 +2,11 @@ use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
 
-use crate::{datasource::{DataSource, Importer, Reader}, fs::{CaseInsensitiveFS, CaseInsensitivePath}, resource::{bam::Type, pvr::PvrzImporter}};
+use crate::{
+    datasource::{DataSource, Importer, Reader},
+    fs::{CaseInsensitiveFS, CaseInsensitivePath},
+    resource::{bam::Type, pvr::PvrzImporter},
+};
 
 /// A BAM V2 file importer
 pub struct BamV2Parser;
@@ -10,7 +14,6 @@ pub struct BamV2Parser;
 impl BamV2Parser {
     /// Imports a BAM V2 file
     pub fn import<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<BamV2> {
-
         let signature = reader.read_string(8)?;
         let expected_type = Type::BamV2;
 
@@ -98,7 +101,6 @@ impl BamV2Parser {
             data_blocks
         };
 
-
         Ok(BamV2 {
             r#type: expected_type,
             frames,
@@ -153,7 +155,6 @@ pub struct BamV2DataBlock {
 }
 
 impl BamV2DataBlock {
-
     /// Returns the MOSxxxx.PVRZ files name associated with this data block
     pub fn pvrz_name(&self) -> String {
         format!("MOS{:04}.PVRZ", self.pvrz_page)
@@ -161,11 +162,13 @@ impl BamV2DataBlock {
 }
 
 impl BamV2 {
-    
     /// Exports the frame to an image file.
     /// The image type is determined by the file extension.
-    pub fn frame_to_image(&self, frame_index: usize, fs: &CaseInsensitiveFS) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
-        
+    pub fn frame_to_image(
+        &self,
+        frame_index: usize,
+        fs: &CaseInsensitiveFS,
+    ) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         let frame = if let Some(frame) = self.frames.get(frame_index) {
             frame
         } else {
@@ -175,16 +178,19 @@ impl BamV2 {
             )))?;
         };
 
-        let data_blocks = &self.data_blocks[frame.data_blocks_start_index..frame.data_blocks_start_index + frame.data_blocks_count];
+        let data_blocks = &self.data_blocks[frame.data_blocks_start_index
+            ..frame.data_blocks_start_index + frame.data_blocks_count];
 
         let mut target_image = image::ImageBuffer::new(frame.width, frame.height);
         let target_image_buffer = target_image.as_mut();
-        
+
         for block in data_blocks {
-            let pvrz_path = fs.search_path_opt(&CaseInsensitivePath::new(&block.pvrz_name())).ok_or(std::io::Error::other(format!(
-                "PVRZ file {} not found.",
-                block.pvrz_name()
-            )))?;
+            let pvrz_path = fs
+                .search_path_opt(&CaseInsensitivePath::new(&block.pvrz_name()))
+                .ok_or(std::io::Error::other(format!(
+                    "PVRZ file {} not found.",
+                    block.pvrz_name()
+                )))?;
 
             let datasource = DataSource::new(pvrz_path);
 
@@ -197,27 +203,32 @@ impl BamV2 {
                 let block_source_row = block.source_y_coordinate + row;
                 let block_destination_row = block.target_y_coordinate + row;
 
-                let source_start = ((block_source_row * source_header.width + block.source_x_coordinate) * 4) as usize;
-                let source_end   = source_start + (block.width * 4) as usize;
+                let source_start = ((block_source_row * source_header.width
+                    + block.source_x_coordinate)
+                    * 4) as usize;
+                let source_end = source_start + (block.width * 4) as usize;
 
-                let target_start = ((block_destination_row * frame.width + block.target_x_coordinate) * 4) as usize;
-                let target_end   = target_start + (block.width * 4) as usize;
+                let target_start = ((block_destination_row * frame.width
+                    + block.target_x_coordinate)
+                    * 4) as usize;
+                let target_end = target_start + (block.width * 4) as usize;
 
                 target_image_buffer[target_start..target_end]
                     .copy_from_slice(&source_image_buffer[source_start..source_end]);
-
             }
         }
 
         Ok(target_image)
     }
-
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::{
+        datasource::DataSource, resource::test_utils::assert_images_are_equal,
+        test_utils::RESOURCES_DIR,
+    };
     use std::path::Path;
-    use crate::{datasource::DataSource, resource::test_utils::assert_images_are_equal, test_utils::RESOURCES_DIR};
 
     use super::*;
 
@@ -238,7 +249,7 @@ mod tests {
         assert_eq!(data_block.pvrz_name(), "MOS1234.PVRZ");
     }
 
-        #[test]
+    #[test]
     fn test_parse_bam_v2_should_fail_if_wrong_signature() {
         let data = DataSource::new(Path::new(&format!(
             "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_compressed.BAM"
@@ -294,12 +305,10 @@ mod tests {
             assert_images_are_equal(
                 &image::open(Path::new(&format!(
                     "{RESOURCES_DIR}/resources/BAM_V2/1CHELM0300000.PNG"
-                ))).unwrap(),
+                )))
+                .unwrap(),
                 &image.into(),
             );
         }
-
     }
-    
 }
-

@@ -1,10 +1,11 @@
-use std::{
-    io::{BufRead, Seek},
-};
+use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
 
-use crate::{datasource::Reader, resource::{bam::Type, common::Rgb}};
+use crate::{
+    datasource::Reader,
+    resource::{bam::Type, common::Rgb},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BamV1 {
@@ -184,19 +185,22 @@ impl BamV1Frame {
     /// The image type is determined by the file extension.
     pub fn to_image(&self, palette: &[Rgb]) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
         Ok(ImageBuffer::from_fn(self.width, self.height, |x, y| {
-                let idx = (y * self.width + x) as usize;
-                let p = &palette[self.pixel_palette_indexes[idx] as usize];
-                Rgba([p.r, p.g, p.b, p.alpha])
-            }))
+            let idx = (y * self.width + x) as usize;
+            let p = &palette[self.pixel_palette_indexes[idx] as usize];
+            Rgba([p.r, p.g, p.b, p.alpha])
+        }))
     }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use std::path::Path;
     use super::*;
-    use crate::{datasource::DataSource, resource::test_utils::assert_images_are_equal, test_utils::RESOURCES_DIR};
+    use crate::{
+        datasource::DataSource, resource::test_utils::assert_images_are_equal,
+        test_utils::RESOURCES_DIR,
+    };
+    use std::path::Path;
 
     #[test]
     fn test_parse_bam_v1_should_fail_if_wrong_signature() {
@@ -244,7 +248,8 @@ mod tests {
             assert_images_are_equal(
                 &image::open(Path::new(&format!(
                     "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B00000.PNG"
-                ))).unwrap(),
+                )))
+                .unwrap(),
                 &image.into(),
             );
         }
@@ -285,16 +290,16 @@ mod tests {
 
             // Assert that the image is the same as the reference
             {
-                let image= frame.to_image(&bam.palette).unwrap();
+                let image = frame.to_image(&bam.palette).unwrap();
 
                 assert_images_are_equal(
                     &image::open(Path::new(&format!(
                         "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART000{i:02}.PNG"
-                    ))).unwrap(),
+                    )))
+                    .unwrap(),
                     &image.into(),
                 );
             }
         }
     }
-
 }
