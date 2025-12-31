@@ -56,10 +56,10 @@ impl PvrzImporter {
         let mut reader = reader.as_zip_reader();
 
         // 52 is the size of the header
-        reader.skip(52 + header.metadata_size as u64).unwrap();
+        reader.skip(52 + header.metadata_size as u64)?;
 
         let mut data = vec![];
-        reader.read_to_end(&mut data, u64::MAX).unwrap();
+        reader.read_to_end(&mut data, u64::MAX)?;
 
         let mut image = vec![0u32; header.width as usize * header.height as usize];
 
@@ -71,8 +71,7 @@ impl PvrzImporter {
                     header.width as usize,
                     header.height as usize,
                     &mut image,
-                )
-                .unwrap();
+                ).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             }
             PvrDataCompression::DXT5 => {
                 // decode DXT5 aka BC3
@@ -81,8 +80,7 @@ impl PvrzImporter {
                     header.width as usize,
                     header.height as usize,
                     &mut image,
-                )
-                .unwrap();
+                ).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
             }
         }
 
