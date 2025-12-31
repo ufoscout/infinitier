@@ -1,6 +1,8 @@
 use std::io::{BufRead, Seek};
 
-use crate::{datasource::Reader, resource::bam::Type};
+use image::{ImageBuffer, Rgba};
+
+use crate::{datasource::{DataSource, Importer, Reader}, fs::{CaseInsensitiveFS, CaseInsensitivePath}, resource::{bam::Type, pvr::PvrzImporter}};
 
 /// A BAM V2 file importer
 pub struct BamV2Parser;
@@ -36,8 +38,8 @@ impl BamV2Parser {
                 let height = reader.read_u16()? as u32;
                 let center_x = reader.read_u16()? as u32;
                 let center_y = reader.read_u16()? as u32;
-                let data_blocks_count = reader.read_u16()? as usize;
                 let data_blocks_start_index = reader.read_u16()? as usize;
+                let data_blocks_count = reader.read_u16()? as usize;
 
                 frames.push(BamV2Frame {
                     width,
@@ -158,6 +160,58 @@ impl BamV2DataBlock {
     }
 }
 
+impl BamV2 {
+    
+    /// Exports the frame to an image file.
+    /// The image type is determined by the file extension.
+    pub fn frame_to_image(&self, frame_index: usize, fs: &CaseInsensitiveFS) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+        
+        let frame = if let Some(frame) = self.frames.get(frame_index) {
+            frame
+        } else {
+            return Err(std::io::Error::other(format!(
+                "Frame {} not found.",
+                frame_index
+            )))?;
+        };
+
+        let data_blocks = &self.data_blocks[frame.data_blocks_start_index..frame.data_blocks_start_index + frame.data_blocks_count];
+
+        let mut target_image = image::ImageBuffer::new(frame.width, frame.height);
+        let target_image_buffer = target_image.as_mut();
+
+        for block in data_blocks {
+            let pvrz_path = fs.search_path_opt(&CaseInsensitivePath::new(&block.pvrz_name())).ok_or(std::io::Error::other(format!(
+                "PVRZ file {} not found.",
+                block.pvrz_name()
+            )))?;
+
+            let datasource = DataSource::new(pvrz_path);
+            // Suboptimal: PVRZ images should be cached
+            let source_header = PvrzImporter::import(&datasource).unwrap();
+            let source_image = PvrzImporter::to_image(&source_header, &datasource).unwrap();
+            let source_image_buffer = source_image.as_raw();
+
+            for row in 0..block.height {
+                let block_source_row = block.source_y_coordinate + row;
+                let block_destination_row = block.target_y_coordinate + row;
+
+                let source_start = ((block_source_row * source_header.width + block.source_x_coordinate) * 4) as usize;
+                let source_end   = source_start + (block.width * 4) as usize;
+
+                let target_start = ((block_destination_row * frame.width + block.target_x_coordinate) * 4) as usize;
+                let target_end   = target_start + (block.width * 4) as usize;
+
+                target_image_buffer[target_start..target_end]
+                    .copy_from_slice(&source_image_buffer[source_start..source_end]);
+            }
+        }
+
+        Ok(target_image)
+    }
+
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -218,6 +272,8 @@ mod tests {
         assert_eq!(bam.frames[0].height, 154);
         assert_eq!(bam.frames[0].center_x, 0);
         assert_eq!(bam.frames[0].center_y, 0);
+        assert_eq!(bam.frames[0].data_blocks_start_index, 0);
+        assert_eq!(bam.frames[0].data_blocks_count, 8);
 
         assert_eq!(bam.data_blocks.len(), 8);
         assert_eq!(bam.data_blocks[0].pvrz_page, 0);
@@ -229,6 +285,10 @@ mod tests {
         assert_eq!(bam.data_blocks[0].target_y_coordinate, 0);
 
         let TEST_DECODE_PVRZ_IMAGE = 0;
+
+        let fs = CaseInsensitiveFS::new(format!("{RESOURCES_DIR}/resources/BAM_V2/02/")).unwrap();
+        let image = bam.frame_to_image(0, &fs).unwrap();
+        image.save("./test.png").unwrap();
 
     }
 

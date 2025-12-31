@@ -6,19 +6,19 @@ use image::{ImageBuffer, Rgba};
 
 use crate::datasource::{DataSource, Importer};
 
-/// A PRVZ file importer
-pub struct PrvzImporter;
+/// A PVRZ file importer
+pub struct PvrzImporter;
 
-impl Importer for PrvzImporter {
-    type T = PrvzHeader;
+impl Importer for PvrzImporter {
+    type T = PvrzHeader;
 
-    /// Imports a PRVZ file which is a PVR file with Zlib compression.
+    /// Imports a PVRZ file which is a PVR file with Zlib compression.
     /// For the PVR file format see: https://docs.imgtec.com/specifications/pvr-file-format-specification/html/topics/pvr-introduction.html
     /// PVR is essentially a texture container that contains a header and data is compressed by a DDS algorithm
     /// (see: https://crates.io/crates/dds).
-    /// The specific algorithm for the data is speficified in the PRV pixel_format header field. Games based on the Infinity engine
+    /// The specific algorithm for the data is speficified in the PVR pixel_format header field. Games based on the Infinity engine
     /// only use pixel_format 7 (DXT1/BC1) and 11 (DXT5/BC3).
-    fn import(source: &DataSource) -> std::io::Result<PrvzHeader> {
+    fn import(source: &DataSource) -> std::io::Result<PvrzHeader> {
 
         let mut reader = source.reader()?;
 
@@ -29,10 +29,10 @@ impl Importer for PrvzImporter {
         let mut reader = reader.as_zip_reader();
 
         // header
-        Ok(PrvzHeader {
+        Ok(PvrzHeader {
                 version: reader.read_u32()?,
                 flags: reader.read_u32()?,
-                pixel_format: PrvDataCompression::from_u64(reader.read_u64()?)?,
+                pixel_format: PvrDataCompression::from_u64(reader.read_u64()?)?,
                 color_space: reader.read_u32()?,
                 channel_type: reader.read_u32()?,
                 height: reader.read_u32()?,
@@ -48,10 +48,17 @@ impl Importer for PrvzImporter {
 
 }
 
-impl PrvzImporter {
+impl PvrzImporter {
 
-    /// Exports a PRVZ file to an image file
-    pub fn export_image<Q: AsRef<Path>>(path: Q, header: &PrvzHeader, source: &DataSource) -> image::ImageResult<()> {
+    /// Exports a PVRZ file to an image file
+    pub fn export_image<Q: AsRef<Path>>(path: Q, header: &PvrzHeader, source: &DataSource) -> image::ImageResult<()> {
+        let image = PvrzImporter::to_image(header, source)?;
+        image.save(path)
+    }
+
+
+    /// Converts a PVRZ file to an image
+    pub fn to_image(header: &PvrzHeader, source: &DataSource) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
 
         let mut reader = source.reader()?;
         // Not sure for what this is used.
@@ -69,18 +76,17 @@ impl PrvzImporter {
         let mut image = vec![0u32; header.width as usize * header.height as usize];
 
         match header.pixel_format {
-            PrvDataCompression::DXT1 => {
+            PvrDataCompression::DXT1 => {
                 // decode DXT1 aka BC1
                 texture2ddecoder::decode_bc1a(&data, header.width as usize, header.height as usize, &mut image).unwrap();
             }
-            PrvDataCompression::DXT5 => {
+            PvrDataCompression::DXT5 => {
                 // decode DXT5 aka BC3
                 texture2ddecoder::decode_bc3(&data, header.width as usize, header.height as usize, &mut image).unwrap();
             }
         }
 
-         let img: ImageBuffer<Rgba<u8>, _> =
-            ImageBuffer::from_fn(header.width, header.height, |x, y| {
+            Ok(ImageBuffer::from_fn(header.width, header.height, |x, y| {
                 let idx = (y * header.width + x) as usize;
                 let p = image[idx];
                 Rgba([
@@ -89,18 +95,16 @@ impl PrvzImporter {
                     (p & 0xFF) as u8,         // B
                     ((p >> 24) & 0xFF) as u8, // A
                 ])
-            });
-
-            img.save(path)
+            }))
     }
 }
 
-/// A PRV header
+/// A PVR header
 #[derive(Debug, PartialEq, Eq)]
-pub struct PrvzHeader {
+pub struct PvrzHeader {
     pub version: u32,
     pub flags: u32,
-    pub pixel_format: PrvDataCompression,
+    pub pixel_format: PvrDataCompression,
     pub color_space: u32,
     pub channel_type: u32,
     pub height: u32,
@@ -113,20 +117,20 @@ pub struct PrvzHeader {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum PrvDataCompression {
+pub enum PvrDataCompression {
     /// DXT1 aka BC1 compressed texture 
     DXT1,
     /// DXT5 aka BC3 compressed texture
     DXT5
 }
 
-impl PrvDataCompression {
+impl PvrDataCompression {
     
-    /// Converts a u64 value to a `PrvDataCompression` enum variant.
-    pub fn from_u64(value: u64) -> std::io::Result<PrvDataCompression> {
+    /// Converts a u64 value to a `PvrDataCompression` enum variant.
+    pub fn from_u64(value: u64) -> std::io::Result<PvrDataCompression> {
         match value {
-            7 => Ok(PrvDataCompression::DXT1),
-            11 => Ok(PrvDataCompression::DXT5),
+            7 => Ok(PvrDataCompression::DXT1),
+            11 => Ok(PvrDataCompression::DXT5),
             _ => Err(std::io::Error::other(format!(
                 "Unexpected pixel_format: {}",
                 value
@@ -134,11 +138,11 @@ impl PrvDataCompression {
         }
     }
 
-    /// Converts a `PrvDataCompression` enum variant to a u32 value
+    /// Converts a `PvrDataCompression` enum variant to a u32 value
     pub fn to_u64(&self) -> u64 {
         match self {
-            PrvDataCompression::DXT1 => 7,
-            PrvDataCompression::DXT5 => 11,
+            PvrDataCompression::DXT1 => 7,
+            PvrDataCompression::DXT5 => 11,
         }
     }
 
@@ -156,17 +160,17 @@ mod tests {
     use crate::{datasource::DataSource, resource::test_utils::assert_png_images_are_equal, test_utils::RESOURCES_DIR};
 
     #[test]
-    fn test_parse_prvz_dxt1() {
+    fn test_parse_pvrz_dxt1() {
         let data = DataSource::new(Path::new(&format!(
             "{RESOURCES_DIR}/resources/MOS_DXT1/A004602.PVRZ"
         )));
 
-        let prvz_header = PrvzImporter::import(&data).unwrap();
+        let pvrz_header = PvrzImporter::import(&data).unwrap();
 
-        assert_eq!(prvz_header, PrvzHeader {
+        assert_eq!(pvrz_header, PvrzHeader {
             version: 55727696,
             flags: 0,
-            pixel_format: PrvDataCompression::DXT1,
+            pixel_format: PvrDataCompression::DXT1,
             color_space: 0,
             channel_type: 0,
             height: 1024,
@@ -182,7 +186,7 @@ mod tests {
         {
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().join("test.png");
-            PrvzImporter::export_image(&path, &prvz_header, &data).unwrap();
+            PvrzImporter::export_image(&path, &pvrz_header, &data).unwrap();
 
             assert_png_images_are_equal(
                 Path::new(&format!(
@@ -195,17 +199,17 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_prvz_dxt5() {
+    fn test_parse_pvrz_dxt5() {
         let data = DataSource::new(Path::new(&format!(
             "{RESOURCES_DIR}/resources/MOS_DXT5/MOS0000.PVRZ"
         )));
 
-        let prvz_header = PrvzImporter::import(&data).unwrap();
+        let pvrz_header = PvrzImporter::import(&data).unwrap();
 
-        assert_eq!(prvz_header, PrvzHeader {
+        assert_eq!(pvrz_header, PvrzHeader {
             version: 55727696,
             flags: 0,
-            pixel_format: PrvDataCompression::DXT5,
+            pixel_format: PvrDataCompression::DXT5,
             color_space: 0,
             channel_type: 0,
             height: 512,
@@ -221,7 +225,7 @@ mod tests {
         {
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().join("test.png");
-            PrvzImporter::export_image(&path, &prvz_header, &data).unwrap();
+            PvrzImporter::export_image(&path, &pvrz_header, &data).unwrap();
 
             assert_png_images_are_equal(
                 Path::new(&format!(
