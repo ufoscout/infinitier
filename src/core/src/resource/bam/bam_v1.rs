@@ -5,7 +5,7 @@ use std::{
 
 use image::{ImageBuffer, Rgba};
 
-use crate::{datasource::Reader, resource::bam::Type};
+use crate::{datasource::Reader, resource::{bam::Type, common::Rgb}};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BamV1 {
@@ -166,14 +166,6 @@ impl BamV1Parser {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Rgb {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub alpha: u8,
-}
-
-#[derive(Debug, PartialEq, Eq)]
 pub struct BamV1Cycle {
     pub frame_indices: Vec<usize>,
 }
@@ -207,11 +199,10 @@ mod tests {
 
     use std::path::Path;
 
-    use image::GenericImageView;
     use tempfile::TempDir;
 
     use super::*;
-    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
+    use crate::{datasource::DataSource, resource::test_utils::assert_png_images_are_equal, test_utils::RESOURCES_DIR};
 
     #[test]
     fn test_parse_bam_v1_should_fail_if_wrong_signature() {
@@ -316,21 +307,4 @@ mod tests {
         }
     }
 
-    /// Asserts that two png images are equal
-    pub fn assert_png_images_are_equal<A: AsRef<Path>, B: AsRef<Path>>(path_a: A, path_b: B) {
-        let img_a = image::open(path_a).unwrap();
-        let img_b = image::open(path_b).unwrap();
-
-        if img_a.dimensions() != img_b.dimensions() {
-            panic!("Images dimensions are different");
-        }
-
-        if img_a.color() != img_b.color() {
-            panic!("Images colors are different");
-        }
-
-        if img_a.to_rgba8() != img_b.to_rgba8() {
-            panic!("Images bytes are different");
-        }
-    }
 }

@@ -12,6 +12,8 @@ itertools = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
 
+bcdec_rs = "0.2.0"
+dds = "0.2.0"
 texture2ddecoder = "0.1"
 
 [dev-dependencies]
