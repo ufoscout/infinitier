@@ -1,5 +1,6 @@
 # infinitier
 
+![Build Status](https://github.com/ufoscout/infinitier/actions/workflows/build_and_test.yml/badge.svg)
 
 # Resources
 
