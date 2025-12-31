@@ -71,7 +71,7 @@ impl PrvzImporter {
         match header.pixel_format {
             PrvDataCompression::DXT1 => {
                 // decode DXT1 aka BC1
-                texture2ddecoder::decode_bc1(&data, header.width as usize, header.height as usize, &mut image).unwrap();
+                texture2ddecoder::decode_bc1a(&data, header.width as usize, header.height as usize, &mut image).unwrap();
             }
             PrvDataCompression::DXT5 => {
                 // decode DXT5 aka BC3
@@ -150,7 +150,6 @@ mod tests {
 
     use std::path::Path;
 
-    use image::GenericImageView;
     use tempfile::TempDir;
 
     use super::*;
@@ -159,7 +158,7 @@ mod tests {
     #[test]
     fn test_parse_prvz_dxt1() {
         let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/MOS_DXT1/A150024.PVRZ"
+            "{RESOURCES_DIR}/resources/MOS_DXT1/A004602.PVRZ"
         )));
 
         let prvz_header = PrvzImporter::import(&data).unwrap();
@@ -171,7 +170,7 @@ mod tests {
             color_space: 0,
             channel_type: 0,
             height: 1024,
-            width: 64,
+            width: 256,
             depth: 1,
             surfaces_number: 1,
             faces_number: 1,
@@ -183,11 +182,11 @@ mod tests {
         {
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().join("test.png");
-            PrvzImporter::export_image("./test.png", &prvz_header, &data).unwrap();
+            PrvzImporter::export_image(&path, &prvz_header, &data).unwrap();
 
             assert_png_images_are_equal(
                 Path::new(&format!(
-                    "{RESOURCES_DIR}/resources/MOS_DXT1/A150024.PNG"
+                    "{RESOURCES_DIR}/resources/MOS_DXT1/A004602.PNG"
                 )),
                 &path,
             );
