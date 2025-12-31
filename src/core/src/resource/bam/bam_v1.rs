@@ -1,6 +1,5 @@
 use std::{
     io::{BufRead, Seek},
-    path::Path,
 };
 
 use image::{ImageBuffer, Rgba};
@@ -181,16 +180,14 @@ pub struct BamV1Frame {
 }
 
 impl BamV1Frame {
-    /// Exports the frame to an image file.
+    /// Exports the frame to an image.
     /// The image type is determined by the file extension.
-    pub fn export_image<Q: AsRef<Path>>(&self, path: Q, palette: &[Rgb]) -> image::ImageResult<()> {
-        let img: ImageBuffer<Rgba<u8>, _> =
-            ImageBuffer::from_fn(self.width, self.height, |x, y| {
+    pub fn to_image(&self, palette: &[Rgb]) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+        Ok(ImageBuffer::from_fn(self.width, self.height, |x, y| {
                 let idx = (y * self.width + x) as usize;
                 let p = &palette[self.pixel_palette_indexes[idx] as usize];
                 Rgba([p.r, p.g, p.b, p.alpha])
-            });
-        img.save(path)
+            }))
     }
 }
 
@@ -198,11 +195,8 @@ impl BamV1Frame {
 mod tests {
 
     use std::path::Path;
-
-    use tempfile::TempDir;
-
     use super::*;
-    use crate::{datasource::DataSource, resource::test_utils::assert_png_images_are_equal, test_utils::RESOURCES_DIR};
+    use crate::{datasource::DataSource, resource::test_utils::assert_images_are_equal, test_utils::RESOURCES_DIR};
 
     #[test]
     fn test_parse_bam_v1_should_fail_if_wrong_signature() {
@@ -245,15 +239,13 @@ mod tests {
 
         // Assert that the image is the same as the reference
         {
-            let tmp_dir = TempDir::new().unwrap();
-            let path = tmp_dir.path().join("test.png");
-            bam.frames[0].export_image(&path, &bam.palette).unwrap();
+            let image = bam.frames[0].to_image(&bam.palette).unwrap();
 
-            assert_png_images_are_equal(
-                Path::new(&format!(
+            assert_images_are_equal(
+                &image::open(Path::new(&format!(
                     "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B00000.PNG"
-                )),
-                &path,
+                ))).unwrap(),
+                &image.into(),
             );
         }
     }
@@ -281,7 +273,6 @@ mod tests {
 
         assert_eq!(bam.frames.len(), 15);
 
-        let tmp_dir = TempDir::new().unwrap();
         for (i, frame) in bam.frames.iter().enumerate() {
             assert!(frame.center_x > 0);
             assert!(frame.center_x < frame.width);
@@ -294,14 +285,13 @@ mod tests {
 
             // Assert that the image is the same as the reference
             {
-                let path = tmp_dir.path().join(format!("test_{i}.png"));
-                frame.export_image(&path, &bam.palette).unwrap();
+                let image= frame.to_image(&bam.palette).unwrap();
 
-                assert_png_images_are_equal(
-                    Path::new(&format!(
+                assert_images_are_equal(
+                    &image::open(Path::new(&format!(
                         "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART000{i:02}.PNG"
-                    )),
-                    &path,
+                    ))).unwrap(),
+                    &image.into(),
                 );
             }
         }

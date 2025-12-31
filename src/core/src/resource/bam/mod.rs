@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn test_detect_bam_v2_type() {
         let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V2/01/SPHEART.BAM"
+            "{RESOURCES_DIR}/resources/BAM_V2/1CHELM03.BAM"
         )));
 
         assert_eq!(

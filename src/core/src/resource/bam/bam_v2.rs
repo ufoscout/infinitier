@@ -179,7 +179,7 @@ impl BamV2 {
 
         let mut target_image = image::ImageBuffer::new(frame.width, frame.height);
         let target_image_buffer = target_image.as_mut();
-
+        
         for block in data_blocks {
             let pvrz_path = fs.search_path_opt(&CaseInsensitivePath::new(&block.pvrz_name())).ok_or(std::io::Error::other(format!(
                 "PVRZ file {} not found.",
@@ -187,7 +187,8 @@ impl BamV2 {
             )))?;
 
             let datasource = DataSource::new(pvrz_path);
-            // Suboptimal: PVRZ images should be cached
+
+            // TODO: Suboptimal: PVRZ images should be cached
             let source_header = PvrzImporter::import(&datasource).unwrap();
             let source_image = PvrzImporter::to_image(&source_header, &datasource).unwrap();
             let source_image_buffer = source_image.as_raw();
@@ -204,6 +205,7 @@ impl BamV2 {
 
                 target_image_buffer[target_start..target_end]
                     .copy_from_slice(&source_image_buffer[source_start..source_end]);
+
             }
         }
 
@@ -215,7 +217,7 @@ impl BamV2 {
 #[cfg(test)]
 mod tests {
     use std::path::Path;
-    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
+    use crate::{datasource::DataSource, resource::test_utils::assert_images_are_equal, test_utils::RESOURCES_DIR};
 
     use super::*;
 
@@ -250,7 +252,7 @@ mod tests {
     #[test]
     fn test_parse_bam_v2_02() {
         let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V2/02/1CHELM03.BAM"
+            "{RESOURCES_DIR}/resources/BAM_V2/1CHELM03.BAM"
         )));
 
         let mut reader = data.reader().unwrap();
@@ -284,14 +286,20 @@ mod tests {
         assert_eq!(bam.data_blocks[0].target_x_coordinate, 0);
         assert_eq!(bam.data_blocks[0].target_y_coordinate, 0);
 
-        let TEST_DECODE_PVRZ_IMAGE = 0;
+        // Assert that the image is the same as the reference
+        {
+            let fs = CaseInsensitiveFS::new(format!("{RESOURCES_DIR}/resources/BAM_V2/")).unwrap();
+            let image = bam.frame_to_image(0, &fs).unwrap();
 
-        let fs = CaseInsensitiveFS::new(format!("{RESOURCES_DIR}/resources/BAM_V2/02/")).unwrap();
-        let image = bam.frame_to_image(0, &fs).unwrap();
-        image.save("./test.png").unwrap();
+            assert_images_are_equal(
+                &image::open(Path::new(&format!(
+                    "{RESOURCES_DIR}/resources/BAM_V2/1CHELM0300000.PNG"
+                ))).unwrap(),
+                &image.into(),
+            );
+        }
 
     }
-
     
 }
 

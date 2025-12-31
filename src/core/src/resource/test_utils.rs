@@ -1,13 +1,7 @@
-use std::path::Path;
+use image::{DynamicImage, GenericImageView};
 
-use image::GenericImageView;
-
-
-    /// Asserts that two png images are equal
-    pub fn assert_png_images_are_equal<A: AsRef<Path>, B: AsRef<Path>>(path_a: A, path_b: B) {
-        let img_a = image::open(path_a).unwrap();
-        let img_b = image::open(path_b).unwrap();
-
+    /// Asserts that two images are equal
+    pub fn assert_images_are_equal(img_a: &DynamicImage, img_b: &DynamicImage) {
         if img_a.dimensions() != img_b.dimensions() {
             panic!("Images dimensions are different");
         }

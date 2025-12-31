@@ -1,9 +1,6 @@
 // To decode PVR texture files check: https://crates.io/crates/texture2ddecoder
 
-use std::{path::Path, u64};
-
 use image::{ImageBuffer, Rgba};
-
 use crate::datasource::{DataSource, Importer};
 
 /// A PVRZ file importer
@@ -49,13 +46,6 @@ impl Importer for PvrzImporter {
 }
 
 impl PvrzImporter {
-
-    /// Exports a PVRZ file to an image file
-    pub fn export_image<Q: AsRef<Path>>(path: Q, header: &PvrzHeader, source: &DataSource) -> image::ImageResult<()> {
-        let image = PvrzImporter::to_image(header, source)?;
-        image.save(path)
-    }
-
 
     /// Converts a PVRZ file to an image
     pub fn to_image(header: &PvrzHeader, source: &DataSource) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
@@ -153,11 +143,8 @@ impl PvrDataCompression {
 mod tests {
 
     use std::path::Path;
-
-    use tempfile::TempDir;
-
     use super::*;
-    use crate::{datasource::DataSource, resource::test_utils::assert_png_images_are_equal, test_utils::RESOURCES_DIR};
+    use crate::{datasource::DataSource, resource::test_utils::assert_images_are_equal, test_utils::RESOURCES_DIR};
 
     #[test]
     fn test_parse_pvrz_dxt1() {
@@ -184,15 +171,13 @@ mod tests {
 
         // Assert that the image is the same as the reference
         {
-            let tmp_dir = TempDir::new().unwrap();
-            let path = tmp_dir.path().join("test.png");
-            PvrzImporter::export_image(&path, &pvrz_header, &data).unwrap();
+            let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
 
-            assert_png_images_are_equal(
-                Path::new(&format!(
+            assert_images_are_equal(
+                &image::open(Path::new(&format!(
                     "{RESOURCES_DIR}/resources/MOS_DXT1/A004602.PNG"
-                )),
-                &path,
+                ))).unwrap(),
+                &image.into(),
             );
         }
 
@@ -223,15 +208,13 @@ mod tests {
 
         // Assert that the image is the same as the reference
         {
-            let tmp_dir = TempDir::new().unwrap();
-            let path = tmp_dir.path().join("test.png");
-            PvrzImporter::export_image(&path, &pvrz_header, &data).unwrap();
+            let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
 
-            assert_png_images_are_equal(
-                Path::new(&format!(
+            assert_images_are_equal(
+                &image::open(Path::new(&format!(
                     "{RESOURCES_DIR}/resources/MOS_DXT5/MOS0000.PNG"
-                )),
-                &path,
+                ))).unwrap(),
+                &image.into(),
             );
         }
 

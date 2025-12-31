@@ -19,7 +19,6 @@ insta = { version = "1", features = ["json", "redactions", "filters"] }
 itertools = "0.14"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
-tempfile = "3"
 
 # This is used to decode DDS image content into the PVR files.
 # We can switch to image-extras when this PR is merged: https://github.com/image-rs/image-extras/pull/16
