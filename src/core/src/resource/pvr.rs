@@ -71,7 +71,8 @@ impl PvrzImporter {
                     header.width as usize,
                     header.height as usize,
                     &mut image,
-                ).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                )
+                .map_err(std::io::Error::other)?;
             }
             PvrDataCompression::DXT5 => {
                 // decode DXT5 aka BC3
@@ -80,7 +81,8 @@ impl PvrzImporter {
                     header.width as usize,
                     header.height as usize,
                     &mut image,
-                ).map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+                )
+                .map_err(std::io::Error::other)?;
             }
         }
 
