@@ -1,4 +1,5 @@
 pub mod bam;
+pub mod bmp;
 pub mod bif;
 pub mod common;
 pub mod key;
