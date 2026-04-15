@@ -627,11 +627,10 @@ impl AcmDecoder {
         let channels = self.info.channels as usize;
 
         while self.stream_pos < self.total_values {
-            if !self.block_ready {
-                if !self.decode_block()? {
+            if !self.block_ready
+                && !self.decode_block()? {
                     break; // natural EOF
                 }
-            }
 
             let avail = self.block_len - self.block_pos;
             let remaining = (self.total_values - self.stream_pos) as usize;
