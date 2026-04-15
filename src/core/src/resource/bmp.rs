@@ -19,10 +19,7 @@ impl BmpImporter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        resource::test_utils::assert_images_are_equal,
-        test_utils::RESOURCES_DIR,
-    };
+    use crate::{resource::test_utils::assert_images_are_equal, test_utils::RESOURCES_DIR};
     use std::path::Path;
 
     #[test]

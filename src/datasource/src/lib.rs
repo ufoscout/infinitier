@@ -254,7 +254,7 @@ impl<T: Read> Reader<T> {
 
     /// Read the first `n_bytes` bytes from a byte array and fill a buffer with them.
     pub fn read_to_end(&mut self, buf: &mut Vec<u8>) -> std::io::Result<usize> {
-        (&mut self.data).read_to_end(buf)
+        self.data.read_to_end(buf)
     }
 
     /// Read the first `n_chars` characters from a byte array interpreted

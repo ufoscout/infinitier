@@ -2,14 +2,12 @@ mod bif_reader;
 mod bifc_reader;
 mod biff_reader;
 
-use std::io::Read;
 use infinitier_datasource::{Importer, Reader};
+use std::io::Read;
 
-use crate::{
-    resource::{
-        bif::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser},
-        key::ResourceType,
-    },
+use crate::resource::{
+    bif::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser},
+    key::ResourceType,
 };
 
 /// A BIF file importer

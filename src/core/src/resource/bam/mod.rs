@@ -2,9 +2,7 @@ use std::io::{BufRead, Read, Seek};
 
 use infinitier_datasource::{Importer, Reader};
 
-use crate::{
-    resource::bam::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser},
-};
+use crate::resource::bam::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
 
 pub use bam_v1::BamV1;
 pub use bam_v2::BamV2;

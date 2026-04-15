@@ -2,11 +2,9 @@ use std::io::BufRead;
 
 use infinitier_datasource::Reader;
 
-use crate::{
-    resource::bif::{
-        BIF_V1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
-        parse_bif_embedded_tileset,
-    },
+use crate::resource::bif::{
+    BIF_V1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
+    parse_bif_embedded_tileset,
 };
 
 /// A BIFC V1 file importer

@@ -1,10 +1,8 @@
 use infinitier_datasource::Reader;
 
-use crate::{
-    resource::bif::{
-        BIFCV1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
-        parse_bif_embedded_tileset,
-    },
+use crate::resource::bif::{
+    BIFCV1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
+    parse_bif_embedded_tileset,
 };
 use std::{
     collections::VecDeque,
