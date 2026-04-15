@@ -9,16 +9,19 @@ edition = "2024"
 version = "0.1.0"
 
 [workspace.dependencies]
+infinitier_acm_decoder = { path = "src/acm_decoder" }
 infinitier_core = { path = "src/core" }
 
 bitflags = { version = "2", features = ["serde"] }
 encoding_rs = "0.8"
 flate2 = "1"
+hound = "3"
 image = { version = "0.25", default-features = false, features = ["bmp", "png"] }
 insta = { version = "1", features = ["json", "redactions", "filters"] }
 itertools = "0.14"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
+sha2 = "0.11"
 
 # This is used to decode DDS image content into the PVR files.
 # We can switch to image-extras when this PR is merged: https://github.com/image-rs/image-extras/pull/16
