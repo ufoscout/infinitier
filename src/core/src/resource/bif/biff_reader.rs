@@ -1,7 +1,8 @@
 use std::io::{Read, Seek};
 
+use infinitier_datasource::Reader;
+
 use crate::{
-    datasource::Reader,
     resource::bif::{
         BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset,
     },
@@ -51,8 +52,9 @@ impl BiffParser {
 mod tests {
     use std::path::Path;
 
+    use infinitier_datasource::DataSource;
+
     use crate::{
-        datasource::DataSource,
         resource::{
             bif::{BifEmbeddedResource, detect_biff_type},
             key::ResourceType,

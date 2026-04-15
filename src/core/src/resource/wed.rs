@@ -1,9 +1,7 @@
+use infinitier_datasource::{DataSource, Importer};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    datasource::{DataSource, Importer},
-    resource::key::ResourceType,
-};
+use crate::resource::key::ResourceType;
 
 /// A Wed file importer
 pub struct WedImporter;

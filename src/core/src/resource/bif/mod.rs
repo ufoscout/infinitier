@@ -3,9 +3,9 @@ mod bifc_reader;
 mod biff_reader;
 
 use std::io::Read;
+use infinitier_datasource::{Importer, Reader};
 
 use crate::{
-    datasource::{Importer, Reader},
     resource::{
         bif::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser},
         key::ResourceType,
@@ -18,7 +18,7 @@ pub struct BifImporter {}
 impl Importer for BifImporter {
     type T = Bif;
 
-    fn import(source: &crate::datasource::DataSource) -> std::io::Result<Self::T> {
+    fn import(source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
         let position = reader.position()?;
 
@@ -138,7 +138,9 @@ fn parse_bif_embedded_tileset<R: Read>(
 mod tests {
     use std::path::Path;
 
-    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
+    use infinitier_datasource::DataSource;
+
+    use crate::test_utils::RESOURCES_DIR;
 
     use super::*;
 

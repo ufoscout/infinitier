@@ -1,0 +1,1 @@
+An abstract data source that can be used to read data from a file, a compressed file, a memory buffer or a stream.

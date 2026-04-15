@@ -1,6 +1,6 @@
 use image::{ImageBuffer, Rgba};
 
-use crate::datasource::DataSource;
+use infinitier_datasource::DataSource;
 
 /// A BMP file importer
 pub struct BmpImporter;
@@ -20,7 +20,7 @@ impl BmpImporter {
 mod tests {
     use super::*;
     use crate::{
-        datasource::DataSource, resource::test_utils::assert_images_are_equal,
+        resource::test_utils::assert_images_are_equal,
         test_utils::RESOURCES_DIR,
     };
     use std::path::Path;

@@ -1,9 +1,9 @@
 use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
+use infinitier_datasource::{DataSource, Importer, Reader};
 
 use crate::{
-    datasource::{DataSource, Importer, Reader},
     fs::{CaseInsensitiveFS, CaseInsensitivePath},
     resource::{bam::Type, pvr::PvrzImporter},
 };
@@ -225,7 +225,7 @@ impl BamV2 {
 #[cfg(test)]
 mod tests {
     use crate::{
-        datasource::DataSource, resource::test_utils::assert_images_are_equal,
+        resource::test_utils::assert_images_are_equal,
         test_utils::RESOURCES_DIR,
     };
     use std::path::Path;

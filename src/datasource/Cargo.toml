@@ -1,0 +1,8 @@
+[package]
+name = "infinitier_datasource"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+encoding_rs = { workspace = true }
+flate2 = { workspace = true }

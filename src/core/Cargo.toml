@@ -5,9 +5,9 @@ edition.workspace = true
 
 [dependencies]
 bitflags = { workspace = true }
-encoding_rs =  { workspace = true }
-flate2 = { workspace = true }
 image = { workspace = true }
+infinitier_acm_decoder = { workspace = true }
+infinitier_datasource = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }

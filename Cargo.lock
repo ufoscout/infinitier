@@ -1689,14 +1689,22 @@ name = "infinitier_core"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.11.1",
- "encoding_rs",
- "flate2",
  "image",
+ "infinitier_acm_decoder",
+ "infinitier_datasource",
  "insta",
  "itertools",
  "log",
  "serde",
  "texture2ddecoder",
+]
+
+[[package]]
+name = "infinitier_datasource"
+version = "0.1.0"
+dependencies = [
+ "encoding_rs",
+ "flate2",
 ]
 
 [[package]]

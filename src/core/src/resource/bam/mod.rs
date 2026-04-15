@@ -1,7 +1,8 @@
 use std::io::{BufRead, Read, Seek};
 
+use infinitier_datasource::{Importer, Reader};
+
 use crate::{
-    datasource::{Importer, Reader},
     resource::bam::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser},
 };
 
@@ -18,7 +19,7 @@ pub struct BamImporter {}
 impl Importer for BamImporter {
     type T = Bam;
 
-    fn import(source: &crate::datasource::DataSource) -> std::io::Result<Self::T> {
+    fn import(source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
         Self::from_reader(reader)
     }
@@ -92,7 +93,9 @@ fn detect_bam_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
 mod tests {
     use std::path::Path;
 
-    use crate::{datasource::DataSource, test_utils::RESOURCES_DIR};
+    use infinitier_datasource::DataSource;
+
+    use crate::test_utils::RESOURCES_DIR;
 
     use super::*;
 

@@ -1,7 +1,8 @@
 use std::io::BufRead;
 
+use infinitier_datasource::Reader;
+
 use crate::{
-    datasource::Reader,
     resource::bam::{Bam, BamImporter, Type},
 };
 
@@ -32,8 +33,10 @@ impl BamcParser {
 mod tests {
     use std::path::Path;
 
+    use infinitier_datasource::DataSource;
+
     use crate::{
-        datasource::DataSource, resource::bam::bam_v1::BamV1Parser, test_utils::RESOURCES_DIR,
+        resource::bam::bam_v1::BamV1Parser, test_utils::RESOURCES_DIR,
     };
 
     use super::*;

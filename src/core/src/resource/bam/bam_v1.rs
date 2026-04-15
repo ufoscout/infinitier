@@ -1,9 +1,9 @@
 use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
+use infinitier_datasource::Reader;
 
 use crate::{
-    datasource::Reader,
     resource::{bam::Type, common::Rgb},
 };
 
@@ -195,9 +195,11 @@ impl BamV1Frame {
 #[cfg(test)]
 mod tests {
 
+    use infinitier_datasource::DataSource;
+
     use super::*;
     use crate::{
-        datasource::DataSource, resource::test_utils::assert_images_are_equal,
+        resource::test_utils::assert_images_are_equal,
         test_utils::RESOURCES_DIR,
     };
     use std::path::Path;

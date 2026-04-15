@@ -2,10 +2,9 @@ use std::io::{self, BufRead, Seek};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    datasource::{DataSource, Importer, Reader},
-    fs::CaseInsensitivePath,
-};
+use infinitier_datasource::{DataSource, Importer, Reader};
+
+use crate::fs::CaseInsensitivePath;
 
 /// A KEY file importer
 pub struct KeyImporter {}

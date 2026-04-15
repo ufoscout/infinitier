@@ -1,6 +1,6 @@
 // To decode PVR texture files check: https://crates.io/crates/texture2ddecoder
 
-use crate::datasource::{DataSource, Importer};
+use infinitier_datasource::{DataSource, Importer};
 use image::{ImageBuffer, Rgba};
 
 /// A PVRZ file importer
@@ -151,7 +151,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        datasource::DataSource, resource::test_utils::assert_images_are_equal,
+        resource::test_utils::assert_images_are_equal,
         test_utils::RESOURCES_DIR,
     };
     use std::path::Path;

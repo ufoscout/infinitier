@@ -10,6 +10,7 @@ version = "0.1.0"
 
 [workspace.dependencies]
 infinitier_acm_decoder = { path = "src/acm_decoder" }
+infinitier_datasource = { path = "src/datasource" }
 infinitier_core = { path = "src/core" }
 
 bitflags = { version = "2", features = ["serde"] }

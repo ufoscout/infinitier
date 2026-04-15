@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use itertools::{Itertools, chain};
 use log::warn;
 
-use crate::datasource::{DataSource, Importer};
+use infinitier_datasource::{DataSource, Importer};
 
 /// A 2DA file importer
 pub struct TwoDAImporter;
