@@ -6,20 +6,19 @@
 //! WAV output is written to `target/acm_test_output/<GAME_SLUG>/<file>.wav`
 //! so it can be inspected after a test run.
 
-use std::{fs, path::PathBuf};
-use sha2::{Digest, Sha256};
 use infinitier_acm_decoder::AcmDecoder;
+use sha2::{Digest, Sha256};
+use std::{fs, path::PathBuf};
 
 // ─── helper ──────────────────────────────────────────────────────────────────
 
 /// Decode `acm_rel` (relative to `resources/`) to a WAV file under
 /// `target/acm_test_output/` and return its SHA-256 hex digest.
 fn decode_and_hash(acm_rel: &str) -> String {
-
     let acm_path = PathBuf::from("./tests/resources").join(acm_rel);
 
-    let wav_rel  = PathBuf::from(acm_rel).with_extension("wav");
-    let wav_path = PathBuf::from("../target")
+    let wav_rel = PathBuf::from(acm_rel).with_extension("wav");
+    let wav_path = PathBuf::from("../../target")
         .join("acm_test_output")
         .join(&wav_rel);
     fs::create_dir_all(wav_path.parent().unwrap()).unwrap();
@@ -28,22 +27,28 @@ fn decode_and_hash(acm_rel: &str) -> String {
         .unwrap_or_else(|e| panic!("cannot open {}: {e}", acm_path.display()));
     let mut dec = AcmDecoder::open(file, 0)
         .unwrap_or_else(|e| panic!("cannot decode {}: {e}", acm_path.display()));
-    let samples = dec.decode_all()
+    let samples = dec
+        .decode_all()
         .unwrap_or_else(|e| panic!("decode error in {}: {e}", acm_path.display()));
 
     let spec = hound::WavSpec {
-        channels:        dec.info.channels as u16,
-        sample_rate:     dec.info.rate,
+        channels: dec.info.channels as u16,
+        sample_rate: dec.info.rate,
         bits_per_sample: 16,
-        sample_format:   hound::SampleFormat::Int,
+        sample_format: hound::SampleFormat::Int,
     };
     let mut writer = hound::WavWriter::create(&wav_path, spec)
         .unwrap_or_else(|e| panic!("cannot create WAV {}: {e}", wav_path.display()));
-    for &s in &samples { writer.write_sample(s).unwrap(); }
+    for &s in &samples {
+        writer.write_sample(s).unwrap();
+    }
     writer.finalize().unwrap();
 
     let wav_bytes = fs::read(&wav_path).unwrap();
-    Sha256::digest(&wav_bytes).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(&wav_bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 // ─── per-file tests ───────────────────────────────────────────────────────────
@@ -53,8 +58,7 @@ fn decode_and_hash(acm_rel: &str) -> String {
 fn test_bg_bf1j4() {
     let got = decode_and_hash("bg/Bf1j4.ACM");
     assert_eq!(
-        got,
-        "18d02d5777bda38e06dc357a027a39cd39755f770b55c54517f1bbce5f7e44bf",
+        got, "18d02d5777bda38e06dc357a027a39cd39755f770b55c54517f1bbce5f7e44bf",
         "WAV hash mismatch for bg/Bf1j4.ACM",
     );
 }
@@ -64,8 +68,7 @@ fn test_bg_bf1j4() {
 fn test_bg_bf1d1() {
     let got = decode_and_hash("bg/Bf1d1.ACM");
     assert_eq!(
-        got,
-        "13169bea5f12cb591e56ad7f50bfb858f43c4ed154b7206d814e37194d367b1f",
+        got, "13169bea5f12cb591e56ad7f50bfb858f43c4ed154b7206d814e37194d367b1f",
         "WAV hash mismatch for bg/Bf1d1.ACM",
     );
 }
@@ -75,8 +78,7 @@ fn test_bg_bf1d1() {
 fn test_bg_bc2g2() {
     let got = decode_and_hash("bg/Bc2g2.ACM");
     assert_eq!(
-        got,
-        "715c74831bb76264e13e3022b73c763c84d92e8228c4e25868dc67d32bb138c8",
+        got, "715c74831bb76264e13e3022b73c763c84d92e8228c4e25868dc67d32bb138c8",
         "WAV hash mismatch for bg/Bc2g2.ACM",
     );
 }
@@ -86,8 +88,7 @@ fn test_bg_bc2g2() {
 fn test_bg_bl2ende() {
     let got = decode_and_hash("bg/BL2endE.ACM");
     assert_eq!(
-        got,
-        "ed46f469f2d5e40a47f4f7751137591b246418f181366ad84d376be570a31403",
+        got, "ed46f469f2d5e40a47f4f7751137591b246418f181366ad84d376be570a31403",
         "WAV hash mismatch for bg/BL2endE.ACM",
     );
 }
@@ -97,8 +98,7 @@ fn test_bg_bl2ende() {
 fn test_bg2_bc1a1() {
     let got = decode_and_hash("bg2/BC1A1.acm");
     assert_eq!(
-        got,
-        "2dfbdc5e3608eb5148e1e1bb01de5a361c7438dfd1045fdb9ea4bf1a95fcde3c",
+        got, "2dfbdc5e3608eb5148e1e1bb01de5a361c7438dfd1045fdb9ea4bf1a95fcde3c",
         "WAV hash mismatch for bg2/BC1A1.acm",
     );
 }
@@ -108,8 +108,7 @@ fn test_bg2_bc1a1() {
 fn test_bg2_bm1d2() {
     let got = decode_and_hash("bg2/BM1D2.acm");
     assert_eq!(
-        got,
-        "9a762fc7619a3a6051a2f078aa64af15d5c3ae349c7869b6bb00dcbc7881802a",
+        got, "9a762fc7619a3a6051a2f078aa64af15d5c3ae349c7869b6bb00dcbc7881802a",
         "WAV hash mismatch for bg2/BM1D2.acm",
     );
 }
@@ -119,8 +118,7 @@ fn test_bg2_bm1d2() {
 fn test_bg2_bsth1() {
     let got = decode_and_hash("bg2/BSTH1.acm");
     assert_eq!(
-        got,
-        "feadc69b5c3c8848da05c06a86b70d41448af467afea56351375091f05d900b0",
+        got, "feadc69b5c3c8848da05c06a86b70d41448af467afea56351375091f05d900b0",
         "WAV hash mismatch for bg2/BSTH1.acm",
     );
 }
@@ -130,8 +128,7 @@ fn test_bg2_bsth1() {
 fn test_bg2_bjrf2() {
     let got = decode_and_hash("bg2/BJRF2.acm");
     assert_eq!(
-        got,
-        "b0cf90c4c7be329053b37969bb6ca74cab23d2f2f1fe413b35da05a4335b2c5c",
+        got, "b0cf90c4c7be329053b37969bb6ca74cab23d2f2f1fe413b35da05a4335b2c5c",
         "WAV hash mismatch for bg2/BJRF2.acm",
     );
 }
@@ -141,8 +138,7 @@ fn test_bg2_bjrf2() {
 fn test_bg2_bd2f2() {
     let got = decode_and_hash("bg2/BD2F2.acm");
     assert_eq!(
-        got,
-        "73542135dfcc4f13b98b7a370b98fa2ed4e727a71b0c34c7fb80f5a49c5e79a6",
+        got, "73542135dfcc4f13b98b7a370b98fa2ed4e727a71b0c34c7fb80f5a49c5e79a6",
         "WAV hash mismatch for bg2/BD2F2.acm",
     );
 }
@@ -152,8 +148,7 @@ fn test_bg2_bd2f2() {
 fn test_bg2_bf1c3() {
     let got = decode_and_hash("bg2/BF1C3.acm");
     assert_eq!(
-        got,
-        "8a9e13dc6ff16c8b11de4bf41a33a2ef043e21c326a17493a8be19a47b45f18c",
+        got, "8a9e13dc6ff16c8b11de4bf41a33a2ef043e21c326a17493a8be19a47b45f18c",
         "WAV hash mismatch for bg2/BF1C3.acm",
     );
 }
@@ -163,8 +158,7 @@ fn test_bg2_bf1c3() {
 fn test_bg2_bf2zf2() {
     let got = decode_and_hash("bg2/BF2ZF2.acm");
     assert_eq!(
-        got,
-        "437f26720424928a00ab9e088fb6d2e0925a2d2e6771560d5a531b533763916c",
+        got, "437f26720424928a00ab9e088fb6d2e0925a2d2e6771560d5a531b533763916c",
         "WAV hash mismatch for bg2/BF2ZF2.acm",
     );
 }
@@ -174,8 +168,7 @@ fn test_bg2_bf2zf2() {
 fn test_bg2_bp1zb() {
     let got = decode_and_hash("bg2/BP1ZB.acm");
     assert_eq!(
-        got,
-        "61412436f7e4b77d89a501987c29c526efc7edb7c19ecb5111d4bff5c9622b64",
+        got, "61412436f7e4b77d89a501987c29c526efc7edb7c19ecb5111d4bff5c9622b64",
         "WAV hash mismatch for bg2/BP1ZB.acm",
     );
 }
@@ -185,8 +178,7 @@ fn test_bg2_bp1zb() {
 fn test_bg2_vb_e5() {
     let got = decode_and_hash("bg2/VB_E5.acm");
     assert_eq!(
-        got,
-        "1a7bc223fd5873e671c3ffab32bc528ee4b38799c5cd6bc6a31f6b6f7f99dab8",
+        got, "1a7bc223fd5873e671c3ffab32bc528ee4b38799c5cd6bc6a31f6b6f7f99dab8",
         "WAV hash mismatch for bg2/VB_E5.acm",
     );
 }
@@ -196,8 +188,7 @@ fn test_bg2_vb_e5() {
 fn test_bg2_mb_a1() {
     let got = decode_and_hash("bg2/MB_A1.acm");
     assert_eq!(
-        got,
-        "b64ec903ca2a4a764f98c0346a9066f82ab5c8356d9d55d95b5d817cc0eca9f4",
+        got, "b64ec903ca2a4a764f98c0346a9066f82ab5c8356d9d55d95b5d817cc0eca9f4",
         "WAV hash mismatch for bg2/MB_A1.acm",
     );
 }
@@ -207,8 +198,7 @@ fn test_bg2_mb_a1() {
 fn test_bg2_mx0900a() {
     let got = decode_and_hash("bg2/MX0900a.acm");
     assert_eq!(
-        got,
-        "75e4cc3799f38693e60b17316a296dcc9db2aea5df8dbdee71c4c2b43ca32a39",
+        got, "75e4cc3799f38693e60b17316a296dcc9db2aea5df8dbdee71c4c2b43ca32a39",
         "WAV hash mismatch for bg2/MX0900a.acm",
     );
 }
@@ -218,8 +208,7 @@ fn test_bg2_mx0900a() {
 fn test_bg2_mxjahira() {
     let got = decode_and_hash("bg2/MxJahirA.acm");
     assert_eq!(
-        got,
-        "d6e075008cb80d6429215368d3ec19fa129fc37561d95b0837e5b0268cf0da86",
+        got, "d6e075008cb80d6429215368d3ec19fa129fc37561d95b0837e5b0268cf0da86",
         "WAV hash mismatch for bg2/MxJahirA.acm",
     );
 }
@@ -229,8 +218,7 @@ fn test_bg2_mxjahira() {
 fn test_bg2_ee_oh6200a() {
     let got = decode_and_hash("bg2_ee/oh6200a.acm");
     assert_eq!(
-        got,
-        "c4593f4ddbd4c48ef2380879c7c0571d33d78fbe178f1d18bc15f59e2a769e95",
+        got, "c4593f4ddbd4c48ef2380879c7c0571d33d78fbe178f1d18bc15f59e2a769e95",
         "WAV hash mismatch for bg2ee/oh6200a.acm",
     );
 }
@@ -240,8 +228,7 @@ fn test_bg2_ee_oh6200a() {
 fn test_iwd_b6f3() {
     let got = decode_and_hash("iwd/B6F3.acm");
     assert_eq!(
-        got,
-        "fde55667e3a2ca696d65de22cdf9efa51b3db130cbcd6a06e98e86d53ce18dc4",
+        got, "fde55667e3a2ca696d65de22cdf9efa51b3db130cbcd6a06e98e86d53ce18dc4",
         "WAV hash mismatch for iwd/B6F3.acm",
     );
 }
@@ -251,8 +238,7 @@ fn test_iwd_b6f3() {
 fn test_iwd_b6b1() {
     let got = decode_and_hash("iwd/B6B1.acm");
     assert_eq!(
-        got,
-        "694f296b6d2f1a4980141cc25b96198cdc71ede871b3860ba2b6b86ef2080f99",
+        got, "694f296b6d2f1a4980141cc25b96198cdc71ede871b3860ba2b6b86ef2080f99",
         "WAV hash mismatch for iwd/B6B1.acm",
     );
 }
@@ -262,8 +248,7 @@ fn test_iwd_b6b1() {
 fn test_iwd_b1d2() {
     let got = decode_and_hash("iwd/B1d2.acm");
     assert_eq!(
-        got,
-        "2ac935a033b6749727f77006a3f14f2312c068c3b7071e4b8a99d1bced80abd1",
+        got, "2ac935a033b6749727f77006a3f14f2312c068c3b7071e4b8a99d1bced80abd1",
         "WAV hash mismatch for iwd/B1d2.acm",
     );
 }
@@ -273,8 +258,7 @@ fn test_iwd_b1d2() {
 fn test_iwd_b5j4() {
     let got = decode_and_hash("iwd/B5J4.acm");
     assert_eq!(
-        got,
-        "7a46ce0894597ebc6ec62098edb97e1129b5ddd78aafe5bef7c01d1a401e161b",
+        got, "7a46ce0894597ebc6ec62098edb97e1129b5ddd78aafe5bef7c01d1a401e161b",
         "WAV hash mismatch for iwd/B5J4.acm",
     );
 }
@@ -284,8 +268,7 @@ fn test_iwd_b5j4() {
 fn test_iwd_b4b3() {
     let got = decode_and_hash("iwd/B4b3.acm");
     assert_eq!(
-        got,
-        "580ce831635e919759b60ccfc4ad3795f53f1efdd1d9577453ae5296f2421ebf",
+        got, "580ce831635e919759b60ccfc4ad3795f53f1efdd1d9577453ae5296f2421ebf",
         "WAV hash mismatch for iwd/B4b3.acm",
     );
 }
@@ -295,8 +278,7 @@ fn test_iwd_b4b3() {
 fn test_iwd_b6d1() {
     let got = decode_and_hash("iwd/B6D1.acm");
     assert_eq!(
-        got,
-        "ddc3182ed8f4d5cd3edffa76107983ca015993119a0c3d9053a46ccf1d733cd1",
+        got, "ddc3182ed8f4d5cd3edffa76107983ca015993119a0c3d9053a46ccf1d733cd1",
         "WAV hash mismatch for iwd/B6D1.acm",
     );
 }
@@ -306,8 +288,7 @@ fn test_iwd_b6d1() {
 fn test_iwd_b4a2() {
     let got = decode_and_hash("iwd/B4a2.acm");
     assert_eq!(
-        got,
-        "aa381c6170f5d8168934eaa014802e845ef815ec853731ee3e14de091ae3b75a",
+        got, "aa381c6170f5d8168934eaa014802e845ef815ec853731ee3e14de091ae3b75a",
         "WAV hash mismatch for iwd/B4a2.acm",
     );
 }
@@ -317,8 +298,7 @@ fn test_iwd_b4a2() {
 fn test_iwd_b5k3zh() {
     let got = decode_and_hash("iwd/B5K3ZH.acm");
     assert_eq!(
-        got,
-        "7bb9b0d476195d84f8aae99be227c2182b1a5e728a3a12572d2e6e682b847ad1",
+        got, "7bb9b0d476195d84f8aae99be227c2182b1a5e728a3a12572d2e6e682b847ad1",
         "WAV hash mismatch for iwd/B5K3ZH.acm",
     );
 }
@@ -328,8 +308,7 @@ fn test_iwd_b5k3zh() {
 fn test_iwd_mx9103a() {
     let got = decode_and_hash("iwd/mx9103a.acm");
     assert_eq!(
-        got,
-        "0d2b1fcc158bd069f5f73c8914394fce43d6d8870edb95aba6a806847ab12720",
+        got, "0d2b1fcc158bd069f5f73c8914394fce43d6d8870edb95aba6a806847ab12720",
         "WAV hash mismatch for iwd/mx9103a.acm",
     );
 }
@@ -339,8 +318,7 @@ fn test_iwd_mx9103a() {
 fn test_iwd_mx9400a() {
     let got = decode_and_hash("iwd/mx9400a.acm");
     assert_eq!(
-        got,
-        "22493f51419d53e608b490c74186917044f9694bf1cbf71a2e8e7564e725122a",
+        got, "22493f51419d53e608b490c74186917044f9694bf1cbf71a2e8e7564e725122a",
         "WAV hash mismatch for iwd/mx9400a.acm",
     );
 }
@@ -350,8 +328,7 @@ fn test_iwd_mx9400a() {
 fn test_iwd2_b3b4() {
     let got = decode_and_hash("iwd2/B3b4.acm");
     assert_eq!(
-        got,
-        "79f55e15848bf76b901afbdd00c8902c7f3a76825271005af0fd46f47a52dd37",
+        got, "79f55e15848bf76b901afbdd00c8902c7f3a76825271005af0fd46f47a52dd37",
         "WAV hash mismatch for iwd2/B3b4.acm",
     );
 }
@@ -361,8 +338,7 @@ fn test_iwd2_b3b4() {
 fn test_iwd2_b6f1() {
     let got = decode_and_hash("iwd2/B6f1.acm");
     assert_eq!(
-        got,
-        "1b6b851690337d86898132e8fea42c9dccabcca647515db617317e7b544cadd7",
+        got, "1b6b851690337d86898132e8fea42c9dccabcca647515db617317e7b544cadd7",
         "WAV hash mismatch for iwd2/B6f1.acm",
     );
 }
@@ -372,8 +348,7 @@ fn test_iwd2_b6f1() {
 fn test_iwd2_b4c29() {
     let got = decode_and_hash("iwd2/B4c29.acm");
     assert_eq!(
-        got,
-        "67c677964c7a5bd58d027cb3c5e9bfcbf442b56bdb8fd5ec96578b235684b916",
+        got, "67c677964c7a5bd58d027cb3c5e9bfcbf442b56bdb8fd5ec96578b235684b916",
         "WAV hash mismatch for iwd2/B4c29.acm",
     );
 }
@@ -383,8 +358,7 @@ fn test_iwd2_b4c29() {
 fn test_iwd2_b5b12() {
     let got = decode_and_hash("iwd2/B5b12.acm");
     assert_eq!(
-        got,
-        "b45760bcad0212a9845aa4f0358c82352ef8150e1fc8b98671a83693740efb93",
+        got, "b45760bcad0212a9845aa4f0358c82352ef8150e1fc8b98671a83693740efb93",
         "WAV hash mismatch for iwd2/B5b12.acm",
     );
 }
@@ -394,8 +368,7 @@ fn test_iwd2_b5b12() {
 fn test_iwd2_b5b4() {
     let got = decode_and_hash("iwd2/B5b4.acm");
     assert_eq!(
-        got,
-        "bb5ed490d6d78107e5f370b17df99c3ac9d02dccab69d4d94e0f3efdb4d39124",
+        got, "bb5ed490d6d78107e5f370b17df99c3ac9d02dccab69d4d94e0f3efdb4d39124",
         "WAV hash mismatch for iwd2/B5b4.acm",
     );
 }
@@ -405,8 +378,7 @@ fn test_iwd2_b5b4() {
 fn test_iwd2_b4c4() {
     let got = decode_and_hash("iwd2/B4c4.acm");
     assert_eq!(
-        got,
-        "3e6593ee598ef52270f07b62d71759b225a1ff8bb7deff25b8d946be3b3c9fc5",
+        got, "3e6593ee598ef52270f07b62d71759b225a1ff8bb7deff25b8d946be3b3c9fc5",
         "WAV hash mismatch for iwd2/B4c4.acm",
     );
 }
@@ -416,8 +388,7 @@ fn test_iwd2_b4c4() {
 fn test_iwd2_b6enda2() {
     let got = decode_and_hash("iwd2/B6ENDa2.acm");
     assert_eq!(
-        got,
-        "cf4e1462588b9e99632994361f78c14eabff6075f90335a00e689f39f68862e5",
+        got, "cf4e1462588b9e99632994361f78c14eabff6075f90335a00e689f39f68862e5",
         "WAV hash mismatch for iwd2/B6ENDa2.acm",
     );
 }
@@ -427,8 +398,7 @@ fn test_iwd2_b6enda2() {
 fn test_iwd2_b1d8() {
     let got = decode_and_hash("iwd2/B1d8.acm");
     assert_eq!(
-        got,
-        "d8419d3a090754461f725a4ce0f16ae2147c78d4bc9cd7bc33113cb063c6d249",
+        got, "d8419d3a090754461f725a4ce0f16ae2147c78d4bc9cd7bc33113cb063c6d249",
         "WAV hash mismatch for iwd2/B1d8.acm",
     );
 }
@@ -438,8 +408,7 @@ fn test_iwd2_b1d8() {
 fn test_iwd2_b3c4() {
     let got = decode_and_hash("iwd2/B3c4.acm");
     assert_eq!(
-        got,
-        "81fa39b138a013cd1d2cd36e8128a7244d97e77080afc21b04c5ba793befad75",
+        got, "81fa39b138a013cd1d2cd36e8128a7244d97e77080afc21b04c5ba793befad75",
         "WAV hash mismatch for iwd2/B3c4.acm",
     );
 }
@@ -449,8 +418,7 @@ fn test_iwd2_b3c4() {
 fn test_iwd2_b1a7() {
     let got = decode_and_hash("iwd2/B1a7.acm");
     assert_eq!(
-        got,
-        "d2891da4b3abc8eda777b02328bb4712fa2213af62777684eb284a7c21d2b6e4",
+        got, "d2891da4b3abc8eda777b02328bb4712fa2213af62777684eb284a7c21d2b6e4",
         "WAV hash mismatch for iwd2/B1a7.acm",
     );
 }
@@ -460,8 +428,7 @@ fn test_iwd2_b1a7() {
 fn test_iwd_ee_b6f3() {
     let got = decode_and_hash("iwd_ee/b6f3.acm");
     assert_eq!(
-        got,
-        "fde55667e3a2ca696d65de22cdf9efa51b3db130cbcd6a06e98e86d53ce18dc4",
+        got, "fde55667e3a2ca696d65de22cdf9efa51b3db130cbcd6a06e98e86d53ce18dc4",
         "WAV hash mismatch for iwd_ee/b6f3.acm",
     );
 }
@@ -471,8 +438,7 @@ fn test_iwd_ee_b6f3() {
 fn test_iwd_ee_bjre1() {
     let got = decode_and_hash("iwd_ee/bjre1.acm");
     assert_eq!(
-        got,
-        "10405ec2d6bd8944f652a56bfb1906eba2406f8ceaa05668a0e135f8a9eb8f14",
+        got, "10405ec2d6bd8944f652a56bfb1906eba2406f8ceaa05668a0e135f8a9eb8f14",
         "WAV hash mismatch for iwd_ee/bjre1.acm",
     );
 }
@@ -482,8 +448,7 @@ fn test_iwd_ee_bjre1() {
 fn test_iwd_ee_b1c3() {
     let got = decode_and_hash("iwd_ee/b1c3.acm");
     assert_eq!(
-        got,
-        "02ae295058f9605609aa5a879dc003137e9a14515c01d2742c0cfaeb3b830176",
+        got, "02ae295058f9605609aa5a879dc003137e9a14515c01d2742c0cfaeb3b830176",
         "WAV hash mismatch for iwd_ee/b1c3.acm",
     );
 }
@@ -493,8 +458,7 @@ fn test_iwd_ee_b1c3() {
 fn test_iwd_ee_b5k2() {
     let got = decode_and_hash("iwd_ee/b5k2.acm");
     assert_eq!(
-        got,
-        "359f60da40040b635e70a5c4713a8ff4278e1963983e4a9d5319fe2d25ed25b3",
+        got, "359f60da40040b635e70a5c4713a8ff4278e1963983e4a9d5319fe2d25ed25b3",
         "WAV hash mismatch for iwd_ee/b5k2.acm",
     );
 }
@@ -504,8 +468,7 @@ fn test_iwd_ee_b5k2() {
 fn test_iwd_ee_b6e2() {
     let got = decode_and_hash("iwd_ee/b6e2.acm");
     assert_eq!(
-        got,
-        "eeb285f4ab29d7e522220666ca2c9df8160617c4d102899bbe514b4021a35a9b",
+        got, "eeb285f4ab29d7e522220666ca2c9df8160617c4d102899bbe514b4021a35a9b",
         "WAV hash mismatch for iwd_ee/b6e2.acm",
     );
 }
@@ -515,8 +478,7 @@ fn test_iwd_ee_b6e2() {
 fn test_iwd_ee_bm2zb() {
     let got = decode_and_hash("iwd_ee/bm2zb.acm");
     assert_eq!(
-        got,
-        "3b68ae2bf5d5203e91c5d94b155c3c230974098b4b97cd1a59d4bd3d78f179aa",
+        got, "3b68ae2bf5d5203e91c5d94b155c3c230974098b4b97cd1a59d4bd3d78f179aa",
         "WAV hash mismatch for iwd_ee/bm2zb.acm",
     );
 }
@@ -526,8 +488,7 @@ fn test_iwd_ee_bm2zb() {
 fn test_iwd_ee_b5k3zc() {
     let got = decode_and_hash("iwd_ee/b5k3zc.acm");
     assert_eq!(
-        got,
-        "bd259ef0dcc6f113f29b8f0625b5324d25d8a80e209d33e6dbae6e7fa8140cd0",
+        got, "bd259ef0dcc6f113f29b8f0625b5324d25d8a80e209d33e6dbae6e7fa8140cd0",
         "WAV hash mismatch for iwd_ee/b5k3zc.acm",
     );
 }
@@ -537,8 +498,7 @@ fn test_iwd_ee_b5k3zc() {
 fn test_iwd_ee_mx9103a() {
     let got = decode_and_hash("iwd_ee/mx9103a.acm");
     assert_eq!(
-        got,
-        "0d2b1fcc158bd069f5f73c8914394fce43d6d8870edb95aba6a806847ab12720",
+        got, "0d2b1fcc158bd069f5f73c8914394fce43d6d8870edb95aba6a806847ab12720",
         "WAV hash mismatch for iwd_ee/mx9103a.acm",
     );
 }
@@ -548,8 +508,7 @@ fn test_iwd_ee_mx9103a() {
 fn test_pst_bt5c3() {
     let got = decode_and_hash("pst/bt5c3.acm");
     assert_eq!(
-        got,
-        "363eb4a5a191f0981be1f8e18cb1f7c35f30682dc059a148cb35e737c0e1f975",
+        got, "363eb4a5a191f0981be1f8e18cb1f7c35f30682dc059a148cb35e737c0e1f975",
         "WAV hash mismatch for pst/bt5c3.acm",
     );
 }
@@ -559,8 +518,7 @@ fn test_pst_bt5c3() {
 fn test_pst_bt2zc1() {
     let got = decode_and_hash("pst/bt2zc1.acm");
     assert_eq!(
-        got,
-        "4ef8d7f11990a9392e163cb8b8ffb85c270b26c78881e6910a99a1431ce10056",
+        got, "4ef8d7f11990a9392e163cb8b8ffb85c270b26c78881e6910a99a1431ce10056",
         "WAV hash mismatch for pst/bt2zc1.acm",
     );
 }
@@ -570,8 +528,7 @@ fn test_pst_bt2zc1() {
 fn test_pst_bt2f1() {
     let got = decode_and_hash("pst/bt2f1.acm");
     assert_eq!(
-        got,
-        "8d2e264aa2bded37358a5d0fd8467a5f449de4d57217c72a60fb77cb33964856",
+        got, "8d2e264aa2bded37358a5d0fd8467a5f449de4d57217c72a60fb77cb33964856",
         "WAV hash mismatch for pst/bt2f1.acm",
     );
 }
@@ -581,8 +538,7 @@ fn test_pst_bt2f1() {
 fn test_pst_bt3b1() {
     let got = decode_and_hash("pst/bt3b1.acm");
     assert_eq!(
-        got,
-        "c1a932c5f35a56a3d6e285cbb95eaae23a05834bb0a634423be5a6afa89857ba",
+        got, "c1a932c5f35a56a3d6e285cbb95eaae23a05834bb0a634423be5a6afa89857ba",
         "WAV hash mismatch for pst/bt3b1.acm",
     );
 }
@@ -592,8 +548,7 @@ fn test_pst_bt3b1() {
 fn test_pst_bt4f2() {
     let got = decode_and_hash("pst/bt4f2.acm");
     assert_eq!(
-        got,
-        "60390e23e96a9bdbb1c150708020692f86edc74586c7c8b5c54642f4b93689ec",
+        got, "60390e23e96a9bdbb1c150708020692f86edc74586c7c8b5c54642f4b93689ec",
         "WAV hash mismatch for pst/bt4f2.acm",
     );
 }
@@ -603,8 +558,7 @@ fn test_pst_bt4f2() {
 fn test_pst_bt5g5() {
     let got = decode_and_hash("pst/bt5g5.acm");
     assert_eq!(
-        got,
-        "cb80788df2923808b9f7ec4b44ec9e09f000c0d02eb7e74018c0a09cdaec1b1a",
+        got, "cb80788df2923808b9f7ec4b44ec9e09f000c0d02eb7e74018c0a09cdaec1b1a",
         "WAV hash mismatch for pst/bt5g5.acm",
     );
 }
@@ -614,8 +568,7 @@ fn test_pst_bt5g5() {
 fn test_pst_bt1d3() {
     let got = decode_and_hash("pst/bt1d3.acm");
     assert_eq!(
-        got,
-        "87a94285f6c7fe06376b5fa6fc1db952e5a93e7c3bad276bf1c4fc6ac59cf57b",
+        got, "87a94285f6c7fe06376b5fa6fc1db952e5a93e7c3bad276bf1c4fc6ac59cf57b",
         "WAV hash mismatch for pst/bt1d3.acm",
     );
 }
@@ -625,8 +578,7 @@ fn test_pst_bt1d3() {
 fn test_pst_bt5f2() {
     let got = decode_and_hash("pst/bt5f2.acm");
     assert_eq!(
-        got,
-        "776cd37f4dee46fbe0c14e26d80de78f412278e20c27a771cc1f8b0315839eee",
+        got, "776cd37f4dee46fbe0c14e26d80de78f412278e20c27a771cc1f8b0315839eee",
         "WAV hash mismatch for pst/bt5f2.acm",
     );
 }
@@ -636,8 +588,7 @@ fn test_pst_bt5f2() {
 fn test_pst_char_03a() {
     let got = decode_and_hash("pst/char_03a.acm");
     assert_eq!(
-        got,
-        "e5216e3078b85e80e7fec3b0f4e13ae098ae1954f360c339ffe5b939fa6698c5",
+        got, "e5216e3078b85e80e7fec3b0f4e13ae098ae1954f360c339ffe5b939fa6698c5",
         "WAV hash mismatch for pst/char_03a.acm",
     );
 }
@@ -647,9 +598,7 @@ fn test_pst_char_03a() {
 fn test_pst_end_02a() {
     let got = decode_and_hash("pst/End_02A.acm");
     assert_eq!(
-        got,
-        "70a0629760b79fd6b6043310c338f6f8e001c86231db412350b0b64512cbcbfc",
+        got, "70a0629760b79fd6b6043310c338f6f8e001c86231db412350b0b64512cbcbfc",
         "WAV hash mismatch for pst/End_02A.acm",
     );
 }
-

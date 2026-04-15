@@ -42,7 +42,11 @@ impl std::fmt::Display for AcmError {
 
 impl std::error::Error for AcmError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if let AcmError::Io(e) = self { Some(e) } else { None }
+        if let AcmError::Io(e) = self {
+            Some(e)
+        } else {
+            None
+        }
     }
 }
 
@@ -421,10 +425,14 @@ impl AcmDecoder {
                     let n3 = (tmp / 3) as i32 - 1;
                     self.set_pos(i, col, n1);
                     i += 1;
-                    if i >= rows { break; }
+                    if i >= rows {
+                        break;
+                    }
                     self.set_pos(i, col, n2);
                     i += 1;
-                    if i >= rows { break; }
+                    if i >= rows {
+                        break;
+                    }
                     self.set_pos(i, col, n3);
                     i += 1;
                 }
@@ -483,10 +491,14 @@ impl AcmDecoder {
                     let n3 = (tmp / 5) as i32 - 2;
                     self.set_pos(i, col, n1);
                     i += 1;
-                    if i >= rows { break; }
+                    if i >= rows {
+                        break;
+                    }
                     self.set_pos(i, col, n2);
                     i += 1;
-                    if i >= rows { break; }
+                    if i >= rows {
+                        break;
+                    }
                     self.set_pos(i, col, n3);
                     i += 1;
                 }
@@ -591,7 +603,9 @@ impl AcmDecoder {
                     let n2 = (b / 11) as i32 - 5;
                     self.set_pos(i, col, n1);
                     i += 1;
-                    if i >= rows { break; }
+                    if i >= rows {
+                        break;
+                    }
                     self.set_pos(i, col, n2);
                     i += 1;
                 }
@@ -731,7 +745,14 @@ fn juggle_block(
         let mut wrap_offset = 0usize;
 
         // First juggle pass at the coarsest scale.
-        juggle(wrapbuf, block, wrap_offset, block_offset, sub_len, sub_count);
+        juggle(
+            wrapbuf,
+            block,
+            wrap_offset,
+            block_offset,
+            sub_len,
+            sub_count,
+        );
         wrap_offset += sub_len * 2;
 
         // Increment the first element of each row in this chunk.
@@ -744,7 +765,14 @@ fn juggle_block(
         while sub_len > 1 {
             sub_len /= 2;
             sub_count *= 2;
-            juggle(wrapbuf, block, wrap_offset, block_offset, sub_len, sub_count);
+            juggle(
+                wrapbuf,
+                block,
+                wrap_offset,
+                block_offset,
+                sub_len,
+                sub_count,
+            );
             wrap_offset += sub_len * 2;
         }
 
