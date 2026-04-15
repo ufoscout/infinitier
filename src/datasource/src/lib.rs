@@ -253,8 +253,8 @@ impl<T: Read> Reader<T> {
     }
 
     /// Read the first `n_bytes` bytes from a byte array and fill a buffer with them.
-    pub fn read_to_end(&mut self, buf: &mut Vec<u8>, bytes: u64) -> std::io::Result<usize> {
-        (&mut self.data).take(bytes).read_to_end(buf)
+    pub fn read_to_end(&mut self, buf: &mut Vec<u8>) -> std::io::Result<usize> {
+        (&mut self.data).read_to_end(buf)
     }
 
     /// Read the first `n_chars` characters from a byte array interpreted
@@ -426,6 +426,18 @@ mod tests {
         assert_eq!(reader.set_position(3).unwrap(), 3);
         assert_eq!(reader.position().unwrap(), 3);
         assert_eq!(reader.read_string(5).unwrap(), "orld!");
+    }
+
+    #[test]
+    fn test_read_to_end_should_respect_offset_and_limit() {
+        let reader =
+            DataSource::new_with_offset("Hello, world! Hello, world!".as_bytes(), 5, Some(7));
+        let mut reader = reader.reader().unwrap();
+
+        let mut buf = Vec::new();
+        reader.read_to_end(&mut buf).unwrap();
+
+        assert_eq!(String::from_utf8(buf).unwrap(), ", world".to_owned());
     }
 
     #[test]

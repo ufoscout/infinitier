@@ -59,7 +59,7 @@ impl PvrzImporter {
         reader.skip(52 + header.metadata_size as u64)?;
 
         let mut data = vec![];
-        reader.read_to_end(&mut data, u64::MAX)?;
+        reader.read_to_end(&mut data)?;
 
         let mut image = vec![0u32; header.width as usize * header.height as usize];
 

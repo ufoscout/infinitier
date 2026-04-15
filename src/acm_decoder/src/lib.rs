@@ -103,7 +103,7 @@ impl AcmDecoder {
     /// Open an ACM stream from any infinitier_datasource::Reader source.
     pub fn open<R: BufRead>(reader: &mut infinitier_datasource::Reader<R>, output_channels: OutputChannels) -> Result<Self> {
         let mut data = Vec::new();
-        reader.read_to_end(&mut data, u64::MAX)?;
+        reader.read_to_end(&mut data)?;
         // The C implementation appends one zero byte at EOF so that the bit
         // reader can complete any in-progress partial word without triggering a
         // false UnexpectedEof.  We add 4 bytes for the same reason.
