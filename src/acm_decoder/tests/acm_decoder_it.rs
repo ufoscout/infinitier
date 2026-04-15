@@ -7,6 +7,7 @@
 //! so it can be inspected after a test run.
 
 use infinitier_acm_decoder::{AcmDecoder, AcmInfo, OutputChannels};
+use infinitier_datasource::DataSource;
 use sha2::{Digest, Sha256};
 use std::{fs, path::PathBuf};
 
@@ -23,10 +24,10 @@ fn decode_and_hash(acm_rel: &str) -> (String, AcmInfo) {
         .join(&wav_rel);
     fs::create_dir_all(wav_path.parent().unwrap()).unwrap();
 
-    let file = fs::File::open(&acm_path)
-        .unwrap_or_else(|e| panic!("cannot open {}: {e}", acm_path.display()));
+    let data = DataSource::new(acm_path.clone());
+    let mut reader = data.reader().unwrap();
 
-    let mut dec = AcmDecoder::open(file, OutputChannels::Original)
+    let mut dec = AcmDecoder::open(&mut reader, OutputChannels::Original)
         .unwrap_or_else(|e| panic!("cannot decode {}: {e}", acm_path.display()));
 
     println!(

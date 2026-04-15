@@ -2,7 +2,7 @@
 //!
 //! Ported from the C implementation by Marko Kreen (libacm).
 
-use std::io::Read;
+use std::io::BufRead;
 use thiserror::Error as ThisError;
 
 use hound::WavWriter;
@@ -99,10 +99,11 @@ pub struct AcmDecoder {
 }
 
 impl AcmDecoder {
-    /// Open an ACM stream from any `Read` source.
-    pub fn open<R: Read>(mut reader: R, output_channels: OutputChannels) -> Result<Self> {
+
+    /// Open an ACM stream from any infinitier_datasource::Reader source.
+    pub fn open<R: BufRead>(reader: &mut infinitier_datasource::Reader<R>, output_channels: OutputChannels) -> Result<Self> {
         let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
+        reader.read_to_end(&mut data, u64::MAX)?;
         // The C implementation appends one zero byte at EOF so that the bit
         // reader can complete any in-progress partial word without triggering a
         // false UnexpectedEof.  We add 4 bytes for the same reason.

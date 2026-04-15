@@ -5,6 +5,7 @@ version.workspace = true
 
 [dependencies]
 hound = { workspace = true }
+infinitier_datasource = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
