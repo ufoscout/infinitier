@@ -38,7 +38,6 @@ pub enum AcmError {
     WavCodecError(#[from] hound::Error),
 }
 
-
 // ─── Public info struct ───────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -58,12 +57,11 @@ pub struct AcmInfo {
 }
 
 impl AcmInfo {
-    
     /// Returns the number of PCM samples in the stream.
     pub fn samples(&self) -> u32 {
         self.total_values / self.channels
     }
-}   
+}
 
 // ─── Decoder ─────────────────────────────────────────────────────────────────
 
@@ -681,7 +679,6 @@ impl AcmDecoder {
         writer.finalize()?;
         Ok(())
     }
-
 }
 
 // ─── Juggle (inverse lifting transform) ──────────────────────────────────────

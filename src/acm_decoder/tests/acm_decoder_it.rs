@@ -39,8 +39,7 @@ fn decode_and_hash(acm_rel: &str) -> (String, AcmInfo) {
 
     let info = dec.info.clone();
 
-    dec
-        .decode_to_file(&wav_path)
+    dec.decode_to_file(&wav_path)
         .unwrap_or_else(|e| panic!("decode error in {}: {e}", acm_path.display()));
 
     let wav_bytes = fs::read(&wav_path).unwrap();
