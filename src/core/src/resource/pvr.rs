@@ -13,7 +13,7 @@ impl Importer for PvrzImporter {
     /// For the PVR file format see: https://docs.imgtec.com/specifications/pvr-file-format-specification/html/topics/pvr-introduction.html
     /// PVR is essentially a texture container that contains a header and data is compressed by a DDS algorithm
     /// (see: https://crates.io/crates/dds).
-    /// The specific algorithm for the data is speficified in the PVR pixel_format header field. Games based on the Infinity engine
+    /// The specific algorithm for the data is specified in the PVR pixel_format header field. Games based on the Infinity engine
     /// only use pixel_format 7 (DXT1/BC1) and 11 (DXT5/BC3).
     fn import(source: &DataSource) -> std::io::Result<PvrzHeader> {
         let mut reader = source.reader()?;
