@@ -3,6 +3,9 @@
 //! Ported from the C implementation by Marko Kreen (libacm).
 
 use std::io::Read;
+use thiserror::Error as ThisError;
+
+use hound::WavWriter;
 
 const ACM_ID: u32 = 0x032897;
 const WAVC_ID: u32 = 0x564157; // 'WAV' little-endian
@@ -21,40 +24,20 @@ const MAP_3BIT: [i32; 8] = [-4, -3, -2, -1, 1, 2, 3, 4];
 
 pub type Result<T> = std::result::Result<T, AcmError>;
 
-#[derive(Debug)]
+#[derive(Debug, ThisError)]
 pub enum AcmError {
-    NotAcm,
-    Corrupt,
-    UnexpectedEof,
-    Io(std::io::Error),
+    #[error("NotAcmError")]
+    NotAcmError,
+    #[error("CorruptError")]
+    CorruptError,
+    #[error("UnexpectedEofError")]
+    UnexpectedEofError,
+    #[error("IoError: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("WavCodecError: {0}")]
+    WavCodecError(#[from] hound::Error),
 }
 
-impl std::fmt::Display for AcmError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AcmError::NotAcm => write!(f, "not an ACM file"),
-            AcmError::Corrupt => write!(f, "corrupt ACM data"),
-            AcmError::UnexpectedEof => write!(f, "unexpected end of file"),
-            AcmError::Io(e) => write!(f, "I/O error: {e}"),
-        }
-    }
-}
-
-impl std::error::Error for AcmError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        if let AcmError::Io(e) = self {
-            Some(e)
-        } else {
-            None
-        }
-    }
-}
-
-impl From<std::io::Error> for AcmError {
-    fn from(e: std::io::Error) -> Self {
-        AcmError::Io(e)
-    }
-}
 
 // ─── Public info struct ───────────────────────────────────────────────────────
 
@@ -70,14 +53,33 @@ pub struct AcmInfo {
     pub acm_level: u32,
     pub acm_cols: u32,
     pub acm_rows: u32,
+    /// Total number of PCM words (samples × channels) in the stream.
+    pub total_values: u32,
 }
+
+impl AcmInfo {
+    
+    /// Returns the number of PCM samples in the stream.
+    pub fn samples(&self) -> u32 {
+        self.total_values / self.channels
+    }
+}   
 
 // ─── Decoder ─────────────────────────────────────────────────────────────────
 
+/// Output channel mode
+#[derive(Debug, Copy, Clone)]
+pub enum OutputChannels {
+    /// Force mono output
+    Mono,
+    /// Force stereo output
+    Stereo,
+    /// Use the channel count from the original header
+    Original,
+}
+
 pub struct AcmDecoder {
     pub info: AcmInfo,
-    /// Total number of PCM words (samples × channels) in the stream.
-    pub total_values: u32,
 
     // ── bitstream state ──
     data: Vec<u8>,
@@ -100,12 +102,7 @@ pub struct AcmDecoder {
 
 impl AcmDecoder {
     /// Open an ACM stream from any `Read` source.
-    ///
-    /// `force_chans`:
-    /// - `> 0` — force that many channels regardless of header
-    /// - `0`   — trust the header channel count
-    /// - `-1`  — quirk mode: force stereo for plain ACM, trust header for WAVC
-    pub fn open<R: Read>(mut reader: R, force_chans: i32) -> Result<Self> {
+    pub fn open<R: Read>(mut reader: R, output_channels: OutputChannels) -> Result<Self> {
         let mut data = Vec::new();
         reader.read_to_end(&mut data)?;
         // The C implementation appends one zero byte at EOF so that the bit
@@ -123,8 +120,8 @@ impl AcmDecoder {
                 acm_level: 0,
                 acm_cols: 0,
                 acm_rows: 0,
+                total_values: 0,
             },
-            total_values: 0,
             data,
             data_pos: 0,
             bit_data: 0,
@@ -141,11 +138,10 @@ impl AcmDecoder {
 
         dec.read_header()?;
 
-        // Apply channel override.
-        if force_chans > 0 {
-            dec.info.channels = force_chans as u32;
-        } else if force_chans == -1 && !dec.wavc_file && dec.info.channels < 2 {
-            dec.info.channels = 2;
+        match output_channels {
+            OutputChannels::Mono => dec.info.channels = 1,
+            OutputChannels::Stereo => dec.info.channels = 2,
+            OutputChannels::Original => (),
         }
 
         // Compute derived dimensions.
@@ -195,7 +191,7 @@ impl AcmDecoder {
         let (b_data, b_avail) = self.load_next_word();
 
         if b_avail < remaining {
-            return Err(AcmError::UnexpectedEof);
+            return Err(AcmError::UnexpectedEofError);
         }
 
         let mask = (1u32 << remaining) - 1;
@@ -215,11 +211,11 @@ impl AcmDecoder {
         }
         // First four bytes must be 'V1.0'  (0x3156, 0x302E)
         if buf[0] != 0x3156 || buf[1] != 0x302E {
-            return Err(AcmError::NotAcm);
+            return Err(AcmError::NotAcmError);
         }
         // buf[6] must be 28 (header length magic)
         if buf[6] != 28 {
-            return Err(AcmError::NotAcm);
+            return Err(AcmError::NotAcmError);
         }
         self.wavc_file = true;
         Ok(())
@@ -231,45 +227,45 @@ impl AcmDecoder {
         if tmp == WAVC_ID {
             // WAVC variant: 'WAVC' = 0x43564157
             if self.get_bits(8)? != b'C' as u32 {
-                return Err(AcmError::NotAcm);
+                return Err(AcmError::NotAcmError);
             }
             self.read_wavc_header()?;
             tmp = self.get_bits(24)?;
         }
 
         if tmp != ACM_ID {
-            return Err(AcmError::NotAcm);
+            return Err(AcmError::NotAcmError);
         }
         self.info.acm_id = tmp;
 
         self.info.acm_version = self.get_bits(8)?;
         if self.info.acm_version != 1 {
-            return Err(AcmError::NotAcm);
+            return Err(AcmError::NotAcmError);
         }
 
         // total_values stored as two 16-bit halves (lo, hi)
         let lo = self.get_bits(16)?;
         let hi = self.get_bits(16)?;
-        self.total_values = lo | (hi << 16);
-        if self.total_values == 0 {
-            return Err(AcmError::NotAcm);
+        self.info.total_values = lo | (hi << 16);
+        if self.info.total_values == 0 {
+            return Err(AcmError::NotAcmError);
         }
 
         self.info.channels = self.get_bits(16)?;
         if !(1..=2).contains(&self.info.channels) {
-            return Err(AcmError::NotAcm);
+            return Err(AcmError::NotAcmError);
         }
         self.info.acm_channels = self.info.channels;
 
         self.info.rate = self.get_bits(16)?;
         if self.info.rate < 4096 {
-            return Err(AcmError::NotAcm);
+            return Err(AcmError::NotAcmError);
         }
 
         self.info.acm_level = self.get_bits(4)?;
         self.info.acm_rows = self.get_bits(12)?;
         if self.info.acm_rows == 0 {
-            return Err(AcmError::NotAcm);
+            return Err(AcmError::NotAcmError);
         }
 
         Ok(())
@@ -295,12 +291,12 @@ impl AcmDecoder {
         // Read block header — a natural EOF here is normal.
         let pwr = match self.get_bits(4) {
             Ok(v) => v,
-            Err(AcmError::UnexpectedEof) => return Ok(false),
+            Err(AcmError::UnexpectedEofError) => return Ok(false),
             Err(e) => return Err(e),
         };
         let val = match self.get_bits(16) {
             Ok(v) => v as i32,
-            Err(AcmError::UnexpectedEof) => return Ok(false),
+            Err(AcmError::UnexpectedEofError) => return Ok(false),
             Err(e) => return Err(e),
         };
 
@@ -322,7 +318,7 @@ impl AcmDecoder {
         // Decode columns.
         match self.fill_block() {
             Ok(()) => {}
-            Err(AcmError::UnexpectedEof) => return Ok(false),
+            Err(AcmError::UnexpectedEofError) => return Ok(false),
             Err(e) => return Err(e),
         }
 
@@ -361,7 +357,7 @@ impl AcmDecoder {
             }
 
             // ── f_bad ───────────────────────────────────────────────────────
-            1 | 2 | 25 | 28 | 30 | 31 => return Err(AcmError::Corrupt),
+            1 | 2 | 25 | 28 | 30 | 31 => return Err(AcmError::CorruptError),
 
             // ── f_linear (ind = 3..=16) ─────────────────────────────────────
             3..=16 => {
@@ -417,7 +413,7 @@ impl AcmDecoder {
                 while i < rows {
                     let b = self.get_bits(5)?;
                     if b >= 27 {
-                        return Err(AcmError::Corrupt);
+                        return Err(AcmError::CorruptError);
                     }
                     let n1 = (b % 3) as i32 - 1;
                     let tmp = b / 3;
@@ -483,7 +479,7 @@ impl AcmDecoder {
                 while i < rows {
                     let b = self.get_bits(7)?;
                     if b >= 125 {
-                        return Err(AcmError::Corrupt);
+                        return Err(AcmError::CorruptError);
                     }
                     let n1 = (b % 5) as i32 - 2;
                     let tmp = b / 5;
@@ -597,7 +593,7 @@ impl AcmDecoder {
                 while i < rows {
                     let b = self.get_bits(7)?;
                     if b >= 121 {
-                        return Err(AcmError::Corrupt);
+                        return Err(AcmError::CorruptError);
                     }
                     let n1 = (b % 11) as i32 - 5;
                     let n2 = (b / 11) as i32 - 5;
@@ -611,7 +607,7 @@ impl AcmDecoder {
                 }
             }
 
-            _ => return Err(AcmError::Corrupt),
+            _ => return Err(AcmError::CorruptError),
         }
 
         Ok(())
@@ -622,17 +618,17 @@ impl AcmDecoder {
     /// Decode the entire ACM stream and return all PCM samples as signed 16-bit
     /// values in interleaved channel order (same as s16le WAV data).
     pub fn decode_all(&mut self) -> Result<Vec<i16>> {
-        let mut samples: Vec<i16> = Vec::with_capacity(self.total_values as usize);
+        let mut samples: Vec<i16> = Vec::with_capacity(self.info.total_values as usize);
         let shift = self.info.acm_level;
         let channels = self.info.channels as usize;
 
-        while self.stream_pos < self.total_values {
+        while self.stream_pos < self.info.total_values {
             if !self.block_ready && !self.decode_block()? {
                 break; // natural EOF
             }
 
             let avail = self.block_len - self.block_pos;
-            let remaining = (self.total_values - self.stream_pos) as usize;
+            let remaining = (self.info.total_values - self.stream_pos) as usize;
             let mut n = avail.min(remaining);
 
             // Keep stereo pairs aligned.
@@ -661,10 +657,31 @@ impl AcmDecoder {
         // Pad with zeros to reach the declared total_values count, mirroring
         // the C tool's behaviour (it writes the expected byte count in the WAV
         // header and zero-fills any gap at the end).
-        samples.resize(self.total_values as usize, 0i16);
+        samples.resize(self.info.total_values as usize, 0i16);
 
         Ok(samples)
     }
+
+    /// Decode the entire ACM stream into a WAV file with the decoded PCM samples as signed 16-bit
+    /// values in interleaved channel order (same as s16le WAV data).
+    pub fn decode_to_file<P: AsRef<std::path::Path>>(&mut self, filename: P) -> Result<()> {
+        let samples = self.decode_all()?;
+
+        let spec = hound::WavSpec {
+            channels: self.info.channels as u16,
+            sample_rate: self.info.rate,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+
+        let mut writer = WavWriter::create(filename, spec)?;
+        for &s in &samples {
+            writer.write_sample(s)?;
+        }
+        writer.finalize()?;
+        Ok(())
+    }
+
 }
 
 // ─── Juggle (inverse lifting transform) ──────────────────────────────────────

@@ -22,6 +22,7 @@ itertools = "0.14"
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.11"
+thiserror = "2"
 
 # This is used to decode DDS image content into the PVR files.
 # We can switch to image-extras when this PR is merged: https://github.com/image-rs/image-extras/pull/16
