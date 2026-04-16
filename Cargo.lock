@@ -1826,6 +1826,7 @@ dependencies = [
 name = "infinitier_mve_decoder"
 version = "0.1.0"
 dependencies = [
+ "hound",
  "infinitier_datasource",
  "thiserror 2.0.18",
 ]

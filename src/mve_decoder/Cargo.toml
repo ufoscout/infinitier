@@ -3,6 +3,15 @@ name = "infinitier_mve_decoder"
 edition.workspace = true
 version.workspace = true
 
+[[bin]]
+name = "mve_dump_audio"
+path = "src/bin/dump_audio.rs"
+
+[[bin]]
+name = "mve_analyze"
+path = "src/bin/analyze_mve.rs"
+
 [dependencies]
 infinitier_datasource = { workspace = true }
 thiserror = { workspace = true }
+hound = { workspace = true }
