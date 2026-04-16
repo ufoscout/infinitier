@@ -98,8 +98,7 @@ impl MvePlayer {
         // Unbounded audio channel so the decoder never blocks on audio.
         let (audio_tx, audio_rx) = mpsc::channel::<Vec<i16>>();
 
-        let (_stream, stream_handle) =
-            OutputStream::try_default().expect("no audio output device");
+        let (_stream, stream_handle) = OutputStream::try_default().expect("no audio output device");
 
         // The streaming source is created here; its sample format is
         // discovered from the first audio chunk.  We use a placeholder
@@ -244,8 +243,8 @@ impl eframe::App for MvePlayer {
             match self.receiver.try_recv() {
                 Ok(PlayerMsg::Frame(video)) => {
                     self.frame_count += 1;
-                    self.current_duration =
-                        Duration::from_micros(video.duration_us as u64).max(Duration::from_millis(1));
+                    self.current_duration = Duration::from_micros(video.duration_us as u64)
+                        .max(Duration::from_millis(1));
                     self.next_frame_at = now + self.current_duration;
 
                     // Upload video texture
@@ -253,11 +252,8 @@ impl eframe::App for MvePlayer {
                         [video.width as usize, video.height as usize],
                         &video.pixels,
                     );
-                    self.current_texture = Some(ctx.load_texture(
-                        "mve_frame",
-                        image,
-                        egui::TextureOptions::NEAREST,
-                    ));
+                    self.current_texture =
+                        Some(ctx.load_texture("mve_frame", image, egui::TextureOptions::NEAREST));
                 }
                 Ok(PlayerMsg::Done) => {
                     self.finished = true;

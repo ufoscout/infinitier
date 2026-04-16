@@ -5,10 +5,10 @@ use std::{
 };
 
 use crate::{
+    AudioChunk, MveFrame, VideoFormat, VideoFrame,
     audio::decompress_audio,
     error::Error,
-    video::{decode_frame16, decode_frame8},
-    AudioChunk, MveFrame, VideoFormat, VideoFrame,
+    video::{decode_frame8, decode_frame16},
 };
 
 // ---------------------------------------------------------------------------
@@ -130,10 +130,18 @@ impl<R: Read + Seek> MveDecoder<R> {
     // Public API
     // ------------------------------------------------------------------
 
-    pub fn width(&self) -> u16 { self.width }
-    pub fn height(&self) -> u16 { self.height }
-    pub fn format(&self) -> VideoFormat { self.format }
-    pub fn frame_duration_us(&self) -> u32 { self.frame_duration_us }
+    pub fn width(&self) -> u16 {
+        self.width
+    }
+    pub fn height(&self) -> u16 {
+        self.height
+    }
+    pub fn format(&self) -> VideoFormat {
+        self.format
+    }
+    pub fn frame_duration_us(&self) -> u32 {
+        self.frame_duration_us
+    }
 
     /// Decode all audio from the stream and write it to a WAV file at `dest`.
     ///
@@ -246,7 +254,12 @@ impl<R: Read + Seek> MveDecoder<R> {
         Ok(last)
     }
 
-    fn process_segment(&mut self, size: u16, seg_type: u8, version: u8) -> Result<StepResult, Error> {
+    fn process_segment(
+        &mut self,
+        size: u16,
+        seg_type: u8,
+        version: u8,
+    ) -> Result<StepResult, Error> {
         match seg_type {
             OC_CREATE_TIMER => self.read_timer(),
             OC_AUDIO_BUFFERS => self.read_audio_buffers(version),
@@ -265,10 +278,7 @@ impl<R: Read + Seek> MveDecoder<R> {
                 self.skip(size as u64)?;
                 return Ok(StepResult::EndOfFrame);
             }
-            OC_END_OF_CHUNK
-            | OC_PLAY_AUDIO
-            | OC_PALETTE_COMPRESSED
-            | 0x13 | 0x14 | 0x15 => {
+            OC_END_OF_CHUNK | OC_PLAY_AUDIO | OC_PALETTE_COMPRESSED | 0x13 | 0x14 | 0x15 => {
                 self.skip(size as u64)?;
                 return Ok(StepResult::Ok);
             }
@@ -304,17 +314,25 @@ impl<R: Read + Seek> MveDecoder<R> {
 
     fn read_video_buffers(&mut self, version: u8) -> Result<(), Error> {
         // Always 8 bytes: [w_blocks u16][h_blocks u16][buf_count u16][format u16]
-        let w_blocks = self.read_u16()?;   // bytes 0-1
-        let h_blocks = self.read_u16()?;   // bytes 2-3
+        let w_blocks = self.read_u16()?; // bytes 0-1
+        let h_blocks = self.read_u16()?; // bytes 2-3
         let _buf_count = self.read_u16()?; // bytes 4-5  (number of back buffers, unused)
         let format_flag = self.read_u16()?; // bytes 6-7 (format: 0=8bpp, non-zero=16bpp)
 
         self.width = w_blocks << 3;
         self.height = h_blocks << 3;
         // format_flag is only valid when version > 1
-        self.format = if version > 1 && format_flag > 0 { VideoFormat::Rgb555 } else { VideoFormat::Palette8 };
+        self.format = if version > 1 && format_flag > 0 {
+            VideoFormat::Rgb555
+        } else {
+            VideoFormat::Palette8
+        };
 
-        let bpp: usize = if self.format == VideoFormat::Rgb555 { 2 } else { 1 };
+        let bpp: usize = if self.format == VideoFormat::Rgb555 {
+            2
+        } else {
+            1
+        };
         let frame_bytes = self.width as usize * self.height as usize * bpp;
         self.buf1 = vec![0u8; frame_bytes];
         self.buf2 = vec![0u8; frame_bytes];
@@ -401,9 +419,23 @@ impl<R: Read + Seek> MveDecoder<R> {
         let raw = self.read_exact_vec(data_size)?;
 
         if self.format == VideoFormat::Rgb555 {
-            decode_frame16(&mut self.buf1, &mut self.buf2, &self.code_map, &raw, self.width, self.height)?;
+            decode_frame16(
+                &mut self.buf1,
+                &mut self.buf2,
+                &self.code_map,
+                &raw,
+                self.width,
+                self.height,
+            )?;
         } else {
-            decode_frame8(&mut self.buf1, &mut self.buf2, &self.code_map, &raw, self.width, self.height)?;
+            decode_frame8(
+                &mut self.buf1,
+                &mut self.buf2,
+                &self.code_map,
+                &raw,
+                self.width,
+                self.height,
+            )?;
         }
         Ok(())
     }

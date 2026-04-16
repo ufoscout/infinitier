@@ -3,8 +3,7 @@ use sha2::Digest as _;
 use std::path::PathBuf;
 
 fn iplogo_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/resources/IPLOGO.MVE")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/resources/IPLOGO.MVE")
 }
 
 // ---------------------------------------------------------------------------
@@ -56,7 +55,10 @@ fn video_format_is_detected() {
 #[test]
 fn decodes_at_least_one_frame() {
     let mut dec = MveDecoder::open(iplogo_path()).unwrap();
-    let frame = dec.next_frame().expect("decode error").expect("no frames in file");
+    let frame = dec
+        .next_frame()
+        .expect("decode error")
+        .expect("no frames in file");
     assert_eq!(frame.video.width, dec.width());
     assert_eq!(frame.video.height, dec.height());
 }
@@ -166,8 +168,7 @@ fn decoding_is_deterministic() {
     let frame2 = dec2.next_frame().unwrap().unwrap();
 
     assert_eq!(
-        frame1.video.pixels,
-        frame2.video.pixels,
+        frame1.video.pixels, frame2.video.pixels,
         "same file decoded twice should produce identical first frames"
     );
 }
@@ -217,8 +218,7 @@ fn audio_wav_matches_ffmpeg_hash() {
         .expect("extract_audio_to_wav failed");
 
     // ---- read the WAV back and collect PCM samples ----
-    let mut reader =
-        hound::WavReader::open(&wav_path).expect("failed to open written WAV");
+    let mut reader = hound::WavReader::open(&wav_path).expect("failed to open written WAV");
     let all_samples: Vec<i16> = reader
         .samples::<i16>()
         .collect::<Result<_, _>>()
@@ -243,7 +243,8 @@ fn audio_wav_matches_ffmpeg_hash() {
     let hex: String = hash_bytes.iter().map(|b| format!("{b:02x}")).collect();
 
     assert_eq!(
-        hex, EXPECTED_SHA256,
+        hex,
+        EXPECTED_SHA256,
         "PCM hash mismatch.\n  \
          WAV written to: {}\n  \
          Expected (ffmpeg): {EXPECTED_SHA256}\n  \
