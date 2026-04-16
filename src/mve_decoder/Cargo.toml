@@ -1,0 +1,8 @@
+[package]
+name = "mve_decoder"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+infinitier_datasource = { workspace = true }
+thiserror = { workspace = true }
