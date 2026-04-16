@@ -1,5 +1,5 @@
 use eframe::egui;
-use mve_decoder::{AudioChunk, MveDecoder, VideoFrame};
+use infinitier_mve_decoder::{AudioChunk, MveDecoder, VideoFrame};
 use rodio::{OutputStream, Sink, Source};
 use std::{
     path::PathBuf,

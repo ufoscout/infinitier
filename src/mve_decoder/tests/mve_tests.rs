@@ -1,4 +1,4 @@
-use mve_decoder::{MveDecoder, VideoFormat};
+use infinitier_mve_decoder::{MveDecoder, VideoFormat};
 use std::path::PathBuf;
 
 fn iplogo_path() -> PathBuf {

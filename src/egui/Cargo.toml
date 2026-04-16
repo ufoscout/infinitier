@@ -9,5 +9,5 @@ path = "src/main.rs"
 
 [dependencies]
 eframe = "0.33"
-mve_decoder = { path = "../mve_decoder" }
+infinitier_mve_decoder = { workspace = true }
 rodio = { version = "0.20", default-features = false, features = ["symphonia-mp3"] }

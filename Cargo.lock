@@ -1823,6 +1823,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_mve_decoder"
+version = "0.1.0"
+dependencies = [
+ "infinitier_datasource",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "insta"
 version = "1.47.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2144,19 +2152,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "mve_decoder"
-version = "0.1.0"
-dependencies = [
- "infinitier_datasource",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "mve_player"
 version = "0.1.0"
 dependencies = [
  "eframe",
- "mve_decoder",
+ "infinitier_mve_decoder",
  "rodio",
 ]
 
