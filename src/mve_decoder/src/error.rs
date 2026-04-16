@@ -4,6 +4,8 @@ use thiserror::Error;
 pub enum Error {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("WAV error: {0}")]
+    Wav(#[from] hound::Error),
     #[error("Invalid MVE signature")]
     InvalidSignature,
     #[error("Video decode error: {0}")]

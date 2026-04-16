@@ -135,6 +135,44 @@ impl<R: Read + Seek> MveDecoder<R> {
     pub fn format(&self) -> VideoFormat { self.format }
     pub fn frame_duration_us(&self) -> u32 { self.frame_duration_us }
 
+    /// Decode all audio from the stream and write it to a WAV file at `dest`.
+    ///
+    /// The file is created (or truncated) at `dest`.  The method consumes the
+    /// decoder; if you need to continue decoding video afterwards open a fresh
+    /// `MveDecoder`.
+    pub fn extract_audio_to_wav(mut self, dest: impl AsRef<Path>) -> Result<(), Error> {
+        let mut channels: Option<u16> = None;
+        let mut sample_rate: Option<u32> = None;
+        let mut all_samples: Vec<i16> = Vec::new();
+
+        while let Some(frame) = self.next_frame()? {
+            for chunk in frame.audio {
+                if channels.is_none() {
+                    channels = Some(chunk.channels as u16);
+                    sample_rate = Some(chunk.sample_rate);
+                }
+                all_samples.extend_from_slice(&chunk.samples);
+            }
+        }
+
+        let channels = channels.unwrap_or(2);
+        let sample_rate = sample_rate.unwrap_or(22050);
+
+        let spec = hound::WavSpec {
+            channels,
+            sample_rate,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(dest, spec)?;
+        for s in all_samples {
+            writer.write_sample(s)?;
+        }
+        writer.finalize()?;
+
+        Ok(())
+    }
+
     /// Decode and return the next complete video frame together with any
     /// audio chunks accumulated since the previous frame.
     /// Returns `None` when the stream ends.

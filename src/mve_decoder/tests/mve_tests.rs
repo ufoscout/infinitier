@@ -1,4 +1,5 @@
 use infinitier_mve_decoder::{MveDecoder, VideoFormat};
+use sha2::Digest as _;
 use std::path::PathBuf;
 
 fn iplogo_path() -> PathBuf {
@@ -168,5 +169,85 @@ fn decoding_is_deterministic() {
         frame1.video.pixels,
         frame2.video.pixels,
         "same file decoded twice should produce identical first frames"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Audio WAV output matches ffmpeg reference
+// ---------------------------------------------------------------------------
+
+/// Extracts audio from IPLOGO.MVE to `<workspace>/target/mve_audio_iplogo.wav`
+/// via `MveDecoder::extract_audio_to_wav`, then verifies that the SHA-256 of
+/// the raw PCM bytes matches the hash produced by:
+///
+///   ffmpeg -i IPLOGO.MVE /tmp/iplogo_ffmpeg.wav
+///   python3 -c "
+///       import struct, hashlib, pathlib
+///       data = pathlib.Path('/tmp/iplogo_ffmpeg.wav').read_bytes()
+///       i = 12
+///       while data[i:i+4] != b'data': i += 8 + struct.unpack_from('<I', data, i+4)[0]
+///       pcm = data[i+8 : i+8 + struct.unpack_from('<I', data, i+4)[0]]
+///       print(hashlib.sha256(pcm).hexdigest())
+///   "
+///
+/// ffmpeg stops before the trailing post-video AUDIO_SILENCE chunks present
+/// in the MVE file (mask = 0xffff, all-zero samples).  The test therefore
+/// compares only the first FFMPEG_SAMPLE_COUNT samples, which are
+/// byte-for-byte identical to ffmpeg's output.
+#[test]
+fn audio_wav_matches_ffmpeg_hash() {
+    // Number of interleaved i16 samples in ffmpeg's reference output.
+    // Verified with: ffprobe -show_streams /tmp/iplogo_ffmpeg.wav
+    //   => 22050 Hz, stereo, 15.33 s  →  676800 samples
+    const FFMPEG_SAMPLE_COUNT: usize = 676800;
+
+    // SHA-256 of the raw PCM bytes (little-endian i16, no WAV header) from
+    // `ffmpeg -i IPLOGO.MVE /tmp/iplogo_ffmpeg.wav`.
+    const EXPECTED_SHA256: &str =
+        "173bef927c8e63652282e4f8ebefdadd67fc66df2bf748390cb8a6add9f305e1";
+
+    // ---- write WAV via MveDecoder::extract_audio_to_wav ----
+    let wav_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target");
+    std::fs::create_dir_all(&wav_dir).expect("could not create target dir");
+    let wav_path = wav_dir.join("mve_audio_iplogo.wav");
+
+    MveDecoder::open(iplogo_path())
+        .expect("failed to open IPLOGO.MVE")
+        .extract_audio_to_wav(&wav_path)
+        .expect("extract_audio_to_wav failed");
+
+    // ---- read the WAV back and collect PCM samples ----
+    let mut reader =
+        hound::WavReader::open(&wav_path).expect("failed to open written WAV");
+    let all_samples: Vec<i16> = reader
+        .samples::<i16>()
+        .collect::<Result<_, _>>()
+        .expect("failed to read WAV samples");
+
+    assert!(
+        all_samples.len() >= FFMPEG_SAMPLE_COUNT,
+        "expected at least {FFMPEG_SAMPLE_COUNT} samples, got {}",
+        all_samples.len()
+    );
+
+    // ---- hash the first FFMPEG_SAMPLE_COUNT samples and compare ----
+    // We hash only the portion that ffmpeg outputs (trailing post-video
+    // silence is excluded).  The hash covers the raw little-endian i16 bytes,
+    // identical to the bytes in the WAV data chunk, so it is independent of
+    // the WAV header written by hound.
+    let mut hasher = sha2::Sha256::new();
+    for &s in &all_samples[..FFMPEG_SAMPLE_COUNT] {
+        hasher.update(s.to_le_bytes());
+    }
+    let hash_bytes = hasher.finalize();
+    let hex: String = hash_bytes.iter().map(|b| format!("{b:02x}")).collect();
+
+    assert_eq!(
+        hex, EXPECTED_SHA256,
+        "PCM hash mismatch.\n  \
+         WAV written to: {}\n  \
+         Expected (ffmpeg): {EXPECTED_SHA256}\n  \
+         Got:               {hex}",
+        wav_path.display()
     );
 }
