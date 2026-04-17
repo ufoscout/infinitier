@@ -1742,6 +1742,7 @@ dependencies = [
  "image",
  "infinitier_acm_decoder",
  "infinitier_datasource",
+ "infinitier_fs",
  "infinitier_test_utils",
  "itertools 0.14.0",
  "log",
@@ -1755,6 +1756,13 @@ version = "0.1.0"
 dependencies = [
  "encoding_rs",
  "flate2",
+]
+
+[[package]]
+name = "infinitier_fs"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

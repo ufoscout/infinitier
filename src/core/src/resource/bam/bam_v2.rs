@@ -3,10 +3,9 @@ use std::io::{BufRead, Seek};
 use image::{ImageBuffer, Rgba};
 use infinitier_datasource::{DataSource, Importer, Reader};
 
-use crate::{
-    fs::{CaseInsensitiveFS, CaseInsensitivePath},
-    resource::{bam::Type, pvr::PvrzImporter},
-};
+use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+
+use crate::resource::{bam::Type, pvr::PvrzImporter};
 
 /// A BAM V2 file importer
 pub struct BamV2Parser;
@@ -225,6 +224,7 @@ impl BamV2 {
 #[cfg(test)]
 mod tests {
     use crate::test_utils::RESOURCES_DIR;
+    use infinitier_fs::CaseInsensitiveFS;
     use infinitier_test_utils::assert_images_are_equal;
     use std::path::Path;
 

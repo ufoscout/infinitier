@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use infinitier_datasource::{DataSource, Importer, Reader};
 
-use crate::fs::CaseInsensitivePath;
+use infinitier_fs::CaseInsensitivePath;
 
 /// A KEY file importer
 pub struct KeyImporter {}
@@ -426,7 +426,8 @@ impl ResourceType {
 
 #[cfg(test)]
 mod tests {
-    use crate::{fs::CaseInsensitiveFS, test_utils::ALL_RESOURCES_DIRS};
+    use crate::test_utils::ALL_RESOURCES_DIRS;
+    use infinitier_fs::CaseInsensitiveFS;
     use infinitier_test_utils::parse_json_file;
 
     use super::*;

@@ -111,10 +111,8 @@ fn parse_data_row(line: &str, columns: &[usize], default: &str) -> (String, Vec<
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{
-        fs::{CaseInsensitiveFS, CaseInsensitivePath},
-        test_utils::BG2_RESOURCES_DIR,
-    };
+    use crate::test_utils::BG2_RESOURCES_DIR;
+    use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 
     use super::*;
 

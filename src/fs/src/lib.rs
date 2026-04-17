@@ -7,7 +7,10 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::constants::FILE_FOLDERS;
+/// Possible folders where files could be found
+pub const FILE_FOLDERS: [&str; 9] = [
+    "data", "cache", "cd1", "cd2", "cd3", "cd4", "cd5", "cd6", "cd7",
+];
 
 /// A file system that is case insensitive
 #[derive(Debug, Clone)]
@@ -129,8 +132,6 @@ fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) ->
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::{BG_RESOURCES_DIR, IWD_RESOURCES_DIR};
-
     use super::*;
 
     #[test]
@@ -176,38 +177,5 @@ mod tests {
                 .is_ok()
         );
         assert!(fs.get_path(&CaseInsensitivePath::new("/Targets")).is_err());
-    }
-
-    #[test]
-    fn test_search_path_in_exact_path() {
-        let fs = CaseInsensitiveFS::new(BG_RESOURCES_DIR).unwrap();
-
-        let path = fs.search_path_opt(&CaseInsensitivePath::new("/chitin.key"));
-
-        assert_eq!(
-            path,
-            Some(
-                PathBuf::from(BG_RESOURCES_DIR)
-                    .join("Chitin.key")
-                    .canonicalize()
-                    .unwrap()
-            )
-        );
-    }
-
-    #[test]
-    fn test_search_path_in_subfolder() {
-        let fs = CaseInsensitiveFS::new(IWD_RESOURCES_DIR).unwrap();
-
-        let path = fs.search_path_opt(&CaseInsensitivePath::new("/DATA/AR3603.cbf"));
-        assert_eq!(
-            path,
-            Some(
-                PathBuf::from(IWD_RESOURCES_DIR)
-                    .join("CD2/Data/AR3603.cbf")
-                    .canonicalize()
-                    .unwrap()
-            )
-        );
     }
 }

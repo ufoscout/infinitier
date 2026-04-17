@@ -8,6 +8,7 @@ bitflags = { workspace = true }
 image = { workspace = true }
 infinitier_acm_decoder = { workspace = true }
 infinitier_datasource = { workspace = true }
+infinitier_fs = { workspace = true }
 itertools = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
