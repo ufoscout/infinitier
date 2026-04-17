@@ -1,9 +1,27 @@
 use infinitier_mve_decoder::{MveDecoder, VideoFormat};
 use sha2::Digest as _;
+use std::io::Write as _;
 use std::path::PathBuf;
 
 fn iplogo_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/resources/IPLOGO.MVE")
+}
+
+/// Write all decoded frames as raw binary to `dest`.
+/// Format per frame: u32-LE frame_idx, u16-LE width, u16-LE height, then width*height*4 RGBA bytes.
+fn dump_frames(mve_path: impl AsRef<std::path::Path>, dest: impl AsRef<std::path::Path>) {
+    let mut dec = MveDecoder::open(mve_path).expect("open failed");
+    let mut f = std::io::BufWriter::new(
+        std::fs::File::create(dest).expect("create dest failed"),
+    );
+    let mut idx: u32 = 0;
+    while let Some(frame) = dec.next_frame().expect("decode error") {
+        f.write_all(&idx.to_le_bytes()).unwrap();
+        f.write_all(&frame.video.width.to_le_bytes()).unwrap();
+        f.write_all(&frame.video.height.to_le_bytes()).unwrap();
+        f.write_all(&frame.video.pixels).unwrap();
+        idx += 1;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -251,4 +269,93 @@ fn audio_wav_matches_ffmpeg_hash() {
          Got:               {hex}",
         wav_path.display()
     );
+}
+
+// ---------------------------------------------------------------------------
+// Frame-by-frame comparison against the C reference decoder (GemRB)
+// ---------------------------------------------------------------------------
+
+/// Dumps all Rust-decoded frames to /tmp/rust_frames.bin in the same binary
+/// format as the C `mve_dump` tool, so they can be compared byte-for-byte.
+#[test]
+fn dump_frames_for_c_comparison() {
+    dump_frames(iplogo_path(), "/tmp/rust_frames.bin");
+    // If the file was written without panicking, the basic decode succeeded.
+    let meta = std::fs::metadata("/tmp/rust_frames.bin").expect("output file missing");
+    assert!(meta.len() > 0, "output file is empty");
+}
+
+/// Compares the Rust-decoded frames byte-for-byte with the C-decoded frames.
+///
+/// Pre-condition: /tmp/c_frames.bin must exist (produced by the `mve_dump` C
+/// tool built in `tools/mve_dump.cpp`).  The test is skipped with a clear
+/// message if that file is absent.
+#[test]
+fn frames_match_c_reference() {
+    let c_path = std::path::Path::new("/tmp/c_frames.bin");
+    if !c_path.exists() {
+        eprintln!("SKIP: /tmp/c_frames.bin not found — build tools/mve_dump.cpp and run:\n  \
+                   tools/mve_dump src/mve_decoder/tests/resources/IPLOGO.MVE > /tmp/c_frames.bin");
+        return;
+    }
+
+    // Decode all frames with the Rust decoder
+    let mut dec = MveDecoder::open(iplogo_path()).expect("open failed");
+    let mut rust_frames: Vec<(u32, u16, u16, Vec<u8>)> = Vec::new();
+    let mut idx: u32 = 0;
+    while let Some(frame) = dec.next_frame().expect("decode error") {
+        rust_frames.push((idx, frame.video.width, frame.video.height, frame.video.pixels));
+        idx += 1;
+    }
+
+    // Parse the C reference file
+    let c_data = std::fs::read(c_path).expect("read c_frames.bin failed");
+    let mut pos = 0usize;
+    let mut c_frame_idx = 0u32;
+
+    while pos < c_data.len() {
+        assert!(
+            pos + 8 <= c_data.len(),
+            "C frame file truncated at byte {pos}"
+        );
+        let c_idx = u32::from_le_bytes(c_data[pos..pos + 4].try_into().unwrap());
+        let c_w   = u16::from_le_bytes(c_data[pos + 4..pos + 6].try_into().unwrap());
+        let c_h   = u16::from_le_bytes(c_data[pos + 6..pos + 8].try_into().unwrap());
+        pos += 8;
+        let pixel_bytes = c_w as usize * c_h as usize * 4;
+        assert!(
+            pos + pixel_bytes <= c_data.len(),
+            "C frame {c_idx} pixel data truncated"
+        );
+        let c_pixels = &c_data[pos..pos + pixel_bytes];
+        pos += pixel_bytes;
+
+        assert!(
+            (c_frame_idx as usize) < rust_frames.len(),
+            "C has more frames ({c_idx}) than Rust ({})",
+            rust_frames.len()
+        );
+        let (r_idx, r_w, r_h, ref r_pixels) = rust_frames[c_frame_idx as usize];
+
+        assert_eq!(c_idx, r_idx, "frame index mismatch");
+        assert_eq!(c_w, r_w, "frame {c_idx} width mismatch: C={c_w} Rust={r_w}");
+        assert_eq!(c_h, r_h, "frame {c_idx} height mismatch: C={c_h} Rust={r_h}");
+        assert_eq!(
+            c_pixels, r_pixels.as_slice(),
+            "frame {c_idx} pixel data differs ({}×{} = {} bytes)",
+            c_w, c_h, pixel_bytes
+        );
+
+        c_frame_idx += 1;
+    }
+
+    assert_eq!(
+        c_frame_idx as usize,
+        rust_frames.len(),
+        "Rust decoded {} frames but C decoded {}",
+        rust_frames.len(),
+        c_frame_idx
+    );
+
+    println!("All {c_frame_idx} frames match between C and Rust decoders.");
 }

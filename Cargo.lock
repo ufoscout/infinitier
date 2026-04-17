@@ -1828,6 +1828,7 @@ version = "0.1.0"
 dependencies = [
  "hound",
  "infinitier_datasource",
+ "serde_json",
  "sha2 0.11.0",
  "thiserror 2.0.18",
 ]
@@ -2151,6 +2152,17 @@ checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
 dependencies = [
  "num-traits",
  "pxfm",
+]
+
+[[package]]
+name = "mve_inspector"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "infinitier_mve_decoder",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
 ]
 
 [[package]]
