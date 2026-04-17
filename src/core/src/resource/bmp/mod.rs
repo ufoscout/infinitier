@@ -1,20 +1,31 @@
 use image::{ImageBuffer, Rgba};
 
-use infinitier_datasource::DataSource;
+use infinitier_datasource::{DataSource, Importer};
 
 /// A BMP file importer
 pub struct BmpImporter;
 
-impl BmpImporter {
-    pub fn to_image(source: &DataSource) -> image::ImageResult<ImageBuffer<Rgba<u8>, Vec<u8>>> {
+impl Importer for BmpImporter {
+
+    type T = Bmp;
+
+    fn import(source: &DataSource) -> std::io::Result<Bmp> {
         let reader = source.reader()?;
-        Ok(
-            image::ImageReader::with_format(reader.data, image::ImageFormat::Bmp)
-                .decode()?
-                .to_rgba8(),
-        )
+        let image = image::ImageReader::with_format(reader.data, image::ImageFormat::Bmp)
+                .decode().map_err(|err| 
+                    std::io::Error::new(std::io::ErrorKind::InvalidData, err)
+                )?
+                .to_rgba8();
+
+        Ok(Bmp { image })
     }
 }
+
+/// A BMP file
+pub struct Bmp {
+    pub image: ImageBuffer<Rgba<u8>, Vec<u8>>,
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -33,9 +44,9 @@ mod tests {
         )))
         .unwrap();
 
-        let image = BmpImporter::to_image(&data).unwrap();
+        let bmp = BmpImporter::import(&data).unwrap();
 
-        assert_images_are_equal(&image.into(), &original);
+        assert_images_are_equal(&bmp.image.into(), &original);
     }
 
     #[test]
@@ -49,8 +60,8 @@ mod tests {
         )))
         .unwrap();
 
-        let image = BmpImporter::to_image(&data).unwrap();
+        let bmp = BmpImporter::import(&data).unwrap();
 
-        assert_images_are_equal(&image.into(), &original);
+        assert_images_are_equal(&bmp.image.into(), &original);
     }
 }
