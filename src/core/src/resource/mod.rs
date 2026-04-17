@@ -2,6 +2,7 @@ pub mod bam;
 pub mod bif;
 pub mod bmp;
 pub mod common;
+pub mod ids;
 pub mod key;
 pub mod pvr;
 pub mod two_da;
