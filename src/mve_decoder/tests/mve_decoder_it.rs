@@ -1,6 +1,7 @@
 use std::io::Cursor;
 use std::path::PathBuf;
 
+use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::{MveDecoder, VideoFormat};
 use serde::Deserialize;
 use sha2::Digest as _;
@@ -98,7 +99,9 @@ fn assert_matches_json(mve_rel: &str, json_rel: &str) {
     let exp_wav_sha256 = &report.audio.wav_sha256;
 
     // ---- Open decoder and check static metadata ----
-    let mut dec = MveDecoder::open(&mve_path)
+    let data = DataSource::new(mve_path.clone());
+    let reader = data.reader().unwrap();
+    let mut dec = MveDecoder::new(reader)
         .unwrap_or_else(|e| panic!("cannot open {}: {e}", mve_path.display()));
 
     assert_eq!(dec.width(), exp_width, "video.width");

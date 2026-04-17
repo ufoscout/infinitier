@@ -1,6 +1,6 @@
+use infinitier_datasource::Reader;
 use std::{
-    fs::File,
-    io::{BufReader, Read, Seek, SeekFrom},
+    io::{BufRead, Seek, SeekFrom},
     path::Path,
 };
 
@@ -64,8 +64,8 @@ struct AudioInfo {
 // ---------------------------------------------------------------------------
 // MveDecoder
 // ---------------------------------------------------------------------------
-pub struct MveDecoder<R: Read + Seek> {
-    reader: R,
+pub struct MveDecoder<R: BufRead + Seek> {
+    reader: Reader<R>,
 
     // Video state
     width: u16,
@@ -86,21 +86,21 @@ pub struct MveDecoder<R: Read + Seek> {
     pending_audio: Vec<AudioChunk>,
 }
 
-impl MveDecoder<BufReader<File>> {
-    /// Open an MVE file from disk.
-    pub fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
-        let f = BufReader::new(File::open(path)?);
-        Self::new(f)
-    }
-}
+impl<R: BufRead + Seek> MveDecoder<R> {
+    // /// Open an MVE file from disk.
+    // pub fn open(path: impl AsRef<Path>) -> Result<Self, Error> {
+    //     let f = BufReader::new(File::open(path)?);
+    //     let reader = Reader {
+    //         data: Box::new(f) as Box<dyn DataTrait>,
+    //         charset: WINDOWS_1252,
+    //     };
+    //     Self::new(reader)
+    // }
 
-impl<R: Read + Seek> MveDecoder<R> {
-    /// Create a decoder from any `Read + Seek` source.
+    /// Create a decoder from an `infinitier_datasource::Reader`.
     /// Validates the signature and pre-processes the initialisation chunks.
-    pub fn new(mut reader: R) -> Result<Self, Error> {
-        // Read and verify signature (26 bytes; last 2 bytes vary by encoder version)
-        let mut sig = [0u8; 26];
-        reader.read_exact(&mut sig)?;
+    pub fn new(mut reader: Reader<R>) -> Result<Self, Error> {
+        let sig = reader.read_exact::<26>()?;
         if &sig[..24] != MVE_SIGNATURE_PREFIX {
             return Err(Error::InvalidSignature);
         }
@@ -203,31 +203,25 @@ impl<R: Read + Seek> MveDecoder<R> {
     // ------------------------------------------------------------------
 
     fn read_u8(&mut self) -> Result<u8, Error> {
-        let mut b = [0u8; 1];
-        self.reader.read_exact(&mut b)?;
-        Ok(b[0])
+        Ok(self.reader.read_u8()?)
     }
 
     fn read_u16(&mut self) -> Result<u16, Error> {
-        let mut b = [0u8; 2];
-        self.reader.read_exact(&mut b)?;
-        Ok(u16::from_le_bytes(b))
+        Ok(self.reader.read_u16()?)
     }
 
     fn read_u32(&mut self) -> Result<u32, Error> {
-        let mut b = [0u8; 4];
-        self.reader.read_exact(&mut b)?;
-        Ok(u32::from_le_bytes(b))
+        Ok(self.reader.read_u32()?)
     }
 
     fn read_exact_vec(&mut self, n: usize) -> Result<Vec<u8>, Error> {
         let mut v = vec![0u8; n];
-        self.reader.read_exact(&mut v)?;
+        self.reader.data.read_exact(&mut v)?;
         Ok(v)
     }
 
     fn skip(&mut self, n: u64) -> Result<(), Error> {
-        self.reader.seek(SeekFrom::Current(n as i64))?;
+        self.reader.data.seek(SeekFrom::Current(n as i64))?;
         Ok(())
     }
 

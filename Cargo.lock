@@ -1826,6 +1826,7 @@ dependencies = [
 name = "infinitier_mve_decoder"
 version = "0.1.0"
 dependencies = [
+ "encoding_rs",
  "hound",
  "infinitier_datasource",
  "serde",
@@ -2160,6 +2161,7 @@ name = "mve_player"
 version = "0.1.0"
 dependencies = [
  "eframe",
+ "infinitier_datasource",
  "infinitier_mve_decoder",
  "rodio",
 ]

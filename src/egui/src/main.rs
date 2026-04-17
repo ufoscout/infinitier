@@ -1,4 +1,5 @@
 use eframe::egui;
+use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::{MveDecoder, VideoFrame};
 use rodio::{OutputStream, Sink, Source};
 use std::{
@@ -141,7 +142,9 @@ impl MvePlayer {
 /// Decode all audio from the file in a single fast pass.
 /// Returns (channels, sample_rate, all_chunks).
 fn pre_buffer_audio(path: &std::path::Path) -> (u16, u32, Vec<Vec<i16>>) {
-    let mut dec = match MveDecoder::open(path) {
+    let data = DataSource::new(path);
+    let reader = data.reader().unwrap();
+    let mut dec = match MveDecoder::new(reader) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("pre_buffer_audio: failed to open: {e}");
@@ -202,7 +205,9 @@ fn decode_thread(
     drop(audio_tx);
 
     // Phase 2 — decode and send video frames (paced by the sync channel).
-    let mut dec = match MveDecoder::open(&path) {
+    let data = DataSource::new(path.as_path());
+    let reader = data.reader().unwrap();
+    let mut dec = match MveDecoder::new(reader) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("Failed to open {:?}: {e}", path);
