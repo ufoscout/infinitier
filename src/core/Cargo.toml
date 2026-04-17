@@ -14,4 +14,4 @@ serde = { workspace = true }
 texture2ddecoder = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
+infinitier_test_utils = { workspace = true }

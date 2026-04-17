@@ -8,5 +8,3 @@ pub mod pvr;
 pub mod two_da;
 pub mod wed;
 
-#[cfg(test)]
-pub mod test_utils;

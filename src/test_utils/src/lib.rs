@@ -1,7 +1,5 @@
 use image::{DynamicImage, GenericImageView};
 
-use crate::test_utils::RESOURCES_DIR;
-
 /// Asserts that two images are equal
 pub fn assert_images_are_equal(img_a: &DynamicImage, img_b: &DynamicImage) {
     if img_a.dimensions() != img_b.dimensions() {
@@ -11,11 +9,6 @@ pub fn assert_images_are_equal(img_a: &DynamicImage, img_b: &DynamicImage) {
     if img_a.to_rgba8() != img_b.to_rgba8() {
         panic!("Images bytes are different");
     }
-}
-
-/// Returns a path relative to the resources directory
-pub fn get_path(path: impl AsRef<std::path::Path>) -> std::path::PathBuf {
-    std::path::Path::new(RESOURCES_DIR).join(path)
 }
 
 /// Returns all files in a folder with a specific extension

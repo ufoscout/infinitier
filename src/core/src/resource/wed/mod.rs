@@ -253,8 +253,11 @@ pub struct WedVertex {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
-    use crate::resource::test_utils::{get_path, parse_json_file};
+    use crate::test_utils::BG2_RESOURCES_DIR;
+    use infinitier_test_utils::parse_json_file;
 
     #[test]
     fn test_wed_poligon_flag() {
@@ -286,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_parse_wed_file() {
-        let path = get_path("bg2/override");
+        let path = Path::new(BG2_RESOURCES_DIR).join("override");
         let web_path = path.join("ar0072.WED");
         let json_path = path.join("ar0072.json");
 

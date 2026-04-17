@@ -1,0 +1,9 @@
+[package]
+name = "infinitier_test_utils"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+image = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

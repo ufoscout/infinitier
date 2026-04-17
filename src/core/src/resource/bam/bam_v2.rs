@@ -224,7 +224,8 @@ impl BamV2 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{resource::test_utils::assert_images_are_equal, test_utils::RESOURCES_DIR};
+    use crate::test_utils::RESOURCES_DIR;
+    use infinitier_test_utils::assert_images_are_equal;
     use std::path::Path;
 
     use super::*;

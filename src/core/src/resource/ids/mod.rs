@@ -99,10 +99,13 @@ fn parse_line(line: &str) -> Option<IdsEntry> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
     use infinitier_datasource::DataSource;
 
-    use crate::resource::test_utils::{get_all_in_folder_by_extension, get_path, parse_json_file};
+    use crate::test_utils::RESOURCES_DIR;
+    use infinitier_test_utils::{get_all_in_folder_by_extension, parse_json_file};
 
     // ── parse_value ──────────────────────────────────────────────────────────
 
@@ -232,7 +235,7 @@ mod tests {
 
     #[test]
     fn test_all_ids_files() {
-        let ids_folder = get_path("resources/IDS");
+        let ids_folder = Path::new(RESOURCES_DIR).join("resources/IDS");
         let paths = get_all_in_folder_by_extension(&ids_folder, "IDS");
         assert!(!paths.is_empty(), "no IDS files found");
 

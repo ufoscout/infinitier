@@ -1742,10 +1742,10 @@ dependencies = [
  "image",
  "infinitier_acm_decoder",
  "infinitier_datasource",
+ "infinitier_test_utils",
  "itertools 0.14.0",
  "log",
  "serde",
- "serde_json",
  "texture2ddecoder",
 ]
 
@@ -1768,6 +1768,15 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "infinitier_test_utils"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

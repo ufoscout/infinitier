@@ -426,10 +426,8 @@ impl ResourceType {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        fs::CaseInsensitiveFS, resource::test_utils::parse_json_file,
-        test_utils::ALL_RESOURCES_DIRS,
-    };
+    use crate::{fs::CaseInsensitiveFS, test_utils::ALL_RESOURCES_DIRS};
+    use infinitier_test_utils::parse_json_file;
 
     use super::*;
 

@@ -13,6 +13,7 @@ infinitier_acm_decoder = { path = "src/acm_decoder" }
 infinitier_core = { path = "src/core" }
 infinitier_datasource = { path = "src/datasource" }
 infinitier_mve_decoder = { path = "src/mve_decoder" }
+infinitier_test_utils = { path = "src/test_utils" }
 
 bitflags = { version = "2", features = ["serde"] }
 encoding_rs = "0.8"
