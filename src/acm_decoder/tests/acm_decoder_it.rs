@@ -25,9 +25,9 @@ fn decode_and_hash(acm_rel: &str) -> (String, AcmInfo) {
     fs::create_dir_all(wav_path.parent().unwrap()).unwrap();
 
     let data = DataSource::new(acm_path.clone());
-    let mut reader = data.reader().unwrap();
+    let reader = data.reader().unwrap();
 
-    let mut dec = AcmDecoder::open(&mut reader, OutputChannels::Original)
+    let mut dec = AcmDecoder::open(reader, OutputChannels::Original)
         .unwrap_or_else(|e| panic!("cannot decode {}: {e}", acm_path.display()));
 
     println!(

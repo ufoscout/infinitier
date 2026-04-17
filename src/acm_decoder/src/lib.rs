@@ -76,12 +76,14 @@ pub enum OutputChannels {
     Original,
 }
 
-pub struct AcmDecoder {
+pub struct AcmDecoder<R: BufRead> {
     pub info: AcmInfo,
 
     // ── bitstream state ──
-    data: Vec<u8>,
-    data_pos: usize,
+    reader: infinitier_datasource::Reader<R>,
+    /// True once we have already returned the one padding word at EOF (matching
+    /// the C libacm behaviour of appending 4 zero bytes to the raw data).
+    eof_padding_given: bool,
     bit_data: u32,
     bit_avail: u32,
 
@@ -98,19 +100,12 @@ pub struct AcmDecoder {
     block_pos: usize,
 }
 
-impl AcmDecoder {
-    /// Open an ACM stream from any infinitier_datasource::Reader source.
-    pub fn open<R: BufRead>(
-        reader: &mut infinitier_datasource::Reader<R>,
+impl<R: BufRead> AcmDecoder<R> {
+    /// Open an ACM stream from an `infinitier_datasource::Reader`.
+    pub fn open(
+        reader: infinitier_datasource::Reader<R>,
         output_channels: OutputChannels,
     ) -> Result<Self> {
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
-        // The C implementation appends one zero byte at EOF so that the bit
-        // reader can complete any in-progress partial word without triggering a
-        // false UnexpectedEof.  We add 4 bytes for the same reason.
-        data.extend([0u8; 4]);
-
         let mut dec = AcmDecoder {
             info: AcmInfo {
                 channels: 0,
@@ -123,8 +118,8 @@ impl AcmDecoder {
                 acm_rows: 0,
                 total_values: 0,
             },
-            data,
-            data_pos: 0,
+            reader,
+            eof_padding_given: false,
             bit_data: 0,
             bit_avail: 0,
             block: Vec::new(),
@@ -159,16 +154,30 @@ impl AcmDecoder {
 
     // ── bitstream helpers ────────────────────────────────────────────────────
 
-    /// Load the next up-to-4 bytes from the data array as a little-endian word.
+    /// Load the next up-to-4 bytes from the reader as a little-endian word.
     /// Returns `(word, bits_loaded)`.
+    ///
+    /// At EOF, returns one synthetic zero word (32 bits) before returning
+    /// `(0, 0)`, mirroring the C libacm convention of appending 4 zero bytes.
     fn load_next_word(&mut self) -> (u32, u32) {
-        let n = (self.data.len() - self.data_pos).min(4);
-        let mut word = 0u32;
-        for i in 0..n {
-            word |= (self.data[self.data_pos + i] as u32) << (i * 8);
+        match self.reader.read_at_most::<4>() {
+            Ok((buf, n)) if n > 0 => {
+                let mut word = 0u32;
+                for i in 0..n {
+                    word |= (buf[i] as u32) << (i * 8);
+                }
+                (word, (n * 8) as u32)
+            }
+            _ => {
+                // EOF or IO error: emit one zero padding word, then nothing.
+                if !self.eof_padding_given {
+                    self.eof_padding_given = true;
+                    (0, 32)
+                } else {
+                    (0, 0)
+                }
+            }
         }
-        self.data_pos += n;
-        (word, (n * 8) as u32)
     }
 
     /// Extract `bits` bits from the bitstream (bits must be ≤ 31).
