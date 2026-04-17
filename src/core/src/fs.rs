@@ -27,7 +27,6 @@ impl CaseInsensitiveFS {
     pub fn new<P: AsRef<Path>>(root: P) -> io::Result<CaseInsensitiveFS> {
         let root = root.as_ref().canonicalize()?;
         let paths = Arc::new(list_real_entries_recursive(&root)?);
-        // println!("paths: \n{:#?}", paths);
         Ok(CaseInsensitiveFS { root, paths })
     }
 
@@ -69,18 +68,6 @@ impl CaseInsensitiveFS {
         None
     }
 }
-
-// fn find_bif_file(fs: &CaseInsensitiveFS, file_name: &str) -> Option<PathBuf> {
-//     for path in FILE_FOLDERS {
-//         let search_name = format!("{}{}", path, file_name);
-//         if let Some(path) = fs.get_path_opt(&search_name)
-//             && path.is_file()
-//         {
-//             return Some(path);
-//         }
-//     }
-//     None
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 /// A path that is case insensitive

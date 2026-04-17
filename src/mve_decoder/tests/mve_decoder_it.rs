@@ -1,5 +1,4 @@
-use std::io::Cursor;
-use std::path::PathBuf;
+use std::{io::Cursor, path::PathBuf};
 
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::{MveDecoder, VideoFormat};
@@ -8,18 +7,12 @@ use sha2::Digest as _;
 
 #[test]
 fn test_decoding_palette8_video_and_audio() {
-    assert_matches_json(
-        "tests/resources/8_bits/BILOGO.MVE",
-        "tests/resources/8_bits/BILOGO.json",
-    );
+    assert_matches_json("8_bits/BILOGO.MVE", "8_bits/BILOGO.json");
 }
 
 #[test]
 fn test_decoding_palette16_video_and_audio() {
-    assert_matches_json(
-        "tests/resources/16_bits/BISLOGO.MVE",
-        "tests/resources/16_bits/BISLOGO.json",
-    );
+    assert_matches_json("16_bits/BISLOGO.MVE", "16_bits/BISLOGO.json");
 }
 
 #[derive(Deserialize)]
@@ -48,10 +41,6 @@ struct VideoInfo {
     frame_hashes: Vec<String>,
 }
 
-fn manifest_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-}
-
 fn sha256_hex(data: &[u8]) -> String {
     let mut h = sha2::Sha256::new();
     h.update(data);
@@ -76,8 +65,8 @@ fn samples_to_wav_bytes(samples: &[i16], channels: u8, sample_rate: u32) -> Vec<
 
 /// Decodes an MVE file and asserts every decoded value matches the companion JSON.
 fn assert_matches_json(mve_rel: &str, json_rel: &str) {
-    let mve_path = manifest_dir().join(mve_rel);
-    let json_path = manifest_dir().join(json_rel);
+    let mve_path = PathBuf::from("../../assets/resources/MVE").join(mve_rel);
+    let json_path = PathBuf::from("../../assets/resources/MVE").join(json_rel);
 
     // ---- Parse JSON into typed struct ----
     let raw = std::fs::read_to_string(&json_path)

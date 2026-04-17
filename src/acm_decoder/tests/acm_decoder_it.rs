@@ -16,7 +16,7 @@ use std::{fs, path::PathBuf};
 /// Decode `acm_rel` (relative to `resources/`) to a WAV file under
 /// `target/acm_test_output/` and return its SHA-256 hex digest.
 fn decode_and_hash(acm_rel: &str) -> (String, AcmInfo) {
-    let acm_path = PathBuf::from("./tests/resources").join(acm_rel);
+    let acm_path = PathBuf::from("../../assets/resources/ACM").join(acm_rel);
 
     let wav_rel = PathBuf::from(acm_rel).with_extension("wav");
     let wav_path = PathBuf::from("../../target")
