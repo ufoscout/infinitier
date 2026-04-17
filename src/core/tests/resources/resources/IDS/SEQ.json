@@ -1,0 +1,89 @@
+{
+  "entries": [
+    {
+      "value": 0,
+      "value_str": "0",
+      "name": "SEQ_ATTACK"
+    },
+    {
+      "value": 1,
+      "value_str": "1",
+      "name": "SEQ_AWAKE"
+    },
+    {
+      "value": 2,
+      "value_str": "2",
+      "name": "SEQ_CAST"
+    },
+    {
+      "value": 3,
+      "value_str": "3",
+      "name": "SEQ_CONJURE"
+    },
+    {
+      "value": 4,
+      "value_str": "4",
+      "name": "SEQ_DAMAGE"
+    },
+    {
+      "value": 5,
+      "value_str": "5",
+      "name": "SEQ_DIE"
+    },
+    {
+      "value": 6,
+      "value_str": "6",
+      "name": "SEQ_HEAD_TURN"
+    },
+    {
+      "value": 7,
+      "value_str": "7",
+      "name": "SEQ_READY"
+    },
+    {
+      "value": 8,
+      "value_str": "8",
+      "name": "SEQ_SHOOT"
+    },
+    {
+      "value": 9,
+      "value_str": "9",
+      "name": "SEQ_TWITCH"
+    },
+    {
+      "value": 10,
+      "value_str": "10",
+      "name": "SEQ_WALK"
+    },
+    {
+      "value": 11,
+      "value_str": "11",
+      "name": "SEQ_ATTACK_SLASH"
+    },
+    {
+      "value": 12,
+      "value_str": "12",
+      "name": "SEQ_ATTACK_BACKSLASH"
+    },
+    {
+      "value": 13,
+      "value_str": "13",
+      "name": "SEQ_ATTACK_JAB"
+    },
+    {
+      "value": 14,
+      "value_str": "14",
+      "name": "SEQ_EMERGE"
+    },
+    {
+      "value": 15,
+      "value_str": "15",
+      "name": "SEQ_HIDE"
+    },
+    {
+      "value": 16,
+      "value_str": "16",
+      "name": "SEQ_SLEEP"
+    }
+  ]
+}

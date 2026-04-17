@@ -1,0 +1,89 @@
+{
+  "entries": [
+    {
+      "value": 1,
+      "value_str": "1",
+      "name": "INANIMATE"
+    },
+    {
+      "value": 2,
+      "value_str": "2",
+      "name": "PC"
+    },
+    {
+      "value": 3,
+      "value_str": "3",
+      "name": "FAMILIAR"
+    },
+    {
+      "value": 4,
+      "value_str": "4",
+      "name": "ALLY"
+    },
+    {
+      "value": 5,
+      "value_str": "5",
+      "name": "CONTROLLED"
+    },
+    {
+      "value": 6,
+      "value_str": "6",
+      "name": "CHARMED"
+    },
+    {
+      "value": 28,
+      "value_str": "28",
+      "name": "GOODBUTRED"
+    },
+    {
+      "value": 29,
+      "value_str": "29",
+      "name": "GOODBUTBLUE"
+    },
+    {
+      "value": 30,
+      "value_str": "30",
+      "name": "GOODCUTOFF"
+    },
+    {
+      "value": 31,
+      "value_str": "31",
+      "name": "NOTGOOD"
+    },
+    {
+      "value": 126,
+      "value_str": "126",
+      "name": "ANYTHING"
+    },
+    {
+      "value": 128,
+      "value_str": "128",
+      "name": "NEUTRAL"
+    },
+    {
+      "value": 199,
+      "value_str": "199",
+      "name": "NOTEVIL"
+    },
+    {
+      "value": 200,
+      "value_str": "200",
+      "name": "EVILCUTOFF"
+    },
+    {
+      "value": 201,
+      "value_str": "201",
+      "name": "EVILBUTGREEN"
+    },
+    {
+      "value": 202,
+      "value_str": "202",
+      "name": "EVILBUTBLUE"
+    },
+    {
+      "value": 255,
+      "value_str": "255",
+      "name": "ENEMY"
+    }
+  ]
+}

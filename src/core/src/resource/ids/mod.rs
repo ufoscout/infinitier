@@ -11,19 +11,6 @@ impl Importer for IdsImporter {
         let mut reader = source.reader()?;
         let mut entries = Vec::new();
 
-        // The first line is either an "IDS" header (starts with 'I') that is
-        // consumed and discarded, or a regular data line (typically a bare
-        // entry count) that must be processed normally.
-        let (first_line, bytes) = reader.read_line()?;
-        if bytes == 0 {
-            return Ok(Ids { entries });
-        }
-        if !first_line.trim().starts_with('I') {
-            if let Some(entry) = parse_line(first_line.trim()) {
-                entries.push(entry);
-            }
-        }
-
         loop {
             let (line, bytes) = reader.read_line()?;
             if bytes == 0 {
@@ -51,7 +38,6 @@ pub struct Ids {
 pub struct IdsEntry {
     pub value: i32,
     pub value_str: String,
-    /// Symbol name, stored in lower-case.
     pub name: String,
 }
 
@@ -96,7 +82,7 @@ fn parse_value(s: &str) -> Option<i32> {
 /// Returns `None` for empty lines and for lines that do not contain a valid
 /// `<value> <name>` pair (e.g. a bare entry count with no name).
 fn parse_line(line: &str) -> Option<IdsEntry> {
-    let line = line.trim();
+    let line = line.trim().trim_matches('\0') ;
     if line.is_empty() {
         return None;
     }
@@ -115,10 +101,9 @@ fn parse_line(line: &str) -> Option<IdsEntry> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        fs::{CaseInsensitiveFS, CaseInsensitivePath},
-        test_utils::RESOURCES_DIR,
-    };
+    use infinitier_datasource::DataSource;
+
+    use crate::test_utils::RESOURCES_DIR;
 
     // ── parse_value ──────────────────────────────────────────────────────────
 
@@ -223,34 +208,37 @@ mod tests {
 
     // ── file-based integration tests ─────────────────────────────────────────
 
-    fn ids_path(name: &str) -> std::path::PathBuf {
-        CaseInsensitiveFS::new(RESOURCES_DIR)
-            .unwrap()
-            .get_path(&CaseInsensitivePath::new(&format!("/resources/IDS/{name}")))
-            .unwrap()
+    fn ids_dir() -> std::path::PathBuf {
+        std::path::Path::new(RESOURCES_DIR).join("resources").join("IDS")
     }
 
-    /// Boolean.ids — count-header format, 2 entries.
-    #[test]
-    fn test_parse_boolean_ids() {
-        let ids = IdsImporter::import(&DataSource::new(ids_path("Boolean.ids"))).unwrap();
-        assert_eq!(ids.entries.len(), 2);
-        assert_eq!(ids.of_value(0), Some("FALSE"));
-        assert_eq!(ids.of_value(1), Some("TRUE"));
+    fn all_ids_paths() -> Vec<std::path::PathBuf> {
+        let mut paths: Vec<_> = std::fs::read_dir(ids_dir())
+            .expect("IDS directory not found")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |ext| ext.eq_ignore_ascii_case("IDS")))
+            .collect();
+        paths.sort();
+        paths
     }
 
-    /// EA.ids — count-header format, 17 entries with non-contiguous values.
     #[test]
-    fn test_parse_ea_ids() {
-        let ids = IdsImporter::import(&DataSource::new(ids_path("EA.ids"))).unwrap();
-        assert_eq!(ids.entries.len(), 17);
-        assert_eq!(ids.of_value(128), Some("NEUTRAL"));
+    fn test_all_ids_files() {
+        let paths = all_ids_paths();
+        assert!(!paths.is_empty(), "no IDS files found");
+
+        for ids_path in paths {
+            let json_path = ids_path.with_extension("json");
+            let expected: Ids = serde_json::from_str(
+                &std::fs::read_to_string(&json_path)
+                    .unwrap_or_else(|e| panic!("cannot read {}: {e}", json_path.display())),
+            )
+            .unwrap_or_else(|e| panic!("cannot parse {}: {e}", json_path.display()));
+            let actual = IdsImporter::import(&DataSource::new(ids_path.as_path()))
+                .unwrap_or_else(|e| panic!("cannot import {}: {e}", ids_path.display()));
+            assert_eq!(actual, expected, "IDS mismatch for {}", ids_path.display());
+        }
     }
 
-    /// damages.ids — no header line, hexadecimal values.
-    #[test]
-    fn test_parse_damages_ids() {
-        let ids = IdsImporter::import(&DataSource::new(ids_path("damages.ids"))).unwrap();
-        assert_eq!(ids.of_value(0x40), Some("MAGIC"));
-    }
 }

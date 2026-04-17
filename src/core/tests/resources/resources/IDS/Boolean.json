@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "value": 0,
+      "value_str": "0",
+      "name": "FALSE"
+    },
+    {
+      "value": 1,
+      "value_str": "1",
+      "name": "TRUE"
+    }
+  ]
+}

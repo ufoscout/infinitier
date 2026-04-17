@@ -1,0 +1,2484 @@
+{
+  "entries": [
+    {
+      "value": 0,
+      "value_str": "0x0000",
+      "name": "SPRI     CGAMEANIMATIONTYPE_FIRE_RING"
+    },
+    {
+      "value": 1,
+      "value_str": "0x0001",
+      "name": "SPFL     CGAMEANIMATIONTYPE_FIRE_RING_BRIGHT"
+    },
+    {
+      "value": 256,
+      "value_str": "0x0100",
+      "name": "SPCH     CGAMEANIMATIONTYPE_CHUNKS"
+    },
+    {
+      "value": 512,
+      "value_str": "0x0200",
+      "name": "SPBL     CGAMEANIMATIONTYPE_EXPLODING_ARM"
+    },
+    {
+      "value": 528,
+      "value_str": "0x0210",
+      "name": "SPBL     CGAMEANIMATIONTYPE_EXPLODING_HEAD"
+    },
+    {
+      "value": 544,
+      "value_str": "0x0220",
+      "name": "SPBL     CGAMEANIMATIONTYPE_EXPLODING_FOOT"
+    },
+    {
+      "value": 560,
+      "value_str": "0x0230",
+      "name": "SPBL     CGAMEANIMATIONTYPE_EXPLODING_TORSO"
+    },
+    {
+      "value": 576,
+      "value_str": "0x0240",
+      "name": "SPBL     CGAMEANIMATIONTYPE_EXPLODING_LEG"
+    },
+    {
+      "value": 768,
+      "value_str": "0x0300",
+      "name": "SPSM     CGAMEANIMATIONTYPE_SMOKE_PUFF_LARGE"
+    },
+    {
+      "value": 769,
+      "value_str": "0x0301",
+      "name": "SPSM     CGAMEANIMATIONTYPE_SMOKE_PUFF_SMALL"
+    },
+    {
+      "value": 1024,
+      "value_str": "0x0400",
+      "name": "SKLH     CGAMEANIMATIONTYPE_TRAP_SKULL"
+    },
+    {
+      "value": 1040,
+      "value_str": "0x0410",
+      "name": "GLPH     CGAMEANIMATIONTYPE_TRAP_GLYPH"
+    },
+    {
+      "value": 1280,
+      "value_str": "0x0500",
+      "name": "STNK     CGAMEANIMATIONTYPE_CLOUD_TRAVEL"
+    },
+    {
+      "value": 1296,
+      "value_str": "0x0510",
+      "name": "STNK     CGAMEANIMATIONTYPE_CLOUD_STATIC"
+    },
+    {
+      "value": 1536,
+      "value_str": "0x0600",
+      "name": "STNK     CGAMEANIMATIONTYPE_STORM_TRAVEL"
+    },
+    {
+      "value": 1552,
+      "value_str": "0x0610",
+      "name": "STNK     CGAMEANIMATIONTYPE_STORM_STATIC"
+    },
+    {
+      "value": 1792,
+      "value_str": "0x0700",
+      "name": "GREA     CGAMEANIMATIONTYPE_GREASE_TRAVEL"
+    },
+    {
+      "value": 1808,
+      "value_str": "0x0710",
+      "name": "GREA     CGAMEANIMATIONTYPE_GREASE_STATIC"
+    },
+    {
+      "value": 2048,
+      "value_str": "0x0800",
+      "name": "WEBE     CGAMEANIMATIONTYPE_WEB_TRAVEL"
+    },
+    {
+      "value": 2064,
+      "value_str": "0x0810",
+      "name": "WEBE     CGAMEANIMATIONTYPE_WEB_STATIC"
+    },
+    {
+      "value": 4096,
+      "value_str": "0x1000",
+      "name": "MWYV     CGAMEANIMATIONTYPE_WYVERN_BIG"
+    },
+    {
+      "value": 4099,
+      "value_str": "0x1003",
+      "name": "MWYV_WH  CGAMEANIMATIONTYPE_WYVERN_WHITE_BIG"
+    },
+    {
+      "value": 4100,
+      "value_str": "0x1004",
+      "name": "MWYV_AL  CGAMEANIMATIONTYPE_WYRMLING_ALBINO"
+    },
+    {
+      "value": 4352,
+      "value_str": "0x1100",
+      "name": "MTAN     CGAMEANIMATIONTYPE_TANARRI"
+    },
+    {
+      "value": 4353,
+      "value_str": "0x1101",
+      "name": "MWDR     CGAMEANIMATIONTYPE_DRAGON_WHITE"
+    },
+    {
+      "value": 4354,
+      "value_str": "0x1102",
+      "name": "MTAN_BL  CGAMEANIMATIONTYPE_FIEND_BLUE"
+    },
+    {
+      "value": 4355,
+      "value_str": "0x1103",
+      "name": "MTAN_GR  CGAMEANIMATIONTYPE_FIEND_GREEN"
+    },
+    {
+      "value": 4356,
+      "value_str": "0x1104",
+      "name": "MTAN_RD  CGAMEANIMATIONTYPE_FIEND_RED"
+    },
+    {
+      "value": 4357,
+      "value_str": "0x1105",
+      "name": "MWDR_GR  CGAMEANIMATIONTYPE_DRAGON_GREEN_IWD"
+    },
+    {
+      "value": 4608,
+      "value_str": "0x1200",
+      "name": "MDR1     CGAMEANIMATIONTYPE_DRAGON_RED"
+    },
+    {
+      "value": 4609,
+      "value_str": "0x1201",
+      "name": "MDR2     CGAMEANIMATIONTYPE_DRAGON_BLACK"
+    },
+    {
+      "value": 4610,
+      "value_str": "0x1202",
+      "name": "MDR3     CGAMEANIMATIONTYPE_DRAGON_SILVER"
+    },
+    {
+      "value": 4611,
+      "value_str": "0x1203",
+      "name": "MDR1_GR  CGAMEANIMATIONTYPE_DRAGON_GREEN"
+    },
+    {
+      "value": 4612,
+      "value_str": "0x1204",
+      "name": "MDR1_AQ  CGAMEANIMATIONTYPE_DRAGON_AQUA"
+    },
+    {
+      "value": 4613,
+      "value_str": "0x1205",
+      "name": "MDR1_BL  CGAMEANIMATIONTYPE_DRAGON_BLUE"
+    },
+    {
+      "value": 4614,
+      "value_str": "0x1206",
+      "name": "MDR1_BR  CGAMEANIMATIONTYPE_DRAGON_BROWN"
+    },
+    {
+      "value": 4615,
+      "value_str": "0x1207",
+      "name": "MDR1_MC  CGAMEANIMATIONTYPE_DRAGON_MULTICOLOR"
+    },
+    {
+      "value": 4616,
+      "value_str": "0x1208",
+      "name": "MDR1_PU  CGAMEANIMATIONTYPE_DRAGON_PURPLE"
+    },
+    {
+      "value": 4864,
+      "value_str": "0x1300",
+      "name": "MDEM     CGAMEANIMATIONTYPE_DEMOGORGON"
+    },
+    {
+      "value": 8192,
+      "value_str": "0x2000",
+      "name": "MSIR     CGAMEANIMATIONTYPE_SIRINE"
+    },
+    {
+      "value": 8448,
+      "value_str": "0x2100",
+      "name": "UVOL     CGAMEANIMATIONTYPE_VOLO"
+    },
+    {
+      "value": 8704,
+      "value_str": "0x2200",
+      "name": "MOGM     CGAMEANIMATIONTYPE_OGRE_MAGE"
+    },
+    {
+      "value": 8960,
+      "value_str": "0x2300",
+      "name": "MDKN     CGAMEANIMATIONTYPE_DEATH_KNIGHT"
+    },
+    {
+      "value": 12288,
+      "value_str": "0x3000",
+      "name": "MAKH     CGAMEANIMATIONTYPE_ANKHEG"
+    },
+    {
+      "value": 16384,
+      "value_str": "0x4000",
+      "name": "SNOM     CGAMEANIMATIONTYPE_STATIC_NOBLE_MAN_CHAIR"
+    },
+    {
+      "value": 16385,
+      "value_str": "0x4001",
+      "name": "SNONE    CGAMEANIMATIONTYPE_NULL_ANIMATION"
+    },
+    {
+      "value": 16386,
+      "value_str": "0x4002",
+      "name": "SNOM     CGAMEANIMATIONTYPE_STATIC_NOBLE_MAN_MATTE"
+    },
+    {
+      "value": 16400,
+      "value_str": "0x4010",
+      "name": "SNOW     CGAMEANIMATIONTYPE_STATIC_NOBLE_WOMAN_CHAIR"
+    },
+    {
+      "value": 16402,
+      "value_str": "0x4012",
+      "name": "SNOW     CGAMEANIMATIONTYPE_STATIC_NOBLE_WOMAN_MATTE"
+    },
+    {
+      "value": 16640,
+      "value_str": "0x4100",
+      "name": "SSIM     CGAMEANIMATIONTYPE_STATIC_PEASANT_MAN_CHAIR"
+    },
+    {
+      "value": 16641,
+      "value_str": "0x4101",
+      "name": "SSIM     CGAMEANIMATIONTYPE_STATIC_PEASANT_MAN_STOOL"
+    },
+    {
+      "value": 16642,
+      "value_str": "0x4102",
+      "name": "SSIM     CGAMEANIMATIONTYPE_STATIC_PEASANT_MAN_MATTE"
+    },
+    {
+      "value": 16656,
+      "value_str": "0x4110",
+      "name": "SSIW     CGAMEANIMATIONTYPE_STATIC_PEASANT_WOMAN_CHAIR"
+    },
+    {
+      "value": 16658,
+      "value_str": "0x4112",
+      "name": "SSIW     CGAMEANIMATIONTYPE_STATIC_PEASANT_WOMAN_MATTE"
+    },
+    {
+      "value": 16896,
+      "value_str": "0x4200",
+      "name": "SHMC     CGAMEANIMATIONTYPE_STATIC_HUMANCLERIC_MAN_CHAIR"
+    },
+    {
+      "value": 17152,
+      "value_str": "0x4300",
+      "name": "MSPL     CGAMEANIMATIONTYPE_STATIC_SPIDER_WOMAN"
+    },
+    {
+      "value": 17408,
+      "value_str": "0x4400",
+      "name": "LHMC     CGAMEANIMATIONTYPE_SLEEPING_MAN_HUMAN"
+    },
+    {
+      "value": 17424,
+      "value_str": "0x4410",
+      "name": "LHFC     CGAMEANIMATIONTYPE_SLEEPING_WOMAN_HUMAN"
+    },
+    {
+      "value": 17664,
+      "value_str": "0x4500",
+      "name": "LFAM     CGAMEANIMATIONTYPE_SLEEPING_FAT_MAN_HUMAN"
+    },
+    {
+      "value": 17920,
+      "value_str": "0x4600",
+      "name": "LDMF     CGAMEANIMATIONTYPE_SLEEPING_DWARF"
+    },
+    {
+      "value": 18176,
+      "value_str": "0x4700",
+      "name": "LEMF     CGAMEANIMATIONTYPE_SLEEPING_MAN_ELF"
+    },
+    {
+      "value": 18192,
+      "value_str": "0x4710",
+      "name": "LEFF     CGAMEANIMATIONTYPE_SLEEPING_WOMAN_ELF"
+    },
+    {
+      "value": 18432,
+      "value_str": "0x4800",
+      "name": "LIMC     CGAMEANIMATIONTYPE_SLEEPING_MAN_HALFLING"
+    },
+    {
+      "value": 20480,
+      "value_str": "0x5000",
+      "name": "CHMC     CGAMEANIMATIONTYPE_CLERIC_MALE_HUMAN_LOW"
+    },
+    {
+      "value": 20481,
+      "value_str": "0x5001",
+      "name": "CEMC     CGAMEANIMATIONTYPE_CLERIC_MALE_ELF_LOW"
+    },
+    {
+      "value": 20482,
+      "value_str": "0x5002",
+      "name": "CDMC     CGAMEANIMATIONTYPE_CLERIC_MALE_DWARF_LOW"
+    },
+    {
+      "value": 20483,
+      "value_str": "0x5003",
+      "name": "CIMC     CGAMEANIMATIONTYPE_CLERIC_MALE_HALFLING_LOW"
+    },
+    {
+      "value": 20496,
+      "value_str": "0x5010",
+      "name": "CHFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_HUMAN_LOW"
+    },
+    {
+      "value": 20497,
+      "value_str": "0x5011",
+      "name": "CEFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_ELF_LOW"
+    },
+    {
+      "value": 20498,
+      "value_str": "0x5012",
+      "name": "CDFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_DWARF_LOW"
+    },
+    {
+      "value": 20499,
+      "value_str": "0x5013",
+      "name": "CIFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_HALFLING_LOW"
+    },
+    {
+      "value": 20736,
+      "value_str": "0x5100",
+      "name": "CHMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_HUMAN_LOW"
+    },
+    {
+      "value": 20737,
+      "value_str": "0x5101",
+      "name": "CEMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_ELF_LOW"
+    },
+    {
+      "value": 20738,
+      "value_str": "0x5102",
+      "name": "CDMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_DWARF_LOW"
+    },
+    {
+      "value": 20739,
+      "value_str": "0x5103",
+      "name": "CIMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_HALFLING_LOW"
+    },
+    {
+      "value": 20752,
+      "value_str": "0x5110",
+      "name": "CHFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_HUMAN_LOW"
+    },
+    {
+      "value": 20753,
+      "value_str": "0x5111",
+      "name": "CEFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_ELF_LOW"
+    },
+    {
+      "value": 20754,
+      "value_str": "0x5112",
+      "name": "CDFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_DWARF_LOW"
+    },
+    {
+      "value": 20755,
+      "value_str": "0x5113",
+      "name": "CIFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_HALFLING_LOW"
+    },
+    {
+      "value": 20992,
+      "value_str": "0x5200",
+      "name": "CHMW     CGAMEANIMATIONTYPE_MAGE_MALE_HUMAN_LOW"
+    },
+    {
+      "value": 20993,
+      "value_str": "0x5201",
+      "name": "CEMW     CGAMEANIMATIONTYPE_MAGE_MALE_ELF_LOW"
+    },
+    {
+      "value": 20994,
+      "value_str": "0x5202",
+      "name": "CDMW     CGAMEANIMATIONTYPE_MAGE_MALE_DWARF_LOW"
+    },
+    {
+      "value": 21008,
+      "value_str": "0x5210",
+      "name": "CHFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_HUMAN_LOW"
+    },
+    {
+      "value": 21009,
+      "value_str": "0x5211",
+      "name": "CEFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_ELF_LOW"
+    },
+    {
+      "value": 21010,
+      "value_str": "0x5212",
+      "name": "CDFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_DWARF_LOW"
+    },
+    {
+      "value": 21248,
+      "value_str": "0x5300",
+      "name": "CHMT     CGAMEANIMATIONTYPE_THIEF_MALE_HUMAN_LOW"
+    },
+    {
+      "value": 21249,
+      "value_str": "0x5301",
+      "name": "CEMT     CGAMEANIMATIONTYPE_THIEF_MALE_ELF_LOW"
+    },
+    {
+      "value": 21250,
+      "value_str": "0x5302",
+      "name": "CDMT     CGAMEANIMATIONTYPE_THIEF_MALE_DWARF_LOW"
+    },
+    {
+      "value": 21251,
+      "value_str": "0x5303",
+      "name": "CIMT     CGAMEANIMATIONTYPE_THIEF_MALE_HALFLING_LOW"
+    },
+    {
+      "value": 21264,
+      "value_str": "0x5310",
+      "name": "CHFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_HUMAN_LOW"
+    },
+    {
+      "value": 21265,
+      "value_str": "0x5311",
+      "name": "CEFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_ELF_LOW"
+    },
+    {
+      "value": 21266,
+      "value_str": "0x5312",
+      "name": "CDFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_DWARF_LOW"
+    },
+    {
+      "value": 21267,
+      "value_str": "0x5313",
+      "name": "CIFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_HALFLING_LOW"
+    },
+    {
+      "value": 24576,
+      "value_str": "0x6000",
+      "name": "CHMC     CGAMEANIMATIONTYPE_CLERIC_MALE_HUMAN"
+    },
+    {
+      "value": 24577,
+      "value_str": "0x6001",
+      "name": "CEMC     CGAMEANIMATIONTYPE_CLERIC_MALE_ELF"
+    },
+    {
+      "value": 24578,
+      "value_str": "0x6002",
+      "name": "CDMC     CGAMEANIMATIONTYPE_CLERIC_MALE_DWARF"
+    },
+    {
+      "value": 24579,
+      "value_str": "0x6003",
+      "name": "CIMC     CGAMEANIMATIONTYPE_CLERIC_MALE_HALFLING"
+    },
+    {
+      "value": 24580,
+      "value_str": "0x6004",
+      "name": "CGMC     CGAMEANIMATIONTYPE_CLERIC_MALE_GNOME"
+    },
+    {
+      "value": 24581,
+      "value_str": "0x6005",
+      "name": "COMC     CGAMEANIMATIONTYPE_CLERIC_MALE_HALFORC"
+    },
+    {
+      "value": 24592,
+      "value_str": "0x6010",
+      "name": "CHFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_HUMAN"
+    },
+    {
+      "value": 24593,
+      "value_str": "0x6011",
+      "name": "CEFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_ELF"
+    },
+    {
+      "value": 24594,
+      "value_str": "0x6012",
+      "name": "CDFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_DWARF"
+    },
+    {
+      "value": 24595,
+      "value_str": "0x6013",
+      "name": "CIFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_HALFLING"
+    },
+    {
+      "value": 24596,
+      "value_str": "0x6014",
+      "name": "CGFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_GNOME"
+    },
+    {
+      "value": 24597,
+      "value_str": "0x6015",
+      "name": "COFC     CGAMEANIMATIONTYPE_CLERIC_FEMALE_HALFORC"
+    },
+    {
+      "value": 24832,
+      "value_str": "0x6100",
+      "name": "CHMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_HUMAN"
+    },
+    {
+      "value": 24833,
+      "value_str": "0x6101",
+      "name": "CEMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_ELF"
+    },
+    {
+      "value": 24834,
+      "value_str": "0x6102",
+      "name": "CDMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_DWARF"
+    },
+    {
+      "value": 24835,
+      "value_str": "0x6103",
+      "name": "CIMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_HALFLING"
+    },
+    {
+      "value": 24836,
+      "value_str": "0x6104",
+      "name": "CGMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_GNOME"
+    },
+    {
+      "value": 24837,
+      "value_str": "0x6105",
+      "name": "COMF     CGAMEANIMATIONTYPE_FIGHTER_MALE_HALFORC"
+    },
+    {
+      "value": 24848,
+      "value_str": "0x6110",
+      "name": "CHFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_HUMAN"
+    },
+    {
+      "value": 24849,
+      "value_str": "0x6111",
+      "name": "CEFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_ELF"
+    },
+    {
+      "value": 24850,
+      "value_str": "0x6112",
+      "name": "CDFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_DWARF"
+    },
+    {
+      "value": 24851,
+      "value_str": "0x6113",
+      "name": "CIFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_HALFLING"
+    },
+    {
+      "value": 24852,
+      "value_str": "0x6114",
+      "name": "CGFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_GNOME"
+    },
+    {
+      "value": 24853,
+      "value_str": "0x6115",
+      "name": "COFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_HALFORC"
+    },
+    {
+      "value": 25088,
+      "value_str": "0x6200",
+      "name": "CHMW     CGAMEANIMATIONTYPE_MAGE_MALE_HUMAN"
+    },
+    {
+      "value": 25089,
+      "value_str": "0x6201",
+      "name": "CEMW     CGAMEANIMATIONTYPE_MAGE_MALE_ELF"
+    },
+    {
+      "value": 25090,
+      "value_str": "0x6202",
+      "name": "CDMW     CGAMEANIMATIONTYPE_MAGE_MALE_DWARF"
+    },
+    {
+      "value": 25092,
+      "value_str": "0x6204",
+      "name": "CGMW     CGAMEANIMATIONTYPE_MAGE_MALE_GNOME"
+    },
+    {
+      "value": 25093,
+      "value_str": "0x6205",
+      "name": "COMW     CGAMEANIMATIONTYPE_MAGE_MALE_HALFORC"
+    },
+    {
+      "value": 25104,
+      "value_str": "0x6210",
+      "name": "CHFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_HUMAN"
+    },
+    {
+      "value": 25105,
+      "value_str": "0x6211",
+      "name": "CEFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_ELF"
+    },
+    {
+      "value": 25106,
+      "value_str": "0x6212",
+      "name": "CDFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_DWARF"
+    },
+    {
+      "value": 25108,
+      "value_str": "0x6214",
+      "name": "CGFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_GNOME"
+    },
+    {
+      "value": 25109,
+      "value_str": "0x6215",
+      "name": "COFW     CGAMEANIMATIONTYPE_MAGE_FEMALE_HALFORC"
+    },
+    {
+      "value": 25344,
+      "value_str": "0x6300",
+      "name": "CHMT     CGAMEANIMATIONTYPE_THIEF_MALE_HUMAN"
+    },
+    {
+      "value": 25345,
+      "value_str": "0x6301",
+      "name": "CEMT     CGAMEANIMATIONTYPE_THIEF_MALE_ELF"
+    },
+    {
+      "value": 25346,
+      "value_str": "0x6302",
+      "name": "CDMT     CGAMEANIMATIONTYPE_THIEF_MALE_DWARF"
+    },
+    {
+      "value": 25347,
+      "value_str": "0x6303",
+      "name": "CIMT     CGAMEANIMATIONTYPE_THIEF_MALE_HALFLING"
+    },
+    {
+      "value": 25348,
+      "value_str": "0x6304",
+      "name": "CGMT     CGAMEANIMATIONTYPE_THIEF_MALE_GNOME"
+    },
+    {
+      "value": 25349,
+      "value_str": "0x6305",
+      "name": "COMT     CGAMEANIMATIONTYPE_THIEF_MALE_HALFORC"
+    },
+    {
+      "value": 25360,
+      "value_str": "0x6310",
+      "name": "CHFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_HUMAN"
+    },
+    {
+      "value": 25361,
+      "value_str": "0x6311",
+      "name": "CEFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_ELF"
+    },
+    {
+      "value": 25362,
+      "value_str": "0x6312",
+      "name": "CDFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_DWARF"
+    },
+    {
+      "value": 25363,
+      "value_str": "0x6313",
+      "name": "CIFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_HALFLING"
+    },
+    {
+      "value": 25364,
+      "value_str": "0x6314",
+      "name": "CGFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_GNOME"
+    },
+    {
+      "value": 25365,
+      "value_str": "0x6315",
+      "name": "COFT     CGAMEANIMATIONTYPE_THIEF_FEMALE_HALFORC"
+    },
+    {
+      "value": 25600,
+      "value_str": "0x6400",
+      "name": "UDRZ     CGAMEANIMATIONTYPE_DRIZZT"
+    },
+    {
+      "value": 25601,
+      "value_str": "0x6401",
+      "name": "UELM     CGAMEANIMATIONTYPE_ELMINSTER"
+    },
+    {
+      "value": 25602,
+      "value_str": "0x6402",
+      "name": "CMNK     CGAMEANIMATIONTYPE_MONK"
+    },
+    {
+      "value": 25603,
+      "value_str": "0x6403",
+      "name": "MSKL     CGAMEANIMATIONTYPE_SKELETON"
+    },
+    {
+      "value": 25604,
+      "value_str": "0x6404",
+      "name": "USAR     CGAMEANIMATIONTYPE_SAREVOK"
+    },
+    {
+      "value": 25605,
+      "value_str": "0x6405",
+      "name": "MDGU     CGAMEANIMATIONTYPE_DOOM_GUARD"
+    },
+    {
+      "value": 25606,
+      "value_str": "0x6406",
+      "name": "MDGU     CGAMEANIMATIONTYPE_DOOM_GUARD_LARGER"
+    },
+    {
+      "value": 25856,
+      "value_str": "0x6500",
+      "name": "CHMM     CGAMEANIMATIONTYPE_MONK_MALE_HUMAN"
+    },
+    {
+      "value": 25872,
+      "value_str": "0x6510",
+      "name": "CHFM     CGAMEANIMATIONTYPE_MONK_FEMALE_HUMAN"
+    },
+    {
+      "value": 26145,
+      "value_str": "0x6621",
+      "name": "XHFF     CGAMEANIMATIONTYPE_FIGHTER_FEMALE_HUMAN_BG1"
+    },
+    {
+      "value": 28672,
+      "value_str": "0x7000",
+      "name": "MOGH     CGAMEANIMATIONTYPE_HALF_OGRE"
+    },
+    {
+      "value": 28673,
+      "value_str": "0x7001",
+      "name": "MOGN     CGAMEANIMATIONTYPE_OGRILLON"
+    },
+    {
+      "value": 28928,
+      "value_str": "0x7100",
+      "name": "MBAS     CGAMEANIMATIONTYPE_BASILISK"
+    },
+    {
+      "value": 28929,
+      "value_str": "0x7101",
+      "name": "MBAS_GR  CGAMEANIMATIONTYPE_BASILISK_GREATER"
+    },
+    {
+      "value": 29184,
+      "value_str": "0x7200",
+      "name": "MBER_BL  CGAMEANIMATIONTYPE_BEAR_BLACK"
+    },
+    {
+      "value": 29185,
+      "value_str": "0x7201",
+      "name": "MBER     CGAMEANIMATIONTYPE_BEAR_BROWN"
+    },
+    {
+      "value": 29186,
+      "value_str": "0x7202",
+      "name": "MBER_CA  CGAMEANIMATIONTYPE_BEAR_CAVE"
+    },
+    {
+      "value": 29187,
+      "value_str": "0x7203",
+      "name": "MBER_PO  CGAMEANIMATIONTYPE_BEAR_POLAR"
+    },
+    {
+      "value": 29440,
+      "value_str": "0x7300",
+      "name": "MEAE     CGAMEANIMATIONTYPE_ELEMENTAL_EARTH"
+    },
+    {
+      "value": 29441,
+      "value_str": "0x7301",
+      "name": "MEAS     CGAMEANIMATIONTYPE_ELEMENTAL_EARTH_SMALL"
+    },
+    {
+      "value": 29442,
+      "value_str": "0x7302",
+      "name": "MEAE_SH  CGAMEANIMATIONTYPE_SHAMBLING_MOUND"
+    },
+    {
+      "value": 29456,
+      "value_str": "0x7310",
+      "name": "MFIE     CGAMEANIMATIONTYPE_ELEMENTAL_FIRE"
+    },
+    {
+      "value": 29457,
+      "value_str": "0x7311",
+      "name": "MFIS     CGAMEANIMATIONTYPE_ELEMENTAL_FIRE_SMALL"
+    },
+    {
+      "value": 29458,
+      "value_str": "0x7312",
+      "name": "MFIEG1B  CGAMEANIMATIONTYPE_ELEMENTAL_FIRE_PURPLE"
+    },
+    {
+      "value": 29459,
+      "value_str": "0x7313",
+      "name": "MFISG1B  CGAMEANIMATIONTYPE_ELEMENTAL_FIRE_SMALL_PURPLE"
+    },
+    {
+      "value": 29460,
+      "value_str": "0x7314",
+      "name": "MFIEG3B  CGAMEANIMATIONTYPE_BURNING_MAN"
+    },
+    {
+      "value": 29472,
+      "value_str": "0x7320",
+      "name": "MAIR     CGAMEANIMATIONTYPE_ELEMENTAL_AIR"
+    },
+    {
+      "value": 29473,
+      "value_str": "0x7321",
+      "name": "MAIS     CGAMEANIMATIONTYPE_ELEMENTAL_AIR_SMALL"
+    },
+    {
+      "value": 29696,
+      "value_str": "0x7400",
+      "name": "MDOG_WI  CGAMEANIMATIONTYPE_DOG_WILD"
+    },
+    {
+      "value": 29697,
+      "value_str": "0x7401",
+      "name": "MDOG_WA  CGAMEANIMATIONTYPE_DOG_WAR"
+    },
+    {
+      "value": 29698,
+      "value_str": "0x7402",
+      "name": "MDOG_MO  CGAMEANIMATIONTYPE_DOG_MOON"
+    },
+    {
+      "value": 29952,
+      "value_str": "0x7500",
+      "name": "MDOP     CGAMEANIMATIONTYPE_DOPPLEGANGER"
+    },
+    {
+      "value": 29953,
+      "value_str": "0x7501",
+      "name": "MDOP_GR  CGAMEANIMATIONTYPE_DOPPLEGANGER_GREATER"
+    },
+    {
+      "value": 30208,
+      "value_str": "0x7600",
+      "name": "METT     CGAMEANIMATIONTYPE_ETTERCAP"
+    },
+    {
+      "value": 30209,
+      "value_str": "0x7601",
+      "name": "MGHL_MA  CGAMEANIMATIONTYPE_MAUREZHI"
+    },
+    {
+      "value": 30210,
+      "value_str": "0x7602",
+      "name": "MSPI_MY  CGAMEANIMATIONTYPE_MYRLOCHAR"
+    },
+    {
+      "value": 30211,
+      "value_str": "0x7603",
+      "name": "MDOG_GR  CGAMEANIMATIONTYPE_DOG_GRAY"
+    },
+    {
+      "value": 30212,
+      "value_str": "0x7604",
+      "name": "MSPI_WA  CGAMEANIMATIONTYPE_SPIDER_WATER"
+    },
+    {
+      "value": 30464,
+      "value_str": "0x7700",
+      "name": "MGHL     CGAMEANIMATIONTYPE_GHOUL"
+    },
+    {
+      "value": 30465,
+      "value_str": "0x7701",
+      "name": "MGHL_RE  CGAMEANIMATIONTYPE_REVENANT"
+    },
+    {
+      "value": 30466,
+      "value_str": "0x7702",
+      "name": "MGHL_GA  CGAMEANIMATIONTYPE_GHAST"
+    },
+    {
+      "value": 30467,
+      "value_str": "0x7703",
+      "name": "MSHD     CGAMEANIMATIONTYPE_SHADOW"
+    },
+    {
+      "value": 30720,
+      "value_str": "0x7800",
+      "name": "MGIB     CGAMEANIMATIONTYPE_GIBBERLING"
+    },
+    {
+      "value": 30721,
+      "value_str": "0x7801",
+      "name": "MGIB_BR  CGAMEANIMATIONTYPE_GIBBERLING_BROOD"
+    },
+    {
+      "value": 30722,
+      "value_str": "0x7802",
+      "name": "MSLI_BL  CGAMEANIMATIONTYPE_BLACK_PUDDING"
+    },
+    {
+      "value": 30976,
+      "value_str": "0x7900",
+      "name": "MSLI_GR  CGAMEANIMATIONTYPE_SLIME_GREEN"
+    },
+    {
+      "value": 30977,
+      "value_str": "0x7901",
+      "name": "MSLI_OL  CGAMEANIMATIONTYPE_SLIME_OLIVE"
+    },
+    {
+      "value": 30978,
+      "value_str": "0x7902",
+      "name": "MSLI_MU  CGAMEANIMATIONTYPE_SLIME_MUSTARD"
+    },
+    {
+      "value": 30979,
+      "value_str": "0x7903",
+      "name": "MSLI_OC  CGAMEANIMATIONTYPE_SLIME_OCHRE"
+    },
+    {
+      "value": 30980,
+      "value_str": "0x7904",
+      "name": "MSLI     CGAMEANIMATIONTYPE_GRAY_OOZE"
+    },
+    {
+      "value": 31232,
+      "value_str": "0x7A00",
+      "name": "MSPI_GI  CGAMEANIMATIONTYPE_SPIDER_GIANT"
+    },
+    {
+      "value": 31233,
+      "value_str": "0x7A01",
+      "name": "MSPI_HU  CGAMEANIMATIONTYPE_SPIDER_HUGE"
+    },
+    {
+      "value": 31234,
+      "value_str": "0x7A02",
+      "name": "MSPI_PH  CGAMEANIMATIONTYPE_SPIDER_PHASE"
+    },
+    {
+      "value": 31235,
+      "value_str": "0x7A03",
+      "name": "MSPI_SW  CGAMEANIMATIONTYPE_SPIDER_SWORD"
+    },
+    {
+      "value": 31236,
+      "value_str": "0x7A04",
+      "name": "MSPI_WR  CGAMEANIMATIONTYPE_SPIDER_WRAITH"
+    },
+    {
+      "value": 31488,
+      "value_str": "0x7B00",
+      "name": "MWLF     CGAMEANIMATIONTYPE_WOLF"
+    },
+    {
+      "value": 31489,
+      "value_str": "0x7B01",
+      "name": "MWLF_WO  CGAMEANIMATIONTYPE_WOLF_WORG"
+    },
+    {
+      "value": 31490,
+      "value_str": "0x7B02",
+      "name": "MWLF_DI  CGAMEANIMATIONTYPE_WOLF_DIRE"
+    },
+    {
+      "value": 31491,
+      "value_str": "0x7B03",
+      "name": "MWLF_WI  CGAMEANIMATIONTYPE_WOLF_WINTER"
+    },
+    {
+      "value": 31492,
+      "value_str": "0x7B04",
+      "name": "MWLF_VA  CGAMEANIMATIONTYPE_WOLF_VAMPIRIC"
+    },
+    {
+      "value": 31493,
+      "value_str": "0x7B05",
+      "name": "MWLF_DR  CGAMEANIMATIONTYPE_WOLF_DREAD"
+    },
+    {
+      "value": 31494,
+      "value_str": "0x7B06",
+      "name": "MWLS     CGAMEANIMATIONTYPE_WOLF_SHADOW"
+    },
+    {
+      "value": 31744,
+      "value_str": "0x7C00",
+      "name": "MXVT     CGAMEANIMATIONTYPE_KOBOLD_XVART"
+    },
+    {
+      "value": 31745,
+      "value_str": "0x7C01",
+      "name": "MTAS     CGAMEANIMATIONTYPE_KOBOLD_TASLOI"
+    },
+    {
+      "value": 32000,
+      "value_str": "0x7D00",
+      "name": "MZOM     CGAMEANIMATIONTYPE_ZOMBIE"
+    },
+    {
+      "value": 32001,
+      "value_str": "0x7D01",
+      "name": "NSLF     CGAMEANIMATIONTYPE_SLAVE_FIGHTER"
+    },
+    {
+      "value": 32002,
+      "value_str": "0x7D02",
+      "name": "ACHB     CGAMEANIMATIONTYPE_CHICKEN_BROWN"
+    },
+    {
+      "value": 32003,
+      "value_str": "0x7D03",
+      "name": "ACHW     CGAMEANIMATIONTYPE_CHICKEN_WHITE"
+    },
+    {
+      "value": 32004,
+      "value_str": "0x7D04",
+      "name": "NPRF     CGAMEANIMATIONTYPE_HARLOT_FIGHTER"
+    },
+    {
+      "value": 32005,
+      "value_str": "0x7D05",
+      "name": "NNMF     CGAMEANIMATIONTYPE_NOBLEMAN_FIGHTER"
+    },
+    {
+      "value": 32006,
+      "value_str": "0x7D06",
+      "name": "NNWF     CGAMEANIMATIONTYPE_NOBLEWOMAN_FIGHTER"
+    },
+    {
+      "value": 32007,
+      "value_str": "0x7D07",
+      "name": "NSMF     CGAMEANIMATIONTYPE_PEASANT_MAN_FIGHTER"
+    },
+    {
+      "value": 32008,
+      "value_str": "0x7D08",
+      "name": "NSWF     CGAMEANIMATIONTYPE_PEASANT_WOMAN_FIGHTER"
+    },
+    {
+      "value": 32256,
+      "value_str": "0x7E00",
+      "name": "MWER     CGAMEANIMATIONTYPE_WEREWOLF"
+    },
+    {
+      "value": 32257,
+      "value_str": "0x7E01",
+      "name": "MGWE     CGAMEANIMATIONTYPE_WEREWOLF_GREATER"
+    },
+    {
+      "value": 32512,
+      "value_str": "0x7F00",
+      "name": "MTRO     CGAMEANIMATIONTYPE_TROLL"
+    },
+    {
+      "value": 32513,
+      "value_str": "0x7F01",
+      "name": "MMIN     CGAMEANIMATIONTYPE_MINDFLAYER"
+    },
+    {
+      "value": 32514,
+      "value_str": "0x7F02",
+      "name": "MBEH     CGAMEANIMATIONTYPE_BEHOLDER"
+    },
+    {
+      "value": 32515,
+      "value_str": "0x7F03",
+      "name": "MIMP     CGAMEANIMATIONTYPE_IMP"
+    },
+    {
+      "value": 32516,
+      "value_str": "0x7F04",
+      "name": "MIGO     CGAMEANIMATIONTYPE_GOLEM_IRON"
+    },
+    {
+      "value": 32517,
+      "value_str": "0x7F05",
+      "name": "MDJI     CGAMEANIMATIONTYPE_DJINNI"
+    },
+    {
+      "value": 32518,
+      "value_str": "0x7F06",
+      "name": "MDJL     CGAMEANIMATIONTYPE_DJINNI_LEGS"
+    },
+    {
+      "value": 32519,
+      "value_str": "0x7F07",
+      "name": "MGLC     CGAMEANIMATIONTYPE_GOLEM_CLAY"
+    },
+    {
+      "value": 32520,
+      "value_str": "0x7F08",
+      "name": "MOTY     CGAMEANIMATIONTYPE_OTYUGH"
+    },
+    {
+      "value": 32521,
+      "value_str": "0x7F09",
+      "name": "MSAH     CGAMEANIMATIONTYPE_SAHUAGIN"
+    },
+    {
+      "value": 32522,
+      "value_str": "0x7F0A",
+      "name": "MGCP     CGAMEANIMATIONTYPE_GREATCAT_PANTHER"
+    },
+    {
+      "value": 32523,
+      "value_str": "0x7F0B",
+      "name": "MGCL     CGAMEANIMATIONTYPE_GREATCAT_LEOPARD"
+    },
+    {
+      "value": 32524,
+      "value_str": "0x7F0C",
+      "name": "MKUO     CGAMEANIMATIONTYPE_KUO-TOA"
+    },
+    {
+      "value": 32525,
+      "value_str": "0x7F0D",
+      "name": "MLIC     CGAMEANIMATIONTYPE_LICH"
+    },
+    {
+      "value": 32526,
+      "value_str": "0x7F0E",
+      "name": "MDLI     CGAMEANIMATIONTYPE_DEMILICH"
+    },
+    {
+      "value": 32527,
+      "value_str": "0x7F0F",
+      "name": "MTRS     CGAMEANIMATIONTYPE_TROLL_SMALL"
+    },
+    {
+      "value": 32528,
+      "value_str": "0x7F10",
+      "name": "MRAK     CGAMEANIMATIONTYPE_RAKSHASA"
+    },
+    {
+      "value": 32529,
+      "value_str": "0x7F11",
+      "name": "MUMB     CGAMEANIMATIONTYPE_UMBER_HULK"
+    },
+    {
+      "value": 32530,
+      "value_str": "0x7F12",
+      "name": "MVAM     CGAMEANIMATIONTYPE_VAMPIRE"
+    },
+    {
+      "value": 32531,
+      "value_str": "0x7F13",
+      "name": "MSNK     CGAMEANIMATIONTYPE_SNAKE"
+    },
+    {
+      "value": 32532,
+      "value_str": "0x7F14",
+      "name": "MGIT     CGAMEANIMATIONTYPE_GITHYANKI"
+    },
+    {
+      "value": 32533,
+      "value_str": "0x7F15",
+      "name": "MBES     CGAMEANIMATIONTYPE_BEHOLDER_SMALL"
+    },
+    {
+      "value": 32534,
+      "value_str": "0x7F16",
+      "name": "AMOO     CGAMEANIMATIONTYPE_MOOSE"
+    },
+    {
+      "value": 32535,
+      "value_str": "0x7F17",
+      "name": "ARAB     CGAMEANIMATIONTYPE_RABBIT"
+    },
+    {
+      "value": 32536,
+      "value_str": "0x7F18",
+      "name": "ADER     CGAMEANIMATIONTYPE_DEER"
+    },
+    {
+      "value": 32537,
+      "value_str": "0x7F19",
+      "name": "MDSW     CGAMEANIMATIONTYPE_DANCING_SWORD"
+    },
+    {
+      "value": 32544,
+      "value_str": "0x7F20",
+      "name": "AGRO     CGAMEANIMATIONTYPE_GROUNDHOG"
+    },
+    {
+      "value": 32545,
+      "value_str": "0x7F21",
+      "name": "APHE     CGAMEANIMATIONTYPE_PHEASANT"
+    },
+    {
+      "value": 32546,
+      "value_str": "0x7F22",
+      "name": "MVAF     CGAMEANIMATIONTYPE_VAMPIRE_FEMALE"
+    },
+    {
+      "value": 32547,
+      "value_str": "0x7F23",
+      "name": "MSAT     CGAMEANIMATIONTYPE_SAHUAGIN_LARGE"
+    },
+    {
+      "value": 32548,
+      "value_str": "0x7F24",
+      "name": "NPIR     CGAMEANIMATIONTYPE_PIRATE"
+    },
+    {
+      "value": 32551,
+      "value_str": "0x7F27",
+      "name": "MDRO     CGAMEANIMATIONTYPE_DROW"
+    },
+    {
+      "value": 32552,
+      "value_str": "0x7F28",
+      "name": "MKUL     CGAMEANIMATIONTYPE_KUO-TOA_LARGE"
+    },
+    {
+      "value": 32553,
+      "value_str": "0x7F29",
+      "name": "MFDR     CGAMEANIMATIONTYPE_DROW_FEMALE"
+    },
+    {
+      "value": 32554,
+      "value_str": "0x7F2A",
+      "name": "NSAI     CGAMEANIMATIONTYPE_SAILOR_MAN"
+    },
+    {
+      "value": 32555,
+      "value_str": "0x7F2B",
+      "name": "MMAX     CGAMEANIMATIONTYPE_MDK2_MAX"
+    },
+    {
+      "value": 32556,
+      "value_str": "0x7F2C",
+      "name": "NSOL     CGAMEANIMATIONTYPE_AMNIAN_SOLDIER"
+    },
+    {
+      "value": 32557,
+      "value_str": "0x7F2D",
+      "name": "MWFM     CGAMEANIMATIONTYPE_WYVERN_FAMILIAR"
+    },
+    {
+      "value": 32558,
+      "value_str": "0x7F2E",
+      "name": "MRAV     CGAMEANIMATIONTYPE_RAVER"
+    },
+    {
+      "value": 32559,
+      "value_str": "0x7F2F",
+      "name": "MSPS     CGAMEANIMATIONTYPE_SPIDER_SMALL"
+    },
+    {
+      "value": 32560,
+      "value_str": "0x7F30",
+      "name": "NBOH     CGAMEANIMATIONTYPE_BODHI"
+    },
+    {
+      "value": 32561,
+      "value_str": "0x7F31",
+      "name": "NELL     CGAMEANIMATIONTYPE_ELLESIME"
+    },
+    {
+      "value": 32562,
+      "value_str": "0x7F32",
+      "name": "MSLY     CGAMEANIMATIONTYPE_SLAYER"
+    },
+    {
+      "value": 32563,
+      "value_str": "0x7F33",
+      "name": "MKUR     CGAMEANIMATIONTYPE_MDK2_KURT"
+    },
+    {
+      "value": 32564,
+      "value_str": "0x7F34",
+      "name": "MDOC     CGAMEANIMATIONTYPE_MDK2_DOCTOR"
+    },
+    {
+      "value": 32565,
+      "value_str": "0x7F35",
+      "name": "MMIS     CGAMEANIMATIONTYPE_MIST_CREATURE"
+    },
+    {
+      "value": 32566,
+      "value_str": "0x7F36",
+      "name": "NSHD     CGAMEANIMATIONTYPE_SHADOW_THIEF"
+    },
+    {
+      "value": 32567,
+      "value_str": "0x7F37",
+      "name": "NIRE     CGAMEANIMATIONTYPE_JON_IRENICUS"
+    },
+    {
+      "value": 32568,
+      "value_str": "0x7F38",
+      "name": "MEYE     CGAMEANIMATIONTYPE_WIZARD_EYE"
+    },
+    {
+      "value": 32569,
+      "value_str": "0x7F39",
+      "name": "MMST     CGAMEANIMATIONTYPE_BLOB_MIST_CREATURE"
+    },
+    {
+      "value": 32570,
+      "value_str": "0x7F3A",
+      "name": "NIRO     CGAMEANIMATIONTYPE_IRENICUS_ROBED"
+    },
+    {
+      "value": 32571,
+      "value_str": "0x7F3B",
+      "name": "MSOL     CGAMEANIMATIONTYPE_SOLAR"
+    },
+    {
+      "value": 32572,
+      "value_str": "0x7F3C",
+      "name": "MASL     CGAMEANIMATIONTYPE_DEVA_MONADIC"
+    },
+    {
+      "value": 32573,
+      "value_str": "0x7F3D",
+      "name": "MMEL     CGAMEANIMATIONTYPE_MELISSAN"
+    },
+    {
+      "value": 32574,
+      "value_str": "0x7F3E",
+      "name": "MFIG     CGAMEANIMATIONTYPE_GIANT_FIRE"
+    },
+    {
+      "value": 32575,
+      "value_str": "0x7F3F",
+      "name": "MFIGG1B  CGAMEANIMATIONTYPE_GIANT_YAGA-SHURA"
+    },
+    {
+      "value": 32576,
+      "value_str": "0x7F40",
+      "name": "MGLM     CGAMEANIMATIONTYPE_GOLEM_MINI"
+    },
+    {
+      "value": 32577,
+      "value_str": "0x7F41",
+      "name": "MDJL_E1  CGAMEANIMATIONTYPE_EFREETI_NOBLE"
+    },
+    {
+      "value": 32578,
+      "value_str": "0x7F42",
+      "name": "NIRO_RD  CGAMEANIMATIONTYPE_RED_WIZARD"
+    },
+    {
+      "value": 32579,
+      "value_str": "0x7F43",
+      "name": "MOTY_Y1  CGAMEANIMATIONTYPE_YOCHLOL"
+    },
+    {
+      "value": 32580,
+      "value_str": "0x7F44",
+      "name": "NELW     CGAMEANIMATIONTYPE_ELLESIME_WHITE"
+    },
+    {
+      "value": 32581,
+      "value_str": "0x7F45",
+      "name": "MSAI     CGAMEANIMATIONTYPE_LAGOON_CREATURE"
+    },
+    {
+      "value": 32582,
+      "value_str": "0x7F46",
+      "name": "MBEG     CGAMEANIMATIONTYPE_DEATH_TYRANT"
+    },
+    {
+      "value": 32583,
+      "value_str": "0x7F47",
+      "name": "MFI2     CGAMEANIMATIONTYPE_GIANT_FIRE_2"
+    },
+    {
+      "value": 32584,
+      "value_str": "0x7F48",
+      "name": "MSOF     CGAMEANIMATIONTYPE_SOLAR_FALLEN"
+    },
+    {
+      "value": 32585,
+      "value_str": "0x7F49",
+      "name": "MDMF     CGAMEANIMATIONTYPE_DEVA_MONADIC_FALLEN"
+    },
+    {
+      "value": 32586,
+      "value_str": "0x7F4A",
+      "name": "MDAS     CGAMEANIMATIONTYPE_DEVA_ASTRAL"
+    },
+    {
+      "value": 32587,
+      "value_str": "0x7F4B",
+      "name": "MDAF     CGAMEANIMATIONTYPE_DEVA_ASTRAL_FALLEN"
+    },
+    {
+      "value": 32588,
+      "value_str": "0x7F4C",
+      "name": "MPLN     CGAMEANIMATIONTYPE_PLANETAR"
+    },
+    {
+      "value": 32589,
+      "value_str": "0x7F4D",
+      "name": "MPLF     CGAMEANIMATIONTYPE_PLANETAR_FALLEN"
+    },
+    {
+      "value": 32590,
+      "value_str": "0x7F4E",
+      "name": "MDVM     CGAMEANIMATIONTYPE_DEVA_MOVANIC"
+    },
+    {
+      "value": 32591,
+      "value_str": "0x7F4F",
+      "name": "MDVF     CGAMEANIMATIONTYPE_DEVA_MOVANIC_FALLEN"
+    },
+    {
+      "value": 32592,
+      "value_str": "0x7F50",
+      "name": "MMST_NI  CGAMEANIMATIONTYPE_NISHRUU"
+    },
+    {
+      "value": 32593,
+      "value_str": "0x7F51",
+      "name": "MMST_HA  CGAMEANIMATIONTYPE_HAKEASHAR"
+    },
+    {
+      "value": 32594,
+      "value_str": "0x7F52",
+      "name": "NSAI_G1  CGAMEANIMATIONTYPE_SAILOR_GREEN"
+    },
+    {
+      "value": 32595,
+      "value_str": "0x7F53",
+      "name": "NSAI_R1  CGAMEANIMATIONTYPE_SAILOR_RED"
+    },
+    {
+      "value": 32596,
+      "value_str": "0x7F54",
+      "name": "NSAI_D1  CGAMEANIMATIONTYPE_SAILOR_DARK"
+    },
+    {
+      "value": 32597,
+      "value_str": "0x7F55",
+      "name": "NSOL_C1  CGAMEANIMATIONTYPE_CRUSADER_SOLDIER"
+    },
+    {
+      "value": 32598,
+      "value_str": "0x7F56",
+      "name": "MWIL     CGAMEANIMATIONTYPE_WILL_O_WISP"
+    },
+    {
+      "value": 32599,
+      "value_str": "0x7F57",
+      "name": "MWIS     CGAMEANIMATIONTYPE_WILL_O_WISP_SMALL"
+    },
+    {
+      "value": 32600,
+      "value_str": "0x7F58",
+      "name": "MABB     CGAMEANIMATIONTYPE_ABISHAI_BLACK"
+    },
+    {
+      "value": 32601,
+      "value_str": "0x7F59",
+      "name": "MABG     CGAMEANIMATIONTYPE_ABISHAI_GREEN"
+    },
+    {
+      "value": 32602,
+      "value_str": "0x7F5A",
+      "name": "MABR     CGAMEANIMATIONTYPE_ABISHAI_RED"
+    },
+    {
+      "value": 32603,
+      "value_str": "0x7F5B",
+      "name": "MABR_BL  CGAMEANIMATIONTYPE_ABISHAI_BLUE"
+    },
+    {
+      "value": 32604,
+      "value_str": "0x7F5C",
+      "name": "MHAG     CGAMEANIMATIONTYPE_HAG_NIGHT"
+    },
+    {
+      "value": 32605,
+      "value_str": "0x7F5D",
+      "name": "MHAG_GR  CGAMEANIMATIONTYPE_HAG_GREEN"
+    },
+    {
+      "value": 32606,
+      "value_str": "0x7F5E",
+      "name": "MHAG_SE  CGAMEANIMATIONTYPE_HAG_SEA"
+    },
+    {
+      "value": 32607,
+      "value_str": "0x7F5F",
+      "name": "MHAN     CGAMEANIMATIONTYPE_HAG_ANNIS"
+    },
+    {
+      "value": 32608,
+      "value_str": "0x7F60",
+      "name": "MSNK_W1  CGAMEANIMATIONTYPE_SNAKE_WATER"
+    },
+    {
+      "value": 32609,
+      "value_str": "0x7F61",
+      "name": "MDRJ     CGAMEANIMATIONTYPE_DRAGON_RED_JUVENILE"
+    },
+    {
+      "value": 32610,
+      "value_str": "0x7F62",
+      "name": "MDRJ_GR  CGAMEANIMATIONTYPE_DRAGON_GREEN_JUVENILE"
+    },
+    {
+      "value": 32768,
+      "value_str": "0x8000",
+      "name": "MGNL     CGAMEANIMATIONTYPE_GNOLL"
+    },
+    {
+      "value": 33024,
+      "value_str": "0x8100",
+      "name": "MHOB     CGAMEANIMATIONTYPE_HOBGOBLIN"
+    },
+    {
+      "value": 33280,
+      "value_str": "0x8200",
+      "name": "MKOB     CGAMEANIMATIONTYPE_KOBOLD"
+    },
+    {
+      "value": 36864,
+      "value_str": "0x9000",
+      "name": "MOGR     CGAMEANIMATIONTYPE_OGRE"
+    },
+    {
+      "value": 40960,
+      "value_str": "0xA000",
+      "name": "MWYV     CGAMEANIMATIONTYPE_WYVERN"
+    },
+    {
+      "value": 41216,
+      "value_str": "0xA100",
+      "name": "MCAR     CGAMEANIMATIONTYPE_CARRION_CRAWLER"
+    },
+    {
+      "value": 41472,
+      "value_str": "0xA200",
+      "name": "MWYV_WS  CGAMEANIMATIONTYPE_WYVERN_WHITE"
+    },
+    {
+      "value": 41473,
+      "value_str": "0xA201",
+      "name": "MCEN     CGAMEANIMATIONTYPE_MEGALOCENTIPEDE"
+    },
+    {
+      "value": 41474,
+      "value_str": "0xA202",
+      "name": "MTUN     CGAMEANIMATIONTYPE_TUNNEL_WORM"
+    },
+    {
+      "value": 45056,
+      "value_str": "0xB000",
+      "name": "ACOW     CGAMEANIMATIONTYPE_COW"
+    },
+    {
+      "value": 45312,
+      "value_str": "0xB100",
+      "name": "AHRS     CGAMEANIMATIONTYPE_HORSE"
+    },
+    {
+      "value": 45568,
+      "value_str": "0xB200",
+      "name": "NBEG     CGAMEANIMATIONTYPE_STATIC_BEGGAR_MAN"
+    },
+    {
+      "value": 45584,
+      "value_str": "0xB210",
+      "name": "NPRO     CGAMEANIMATIONTYPE_STATIC_HARLOT_WOMAN"
+    },
+    {
+      "value": 45824,
+      "value_str": "0xB300",
+      "name": "NBOY     CGAMEANIMATIONTYPE_STATIC_BOY"
+    },
+    {
+      "value": 45840,
+      "value_str": "0xB310",
+      "name": "NGRL     CGAMEANIMATIONTYPE_STATIC_GIRL"
+    },
+    {
+      "value": 46080,
+      "value_str": "0xB400",
+      "name": "NFAM     CGAMEANIMATIONTYPE_STATIC_FAT_MAN"
+    },
+    {
+      "value": 46096,
+      "value_str": "0xB410",
+      "name": "NFAW     CGAMEANIMATIONTYPE_STATIC_FAT_WOMAN"
+    },
+    {
+      "value": 46336,
+      "value_str": "0xB500",
+      "name": "NSIM     CGAMEANIMATIONTYPE_STATIC_PEASANT_MAN"
+    },
+    {
+      "value": 46352,
+      "value_str": "0xB510",
+      "name": "NSIW     CGAMEANIMATIONTYPE_STATIC_PEASANT_WOMAN"
+    },
+    {
+      "value": 46592,
+      "value_str": "0xB600",
+      "name": "NNOM     CGAMEANIMATIONTYPE_STATIC_NOBLE_MAN"
+    },
+    {
+      "value": 46608,
+      "value_str": "0xB610",
+      "name": "NNOW     CGAMEANIMATIONTYPE_STATIC_NOBLE_WOMAN"
+    },
+    {
+      "value": 46848,
+      "value_str": "0xB700",
+      "name": "NSLV     CGAMEANIMATIONTYPE_STATIC_SLAVE"
+    },
+    {
+      "value": 49152,
+      "value_str": "0xC000",
+      "name": "ABAT     CGAMEANIMATIONTYPE_BAT_INSIDE"
+    },
+    {
+      "value": 49408,
+      "value_str": "0xC100",
+      "name": "ACAT     CGAMEANIMATIONTYPE_CAT"
+    },
+    {
+      "value": 49664,
+      "value_str": "0xC200",
+      "name": "ACHK     CGAMEANIMATIONTYPE_CHICKEN"
+    },
+    {
+      "value": 49920,
+      "value_str": "0xC300",
+      "name": "ARAT     CGAMEANIMATIONTYPE_RAT"
+    },
+    {
+      "value": 50176,
+      "value_str": "0xC400",
+      "name": "ASQU     CGAMEANIMATIONTYPE_SQUIRREL"
+    },
+    {
+      "value": 50432,
+      "value_str": "0xC500",
+      "name": "ABAT     CGAMEANIMATIONTYPE_BAT_OUTSIDE"
+    },
+    {
+      "value": 50688,
+      "value_str": "0xC600",
+      "name": "NBEG     CGAMEANIMATIONTYPE_BEGGAR_MAN"
+    },
+    {
+      "value": 50704,
+      "value_str": "0xC610",
+      "name": "NPRO     CGAMEANIMATIONTYPE_HARLOT_WOMAN"
+    },
+    {
+      "value": 50944,
+      "value_str": "0xC700",
+      "name": "NBOY     CGAMEANIMATIONTYPE_BOY"
+    },
+    {
+      "value": 50960,
+      "value_str": "0xC710",
+      "name": "NGRL     CGAMEANIMATIONTYPE_GIRL"
+    },
+    {
+      "value": 51200,
+      "value_str": "0xC800",
+      "name": "NFAM     CGAMEANIMATIONTYPE_FAT_MAN"
+    },
+    {
+      "value": 51216,
+      "value_str": "0xC810",
+      "name": "NFAW     CGAMEANIMATIONTYPE_FAT_WOMAN"
+    },
+    {
+      "value": 51456,
+      "value_str": "0xC900",
+      "name": "NSIM     CGAMEANIMATIONTYPE_PEASANT_MAN"
+    },
+    {
+      "value": 51472,
+      "value_str": "0xC910",
+      "name": "NSIW     CGAMEANIMATIONTYPE_PEASANT_WOMAN"
+    },
+    {
+      "value": 51712,
+      "value_str": "0xCA00",
+      "name": "NNOM     CGAMEANIMATIONTYPE_NOBLE_MAN"
+    },
+    {
+      "value": 51728,
+      "value_str": "0xCA10",
+      "name": "NNOW     CGAMEANIMATIONTYPE_NOBLE_WOMAN"
+    },
+    {
+      "value": 51968,
+      "value_str": "0xCB00",
+      "name": "NSLV     CGAMEANIMATIONTYPE_SLAVE"
+    },
+    {
+      "value": 52224,
+      "value_str": "0xCC00",
+      "name": "MKG1     CGAMEANIMATIONTYPE_KEG1"
+    },
+    {
+      "value": 52225,
+      "value_str": "0xCC01",
+      "name": "MKG2     CGAMEANIMATIONTYPE_KEG2"
+    },
+    {
+      "value": 52226,
+      "value_str": "0xCC02",
+      "name": "MKG3     CGAMEANIMATIONTYPE_KEG3"
+    },
+    {
+      "value": 52228,
+      "value_str": "0xCC04",
+      "name": "ARAT     CGAMEANIMATIONTYPE_RAT_OUTSIDE"
+    },
+    {
+      "value": 53248,
+      "value_str": "0xD000",
+      "name": "AEAG     CGAMEANIMATIONTYPE_EAGLE"
+    },
+    {
+      "value": 53504,
+      "value_str": "0xD100",
+      "name": "AGUL     CGAMEANIMATIONTYPE_SEAGULL"
+    },
+    {
+      "value": 53760,
+      "value_str": "0xD200",
+      "name": "AVUL     CGAMEANIMATIONTYPE_VULTURE"
+    },
+    {
+      "value": 54016,
+      "value_str": "0xD300",
+      "name": "ABIR     CGAMEANIMATIONTYPE_BIRD"
+    },
+    {
+      "value": 54272,
+      "value_str": "0xD400",
+      "name": "ABIR     CGAMEANIMATIONTYPE_BIRD_INSIDE"
+    },
+    {
+      "value": 57344,
+      "value_str": "0xE000",
+      "name": "MCYC     CGAMEANIMATIONTYPE_CYCLOPS"
+    },
+    {
+      "value": 57360,
+      "value_str": "0xE010",
+      "name": "METN     CGAMEANIMATIONTYPE_ETTIN"
+    },
+    {
+      "value": 57376,
+      "value_str": "0xE020",
+      "name": "X020     CGAMEANIMATIONTYPE_DONOT_USE"
+    },
+    {
+      "value": 57408,
+      "value_str": "0xE040",
+      "name": "MHIS     CGAMEANIMATIONTYPE_HISTACHII"
+    },
+    {
+      "value": 57424,
+      "value_str": "0xE050",
+      "name": "MLER     CGAMEANIMATIONTYPE_LICH_BLACK"
+    },
+    {
+      "value": 57440,
+      "value_str": "0xE060",
+      "name": "MLIC     CGAMEANIMATIONTYPE_LICH_WHITE"
+    },
+    {
+      "value": 57456,
+      "value_str": "0xE070",
+      "name": "MMIN     CGAMEANIMATIONTYPE_MINOTAUR"
+    },
+    {
+      "value": 57472,
+      "value_str": "0xE080",
+      "name": "MMUM     CGAMEANIMATIONTYPE_MUMMY"
+    },
+    {
+      "value": 57488,
+      "value_str": "0xE090",
+      "name": "MTAN     CGAMEANIMATIONTYPE_MARILITH"
+    },
+    {
+      "value": 57504,
+      "value_str": "0xE0A0",
+      "name": "MTIC     CGAMEANIMATIONTYPE_TROLL_ICE"
+    },
+    {
+      "value": 57520,
+      "value_str": "0xE0B0",
+      "name": "MTRO     CGAMEANIMATIONTYPE_TROLL_BLUE"
+    },
+    {
+      "value": 57536,
+      "value_str": "0xE0C0",
+      "name": "MTSN     CGAMEANIMATIONTYPE_TROLL_SNOW"
+    },
+    {
+      "value": 57552,
+      "value_str": "0xE0D0",
+      "name": "MUMB     CGAMEANIMATIONTYPE_UMBER_HULK_ELDER"
+    },
+    {
+      "value": 57568,
+      "value_str": "0xE0E0",
+      "name": "MCOR     CGAMEANIMATIONTYPE_CORNUGON"
+    },
+    {
+      "value": 57584,
+      "value_str": "0xE0F0",
+      "name": "MGIC     CGAMEANIMATIONTYPE_GOLEM_ICE"
+    },
+    {
+      "value": 57585,
+      "value_str": "0xE0F1",
+      "name": "MGLA     CGAMEANIMATIONTYPE_GLABREZU"
+    },
+    {
+      "value": 57586,
+      "value_str": "0xE0F2",
+      "name": "MWAV     CGAMEANIMATIONTYPE_WAILING_VIRGIN"
+    },
+    {
+      "value": 57856,
+      "value_str": "0xE200",
+      "name": "MBET     CGAMEANIMATIONTYPE_BEETLE_BORING"
+    },
+    {
+      "value": 57872,
+      "value_str": "0xE210",
+      "name": "MBFI     CGAMEANIMATIONTYPE_BEETLE_FIRE"
+    },
+    {
+      "value": 57888,
+      "value_str": "0xE220",
+      "name": "MBBM     CGAMEANIMATIONTYPE_BEETLE_BOMBARDIER"
+    },
+    {
+      "value": 57904,
+      "value_str": "0xE230",
+      "name": "MBRH     CGAMEANIMATIONTYPE_BEETLE_RHINOCEROS"
+    },
+    {
+      "value": 57920,
+      "value_str": "0xE240",
+      "name": "MANI     CGAMEANIMATIONTYPE_ANIMATED_PLATE_BRONZE"
+    },
+    {
+      "value": 57921,
+      "value_str": "0xE241",
+      "name": "MAN2     CGAMEANIMATIONTYPE_ANIMATED_PLATE_DARK"
+    },
+    {
+      "value": 57922,
+      "value_str": "0xE242",
+      "name": "MAN3     CGAMEANIMATIONTYPE_ANIMATED_PLATE_GREEN"
+    },
+    {
+      "value": 57923,
+      "value_str": "0xE243",
+      "name": "MARU     CGAMEANIMATIONTYPE_ARUNDEL"
+    },
+    {
+      "value": 57924,
+      "value_str": "0xE244",
+      "name": "MBA1     CGAMEANIMATIONTYPE_BARBARIAN_WARRIOR_TAN"
+    },
+    {
+      "value": 57925,
+      "value_str": "0xE245",
+      "name": "MBA2     CGAMEANIMATIONTYPE_BARBARIAN_WARRIOR_RED"
+    },
+    {
+      "value": 57926,
+      "value_str": "0xE246",
+      "name": "MBA3     CGAMEANIMATIONTYPE_BARBARIAN_WARRIOR_BROWN"
+    },
+    {
+      "value": 57927,
+      "value_str": "0xE247",
+      "name": "MBA4     CGAMEANIMATIONTYPE_BARBARIAN_SHAMAN_HAMMER"
+    },
+    {
+      "value": 57928,
+      "value_str": "0xE248",
+      "name": "MBA5     CGAMEANIMATIONTYPE_BARBARIAN_SHAMAN_STAFF"
+    },
+    {
+      "value": 57929,
+      "value_str": "0xE249",
+      "name": "MBA6     CGAMEANIMATIONTYPE_BARBARIAN_SHAMAN_CLUB"
+    },
+    {
+      "value": 57930,
+      "value_str": "0xE24A",
+      "name": "MBAI     CGAMEANIMATIONTYPE_BARBARIAN_ICASARACHT"
+    },
+    {
+      "value": 57931,
+      "value_str": "0xE24B",
+      "name": "MELE     CGAMEANIMATIONTYPE_ELEMENTAL_EARTH_IWD"
+    },
+    {
+      "value": 57932,
+      "value_str": "0xE24C",
+      "name": "MELF     CGAMEANIMATIONTYPE_ELEMENTAL_FIRE_IWD"
+    },
+    {
+      "value": 57933,
+      "value_str": "0xE24D",
+      "name": "MELW     CGAMEANIMATIONTYPE_ELEMENTAL_WATER"
+    },
+    {
+      "value": 57934,
+      "value_str": "0xE24E",
+      "name": "MGFI     CGAMEANIMATIONTYPE_GIANT_FIRE_IWD"
+    },
+    {
+      "value": 57935,
+      "value_str": "0xE24F",
+      "name": "MGFR     CGAMEANIMATIONTYPE_GIANT_FROST"
+    },
+    {
+      "value": 57936,
+      "value_str": "0xE250",
+      "name": "MGIR     CGAMEANIMATIONTYPE_GOLEM_IRON_IWD"
+    },
+    {
+      "value": 57937,
+      "value_str": "0xE251",
+      "name": "MGVE     CGAMEANIMATIONTYPE_GIANT_VERBEEG"
+    },
+    {
+      "value": 57938,
+      "value_str": "0xE252",
+      "name": "MHAR     CGAMEANIMATIONTYPE_HARPY"
+    },
+    {
+      "value": 57939,
+      "value_str": "0xE253",
+      "name": "MREM     CGAMEANIMATIONTYPE_REMORHAZ"
+    },
+    {
+      "value": 57940,
+      "value_str": "0xE254",
+      "name": "MSCR     CGAMEANIMATIONTYPE_TROLL_SCRAG"
+    },
+    {
+      "value": 57941,
+      "value_str": "0xE255",
+      "name": "MSEE     CGAMEANIMATIONTYPE_SEER"
+    },
+    {
+      "value": 57942,
+      "value_str": "0xE256",
+      "name": "MBE1     CGAMEANIMATIONTYPE_BELHIFET"
+    },
+    {
+      "value": 57943,
+      "value_str": "0xE257",
+      "name": "MBE2     CGAMEANIMATIONTYPE_BELHIFET_PRIEST"
+    },
+    {
+      "value": 57944,
+      "value_str": "0xE258",
+      "name": "MBE2_HE  CGAMEANIMATIONTYPE_HEPHERNAAN"
+    },
+    {
+      "value": 57945,
+      "value_str": "0xE259",
+      "name": "MSVI     CGAMEANIMATIONTYPE_SVIRFNEBLIN_PALE_AXE"
+    },
+    {
+      "value": 57946,
+      "value_str": "0xE25A",
+      "name": "MSV2     CGAMEANIMATIONTYPE_SVIRFNEBLIN_PALE_NOAXE"
+    },
+    {
+      "value": 57947,
+      "value_str": "0xE25B",
+      "name": "MUM2     CGAMEANIMATIONTYPE_UMBER_HULK_VODYANOI"
+    },
+    {
+      "value": 57948,
+      "value_str": "0xE25C",
+      "name": "MTA2     CGAMEANIMATIONTYPE_MARILITH_IWD"
+    },
+    {
+      "value": 57949,
+      "value_str": "0xE25D",
+      "name": "MYET     CGAMEANIMATIONTYPE_TUNDRA_YETI"
+    },
+    {
+      "value": 57950,
+      "value_str": "0xE25E",
+      "name": "MWI4     CGAMEANIMATIONTYPE_WIGHT_BARROW"
+    },
+    {
+      "value": 57951,
+      "value_str": "0xE25F",
+      "name": "MDRD     CGAMEANIMATIONTYPE_DROWNED_DEAD"
+    },
+    {
+      "value": 57952,
+      "value_str": "0xE260",
+      "name": "MCRD     CGAMEANIMATIONTYPE_CREEPING_DOOM"
+    },
+    {
+      "value": 57953,
+      "value_str": "0xE261",
+      "name": "MSAH     CGAMEANIMATIONTYPE_SAHUAGIN_IWD"
+    },
+    {
+      "value": 57954,
+      "value_str": "0xE262",
+      "name": "MSAT     CGAMEANIMATIONTYPE_SAHUAGIN_LARGE_IWD"
+    },
+    {
+      "value": 57955,
+      "value_str": "0xE263",
+      "name": "MSV3     CGAMEANIMATIONTYPE_SVIRFNEBLIN_DARK_AXE"
+    },
+    {
+      "value": 57956,
+      "value_str": "0xE264",
+      "name": "MSV4     CGAMEANIMATIONTYPE_SVIRFNEBLIN_DARK_NOAXE"
+    },
+    {
+      "value": 57957,
+      "value_str": "0xE265",
+      "name": "MBOA     CGAMEANIMATIONTYPE_BOAR_ARCTIC"
+    },
+    {
+      "value": 57958,
+      "value_str": "0xE266",
+      "name": "MBU2     CGAMEANIMATIONTYPE_BUGBEAR_CAPTAIN"
+    },
+    {
+      "value": 57959,
+      "value_str": "0xE267",
+      "name": "MBUG     CGAMEANIMATIONTYPE_BUGBEAR"
+    },
+    {
+      "value": 57960,
+      "value_str": "0xE268",
+      "name": "MCHI     CGAMEANIMATIONTYPE_CHIMERA"
+    },
+    {
+      "value": 57961,
+      "value_str": "0xE269",
+      "name": "MDH1     CGAMEANIMATIONTYPE_HALFDRAGON_BLACK"
+    },
+    {
+      "value": 57962,
+      "value_str": "0xE26A",
+      "name": "MDH2     CGAMEANIMATIONTYPE_HALFDRAGON_RED"
+    },
+    {
+      "value": 57963,
+      "value_str": "0xE26B",
+      "name": "MDTR     CGAMEANIMATIONTYPE_TREANT_DARK"
+    },
+    {
+      "value": 57964,
+      "value_str": "0xE26C",
+      "name": "MEW2     CGAMEANIMATIONTYPE_ELEMENTAL_WATER_SMALL"
+    },
+    {
+      "value": 57965,
+      "value_str": "0xE26D",
+      "name": "MFE2     CGAMEANIMATIONTYPE_FEYR_GREATER"
+    },
+    {
+      "value": 57966,
+      "value_str": "0xE26E",
+      "name": "MFEY     CGAMEANIMATIONTYPE_FEYR"
+    },
+    {
+      "value": 57967,
+      "value_str": "0xE26F",
+      "name": "MGFO     CGAMEANIMATIONTYPE_GIANT_FOMORIAN"
+    },
+    {
+      "value": 57968,
+      "value_str": "0xE270",
+      "name": "MGO5     CGAMEANIMATIONTYPE_GOBLIN_CAPTAIN"
+    },
+    {
+      "value": 57969,
+      "value_str": "0xE271",
+      "name": "MGOC     CGAMEANIMATIONTYPE_GOBLIN_SHAMAN"
+    },
+    {
+      "value": 57970,
+      "value_str": "0xE272",
+      "name": "MGWO     CGAMEANIMATIONTYPE_GOBLIN_WORG"
+    },
+    {
+      "value": 57971,
+      "value_str": "0xE273",
+      "name": "MGW2     CGAMEANIMATIONTYPE_GOBLIN_WORG_CAPTAIN"
+    },
+    {
+      "value": 57972,
+      "value_str": "0xE274",
+      "name": "MHOH     CGAMEANIMATIONTYPE_HOOK_HORROR"
+    },
+    {
+      "value": 57973,
+      "value_str": "0xE275",
+      "name": "MISA     CGAMEANIMATIONTYPE_ISAIR"
+    },
+    {
+      "value": 57974,
+      "value_str": "0xE276",
+      "name": "MLEM     CGAMEANIMATIONTYPE_LEMURE"
+    },
+    {
+      "value": 57975,
+      "value_str": "0xE277",
+      "name": "MMAD     CGAMEANIMATIONTYPE_MADAE"
+    },
+    {
+      "value": 57976,
+      "value_str": "0xE278",
+      "name": "MMAL     CGAMEANIMATIONTYPE_MALARITE"
+    },
+    {
+      "value": 57977,
+      "value_str": "0xE279",
+      "name": "MNOS     CGAMEANIMATIONTYPE_OROG_SHAMAN"
+    },
+    {
+      "value": 57978,
+      "value_str": "0xE27A",
+      "name": "MOR6     CGAMEANIMATIONTYPE_ORC_AXE_UNDEAD"
+    },
+    {
+      "value": 57979,
+      "value_str": "0xE27B",
+      "name": "MOR7     CGAMEANIMATIONTYPE_ORC_SHAMAN_UNDEAD"
+    },
+    {
+      "value": 57980,
+      "value_str": "0xE27C",
+      "name": "MSHE     CGAMEANIMATIONTYPE_SHENRICAL"
+    },
+    {
+      "value": 57981,
+      "value_str": "0xE27D",
+      "name": "MWEB     CGAMEANIMATIONTYPE_WEREBADGER"
+    },
+    {
+      "value": 57982,
+      "value_str": "0xE27E",
+      "name": "MWRA     CGAMEANIMATIONTYPE_WERERAT"
+    },
+    {
+      "value": 57983,
+      "value_str": "0xE27F",
+      "name": "MBOA_BR  CGAMEANIMATIONTYPE_BOAR_WILD"
+    },
+    {
+      "value": 57984,
+      "value_str": "0xE280",
+      "name": "MWOR     CGAMEANIMATIONTYPE_WORG"
+    },
+    {
+      "value": 57985,
+      "value_str": "0xE281",
+      "name": "MYUH     CGAMEANIMATIONTYPE_YUAN-TI_HALF"
+    },
+    {
+      "value": 57986,
+      "value_str": "0xE282",
+      "name": "MDRF     CGAMEANIMATIONTYPE_DRIDER_FEMALE"
+    },
+    {
+      "value": 57987,
+      "value_str": "0xE283",
+      "name": "MDRM     CGAMEANIMATIONTYPE_DRIDER_MALE"
+    },
+    {
+      "value": 57988,
+      "value_str": "0xE284",
+      "name": "MGEN     CGAMEANIMATIONTYPE_INVISIBLE_SMALL"
+    },
+    {
+      "value": 57989,
+      "value_str": "0xE285",
+      "name": "MGEN     CGAMEANIMATIONTYPE_INVISIBLE_MEDIUM"
+    },
+    {
+      "value": 57990,
+      "value_str": "0xE286",
+      "name": "MGEN     CGAMEANIMATIONTYPE_INVISIBLE_LARGE"
+    },
+    {
+      "value": 57991,
+      "value_str": "0xE287",
+      "name": "MGEN     CGAMEANIMATIONTYPE_INVISIBLE_GIANT"
+    },
+    {
+      "value": 57992,
+      "value_str": "0xE288",
+      "name": "MGWO_DK  CGAMEANIMATIONTYPE_GOBLIN_WORG_ELITE"
+    },
+    {
+      "value": 57993,
+      "value_str": "0xE289",
+      "name": "MGW2_DK  CGAMEANIMATIONTYPE_GOBLIN_WORG_SHAMAN"
+    },
+    {
+      "value": 57994,
+      "value_str": "0xE28A",
+      "name": "MTRO_DK  CGAMEANIMATIONTYPE_TROLL_SPECTRAL"
+    },
+    {
+      "value": 57995,
+      "value_str": "0xE28B",
+      "name": "MABW     CGAMEANIMATIONTYPE_ABISHAI_WHITE"
+    },
+    {
+      "value": 57996,
+      "value_str": "0xE28C",
+      "name": "MWD2     CGAMEANIMATIONTYPE_DRAGON_WHITE_YOUNG"
+    },
+    {
+      "value": 57997,
+      "value_str": "0xE28D",
+      "name": "MWD2_SI  CGAMEANIMATIONTYPE_DRAGON_SILVER_YOUNG"
+    },
+    {
+      "value": 57998,
+      "value_str": "0xE28E",
+      "name": "MWD2_GR  CGAMEANIMATIONTYPE_DRAGON_GREEN_YOUNG"
+    },
+    {
+      "value": 57999,
+      "value_str": "0xE28F",
+      "name": "MDRD_RE  CGAMEANIMATIONTYPE_DROWNED_DEAD_RED"
+    },
+    {
+      "value": 58000,
+      "value_str": "0xE290",
+      "name": "MDH2_GR  CGAMEANIMATIONTYPE_HALFDRAGON_GREEN"
+    },
+    {
+      "value": 58001,
+      "value_str": "0xE291",
+      "name": "MBU2_SH  CGAMEANIMATIONTYPE_BUGBEAR_SHAMAN"
+    },
+    {
+      "value": 58002,
+      "value_str": "0xE292",
+      "name": "METN_GH  CGAMEANIMATIONTYPE_ETTIN_GHOST"
+    },
+    {
+      "value": 58003,
+      "value_str": "0xE293",
+      "name": "MGHI     CGAMEANIMATIONTYPE_GIANT_HILL"
+    },
+    {
+      "value": 58112,
+      "value_str": "0xE300",
+      "name": "MGHO     CGAMEANIMATIONTYPE_GHOST"
+    },
+    {
+      "value": 58128,
+      "value_str": "0xE310",
+      "name": "MGH2     CGAMEANIMATIONTYPE_GHOUL_GREATER"
+    },
+    {
+      "value": 58144,
+      "value_str": "0xE320",
+      "name": "MGH3     CGAMEANIMATIONTYPE_GHAST_GREATER"
+    },
+    {
+      "value": 58368,
+      "value_str": "0xE400",
+      "name": "MGO1     CGAMEANIMATIONTYPE_GOBLIN_AXE"
+    },
+    {
+      "value": 58384,
+      "value_str": "0xE410",
+      "name": "MGO2     CGAMEANIMATIONTYPE_GOBLIN_BOW"
+    },
+    {
+      "value": 58400,
+      "value_str": "0xE420",
+      "name": "MGO3     CGAMEANIMATIONTYPE_GOBLIN_ELITE_AXE"
+    },
+    {
+      "value": 58416,
+      "value_str": "0xE430",
+      "name": "MGO4     CGAMEANIMATIONTYPE_GOBLIN_ELITE_BOW"
+    },
+    {
+      "value": 58624,
+      "value_str": "0xE500",
+      "name": "MLIZ     CGAMEANIMATIONTYPE_LIZARD_MAN_ELITE"
+    },
+    {
+      "value": 58640,
+      "value_str": "0xE510",
+      "name": "MLI2     CGAMEANIMATIONTYPE_LIZARD_MAN"
+    },
+    {
+      "value": 58656,
+      "value_str": "0xE520",
+      "name": "MLI3     CGAMEANIMATIONTYPE_LIZARD_KING"
+    },
+    {
+      "value": 58880,
+      "value_str": "0xE600",
+      "name": "MMYC     CGAMEANIMATIONTYPE_MYCONID_RED"
+    },
+    {
+      "value": 58896,
+      "value_str": "0xE610",
+      "name": "MMY2     CGAMEANIMATIONTYPE_MYCONID_BLUE"
+    },
+    {
+      "value": 59136,
+      "value_str": "0xE700",
+      "name": "MNO1     CGAMEANIMATIONTYPE_OROG"
+    },
+    {
+      "value": 59152,
+      "value_str": "0xE710",
+      "name": "MNO2     CGAMEANIMATIONTYPE_OROG_ELITE"
+    },
+    {
+      "value": 59168,
+      "value_str": "0xE720",
+      "name": "MNO3     CGAMEANIMATIONTYPE_OROG_CHIEFTAIN"
+    },
+    {
+      "value": 59392,
+      "value_str": "0xE800",
+      "name": "MOR1     CGAMEANIMATIONTYPE_ORC_MELEE"
+    },
+    {
+      "value": 59408,
+      "value_str": "0xE810",
+      "name": "MOR2     CGAMEANIMATIONTYPE_ORC_RANGE"
+    },
+    {
+      "value": 59424,
+      "value_str": "0xE820",
+      "name": "MOR3     CGAMEANIMATIONTYPE_ORC_ELITE_MELEE"
+    },
+    {
+      "value": 59440,
+      "value_str": "0xE830",
+      "name": "MOR4     CGAMEANIMATIONTYPE_ORC_ELITE_RANGE"
+    },
+    {
+      "value": 59456,
+      "value_str": "0xE840",
+      "name": "MOR5     CGAMEANIMATIONTYPE_ORC_SHAMAN"
+    },
+    {
+      "value": 59648,
+      "value_str": "0xE900",
+      "name": "MSAL     CGAMEANIMATIONTYPE_SALAMANDER_FIRE"
+    },
+    {
+      "value": 59664,
+      "value_str": "0xE910",
+      "name": "MSA2     CGAMEANIMATIONTYPE_SALAMANDER_FROST"
+    },
+    {
+      "value": 59904,
+      "value_str": "0xEA00",
+      "name": "MSHR     CGAMEANIMATIONTYPE_SHRIEKER"
+    },
+    {
+      "value": 59920,
+      "value_str": "0xEA10",
+      "name": "MSH1     CGAMEANIMATIONTYPE_SHADOW_SMALL"
+    },
+    {
+      "value": 59936,
+      "value_str": "0xEA20",
+      "name": "MSH2     CGAMEANIMATIONTYPE_SHADOW_LARGE"
+    },
+    {
+      "value": 60160,
+      "value_str": "0xEB00",
+      "name": "MSKT     CGAMEANIMATIONTYPE_SKELETON_MONSTER"
+    },
+    {
+      "value": 60176,
+      "value_str": "0xEB10",
+      "name": "MSKA     CGAMEANIMATIONTYPE_SKELETON_WARRIOR"
+    },
+    {
+      "value": 60192,
+      "value_str": "0xEB20",
+      "name": "MSKB     CGAMEANIMATIONTYPE_SKELETON_FIEND"
+    },
+    {
+      "value": 60416,
+      "value_str": "0xEC00",
+      "name": "MWIG     CGAMEANIMATIONTYPE_WIGHT_GRAY"
+    },
+    {
+      "value": 60432,
+      "value_str": "0xEC10",
+      "name": "MWI2     CGAMEANIMATIONTYPE_WIGHT_GREEN"
+    },
+    {
+      "value": 60448,
+      "value_str": "0xEC20",
+      "name": "MWI3     CGAMEANIMATIONTYPE_WIGHT_YELLOW"
+    },
+    {
+      "value": 60672,
+      "value_str": "0xED00",
+      "name": "MYU1     CGAMEANIMATIONTYPE_YUAN-TI"
+    },
+    {
+      "value": 60688,
+      "value_str": "0xED10",
+      "name": "MYU2     CGAMEANIMATIONTYPE_YUAN-TI_ELITE"
+    },
+    {
+      "value": 60704,
+      "value_str": "0xED20",
+      "name": "MYU3     CGAMEANIMATIONTYPE_YUAN-TI_PRIEST"
+    },
+    {
+      "value": 60928,
+      "value_str": "0xEE00",
+      "name": "MZO2     CGAMEANIMATIONTYPE_ZOMBIE_YELLOW"
+    },
+    {
+      "value": 60944,
+      "value_str": "0xEE10",
+      "name": "MZO3     CGAMEANIMATIONTYPE_ZOMBIE_BLUE"
+    },
+    {
+      "value": 61200,
+      "value_str": "0xEF10",
+      "name": "MWWE     CGAMEANIMATIONTYPE_WATER_WEIRD"
+    },
+    {
+      "value": 61329,
+      "value_str": "0xEF91",
+      "name": "XF91     CGAMEANIMATIONTYPE_DONOT_USE2"
+    }
+  ]
+}

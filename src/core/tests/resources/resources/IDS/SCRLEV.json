@@ -1,0 +1,39 @@
+{
+  "entries": [
+    {
+      "value": 0,
+      "value_str": "0",
+      "name": "OVERRIDE"
+    },
+    {
+      "value": 1,
+      "value_str": "1",
+      "name": "AREA"
+    },
+    {
+      "value": 2,
+      "value_str": "2",
+      "name": "SPECIFICS"
+    },
+    {
+      "value": 4,
+      "value_str": "4",
+      "name": "CLASS"
+    },
+    {
+      "value": 5,
+      "value_str": "5",
+      "name": "RACE"
+    },
+    {
+      "value": 6,
+      "value_str": "6",
+      "name": "GENERAL"
+    },
+    {
+      "value": 7,
+      "value_str": "7",
+      "name": "DEFAULT"
+    }
+  ]
+}
