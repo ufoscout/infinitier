@@ -254,10 +254,7 @@ pub struct WedVertex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        fs::{CaseInsensitiveFS, CaseInsensitivePath},
-        test_utils::BG2_RESOURCES_DIR,
-    };
+    use crate::resource::test_utils::{get_path, parse_json_file};
 
     #[test]
     fn test_wed_poligon_flag() {
@@ -289,19 +286,13 @@ mod tests {
 
     #[test]
     fn test_parse_wed_file() {
-        let path = CaseInsensitiveFS::new(BG2_RESOURCES_DIR)
-            .unwrap()
-            .get_path(&CaseInsensitivePath::new("override/ar0072.WED"))
-            .unwrap();
-        let json_path = path.parent().unwrap().join("ar0072.json");
+        let path = get_path("bg2/override");
+        let web_path = path.join("ar0072.WED");
+        let json_path = path.join("ar0072.json");
 
-        let expected: Wed = serde_json::from_str(
-            &std::fs::read_to_string(&json_path)
-                .unwrap_or_else(|e| panic!("cannot read {}: {e}", json_path.display())),
-        )
-        .unwrap_or_else(|e| panic!("cannot parse {}: {e}", json_path.display()));
+        let expected: Wed = parse_json_file(&json_path);
 
-        let actual = WedImporter::import(&DataSource::new(path.as_path())).unwrap();
+        let actual = WedImporter::import(&DataSource::new(web_path.as_path())).unwrap();
 
         assert_eq!(actual.overlays.len(), 5);
         assert_eq!(actual.doors.len(), 2);

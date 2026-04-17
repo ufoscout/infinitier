@@ -426,7 +426,10 @@ impl ResourceType {
 
 #[cfg(test)]
 mod tests {
-    use crate::{fs::CaseInsensitiveFS, test_utils::ALL_RESOURCES_DIRS};
+    use crate::{
+        fs::CaseInsensitiveFS, resource::test_utils::parse_json_file,
+        test_utils::ALL_RESOURCES_DIRS,
+    };
 
     use super::*;
 
@@ -457,11 +460,7 @@ mod tests {
                 .unwrap();
             let json_path = key_path.parent().unwrap().join("chitin.json");
 
-            let expected: Key = serde_json::from_str(
-                &std::fs::read_to_string(&json_path)
-                    .unwrap_or_else(|e| panic!("cannot read {}: {e}", json_path.display())),
-            )
-            .unwrap_or_else(|e| panic!("cannot parse {}: {e}", json_path.display()));
+            let expected: Key = parse_json_file(&json_path);
 
             let actual = KeyImporter::import(&DataSource::new(key_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", key_path.display()));

@@ -6,16 +6,14 @@ use infinitier_datasource::{DataSource, Importer};
 pub struct BmpImporter;
 
 impl Importer for BmpImporter {
-
     type T = Bmp;
 
     fn import(source: &DataSource) -> std::io::Result<Bmp> {
         let reader = source.reader()?;
         let image = image::ImageReader::with_format(reader.data, image::ImageFormat::Bmp)
-                .decode().map_err(|err| 
-                    std::io::Error::new(std::io::ErrorKind::InvalidData, err)
-                )?
-                .to_rgba8();
+            .decode()
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?
+            .to_rgba8();
 
         Ok(Bmp { image })
     }
@@ -25,7 +23,6 @@ impl Importer for BmpImporter {
 pub struct Bmp {
     pub image: ImageBuffer<Rgba<u8>, Vec<u8>>,
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -42,7 +42,6 @@ pub struct IdsEntry {
 }
 
 impl Ids {
-
     /// Returns the name of the first entry whose value matches, or `None`.
     pub fn of_value(&self, value: i32) -> Option<&str> {
         self.entries
@@ -82,7 +81,7 @@ fn parse_value(s: &str) -> Option<i32> {
 /// Returns `None` for empty lines and for lines that do not contain a valid
 /// `<value> <name>` pair (e.g. a bare entry count with no name).
 fn parse_line(line: &str) -> Option<IdsEntry> {
-    let line = line.trim().trim_matches('\0') ;
+    let line = line.trim().trim_matches('\0');
     if line.is_empty() {
         return None;
     }
@@ -103,7 +102,7 @@ mod tests {
     use super::*;
     use infinitier_datasource::DataSource;
 
-    use crate::test_utils::RESOURCES_DIR;
+    use crate::resource::test_utils::{get_all_in_folder_by_extension, get_path, parse_json_file};
 
     // ── parse_value ──────────────────────────────────────────────────────────
 
@@ -146,7 +145,11 @@ mod tests {
     fn test_parse_line_decimal() {
         assert_eq!(
             parse_line("1 INANIMATE"),
-            Some(IdsEntry { value: 1, value_str: "1".to_owned(), name: "INANIMATE".into() })
+            Some(IdsEntry {
+                value: 1,
+                value_str: "1".to_owned(),
+                name: "INANIMATE".into()
+            })
         );
     }
 
@@ -154,7 +157,11 @@ mod tests {
     fn test_parse_line_hex() {
         assert_eq!(
             parse_line("0x0001 ACID"),
-            Some(IdsEntry { value: 1, value_str: "0x0001".to_owned(), name: "ACID".into() })
+            Some(IdsEntry {
+                value: 1,
+                value_str: "0x0001".to_owned(),
+                name: "ACID".into()
+            })
         );
     }
 
@@ -162,7 +169,11 @@ mod tests {
     fn test_parse_line_wide_spacing() {
         assert_eq!(
             parse_line("0          HITPOINTS"),
-            Some(IdsEntry { value: 0, value_str: "0".to_owned(), name: "HITPOINTS".into() })
+            Some(IdsEntry {
+                value: 0,
+                value_str: "0".to_owned(),
+                name: "HITPOINTS".into()
+            })
         );
     }
 
@@ -186,10 +197,15 @@ mod tests {
 
     #[test]
     fn test_parse_line_multiple_values() {
-        assert_eq!(parse_line("0x1300 MDEM     CGAMEANIMATIONTYPE_DEMOGORGON"), 
-    Some(IdsEntry { value: 4864, value_str: "0x1300".to_owned(), name: "MDEM     CGAMEANIMATIONTYPE_DEMOGORGON".into() }));
+        assert_eq!(
+            parse_line("0x1300 MDEM     CGAMEANIMATIONTYPE_DEMOGORGON"),
+            Some(IdsEntry {
+                value: 4864,
+                value_str: "0x1300".to_owned(),
+                name: "MDEM     CGAMEANIMATIONTYPE_DEMOGORGON".into()
+            })
+        );
     }
-
 
     // ── IDS helper methods ───────────────────────────────────────────────────
 
@@ -197,8 +213,16 @@ mod tests {
     fn test_name_of() {
         let ids = Ids {
             entries: vec![
-                IdsEntry { value: 0, value_str: "0".to_owned(), name: "false".into() },
-                IdsEntry { value: 1, value_str: "1".to_owned(), name: "true".into() },
+                IdsEntry {
+                    value: 0,
+                    value_str: "0".to_owned(),
+                    name: "false".into(),
+                },
+                IdsEntry {
+                    value: 1,
+                    value_str: "1".to_owned(),
+                    name: "true".into(),
+                },
             ],
         };
         assert_eq!(ids.of_value(0), Some("false"));
@@ -206,39 +230,18 @@ mod tests {
         assert_eq!(ids.of_value(99), None);
     }
 
-    // ── file-based integration tests ─────────────────────────────────────────
-
-    fn ids_dir() -> std::path::PathBuf {
-        std::path::Path::new(RESOURCES_DIR).join("resources").join("IDS")
-    }
-
-    fn all_ids_paths() -> Vec<std::path::PathBuf> {
-        let mut paths: Vec<_> = std::fs::read_dir(ids_dir())
-            .expect("IDS directory not found")
-            .filter_map(|e| e.ok())
-            .map(|e| e.path())
-            .filter(|p| p.extension().map_or(false, |ext| ext.eq_ignore_ascii_case("IDS")))
-            .collect();
-        paths.sort();
-        paths
-    }
-
     #[test]
     fn test_all_ids_files() {
-        let paths = all_ids_paths();
+        let ids_folder = get_path("resources/IDS");
+        let paths = get_all_in_folder_by_extension(&ids_folder, "IDS");
         assert!(!paths.is_empty(), "no IDS files found");
 
         for ids_path in paths {
             let json_path = ids_path.with_extension("json");
-            let expected: Ids = serde_json::from_str(
-                &std::fs::read_to_string(&json_path)
-                    .unwrap_or_else(|e| panic!("cannot read {}: {e}", json_path.display())),
-            )
-            .unwrap_or_else(|e| panic!("cannot parse {}: {e}", json_path.display()));
+            let expected: Ids = parse_json_file(&json_path);
             let actual = IdsImporter::import(&DataSource::new(ids_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ids_path.display()));
             assert_eq!(actual, expected, "IDS mismatch for {}", ids_path.display());
         }
     }
-
 }
