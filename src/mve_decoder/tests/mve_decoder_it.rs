@@ -2,7 +2,52 @@ use std::io::Cursor;
 use std::path::PathBuf;
 
 use infinitier_mve_decoder::{MveDecoder, VideoFormat};
+use serde::Deserialize;
 use sha2::Digest as _;
+
+
+#[test]
+fn test_decoding_palette8_video_and_audio() {
+    assert_matches_json(
+        "tests/resources/8_bits/BILOGO.MVE",
+        "tests/resources/8_bits/BILOGO.json",
+    );
+}
+
+#[test]
+fn test_decoding_palette16_video_and_audio() {
+    assert_matches_json(
+        "tests/resources/16_bits/BISLOGO.MVE",
+        "tests/resources/16_bits/BISLOGO.json",
+    );
+}
+
+
+#[derive(Deserialize)]
+struct MveReport {
+    audio: AudioInfo,
+    video: VideoInfo,
+}
+
+#[derive(Deserialize)]
+struct AudioInfo {
+    channels: u8,
+    sample_rate: u32,
+    bits_per_sample: u16,
+    format: String,
+    total_samples: usize,
+    wav_sha256: String,
+}
+
+#[derive(Deserialize)]
+struct VideoInfo {
+    width: u16,
+    height: u16,
+    palette_bits: u8,
+    frame_count: usize,
+    frame_duration_us: u32,
+    frame_hashes: Vec<String>,
+}
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -35,25 +80,24 @@ fn assert_matches_json(mve_rel: &str, json_rel: &str) {
     let mve_path  = manifest_dir().join(mve_rel);
     let json_path = manifest_dir().join(json_rel);
 
-    // ---- Parse JSON ----
+    // ---- Parse JSON into typed struct ----
     let raw = std::fs::read_to_string(&json_path)
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", json_path.display()));
-    let j: serde_json::Value = serde_json::from_str(&raw).unwrap();
+    let report: MveReport = serde_json::from_str(&raw).unwrap();
 
-    let exp_width          = j["video"]["width"].as_u64().unwrap() as u16;
-    let exp_height         = j["video"]["height"].as_u64().unwrap() as u16;
-    let exp_palette_bits   = j["video"]["palette_bits"].as_u64().unwrap() as u8;
-    let exp_frame_count    = j["video"]["frame_count"].as_u64().unwrap() as usize;
-    let exp_frame_dur_us   = j["video"]["frame_duration_us"].as_u64().unwrap() as u32;
-    let exp_frame_hashes: Vec<&str> = j["video"]["frame_hashes"]
-        .as_array().unwrap()
-        .iter().map(|v| v.as_str().unwrap()).collect();
+    let exp_width          = report.video.width;
+    let exp_height         = report.video.height;
+    let exp_palette_bits   = report.video.palette_bits;
+    let exp_frame_count    = report.video.frame_count;
+    let exp_frame_dur_us   = report.video.frame_duration_us;
+    let exp_frame_hashes   = &report.video.frame_hashes;
 
-    let exp_channels        = j["audio"]["channels"].as_u64().unwrap() as u8;
-    let exp_sample_rate     = j["audio"]["sample_rate"].as_u64().unwrap() as u32;
-    let exp_bits_per_sample = j["audio"]["bits_per_sample"].as_u64().unwrap() as u16;
-    let exp_total_samples   = j["audio"]["total_samples"].as_u64().unwrap() as usize;
-    let exp_wav_sha256      = j["audio"]["wav_sha256"].as_str().unwrap();
+    let exp_channels        = report.audio.channels;
+    let exp_sample_rate     = report.audio.sample_rate;
+    let exp_bits_per_sample = report.audio.bits_per_sample;
+    let exp_audio_format    = &report.audio.format;
+    let exp_total_samples   = report.audio.total_samples;
+    let exp_wav_sha256      = &report.audio.wav_sha256;
 
     // ---- Open decoder and check static metadata ----
     let mut dec = MveDecoder::open(&mve_path)
@@ -91,16 +135,22 @@ fn assert_matches_json(mve_rel: &str, json_rel: &str) {
     }
 
     // ---- Verify video ----
-    assert_eq!(frame_dur_us, exp_frame_dur_us, "video.frame_duration_us");
-    assert_eq!(frame_hashes.len(), exp_frame_count, "video.frame_count");
+    assert_eq!(frame_dur_us,       exp_frame_dur_us,    "video.frame_duration_us");
+    assert_eq!(frame_hashes.len(), exp_frame_count,     "video.frame_count");
     for (i, (got, exp)) in frame_hashes.iter().zip(exp_frame_hashes.iter()).enumerate() {
-        assert_eq!(got.as_str(), *exp, "video.frame_hashes[{i}]");
+        assert_eq!(got, exp, "video.frame_hashes[{i}]");
     }
 
     // ---- Verify audio ----
     let channels    = audio_channels.expect("no audio decoded");
     let sample_rate = audio_sample_rate.unwrap();
 
+    let actual_format = format!(
+        "PCM 16-bit {} at {} Hz",
+        if channels == 2 { "stereo" } else { "mono" },
+        sample_rate,
+    );
+    assert_eq!(&actual_format,    exp_audio_format,    "audio.format");
     assert_eq!(channels,          exp_channels,        "audio.channels");
     assert_eq!(sample_rate,       exp_sample_rate,     "audio.sample_rate");
     assert_eq!(16u16,             exp_bits_per_sample, "audio.bits_per_sample");
@@ -108,25 +158,5 @@ fn assert_matches_json(mve_rel: &str, json_rel: &str) {
 
     let wav_bytes = samples_to_wav_bytes(&all_samples, channels, sample_rate);
     let wav_hash  = sha256_hex(&wav_bytes);
-    assert_eq!(wav_hash.as_str(), exp_wav_sha256, "audio.wav_sha256");
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-#[test]
-fn test_decoding_palette8_video_and_audio() {
-    assert_matches_json(
-        "tests/resources/8_bits/BILOGO.MVE",
-        "tests/resources/8_bits/BILOGO.json",
-    );
-}
-
-#[test]
-fn test_decoding_palette16_video_and_audio() {
-    assert_matches_json(
-        "tests/resources/16_bits/BISLOGO.MVE",
-        "tests/resources/16_bits/BISLOGO.json",
-    );
+    assert_eq!(&wav_hash, exp_wav_sha256, "audio.wav_sha256");
 }
