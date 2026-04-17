@@ -1,7 +1,3 @@
----
-source: src/core/src/resource/key.rs
-expression: key
----
 {
   "signature": "KEY",
   "version": "V1",

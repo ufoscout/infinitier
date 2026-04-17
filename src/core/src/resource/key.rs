@@ -426,8 +426,6 @@ impl ResourceType {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_json_snapshot;
-
     use crate::{fs::CaseInsensitiveFS, test_utils::ALL_RESOURCES_DIRS};
 
     use super::*;
@@ -452,14 +450,23 @@ mod tests {
 
     #[test]
     fn test_read_key_file() {
-        for i in ALL_RESOURCES_DIRS {
-            let path = CaseInsensitiveFS::new(i)
+        for dir in ALL_RESOURCES_DIRS {
+            let key_path = CaseInsensitiveFS::new(dir)
                 .unwrap()
                 .get_path(&CaseInsensitivePath::new("/CHITIN.KEY"))
                 .unwrap();
-            let key = KeyImporter::import(&DataSource::new(path)).unwrap();
+            let json_path = key_path.parent().unwrap().join("chitin.json");
 
-            assert_json_snapshot!(format!("key_file_{i}"), key, {});
+            let expected: Key = serde_json::from_str(
+                &std::fs::read_to_string(&json_path)
+                    .unwrap_or_else(|e| panic!("cannot read {}: {e}", json_path.display())),
+            )
+            .unwrap_or_else(|e| panic!("cannot parse {}: {e}", json_path.display()));
+
+            let actual = KeyImporter::import(&DataSource::new(key_path.as_path()))
+                .unwrap_or_else(|e| panic!("cannot import {}: {e}", key_path.display()));
+
+            assert_eq!(actual, expected, "key mismatch for {dir}");
         }
     }
 

@@ -253,8 +253,6 @@ pub struct WedVertex {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_json_snapshot;
-
     use super::*;
     use crate::{
         fs::{CaseInsensitiveFS, CaseInsensitivePath},
@@ -295,16 +293,24 @@ mod tests {
             .unwrap()
             .get_path(&CaseInsensitivePath::new("override/ar0072.WED"))
             .unwrap();
-        let wed = WedImporter::import(&DataSource::new(path)).unwrap();
+        let json_path = path.parent().unwrap().join("ar0072.json");
 
-        assert_eq!(wed.overlays.len(), 5);
-        assert_eq!(wed.doors.len(), 2);
-        assert_eq!(wed.polygons.len(), 94);
-        assert_eq!(wed.wall_groups.len(), 16);
-        assert_eq!(wed.wall_polygon_indexes.len(), 125);
-        assert_eq!(wed.verticles.len(), 2191);
-        assert_eq!(wed.door_tile_cells.len(), 11);
+        let expected: Wed = serde_json::from_str(
+            &std::fs::read_to_string(&json_path)
+                .unwrap_or_else(|e| panic!("cannot read {}: {e}", json_path.display())),
+        )
+        .unwrap_or_else(|e| panic!("cannot parse {}: {e}", json_path.display()));
 
-        assert_json_snapshot!(wed);
+        let actual = WedImporter::import(&DataSource::new(path.as_path())).unwrap();
+
+        assert_eq!(actual.overlays.len(), 5);
+        assert_eq!(actual.doors.len(), 2);
+        assert_eq!(actual.polygons.len(), 94);
+        assert_eq!(actual.wall_groups.len(), 16);
+        assert_eq!(actual.wall_polygon_indexes.len(), 125);
+        assert_eq!(actual.verticles.len(), 2191);
+        assert_eq!(actual.door_tile_cells.len(), 11);
+
+        assert_eq!(actual, expected, "wed mismatch for ar0072.WED");
     }
 }
