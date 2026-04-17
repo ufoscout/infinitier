@@ -116,7 +116,7 @@ fn assert_matches_json(mve_rel: &str, json_rel: &str) {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn palette8_video_and_audio_match_json() {
+fn test_decoding_palette8_video_and_audio() {
     assert_matches_json(
         "tests/resources/8_bits/BILOGO.MVE",
         "tests/resources/8_bits/BILOGO.json",
@@ -124,7 +124,7 @@ fn palette8_video_and_audio_match_json() {
 }
 
 #[test]
-fn palette16_video_and_audio_match_json() {
+fn test_decoding_palette16_video_and_audio() {
     assert_matches_json(
         "tests/resources/16_bits/BISLOGO.MVE",
         "tests/resources/16_bits/BISLOGO.json",

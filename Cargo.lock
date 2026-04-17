@@ -2155,17 +2155,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mve_inspector"
-version = "0.1.0"
-dependencies = [
- "hound",
- "infinitier_mve_decoder",
- "serde",
- "serde_json",
- "sha2 0.11.0",
-]
-
-[[package]]
 name = "mve_player"
 version = "0.1.0"
 dependencies = [
