@@ -10,3 +10,4 @@ log = { workspace = true }
 
 [dev-dependencies]
 infinitier_fs = { workspace = true }
+infinitier_test_utils = { workspace = true }

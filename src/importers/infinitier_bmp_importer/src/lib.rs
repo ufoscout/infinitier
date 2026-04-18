@@ -27,20 +27,13 @@ pub struct Bmp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_test_utils::assert_images_are_equal;
-    use std::path::Path;
-
-    const RESOURCES_DIR: &str = "../../../assets/";
+    use infinitier_test_utils::{assert_images_are_equal, get_assets_path};
 
     #[test]
     fn test_parse_bmp_01() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BMP/CCHAN05.BMP"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/BMP/CCHAN05.BMP"));
 
-        let original = image::open(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BMP/CCHAN05.BMP"
-        )))
+        let original = image::open(get_assets_path().join("resources/BMP/CCHAN05.BMP"))
         .unwrap();
 
         let bmp = BmpImporter::import(&data).unwrap();
@@ -50,13 +43,9 @@ mod tests {
 
     #[test]
     fn test_parse_bmp_02() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BMP/MINSCM.BMP"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/BMP/MINSCM.BMP"));
 
-        let original = image::open(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BMP/MINSCM.BMP"
-        )))
+        let original = image::open(get_assets_path().join("resources/BMP/MINSCM.BMP"))
         .unwrap();
 
         let bmp = BmpImporter::import(&data).unwrap();

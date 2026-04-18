@@ -150,16 +150,11 @@ impl PvrDataCompression {
 mod tests {
 
     use super::*;
-    use infinitier_test_utils::assert_images_are_equal;
-    use std::path::Path;
-
-    const RESOURCES_DIR: &str = "../../../assets/";
+    use infinitier_test_utils::{assert_images_are_equal, get_assets_path};
 
     #[test]
     fn test_parse_pvrz_dxt1() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/MOS_DXT1/A004602.PVRZ"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/MOS_DXT1/A004602.PVRZ"));
 
         let pvrz_header = PvrzImporter::import(&data).unwrap();
 
@@ -186,10 +181,8 @@ mod tests {
             let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
 
             assert_images_are_equal(
-                &image::open(Path::new(&format!(
-                    "{RESOURCES_DIR}/resources/MOS_DXT1/A004602.PNG"
-                )))
-                .unwrap(),
+                &image::open(get_assets_path().join("resources/MOS_DXT1/A004602.PNG"))
+                    .unwrap(),
                 &image.into(),
             );
         }
@@ -197,9 +190,7 @@ mod tests {
 
     #[test]
     fn test_parse_pvrz_dxt5() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/MOS_DXT5/MOS0000.PVRZ"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/MOS_DXT5/MOS0000.PVRZ"));
 
         let pvrz_header = PvrzImporter::import(&data).unwrap();
 
@@ -226,10 +217,8 @@ mod tests {
             let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
 
             assert_images_are_equal(
-                &image::open(Path::new(&format!(
-                    "{RESOURCES_DIR}/resources/MOS_DXT5/MOS0000.PNG"
-                )))
-                .unwrap(),
+                &image::open(get_assets_path().join("resources/MOS_DXT5/MOS0000.PNG"))
+                    .unwrap(),
                 &image.into(),
             );
         }

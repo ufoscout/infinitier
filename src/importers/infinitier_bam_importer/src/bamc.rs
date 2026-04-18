@@ -29,21 +29,18 @@ impl BamcParser {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use infinitier_datasource::DataSource;
+    use infinitier_test_utils::get_assets_path;
 
     use crate::bam_v1::BamV1Parser;
 
     use super::*;
 
-    const RESOURCES_DIR: &str = "../../../assets/";
-
     #[test]
     fn test_parse_compressed_bam_should_fail_if_wrong_signature() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_decompressed.BAM"
-        )));
+        let data = DataSource::new(
+            get_assets_path().join("resources/BAM_V1/01/1chan03B_decompressed.BAM"),
+        );
 
         let mut reader = data.reader().unwrap();
         let res = BamcParser::import(&mut reader);
@@ -53,18 +50,18 @@ mod tests {
     #[test]
     fn test_parse_bam_v1_compressed_01() {
         let bam_from_decompressed = {
-            let data = DataSource::new(Path::new(&format!(
-                "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_decompressed.BAM"
-            )));
+            let data = DataSource::new(
+                get_assets_path().join("resources/BAM_V1/01/1chan03B_decompressed.BAM"),
+            );
 
             let mut reader = data.reader().unwrap();
             BamV1Parser::import(&mut reader).unwrap()
         };
 
         let bam_from_compressed = {
-            let data = DataSource::new(Path::new(&format!(
-                "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_compressed.BAM"
-            )));
+            let data = DataSource::new(
+                get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"),
+            );
 
             let mut reader = data.reader().unwrap();
             BamcParser::import(&mut reader).unwrap()
@@ -76,18 +73,18 @@ mod tests {
     #[test]
     fn test_parse_bam_v1_compressed_02() {
         let bam_from_decompressed = {
-            let data = DataSource::new(Path::new(&format!(
-                "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART_decompressed.BAM"
-            )));
+            let data = DataSource::new(
+                get_assets_path().join("resources/BAM_V1/02/SPHEART_decompressed.BAM"),
+            );
 
             let mut reader = data.reader().unwrap();
             BamV1Parser::import(&mut reader).unwrap()
         };
 
         let bam_from_compressed = {
-            let data = DataSource::new(Path::new(&format!(
-                "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART_compressed.BAM"
-            )));
+            let data = DataSource::new(
+                get_assets_path().join("resources/BAM_V1/02/SPHEART_compressed.BAM"),
+            );
 
             let mut reader = data.reader().unwrap();
             BamcParser::import(&mut reader).unwrap()

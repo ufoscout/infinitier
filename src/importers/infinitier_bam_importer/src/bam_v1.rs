@@ -196,16 +196,13 @@ mod tests {
     use infinitier_datasource::DataSource;
 
     use super::*;
-    use infinitier_test_utils::assert_images_are_equal;
-    use std::path::Path;
+    use infinitier_test_utils::{assert_images_are_equal, get_assets_path};
 
-    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_parse_bam_v1_should_fail_if_wrong_signature() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_compressed.BAM"
-        )));
+                let data = DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"));
+
 
         let mut reader = data.reader().unwrap();
         let res = BamV1Parser::import(&mut reader);
@@ -214,9 +211,8 @@ mod tests {
 
     #[test]
     fn test_parse_bam_v1_01() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_decompressed.BAM"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_decompressed.BAM"));
+
 
         let mut reader = data.reader().unwrap();
         let bam = BamV1Parser::import(&mut reader).unwrap();
@@ -245,9 +241,9 @@ mod tests {
             let image = bam.frames[0].to_image(&bam.palette).unwrap();
 
             assert_images_are_equal(
-                &image::open(Path::new(&format!(
-                    "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B00000.PNG"
-                )))
+                &image::open(get_assets_path().join(
+                    "resources/BAM_V1/01/1chan03B00000.PNG"
+                ))
                 .unwrap(),
                 &image.into(),
             );
@@ -256,9 +252,7 @@ mod tests {
 
     #[test]
     fn test_parse_bam_v1_02() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART_decompressed.BAM"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/BAM_V1/02/SPHEART_decompressed.BAM"));
 
         let mut reader = data.reader().unwrap();
         let bam = BamV1Parser::import(&mut reader).unwrap();
@@ -292,9 +286,9 @@ mod tests {
                 let image = frame.to_image(&bam.palette).unwrap();
 
                 assert_images_are_equal(
-                    &image::open(Path::new(&format!(
-                        "{RESOURCES_DIR}/resources/BAM_V1/02/SPHEART000{i:02}.PNG"
-                    )))
+                    &image::open(get_assets_path().join(
+                        format!("resources/BAM_V1/02/SPHEART000{i:02}.PNG")
+                    ))
                     .unwrap(),
                     &image.into(),
                 );

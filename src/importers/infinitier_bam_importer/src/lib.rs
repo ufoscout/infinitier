@@ -90,19 +90,15 @@ fn detect_bam_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
 
     use infinitier_datasource::DataSource;
+    use infinitier_test_utils::get_assets_path;
 
     use super::*;
 
-    const RESOURCES_DIR: &str = "../../../assets/";
-
     #[test]
     fn test_detect_bam_v1_type() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_decompressed.BAM"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_decompressed.BAM"));
 
         assert_eq!(
             detect_bam_type(&mut data.reader().unwrap()).unwrap(),
@@ -112,9 +108,7 @@ mod tests {
 
     #[test]
     fn test_detect_bam_v2_type() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V2/1CHELM03.BAM"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/BAM_V2/1CHELM03.BAM"));
 
         assert_eq!(
             detect_bam_type(&mut data.reader().unwrap()).unwrap(),
@@ -124,9 +118,7 @@ mod tests {
 
     #[test]
     fn test_detect_bamc_type() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_compressed.BAM"
-        )));
+        let data = DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"));
 
         assert_eq!(
             detect_bam_type(&mut data.reader().unwrap()).unwrap(),

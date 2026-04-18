@@ -226,12 +226,9 @@ impl BamV2 {
 mod tests {
     use infinitier_datasource::DataSource;
     use infinitier_fs::CaseInsensitiveFS;
-    use infinitier_test_utils::assert_images_are_equal;
-    use std::path::Path;
+    use infinitier_test_utils::{assert_images_are_equal, get_assets_path};
 
     use super::*;
-
-    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_bam_v2_data_block_pvrz_name() {
@@ -252,9 +249,9 @@ mod tests {
 
     #[test]
     fn test_parse_bam_v2_should_fail_if_wrong_signature() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V1/01/1chan03B_compressed.BAM"
-        )));
+        let data = DataSource::new(
+            get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"),
+        );
 
         let mut reader = data.reader().unwrap();
         let res = BamV2Parser::import(&mut reader);
@@ -263,9 +260,8 @@ mod tests {
 
     #[test]
     fn test_parse_bam_v2_02() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}/resources/BAM_V2/1CHELM03.BAM"
-        )));
+        let data =
+            DataSource::new(get_assets_path().join("resources/BAM_V2/1CHELM03.BAM"));
 
         let mut reader = data.reader().unwrap();
         let bam = BamV2Parser::import(&mut reader).unwrap();
@@ -300,14 +296,12 @@ mod tests {
 
         // Assert that the image is the same as the reference
         {
-            let fs = CaseInsensitiveFS::new(format!("{RESOURCES_DIR}/resources/BAM_V2/")).unwrap();
+            let fs = CaseInsensitiveFS::new(get_assets_path().join("resources/BAM_V2")).unwrap();
             let image = bam.frame_to_image(0, &fs).unwrap();
 
             assert_images_are_equal(
-                &image::open(Path::new(&format!(
-                    "{RESOURCES_DIR}/resources/BAM_V2/1CHELM0300000.PNG"
-                )))
-                .unwrap(),
+                &image::open(get_assets_path().join("resources/BAM_V2/1CHELM0300000.PNG"))
+                    .unwrap(),
                 &image.into(),
             );
         }

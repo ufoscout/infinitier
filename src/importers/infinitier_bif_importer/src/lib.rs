@@ -132,19 +132,14 @@ pub fn parse_bif_embedded_tileset<R: Read>(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use infinitier_datasource::DataSource;
+    use infinitier_test_utils::get_assets_path;
 
     use super::*;
 
-    const RESOURCES_DIR: &str = "../../../assets/";
-
     #[test]
     fn test_detect_bif_type() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}iwd/CD2/Data/AR3603.cbf"
-        )));
+        let data = DataSource::new(get_assets_path().join("iwd/CD2/Data/AR3603.cbf"));
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
@@ -157,9 +152,7 @@ mod tests {
 
     #[test]
     fn test_detect_bifc_type() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}bg2/data/Data/AREA070C.bif"
-        )));
+        let data = DataSource::new(get_assets_path().join("bg2/data/Data/AREA070C.bif"));
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
@@ -172,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_detect_biff_type() {
-        let data = DataSource::new(Path::new(&format!("{RESOURCES_DIR}pst/CS_0511.bif")));
+        let data = DataSource::new(get_assets_path().join("pst/CS_0511.bif"));
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),

@@ -141,18 +141,14 @@ impl<'a, R: BufRead + Seek> BifcCompressedReader<'a, R> {
 mod tests {
     use infinitier_datasource::DataSource;
     use infinitier_key_importer::ResourceType;
+    use infinitier_test_utils::get_assets_path;
 
     use super::*;
     use crate::{BifEmbeddedResource, detect_biff_type};
-    use std::path::Path;
-
-    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_detect_bifc_type() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}bg2/data/Data/AREA070C.bif"
-        )));
+        let data = DataSource::new(get_assets_path().join("bg2/data/Data/AREA070C.bif"));
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),

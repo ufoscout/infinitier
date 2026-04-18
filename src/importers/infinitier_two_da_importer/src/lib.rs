@@ -112,10 +112,9 @@ mod tests {
     use std::collections::HashMap;
 
     use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+    use infinitier_test_utils::get_assets_path;
 
     use super::*;
-
-    const BG2_RESOURCES_DIR: &str = "../../../assets/bg2";
 
     #[test]
     fn test_split_words_simple() {
@@ -274,7 +273,7 @@ mod tests {
 
     #[test]
     fn test_parse_2da_file() {
-        let path = CaseInsensitiveFS::new(BG2_RESOURCES_DIR)
+        let path = CaseInsensitiveFS::new(get_assets_path().join("bg2"))
             .unwrap()
             .get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA"))
             .unwrap();

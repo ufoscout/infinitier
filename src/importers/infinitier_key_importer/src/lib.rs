@@ -427,21 +427,10 @@ impl ResourceType {
 #[cfg(test)]
 mod tests {
     use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
-    use infinitier_test_utils::parse_json_file;
+    use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path, parse_json_file};
 
     use super::*;
 
-    const ALL_RESOURCES_DIRS: &[&str] = &[
-        "../../../assets/bg",
-        "../../../assets/bg_ee",
-        "../../../assets/bg2",
-        "../../../assets/bg2_ee",
-        "../../../assets/iwd",
-        "../../../assets/iwd_ee",
-        "../../../assets/iwd2",
-        "../../../assets/pst",
-        "../../../assets/pst_ee",
-    ];
 
     #[test]
     fn test_biff_directory() {
@@ -463,8 +452,9 @@ mod tests {
 
     #[test]
     fn test_read_key_file() {
-        for dir in ALL_RESOURCES_DIRS {
-            let key_path = CaseInsensitiveFS::new(dir)
+        for game in ALL_RESOURCES_DIRS {
+            let dir = get_assets_path().join(game);
+            let key_path = CaseInsensitiveFS::new(&dir)
                 .unwrap()
                 .get_path(&CaseInsensitivePath::new("/CHITIN.KEY"))
                 .unwrap();
@@ -475,7 +465,7 @@ mod tests {
             let actual = KeyImporter::import(&DataSource::new(key_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", key_path.display()));
 
-            assert_eq!(actual, expected, "key mismatch for {dir}");
+            assert_eq!(actual, expected, "key mismatch for {}", dir.display());
         }
     }
 

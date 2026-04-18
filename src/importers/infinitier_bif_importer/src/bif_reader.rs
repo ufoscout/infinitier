@@ -76,22 +76,17 @@ impl BifParser {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use infinitier_datasource::DataSource;
     use infinitier_key_importer::ResourceType;
+    use infinitier_test_utils::get_assets_path;
 
     use crate::{BifEmbeddedResource, detect_biff_type};
 
     use super::*;
 
-    const RESOURCES_DIR: &str = "../../../assets/";
-
     #[test]
     fn test_detect_bif_type() {
-        let data = DataSource::new(Path::new(&format!(
-            "{RESOURCES_DIR}iwd/CD2/Data/AR3603.cbf"
-        )));
+        let data = DataSource::new(get_assets_path().join("iwd/CD2/Data/AR3603.cbf"));
 
         let mut reader = data.reader().unwrap();
         let bif = BifParser::import(&mut reader).unwrap();
