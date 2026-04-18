@@ -66,7 +66,6 @@ fn samples_to_wav_bytes(samples: &[i16], channels: u8, sample_rate: u32) -> Vec<
 
 /// Decodes an MVE file and asserts every decoded value matches the companion JSON.
 fn assert_matches_json(mve_rel: &str, json_rel: &str) {
-    
     let mve_path = get_assets_path().join("resources/MVE").join(mve_rel);
     let json_path = get_assets_path().join("resources/MVE").join(json_rel);
 

@@ -132,7 +132,10 @@ fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) ->
 
 #[cfg(test)]
 mod tests {
-    use infinitier_test_utils::{constants::{BG_RESOURCES_DIR, IWD_RESOURCES_DIR}, get_assets_path};
+    use infinitier_test_utils::{
+        constants::{BG_RESOURCES_DIR, IWD_RESOURCES_DIR},
+        get_assets_path,
+    };
 
     use super::*;
 
@@ -190,7 +193,8 @@ mod tests {
         assert_eq!(
             path,
             Some(
-                get_assets_path().join(BG_RESOURCES_DIR)
+                get_assets_path()
+                    .join(BG_RESOURCES_DIR)
                     .join("Chitin.key")
                     .canonicalize()
                     .unwrap()
@@ -206,12 +210,12 @@ mod tests {
         assert_eq!(
             path,
             Some(
-                get_assets_path().join(IWD_RESOURCES_DIR)
+                get_assets_path()
+                    .join(IWD_RESOURCES_DIR)
                     .join("CD2/Data/AR3603.cbf")
                     .canonicalize()
                     .unwrap()
             )
         );
     }
-
 }

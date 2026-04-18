@@ -181,8 +181,7 @@ mod tests {
             let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
 
             assert_images_are_equal(
-                &image::open(get_assets_path().join("resources/MOS_DXT1/A004602.PNG"))
-                    .unwrap(),
+                &image::open(get_assets_path().join("resources/MOS_DXT1/A004602.PNG")).unwrap(),
                 &image.into(),
             );
         }
@@ -217,8 +216,7 @@ mod tests {
             let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
 
             assert_images_are_equal(
-                &image::open(get_assets_path().join("resources/MOS_DXT5/MOS0000.PNG"))
-                    .unwrap(),
+                &image::open(get_assets_path().join("resources/MOS_DXT5/MOS0000.PNG")).unwrap(),
                 &image.into(),
             );
         }

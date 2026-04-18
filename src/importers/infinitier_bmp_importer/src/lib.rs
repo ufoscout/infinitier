@@ -33,8 +33,7 @@ mod tests {
     fn test_parse_bmp_01() {
         let data = DataSource::new(get_assets_path().join("resources/BMP/CCHAN05.BMP"));
 
-        let original = image::open(get_assets_path().join("resources/BMP/CCHAN05.BMP"))
-        .unwrap();
+        let original = image::open(get_assets_path().join("resources/BMP/CCHAN05.BMP")).unwrap();
 
         let bmp = BmpImporter::import(&data).unwrap();
 
@@ -45,8 +44,7 @@ mod tests {
     fn test_parse_bmp_02() {
         let data = DataSource::new(get_assets_path().join("resources/BMP/MINSCM.BMP"));
 
-        let original = image::open(get_assets_path().join("resources/BMP/MINSCM.BMP"))
-        .unwrap();
+        let original = image::open(get_assets_path().join("resources/BMP/MINSCM.BMP")).unwrap();
 
         let bmp = BmpImporter::import(&data).unwrap();
 

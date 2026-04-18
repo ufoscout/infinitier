@@ -8,13 +8,15 @@ pub mod constants;
 pub fn get_root_path() -> std::path::PathBuf {
     // Search for the workspace root by walking up the tree until we find Cargo.lock
     static METADATA_LOCK: OnceLock<std::path::PathBuf> = OnceLock::new();
-        METADATA_LOCK.get_or_init(|| {
+    METADATA_LOCK
+        .get_or_init(|| {
             let mut path = std::env::current_dir().unwrap();
-        while !path.join("Cargo.lock").exists() {
-            path = path.parent().unwrap().to_path_buf();
-        };
-    path
-    }).clone()
+            while !path.join("Cargo.lock").exists() {
+                path = path.parent().unwrap().to_path_buf();
+            }
+            path
+        })
+        .clone()
 }
 
 /// Returns the path to the target directory
@@ -59,7 +61,6 @@ pub fn parse_json_file<T: serde::de::DeserializeOwned>(path: impl AsRef<std::pat
     let file = std::fs::read_to_string(path).expect("Cannot read file");
     serde_json::from_str(&file).expect("Cannot parse json")
 }
-
 
 #[cfg(test)]
 mod tests {

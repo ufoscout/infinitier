@@ -1,4 +1,3 @@
-
 pub const BG_RESOURCES_DIR: &str = "bg";
 pub const BG_EE_RESOURCES_DIR: &str = "bg_ee";
 pub const BG2_RESOURCES_DIR: &str = "bg2";

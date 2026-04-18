@@ -98,7 +98,9 @@ mod tests {
 
     #[test]
     fn test_detect_bam_v1_type() {
-        let data = DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_decompressed.BAM"));
+        let data = DataSource::new(
+            get_assets_path().join("resources/BAM_V1/01/1chan03B_decompressed.BAM"),
+        );
 
         assert_eq!(
             detect_bam_type(&mut data.reader().unwrap()).unwrap(),
@@ -118,7 +120,8 @@ mod tests {
 
     #[test]
     fn test_detect_bamc_type() {
-        let data = DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"));
+        let data =
+            DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"));
 
         assert_eq!(
             detect_bam_type(&mut data.reader().unwrap()).unwrap(),

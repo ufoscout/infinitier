@@ -249,9 +249,8 @@ mod tests {
 
     #[test]
     fn test_parse_bam_v2_should_fail_if_wrong_signature() {
-        let data = DataSource::new(
-            get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"),
-        );
+        let data =
+            DataSource::new(get_assets_path().join("resources/BAM_V1/01/1chan03B_compressed.BAM"));
 
         let mut reader = data.reader().unwrap();
         let res = BamV2Parser::import(&mut reader);
@@ -260,8 +259,7 @@ mod tests {
 
     #[test]
     fn test_parse_bam_v2_02() {
-        let data =
-            DataSource::new(get_assets_path().join("resources/BAM_V2/1CHELM03.BAM"));
+        let data = DataSource::new(get_assets_path().join("resources/BAM_V2/1CHELM03.BAM"));
 
         let mut reader = data.reader().unwrap();
         let bam = BamV2Parser::import(&mut reader).unwrap();
@@ -300,8 +298,7 @@ mod tests {
             let image = bam.frame_to_image(0, &fs).unwrap();
 
             assert_images_are_equal(
-                &image::open(get_assets_path().join("resources/BAM_V2/1CHELM0300000.PNG"))
-                    .unwrap(),
+                &image::open(get_assets_path().join("resources/BAM_V2/1CHELM0300000.PNG")).unwrap(),
                 &image.into(),
             );
         }

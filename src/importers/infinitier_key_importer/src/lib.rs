@@ -431,7 +431,6 @@ mod tests {
 
     use super::*;
 
-
     #[test]
     fn test_biff_directory() {
         assert_eq!(BifDirectory::from(0), BifDirectory::Root);
