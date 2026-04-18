@@ -7,10 +7,10 @@ use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
 pub use bam_v1::BamV1;
 pub use bam_v2::BamV2;
 
-pub mod common;
 mod bam_v1;
 mod bam_v2;
 mod bamc;
+pub mod common;
 
 /// A BAM file importer
 pub struct BamImporter {}

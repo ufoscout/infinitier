@@ -2,9 +2,7 @@ use std::io::{Read, Seek};
 
 use infinitier_datasource::Reader;
 
-use crate::{
-    BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset,
-};
+use crate::{BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset};
 
 /// A BIFF V1 file importer
 pub struct BiffParser;
