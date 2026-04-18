@@ -104,8 +104,6 @@ mod tests {
 
     use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, parse_json_file};
 
-    // ── parse_value ──────────────────────────────────────────────────────────
-
     #[test]
     fn test_parse_value_decimal() {
         assert_eq!(parse_value("0"), Some(0));
@@ -138,8 +136,6 @@ mod tests {
         assert_eq!(parse_value("abc"), None);
         assert_eq!(parse_value("10abc"), None);
     }
-
-    // ── parse_line ───────────────────────────────────────────────────────────
 
     #[test]
     fn test_parse_line_decimal() {
@@ -206,8 +202,6 @@ mod tests {
             })
         );
     }
-
-    // ── IDS helper methods ───────────────────────────────────────────────────
 
     #[test]
     fn test_name_of() {
