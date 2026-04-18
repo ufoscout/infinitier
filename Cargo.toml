@@ -1,20 +1,12 @@
 [workspace]
 members = [
-    "src/acm_decoder",
+    "src/codecs/*",
     "src/core",
     "src/datasource",
     "src/egui",
     "src/fs",
-    "src/mve_decoder",
     "src/test_utils",
-    "src/importers/infinitier_bam_importer",
-    "src/importers/infinitier_bif_importer",
-    "src/importers/infinitier_bmp_importer",
-    "src/importers/infinitier_ids_importer",
-    "src/importers/infinitier_key_importer",
-    "src/importers/infinitier_pvr_importer",
-    "src/importers/infinitier_two_da_importer",
-    "src/importers/infinitier_wed_importer",
+    "src/importers/*",
 ]
 resolver = "3"
 
@@ -23,20 +15,25 @@ edition = "2024"
 version = "0.1.0"
 
 [workspace.dependencies]
-infinitier_acm_decoder = { path = "src/acm_decoder" }
-infinitier_bam_importer = { path = "src/importers/infinitier_bam_importer" }
-infinitier_bif_importer = { path = "src/importers/infinitier_bif_importer" }
-infinitier_bmp_importer = { path = "src/importers/infinitier_bmp_importer" }
+# Codecs
+infinitier_acm_decoder = { path = "src/codecs/acm_decoder" }
+infinitier_mve_decoder = { path = "src/codecs/mve_decoder" }
+
+# Core
 infinitier_core = { path = "src/core" }
 infinitier_datasource = { path = "src/datasource" }
 infinitier_fs = { path = "src/fs" }
-infinitier_ids_importer = { path = "src/importers/infinitier_ids_importer" }
-infinitier_key_importer = { path = "src/importers/infinitier_key_importer" }
-infinitier_mve_decoder = { path = "src/mve_decoder" }
-infinitier_pvr_importer = { path = "src/importers/infinitier_pvr_importer" }
 infinitier_test_utils = { path = "src/test_utils" }
-infinitier_two_da_importer = { path = "src/importers/infinitier_two_da_importer" }
-infinitier_wed_importer = { path = "src/importers/infinitier_wed_importer" }
+
+# Importers
+infinitier_bam_importer = { path = "src/importers/bam_importer" }
+infinitier_bif_importer = { path = "src/importers/bif_importer" }
+infinitier_bmp_importer = { path = "src/importers/bmp_importer" }
+infinitier_ids_importer = { path = "src/importers/ids_importer" }
+infinitier_key_importer = { path = "src/importers/key_importer" }
+infinitier_pvr_importer = { path = "src/importers/pvr_importer" }
+infinitier_two_da_importer = { path = "src/importers/two_da_importer" }
+infinitier_wed_importer = { path = "src/importers/wed_importer" }
 
 bitflags = { version = "2", features = ["serde"] }
 encoding_rs = "0.8"
