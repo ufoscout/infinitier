@@ -111,10 +111,11 @@ fn parse_data_row(line: &str, columns: &[usize], default: &str) -> (String, Vec<
 mod tests {
     use std::collections::HashMap;
 
-    use crate::test_utils::BG2_RESOURCES_DIR;
     use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 
     use super::*;
+
+    const BG2_RESOURCES_DIR: &str = "../../../assets/bg2";
 
     #[test]
     fn test_split_words_simple() {
@@ -205,10 +206,13 @@ mod tests {
 
     #[test]
     fn test_full_processing_multiline() {
-        let text = "MAGE                            0       0       9       0       0
-FIGHTER                 9       0       0       0               9
-CLERIC                  0       0       0       0       9       
-THIEF                   0       9       0       0       0       0";
+        #[rustfmt::skip]
+        let text = concat!(
+            "MAGE                            0       0       9       0       0\n",
+            "FIGHTER                 9       0       0       0               9\n",
+            "CLERIC                  0       0       0       0       9       \n",
+            "THIEF                   0       9       0       0       0       0",
+        );
 
         let lines = text.lines();
 

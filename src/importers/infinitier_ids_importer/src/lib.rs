@@ -104,8 +104,9 @@ mod tests {
     use super::*;
     use infinitier_datasource::DataSource;
 
-    use crate::test_utils::RESOURCES_DIR;
     use infinitier_test_utils::{get_all_in_folder_by_extension, parse_json_file};
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     // ── parse_value ──────────────────────────────────────────────────────────
 

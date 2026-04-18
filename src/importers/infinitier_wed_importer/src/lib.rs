@@ -1,7 +1,6 @@
 use infinitier_datasource::{DataSource, Importer};
+use infinitier_key_importer::ResourceType;
 use serde::{Deserialize, Serialize};
-
-use crate::resource::key::ResourceType;
 
 /// A Wed file importer
 pub struct WedImporter;
@@ -256,8 +255,9 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::test_utils::BG2_RESOURCES_DIR;
     use infinitier_test_utils::parse_json_file;
+
+    const BG2_RESOURCES_DIR: &str = "../../../assets/bg2";
 
     #[test]
     fn test_wed_poligon_flag() {

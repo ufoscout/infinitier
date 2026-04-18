@@ -2,7 +2,7 @@ use std::io::BufRead;
 
 use infinitier_datasource::Reader;
 
-use crate::resource::bam::{Bam, BamImporter, Type};
+use crate::{Bam, BamImporter, Type};
 
 /// A BAMC file importer
 pub struct BamcParser;
@@ -33,9 +33,11 @@ mod tests {
 
     use infinitier_datasource::DataSource;
 
-    use crate::{resource::bam::bam_v1::BamV1Parser, test_utils::RESOURCES_DIR};
+    use crate::bam_v1::BamV1Parser;
 
     use super::*;
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_parse_compressed_bam_should_fail_if_wrong_signature() {

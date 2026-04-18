@@ -2,11 +2,12 @@ use std::io::{BufRead, Read, Seek};
 
 use infinitier_datasource::{Importer, Reader};
 
-use crate::resource::bam::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
+use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
 
 pub use bam_v1::BamV1;
 pub use bam_v2::BamV2;
 
+pub mod common;
 mod bam_v1;
 mod bam_v2;
 mod bamc;
@@ -25,7 +26,7 @@ impl Importer for BamImporter {
 
 impl BamImporter {
     /// Imports a BAM file
-    fn from_reader<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bam> {
+    pub fn from_reader<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bam> {
         let position = reader.position()?;
 
         match detect_bam_type(reader)? {
@@ -93,9 +94,9 @@ mod tests {
 
     use infinitier_datasource::DataSource;
 
-    use crate::test_utils::RESOURCES_DIR;
-
     use super::*;
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_detect_bam_v1_type() {

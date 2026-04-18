@@ -1,9 +1,27 @@
-pub mod bam;
-pub mod bif;
-pub mod bmp;
-pub mod common;
-pub mod ids;
-pub mod key;
-pub mod pvr;
-pub mod two_da;
-pub mod wed;
+pub mod bam {
+    pub use infinitier_bam_importer::*;
+}
+pub mod bif {
+    pub use infinitier_bif_importer::*;
+}
+pub mod bmp {
+    pub use infinitier_bmp_importer::*;
+}
+pub mod common {
+    pub use infinitier_bam_importer::common::*;
+}
+pub mod ids {
+    pub use infinitier_ids_importer::*;
+}
+pub mod key {
+    pub use infinitier_key_importer::*;
+}
+pub mod pvr {
+    pub use infinitier_pvr_importer::*;
+}
+pub mod two_da {
+    pub use infinitier_two_da_importer::*;
+}
+pub mod wed {
+    pub use infinitier_wed_importer::*;
+}

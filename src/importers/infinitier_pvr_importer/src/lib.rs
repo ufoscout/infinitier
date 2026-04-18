@@ -150,9 +150,10 @@ impl PvrDataCompression {
 mod tests {
 
     use super::*;
-    use crate::test_utils::RESOURCES_DIR;
     use infinitier_test_utils::assert_images_are_equal;
     use std::path::Path;
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_parse_pvrz_dxt1() {

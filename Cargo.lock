@@ -1735,19 +1735,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_bam_importer"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "infinitier_datasource",
+ "infinitier_fs",
+ "infinitier_pvr_importer",
+ "infinitier_test_utils",
+]
+
+[[package]]
+name = "infinitier_bif_importer"
+version = "0.1.0"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_key_importer",
+ "infinitier_test_utils",
+]
+
+[[package]]
+name = "infinitier_bmp_importer"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+]
+
+[[package]]
 name = "infinitier_core"
 version = "0.1.0"
 dependencies = [
- "bitflags 2.11.1",
- "image",
- "infinitier_acm_decoder",
- "infinitier_datasource",
+ "infinitier_bam_importer",
+ "infinitier_bif_importer",
+ "infinitier_bmp_importer",
  "infinitier_fs",
+ "infinitier_ids_importer",
+ "infinitier_key_importer",
+ "infinitier_pvr_importer",
  "infinitier_test_utils",
- "itertools 0.14.0",
- "log",
- "serde",
- "texture2ddecoder",
+ "infinitier_two_da_importer",
+ "infinitier_wed_importer",
 ]
 
 [[package]]
@@ -1766,6 +1795,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_ids_importer"
+version = "0.1.0"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "serde",
+]
+
+[[package]]
+name = "infinitier_key_importer"
+version = "0.1.0"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_fs",
+ "infinitier_test_utils",
+ "serde",
+]
+
+[[package]]
 name = "infinitier_mve_decoder"
 version = "0.1.0"
 dependencies = [
@@ -1779,12 +1827,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_pvr_importer"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "texture2ddecoder",
+]
+
+[[package]]
 name = "infinitier_test_utils"
 version = "0.1.0"
 dependencies = [
  "image",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "infinitier_two_da_importer"
+version = "0.1.0"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_fs",
+ "itertools 0.14.0",
+ "log",
+]
+
+[[package]]
+name = "infinitier_wed_importer"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.11.1",
+ "infinitier_datasource",
+ "infinitier_key_importer",
+ "infinitier_test_utils",
+ "serde",
 ]
 
 [[package]]

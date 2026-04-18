@@ -2,7 +2,7 @@ use std::io::{Read, Seek};
 
 use infinitier_datasource::Reader;
 
-use crate::resource::bif::{
+use crate::{
     BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset,
 };
 
@@ -51,16 +51,13 @@ mod tests {
     use std::path::Path;
 
     use infinitier_datasource::DataSource;
+    use infinitier_key_importer::ResourceType;
 
-    use crate::{
-        resource::{
-            bif::{BifEmbeddedResource, detect_biff_type},
-            key::ResourceType,
-        },
-        test_utils::RESOURCES_DIR,
-    };
+    use crate::{BifEmbeddedResource, detect_biff_type};
 
     use super::*;
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_detect_biff_type() {

@@ -1,6 +1,6 @@
 use infinitier_datasource::Reader;
 
-use crate::resource::bif::{
+use crate::{
     BIFCV1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
     parse_bif_embedded_tileset,
 };
@@ -140,16 +140,13 @@ impl<'a, R: BufRead + Seek> BifcCompressedReader<'a, R> {
 #[cfg(test)]
 mod tests {
     use infinitier_datasource::DataSource;
+    use infinitier_key_importer::ResourceType;
 
     use super::*;
-    use crate::{
-        resource::{
-            bif::{BifEmbeddedResource, detect_biff_type},
-            key::ResourceType,
-        },
-        test_utils::RESOURCES_DIR,
-    };
+    use crate::{BifEmbeddedResource, detect_biff_type};
     use std::path::Path;
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_detect_bifc_type() {

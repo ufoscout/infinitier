@@ -1,0 +1,13 @@
+[package]
+name = "infinitier_bam_importer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+image = { workspace = true }
+infinitier_datasource = { workspace = true }
+infinitier_fs = { workspace = true }
+infinitier_pvr_importer = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }

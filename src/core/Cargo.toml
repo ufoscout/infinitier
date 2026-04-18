@@ -4,15 +4,15 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-bitflags = { workspace = true }
-image = { workspace = true }
-infinitier_acm_decoder = { workspace = true }
-infinitier_datasource = { workspace = true }
-infinitier_fs = { workspace = true }
-itertools = { workspace = true }
-log = { workspace = true }
-serde = { workspace = true }
-texture2ddecoder = { workspace = true }
+infinitier_bam_importer = { workspace = true }
+infinitier_bif_importer = { workspace = true }
+infinitier_bmp_importer = { workspace = true }
+infinitier_ids_importer = { workspace = true }
+infinitier_key_importer = { workspace = true }
+infinitier_pvr_importer = { workspace = true }
+infinitier_two_da_importer = { workspace = true }
+infinitier_wed_importer = { workspace = true }
 
 [dev-dependencies]
+infinitier_fs = { workspace = true }
 infinitier_test_utils = { workspace = true }

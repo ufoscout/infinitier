@@ -426,11 +426,22 @@ impl ResourceType {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::ALL_RESOURCES_DIRS;
-    use infinitier_fs::CaseInsensitiveFS;
+    use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
     use infinitier_test_utils::parse_json_file;
 
     use super::*;
+
+    const ALL_RESOURCES_DIRS: &[&str] = &[
+        "../../../assets/bg",
+        "../../../assets/bg_ee",
+        "../../../assets/bg2",
+        "../../../assets/bg2_ee",
+        "../../../assets/iwd",
+        "../../../assets/iwd_ee",
+        "../../../assets/iwd2",
+        "../../../assets/pst",
+        "../../../assets/pst_ee",
+    ];
 
     #[test]
     fn test_biff_directory() {

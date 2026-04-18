@@ -3,7 +3,7 @@ use std::io::{BufRead, Seek};
 use image::{ImageBuffer, Rgba};
 use infinitier_datasource::Reader;
 
-use crate::resource::{bam::Type, common::Rgb};
+use crate::{Type, common::Rgb};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BamV1 {
@@ -196,9 +196,10 @@ mod tests {
     use infinitier_datasource::DataSource;
 
     use super::*;
-    use crate::test_utils::RESOURCES_DIR;
     use infinitier_test_utils::assert_images_are_equal;
     use std::path::Path;
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_parse_bam_v1_should_fail_if_wrong_signature() {

@@ -3,12 +3,10 @@ mod bifc_reader;
 mod biff_reader;
 
 use infinitier_datasource::{Importer, Reader};
+use infinitier_key_importer::ResourceType;
 use std::io::Read;
 
-use crate::resource::{
-    bif::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser},
-    key::ResourceType,
-};
+use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
 
 /// A BIF file importer
 pub struct BifImporter {}
@@ -82,7 +80,7 @@ pub enum BifEmbeddedResource {
 }
 
 /// Detects the type of a BIFF file
-fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
+pub fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
     let value = reader.read_string(8)?;
 
     match value.as_str() {
@@ -96,7 +94,7 @@ fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
     }
 }
 
-fn parse_bif_embedded_file<R: Read>(
+pub fn parse_bif_embedded_file<R: Read>(
     reader: &mut Reader<R>,
 ) -> std::io::Result<BifEmbeddedResource> {
     let locator = reader.read_u32()? & 0xfffff;
@@ -113,7 +111,7 @@ fn parse_bif_embedded_file<R: Read>(
     })
 }
 
-fn parse_bif_embedded_tileset<R: Read>(
+pub fn parse_bif_embedded_tileset<R: Read>(
     reader: &mut Reader<R>,
 ) -> std::io::Result<BifEmbeddedResource> {
     let locator = reader.read_u32()? & 0xfffff;
@@ -138,9 +136,9 @@ mod tests {
 
     use infinitier_datasource::DataSource;
 
-    use crate::test_utils::RESOURCES_DIR;
-
     use super::*;
+
+    const RESOURCES_DIR: &str = "../../../assets/";
 
     #[test]
     fn test_detect_bif_type() {
