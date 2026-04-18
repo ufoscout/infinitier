@@ -1,7 +1,8 @@
-use std::{io::Cursor, path::PathBuf};
+use std::io::Cursor;
 
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::{MveDecoder, VideoFormat};
+use infinitier_test_utils::get_assets_path;
 use serde::Deserialize;
 use sha2::Digest as _;
 
@@ -65,8 +66,9 @@ fn samples_to_wav_bytes(samples: &[i16], channels: u8, sample_rate: u32) -> Vec<
 
 /// Decodes an MVE file and asserts every decoded value matches the companion JSON.
 fn assert_matches_json(mve_rel: &str, json_rel: &str) {
-    let mve_path = PathBuf::from("../../assets/resources/MVE").join(mve_rel);
-    let json_path = PathBuf::from("../../assets/resources/MVE").join(json_rel);
+    
+    let mve_path = get_assets_path().join("resources/MVE").join(mve_rel);
+    let json_path = get_assets_path().join("resources/MVE").join(json_rel);
 
     // ---- Parse JSON into typed struct ----
     let raw = std::fs::read_to_string(&json_path)

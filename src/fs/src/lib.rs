@@ -132,6 +132,8 @@ fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) ->
 
 #[cfg(test)]
 mod tests {
+    use infinitier_test_utils::{constants::{BG_RESOURCES_DIR, IWD_RESOURCES_DIR}, get_assets_path};
+
     use super::*;
 
     #[test]
@@ -178,4 +180,38 @@ mod tests {
         );
         assert!(fs.get_path(&CaseInsensitivePath::new("/Targets")).is_err());
     }
+
+    #[test]
+    fn test_search_path_in_exact_path() {
+        let fs = CaseInsensitiveFS::new(get_assets_path().join(BG_RESOURCES_DIR)).unwrap();
+
+        let path = fs.search_path_opt(&CaseInsensitivePath::new("/chitin.key"));
+
+        assert_eq!(
+            path,
+            Some(
+                get_assets_path().join(BG_RESOURCES_DIR)
+                    .join("Chitin.key")
+                    .canonicalize()
+                    .unwrap()
+            )
+        );
+    }
+
+    #[test]
+    fn test_search_path_in_subfolder() {
+        let fs = CaseInsensitiveFS::new(get_assets_path().join(IWD_RESOURCES_DIR)).unwrap();
+
+        let path = fs.search_path_opt(&CaseInsensitivePath::new("/DATA/AR3603.cbf"));
+        assert_eq!(
+            path,
+            Some(
+                get_assets_path().join(IWD_RESOURCES_DIR)
+                    .join("CD2/Data/AR3603.cbf")
+                    .canonicalize()
+                    .unwrap()
+            )
+        );
+    }
+
 }

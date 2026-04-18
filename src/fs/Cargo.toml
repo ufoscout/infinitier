@@ -5,3 +5,6 @@ edition.workspace = true
 
 [dependencies]
 serde = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }
