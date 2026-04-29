@@ -1,8 +1,5 @@
 #![allow(clippy::needless_range_loop)]
-
-//! ACM audio decoder — Interplay ACM format.
-//!
-//! Ported from the C implementation by Marko Kreen (libacm).
+#![doc = include_str!("../readme.md")]
 
 use std::io::BufRead;
 use thiserror::Error as ThisError;

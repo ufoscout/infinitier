@@ -8,7 +8,7 @@ Ported from the C implementation by Marko Kreen ([libacm](https://github.com/mar
 
 ### Decode to a WAV file
 
-```rust
+```rust,no_run
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
 use infinitier_datasource::DataSource;
 
@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Decode to raw PCM samples
 
-```rust
+```rust,no_run
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
 use infinitier_datasource::DataSource;
 
@@ -47,7 +47,7 @@ Use `OutputChannels::Mono` or `OutputChannels::Stereo` to override the channel
 count stored in the file header, for example when a stereo ACM is referenced
 from a mono sound entry in the game's KEY/BIF resources.
 
-```rust
+```rust,no_run
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
 use infinitier_datasource::DataSource;
 
