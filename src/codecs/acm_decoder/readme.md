@@ -58,13 +58,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
-
-## API
-
-| Item | Description |
-|------|-------------|
-| `AcmDecoder::open(reader, channels)` | Open an ACM or WAVC stream |
-| `AcmDecoder::decode_all()` | Decode the entire stream into interleaved `i16` PCM samples |
-| `AcmDecoder::decode_to_file(path)` | Decode directly to a WAV file |
-| `AcmDecoder::info` | `AcmInfo` with `channels`, `rate`, `samples()`, and internal block parameters |
-| `OutputChannels` | `Original` / `Mono` / `Stereo` — output channel override |

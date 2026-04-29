@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 use std::{
     fs::File,
     io::{BufRead, BufReader, Cursor, Read, Seek, Take},
