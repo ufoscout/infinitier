@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Reader for the BMP bitmap image format used in Infinity Engine games"
 readme = "readme.md"
-keywords = []
+keywords = ["bmp", "bitmap", "image", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 infinitier_datasource = { workspace = true }

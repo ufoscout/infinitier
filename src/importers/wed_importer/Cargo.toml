@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Reader for the WED area geometry and layout format used in Infinity Engine games"
 readme = "readme.md"
-keywords = []
+keywords = ["wed", "area", "geometry", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 bitflags = { workspace = true }

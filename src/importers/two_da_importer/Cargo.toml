@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Reader for the 2DA two-dimensional array format used in Infinity Engine games"
 readme = "readme.md"
-keywords = []
+keywords = ["2da", "table", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 infinitier_datasource = { workspace = true }

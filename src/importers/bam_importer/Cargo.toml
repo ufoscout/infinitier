@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Reader for the BAM bitmap animation format used in Infinity Engine games"
 readme = "readme.md"
-keywords = []
+keywords = ["bam", "animation", "bitmap", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 image = { workspace = true }

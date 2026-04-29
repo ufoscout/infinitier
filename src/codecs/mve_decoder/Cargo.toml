@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Pure-Rust decoder for the Interplay MVE video format used in Infinity Engine games"
 readme = "readme.md"
-keywords = []
+keywords = ["video", "mve", "decoder", "interplay", "infinity-engine"]
 
 [dependencies]
 infinitier_datasource = { workspace = true }

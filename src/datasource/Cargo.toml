@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Abstract data source with typed little-endian readers for file paths, byte slices, and embedded sub-regions"
 readme = "readme.md"
-keywords = []
+keywords = ["data-source", "reader", "binary", "little-endian"]
 
 [dependencies]
 encoding_rs = { workspace = true }

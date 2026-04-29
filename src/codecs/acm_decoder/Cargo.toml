@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Pure-Rust decoder for the Interplay ACM audio format used in Infinity Engine games"
 readme = "readme.md"
-keywords = []
+keywords = ["audio", "acm", "decoder", "interplay", "infinity-engine"]
 
 [dependencies]
 hound = { workspace = true }

@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Case-insensitive filesystem abstraction with O(log n) path lookups"
 readme = "readme.md"
-keywords = []
+keywords = ["filesystem", "case-insensitive", "path"]
 
 [dependencies]
 serde = { workspace = true }

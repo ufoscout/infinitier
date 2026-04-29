@@ -6,9 +6,9 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = ""
+description = "Reader for the PVRZ compressed texture format used in Infinity Engine Enhanced Editions"
 readme = "readme.md"
-keywords = []
+keywords = ["pvrz", "pvr", "texture", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 infinitier_datasource = { workspace = true }
