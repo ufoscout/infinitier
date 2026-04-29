@@ -2,6 +2,7 @@
 name = "infinitier_test_utils"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 image = { workspace = true }

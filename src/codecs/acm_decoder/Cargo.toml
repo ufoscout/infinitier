@@ -2,7 +2,13 @@
 name = "infinitier_acm_decoder"
 edition.workspace = true
 version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = ""
 readme = "readme.md"
+keywords = []
 
 [dependencies]
 hound = { workspace = true }

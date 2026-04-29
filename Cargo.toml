@@ -13,6 +13,10 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 version = "0.1.0"
+license = "MIT"
+authors = ["Francesco Cina <ufoscout@gmail.com>"]
+homepage = "https://github.com/ufoscout/infinitier"
+repository = "https://github.com/ufoscout/infinitier"
 
 [workspace.dependencies]
 # Codecs
