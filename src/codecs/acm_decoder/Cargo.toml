@@ -2,6 +2,7 @@
 name = "infinitier_acm_decoder"
 edition.workspace = true
 version.workspace = true
+readme = "readme.md"
 
 [dependencies]
 hound = { workspace = true }
