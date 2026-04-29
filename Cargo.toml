@@ -20,24 +20,24 @@ repository = "https://github.com/ufoscout/infinitier"
 
 [workspace.dependencies]
 # Codecs
-infinitier_acm_decoder = { path = "src/codecs/acm_decoder" }
-infinitier_mve_decoder = { path = "src/codecs/mve_decoder" }
+infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.1" }
+infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.1"  }
 
 # Core
-infinitier_core = { path = "src/core" }
-infinitier_datasource = { path = "src/datasource" }
-infinitier_fs = { path = "src/fs" }
+infinitier_core = { path = "src/core", version = "0.0.1"  }
+infinitier_datasource = { path = "src/datasource", version = "0.0.1"  }
+infinitier_fs = { path = "src/fs", version = "0.0.1"  }
 infinitier_test_utils = { path = "src/test_utils" }
 
 # Importers
-infinitier_bam_importer = { path = "src/importers/bam_importer" }
-infinitier_bif_importer = { path = "src/importers/bif_importer" }
-infinitier_bmp_importer = { path = "src/importers/bmp_importer" }
-infinitier_ids_importer = { path = "src/importers/ids_importer" }
-infinitier_key_importer = { path = "src/importers/key_importer" }
-infinitier_pvr_importer = { path = "src/importers/pvr_importer" }
-infinitier_two_da_importer = { path = "src/importers/two_da_importer" }
-infinitier_wed_importer = { path = "src/importers/wed_importer" }
+infinitier_bam_importer = { path = "src/importers/bam_importer", version = "0.0.1"  }
+infinitier_bif_importer = { path = "src/importers/bif_importer", version = "0.0.1"  }
+infinitier_bmp_importer = { path = "src/importers/bmp_importer", version = "0.0.1"  }
+infinitier_ids_importer = { path = "src/importers/ids_importer", version = "0.0.1"  }
+infinitier_key_importer = { path = "src/importers/key_importer", version = "0.0.1"  }
+infinitier_pvr_importer = { path = "src/importers/pvr_importer", version = "0.0.1"  }
+infinitier_two_da_importer = { path = "src/importers/two_da_importer", version = "0.0.1"  }
+infinitier_wed_importer = { path = "src/importers/wed_importer", version = "0.0.1"  }
 
 bitflags = { version = "2", features = ["serde"] }
 encoding_rs = "0.8"
