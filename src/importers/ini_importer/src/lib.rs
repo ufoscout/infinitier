@@ -32,17 +32,20 @@ impl Importer for IniImporter {
             if line.starts_with('[') {
                 let end = line.find(']').unwrap_or(line.len());
                 let name = line[1..end].to_string();
-                sections.push(IniSection { name, entries: Vec::new() });
+                sections.push(IniSection {
+                    name,
+                    entries: Vec::new(),
+                });
                 continue;
             }
 
-            if let Some(eq) = line.find('=') {
-                if let Some(section) = sections.last_mut() {
-                    let key = line[..eq].trim().to_string();
-                    let value = line[eq + 1..].trim().to_string();
-                    if !key.is_empty() {
-                        section.entries.push(IniEntry { key, value });
-                    }
+            if let Some(eq) = line.find('=')
+                && let Some(section) = sections.last_mut()
+            {
+                let key = line[..eq].trim().to_string();
+                let value = line[eq + 1..].trim().to_string();
+                if !key.is_empty() {
+                    section.entries.push(IniEntry { key, value });
                 }
             }
         }
@@ -84,7 +87,6 @@ impl Ini {
     pub fn get(&self, section: &str, key: &str) -> Option<&str> {
         self.section(section)?.get(key)
     }
-
 }
 
 impl IniSection {
@@ -95,9 +97,7 @@ impl IniSection {
             .find(|e| e.key.eq_ignore_ascii_case(key))
             .map(|e| e.value.as_str())
     }
-
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -189,7 +189,6 @@ mod tests {
 
     #[test]
     fn test_section_with_only_empty_values_is_kept() {
-        // A section where every entry is `key=` has kv lines, so it is not dropped.
         let ini = parse("[s]\natt1=\natt2=\n");
         assert_eq!(ini.sections.len(), 1);
         assert_eq!(ini.sections[0].entries.len(), 2);
