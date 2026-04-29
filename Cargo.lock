@@ -1806,6 +1806,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_ini_importer"
+version = "0.0.2"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "infinitier_key_importer"
 version = "0.0.2"
 dependencies = [

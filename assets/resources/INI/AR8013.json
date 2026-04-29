@@ -1,0 +1,755 @@
+{
+  "sections": [
+    {
+      "name": "locals",
+      "entries": []
+    },
+    {
+      "name": "spawn_main",
+      "entries": [
+        {
+          "key": "events",
+          "value": "SPAWNGUYS"
+        }
+      ]
+    },
+    {
+      "name": "SPAWNGUYS",
+      "entries": [
+        {
+          "key": "critters",
+          "value": "SPAWN1A,SPAWN1B,SPAWN1C,SPAWN1D,SPAWN1E,SPAWN2A,SPAWN2B,SPAWN2C,SPAWN2D,SPAWN2E,SPAWN3A,SPAWN3B,SPAWN3C,SPAWN3D,SPAWN3E,SPAWN4A,SPAWN4B,SPAWN4C,SPAWN4D,SPAWN4E,SPAWN5A,SPAWN5B,SPAWN5C,SPAWN5D,SPAWN5E"
+        },
+        {
+          "key": "interval",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN1A",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.101]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_1"
+        },
+        {
+          "key": "cre_file",
+          "value": "BON8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "101"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0150.0950:12]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN1B",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.102]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_1"
+        },
+        {
+          "key": "cre_file",
+          "value": "EELE8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "102"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0530.0360:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN1C",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.103]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_1"
+        },
+        {
+          "key": "cre_file",
+          "value": "MIN8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "103"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0760.0200:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN1D",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.104]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_1"
+        },
+        {
+          "key": "cre_file",
+          "value": "MYC8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "104"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1170.0250:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN1E",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.105]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_1"
+        },
+        {
+          "key": "cre_file",
+          "value": "SAL8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "105"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1670.0750:4]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN2A",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.106]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_2"
+        },
+        {
+          "key": "cre_file",
+          "value": "BON8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "106"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0150.0950:12]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN2B",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.107]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_2"
+        },
+        {
+          "key": "cre_file",
+          "value": "EELE8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "107"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0530.0360:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN2C",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.108]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_2"
+        },
+        {
+          "key": "cre_file",
+          "value": "MIN8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "108"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0760.0200:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN2D",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.109]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_2"
+        },
+        {
+          "key": "cre_file",
+          "value": "MYC8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "109"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1170.0250:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN2E",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.110]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_2"
+        },
+        {
+          "key": "cre_file",
+          "value": "SAL8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "110"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1670.0750:4]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN3A",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.111]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_3"
+        },
+        {
+          "key": "cre_file",
+          "value": "BON8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "111"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0150.0950:12]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN3B",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.112]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_3"
+        },
+        {
+          "key": "cre_file",
+          "value": "EELE8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "112"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0530.0360:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN3C",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.113]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_3"
+        },
+        {
+          "key": "cre_file",
+          "value": "MIN8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "113"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0760.0200:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN3D",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.114]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_3"
+        },
+        {
+          "key": "cre_file",
+          "value": "MYC8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "114"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1170.0250:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN3E",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.115]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_3"
+        },
+        {
+          "key": "cre_file",
+          "value": "SAL8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "115"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1670.0750:4]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN4A",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.116]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_4"
+        },
+        {
+          "key": "cre_file",
+          "value": "BON8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "116"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0150.0950:12]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN4B",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.117]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_4"
+        },
+        {
+          "key": "cre_file",
+          "value": "EELE8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "117"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0530.0360:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN4C",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.118]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_4"
+        },
+        {
+          "key": "cre_file",
+          "value": "MIN8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "118"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0760.0200:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN4D",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.119]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_4"
+        },
+        {
+          "key": "cre_file",
+          "value": "MYC8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "119"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1170.0250:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN4E",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.120]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_4"
+        },
+        {
+          "key": "cre_file",
+          "value": "SAL8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "120"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1670.0750:4]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN5A",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.121]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_5"
+        },
+        {
+          "key": "cre_file",
+          "value": "BON8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "121"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0150.0950:12]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN5B",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.122]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_5"
+        },
+        {
+          "key": "cre_file",
+          "value": "EELE8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "122"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0530.0360:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN5C",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.123]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_5"
+        },
+        {
+          "key": "cre_file",
+          "value": "MIN8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "123"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[0760.0200:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN5D",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.124]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_5"
+        },
+        {
+          "key": "cre_file",
+          "value": "MYC8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "124"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1170.0250:0]"
+        }
+      ]
+    },
+    {
+      "name": "SPAWN5E",
+      "entries": [
+        {
+          "key": "spec",
+          "value": "[255.0.0.0.125]"
+        },
+        {
+          "key": "spec_var",
+          "value": "8013_SPAWN_5"
+        },
+        {
+          "key": "cre_file",
+          "value": "SAL8013"
+        },
+        {
+          "key": "ai_specifics",
+          "value": "125"
+        },
+        {
+          "key": "ignore_can_see",
+          "value": "1"
+        },
+        {
+          "key": "spawn_point",
+          "value": "[1670.0750:4]"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8718 @@
+{
+  "sections": [
+    {
+      "name": "MANI",
+      "entries": [
+        {
+          "key": "att1",
+          "value": ""
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": ""
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MAN2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": ""
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": ""
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MAN3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": ""
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": ""
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MBET",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "beetl03a,beetl03b,beetl11"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "beetl01,beetl02a,beetl02b,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "beetl07,beetl08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "beetl09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "beetl11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "beetl01,beetl02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MBBM",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "bomba03a,bomba03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "bomba01,bomba02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "bomba07,bomba08"
+        },
+        {
+          "key": "damageframe",
+          "value": "2,2"
+        },
+        {
+          "key": "death",
+          "value": "bomba09a,bomba09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "bomba11,blank,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "bomba01,bomba02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MBBR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "beetl03a,beetl03b,beetl11"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "beetl01,beetl02a,beetl02b,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "beetl07,beetl08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "beetl09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "beetl11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "beetl01,beetl02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MBFI",
+      "entries": [
+        {
+          "key": "tt1",
+          "value": "bomba03a,bomba03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "bomba01,bomba02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "bomba07,bomba08"
+        },
+        {
+          "key": "damageframe",
+          "value": "2,2"
+        },
+        {
+          "key": "death",
+          "value": "bomba09a,bomba09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "bomba11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "bomba01,bomba02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MBRH",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "rhino3a,rhino3b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "rhino4a,rhino4b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "rhino4a,rhino4b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "rhino01,rhino02,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "rhino07a,rhino07b,rhino08a,rhino08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "rhino09a,rhino09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "rhino11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0"
+        },
+        {
+          "key": "selected",
+          "value": "rhino01,rhino02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "3,3,3,3,3,3"
+        }
+      ]
+    },
+    {
+      "name": "MBE1",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "BELHIF3A,BELHIF3B,BELHIF3C"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "BELHIF4A,BELHIF4B,BELHIF4C"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "BELHIF4A,BELHIF4B,BELHIF4C"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "BELHIF1A,BELHIF1B,BELHIF2A,BELHIF2B"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "BELHIF7A,BELHIF7B,BELHIF8A,BELHIF8B"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "BELHIF9"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "BELHIF1A,BELHIF1B,BELHIF2A,BELHIF2B"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MBE2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "belprs03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "belprs04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "belprs04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "belprs07,belprs08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": ""
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MCRD",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "creep03a,creep03b,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "creep01a,creep01b,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "creep07a,creep07b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "creep09a,creep09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": "0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MCYC",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "cyclo03a,cyclo03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "cyclo04a,cyclo04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "cyclo04a,cyclo04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "cyclo01,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "cyclo07,cyclo08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "cyclo09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "cyclo11a,cyclo11b,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "cyclo01"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "3,3,3,3,3,3"
+        }
+      ]
+    },
+    {
+      "name": "MELE",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "earth03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "earth04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "earth04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "earth01,earth02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "earth07,earth08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "earth09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "earth01,earth02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MELF",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "fire03a,fire03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "fire04a,fire04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "fire04a,fire04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "fire01a,fire01b,fire02a,fire02b,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "fire07a,fire07b,fire08a,fire08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "fire09a,fire09b,fire10a,fire10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "fire01a,fire01b,fire02a,fire02b"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MELW",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "watere03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "watere04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "watere04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "watere01,watere02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "watere07,watere08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "watere09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "watere11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "watere01,watere02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "METN",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "ettin03A,ETTIN03B"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "ettin04A,ETTIN04B"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "ettin04A,ETTIN04B"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "ettin01,ettin02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "ettin07,ettin08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "ettin09A,ETTIN09B"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "ettin11,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0"
+        },
+        {
+          "key": "selected",
+          "value": "ettin01,ettin02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MFIR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "drake03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "drake04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "drake01,drake02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "drake07,drake08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "drake09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "drake11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0"
+        },
+        {
+          "key": "selected",
+          "value": "drake01,drake02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MGHO",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "ghost03a,ghost03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "ghost04a,ghost04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "ghost04a,ghost04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "ghost01,ghost02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "ghost07a,ghost07b,ghost08a,ghost08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "ghost09a,ghost09b,ghost10a,ghost10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "ghost01,ghost02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MGH2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "ghoul03A,GHOUL03B,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "ghoul04A,GHOUL04B,blank,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "ghoul04A,GHOUL04B,blank,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "ghoul01,ghoul02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "ghoul07,ghoul08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "ghoul09,ghoul10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "ghoul11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "ghoul01,ghoul02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MGH3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "ghoul03A,GHOUL03B,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "ghoul04A,GHOUL04B,blank,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "ghoul04A,GHOUL04B,blank,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "ghoul01,ghoul02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "ghoul07,ghoul08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "ghoul09,ghoul10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "ghoul11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "ghoul01,ghoul02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MGFI",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "gfire03a,gfire03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "gfire04a"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "gfire04a"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "gfire01,gfire02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "gfire07,gfire08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "gfire09,gfire10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "gfire01,gfire02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "3,3,3,3,3,3"
+        }
+      ]
+    },
+    {
+      "name": "MGFR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "gfrst03a,gfrst03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "gfrst04a,gfrst04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "gfrst04a,gfrst04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "gfrst01,gfrst02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "gfrst07,gfrst08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "gfrst09,gfrst10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "gfrst11a,gfrst11b,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "gfrst01,gfrst02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "3,3,3,3,3,3"
+        }
+      ]
+    },
+    {
+      "name": "MGO3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "GOBAXE3A,GOBAXE3B,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "GOBAXE4A,GOBAXE4B,blank,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "GOBAXE4A,GOBAXE4B,blank,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "GOBAXE1,GOBAXE2,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "GOBAXE7,GOBAXE8"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "GOBAXE9,GOBAXE10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "GOBAXE11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "GOBAXE1,GOBAXE2"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MGO4",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "GOBBOW03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": "GOBBOW06,blank"
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "GOBBOW01,GOBBOW02,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "GOBBOW07,GOBBOW08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "GOBBOW09,GOBBOW10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "GOBBOW11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "GOBBOW01,GOBBOW02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MGO1",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "GOBAXE3A,GOBAXE3B,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "GOBAXE4A,GOBAXE4B,blank,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "GOBAXE4A,GOBAXE4B,blank,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "GOBAXE1,GOBAXE2,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "GOBAXE7,GOBAXE8"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "GOBAXE9,GOBAXE10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "GOBAXE11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "GOBAXE1,GOBAXE2"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MGO2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "GOBBOW03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": "GOBBOW06,blank"
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "GOBBOW01,GOBBOW02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "GOBBOW07,GOBBOW08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "GOBBOW09,GOBBOW10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "GOBBOW11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "GOBBOW01,GOBBOW02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MGIR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "golem03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "golem04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "golem04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "golem01,golem02a,golem02b,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "golem07,golem08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "golem09a,golem09b,golem10a,golem10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "golem11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "golem01,golem02a,golem02b"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MLER",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "lerel03A,LEREL03B"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "lerel04A,LEREL04B"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "lerel04A,LEREL04B"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "lerel01A,LEREL01B"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "lerel07,lerel08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "lerel09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "lerel11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0"
+        },
+        {
+          "key": "selected",
+          "value": "lerel01A,LEREL01B"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MLIC",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "lerel03A,LEREL03B"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "lerel04A,LEREL04B"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "lerel04A,LEREL04B"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "lerel01A,LEREL01B,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "lerel07,lerel08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "lerel09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "lerel11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0"
+        },
+        {
+          "key": "selected",
+          "value": "lerel01A,LEREL01B"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MLI2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "lizon03a,lizon03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "lizon04a,lizon04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "lizon04a,lizon04b,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "lizon01,lizon02a,lizon02b,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "lizon07,lizon08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "lizon09,lizon10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "lizon11b,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "lizon01,lizon02a,lizon02b"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MLIZ",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "lizon03a,lizon03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "lizon04a,lizon04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "lizon04a,lizon04b,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "lizon01,lizon02a,lizon02b,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "lizon07,lizon08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "lizon09,lizon10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "lizon11b,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "lizon01,lizon02a,lizon02b"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MLI3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "lizkn03a,lizkn03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "lizkn04a,lizkn04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "lizkn04a,lizkn04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "lizkn01,lizkn02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "lizkn07,lizkn08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "lizkn09a,lizkn09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "lizkn11a,lizkn11b,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "lizkn01,lizkn02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MMAN",
+      "entries": [
+        {
+          "key": "att1",
+          "value": ""
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": ""
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MMIN",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "MINOT03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "MINOT04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "MINOT04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "MINOT01,MINOT02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "MINOT07,MINOT08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "MINOT09,MINOT10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "MINOT11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0"
+        },
+        {
+          "key": "selected",
+          "value": "MINOT01,MINOT02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MMOR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": ""
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": ""
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MMUM",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "mummy03a,mummy03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "mummy04a,mummy04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "mummy04a,mummy04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "mummy01,mummy02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "mummy07a,mummy07b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "mummy09,mummy09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "mummy11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "mummy01,mummy02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MHIS",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "hista03a,hista03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "hista04a,hista04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "hista05a"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "hista01,hista02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "hista07a,hista07b,hista08a"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "hista09a"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "hista01,hista02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MMY2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "mycon03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "mycon04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "mycon05"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": "mycon06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "mycon01,mycon02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "mycon07,mycon08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "mycon09,mycon10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "mycon01,mycon02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MMYC",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "mycon03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "mycon04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "mycon05"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": "mycon06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "mycon01,mycon02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "mycon07,mycon08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "mycon09,mycon10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "mycon01,mycon02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MNO1",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orog03a,orog03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "orog04a,orog04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "orog04a,orog04b,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "orog01,orog02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orog07a,orog07b,orog08a,orog08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "orog09,orog10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "orog11,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orog01,orog02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MNO3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orogc03a,orogc03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "orogc04a,orogc04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "orogc04a,orogc04b,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "orogc01,orogc02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orogc07a,orogc07b,orogc08a,orogc08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "orogc09a,orogc09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "orogc11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orogc01,orogc02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MNO2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orog03b,orog03a,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "orog04b,orog04a,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "orog04b,orog04a,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "orog01,orog02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orog07b,orog07a,orog08b,orog08a"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "orog09,orog10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "orog11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orog01,orog02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MOR3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orcaxe03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "orcaxe04,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "orcaxe04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "orcaxe01,orcaxe02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orcaxe07,orcaxe08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "orcaxe09,orcaxe10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "orcaxe11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orcaxe01,orcaxe02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MOR4",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orcbw03A,ORCBW03B,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": "ORCBW06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "orcbw01,orcbw02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orcbw07,orcbw08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "orcbw09,orcbw10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "orcbw11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orcbw01,orcbw02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MOR5",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orcsh03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "orcsh04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "orcsh04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "orcsh01,orcsh02,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orcsh07,orcsh08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "orcsh09A,ORCSH09B"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "orcsh11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orcsh01,orcsh02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MOR1",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orcaxe03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "orcaxe04,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "orcaxe04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "orcaxe01,orcaxe02,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orcaxe07,orcaxe08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "orcaxe09,orcaxe10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "orcaxe11,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orcaxe01,orcaxe02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MOR2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "orcbw03A,ORCBW03B,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": "ORCBW06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "orcbw01,orcbw02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "orcbw07,orcbw08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "orcbw09,orcbw10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "orcbw11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "orcbw01,orcbw02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MSAL",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "salam03a,salam03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "salam03c,salam03d,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "salam03c,salam03d,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "salam01a,salam01b,salam02,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "salam07,salam08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "salam09a,salam09b,salam10a,salam10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "salam11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "salam01a,salam01b,salam02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MSA2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "salam03a,salam03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "salam03c,salam03d,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "salam03c,salam03d,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "salam01a,salam01b,salam02,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "salam07,salam08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "salam09a,salam09b,salam10a,salam10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "salam11,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "salam01a,salam01b,salam02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MSH1",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "shadw03a,shadw03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "shadw04a,shadw04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "shadw04a,shadw04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "shadw01a,shadw01b"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "shadw07,shadw08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "shadw09,shadw10a,shadw10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "shadw01a,shadw01b"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSH2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "shadbg03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "shadbg04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "shadbg04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "shadbg01,shadbg02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "shadbg07,shadbg08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "shadbg09,shadbg10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "shadbg01,shadbg02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSHR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "shrie03a,shrie03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "shrie04,shrie04a,shrie04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "shrie07a,shrie07b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "shrie09a,shrie09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MSKA",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "skela03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "skela04A,SKELA04B,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "skela04A,SKELA04B,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "skela01,skela02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "skela07,skela08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "skela09a,skela09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "skela01,skela02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MSKB",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "boneg03A,BONEG03B,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "boneg04A,BONEG04B,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "boneg05A,BONEG05B,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "boneg01,boneg02,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "boneg07,boneg08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "boneg09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "boneg11,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "boneg01,boneg02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MSKT",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "skela03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "skela04A,SKELA04B,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "skela04A,SKELA04B,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "skela01,skela02,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "skela07,skela08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "skela09a,skela09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "skela01,skela02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MSVI",
+      "entries": [
+        {
+          "key": "att1",
+          "value": ""
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": ""
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": ""
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MTAN",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "tanar03a,tanar03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "tanar04a,tanar04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "tanar05a,tanar05b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "tanar01,tanar02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "tanar07,tanar08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "tanar09a,tanar09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "tanar11a,tanar11b"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,"
+        },
+        {
+          "key": "selected",
+          "value": "tanar01,tanar02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MTRO",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "troll03a,troll03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "troll04a,troll04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "troll04a,troll04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "troll01,troll02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "troll07a,troll07b,troll08a,troll08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "troll09a,troll09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "troll11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "troll01,troll02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MTIC",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "icetr03a,icetr03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "icetr04a,icetr04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "icetr04a,icetr04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "icetr01,icetr02,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "icetr07a,icetr07b,icetr08a,icetr08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "icetr09a,icetr09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "icetr11a,icetr11b,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "icetr01,icetr02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MTSN",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "snwtr03a,snwtr03b"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "snwtr04a,snwtr04b"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "snwtr04a,snwtr04b"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "snwtr01a,snwtr01b,snwtr02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "snwtr07a,snwtr07b,snwtr08a,snwtr08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "snwtr09a,snwtr09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "snwtr11a,snwtr11b,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "snwtr01a,snwtr01b,snwtr02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MYET",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "yeti03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "yeti04,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "yeti04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "yeti01,yeti02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "yeti07,yeti08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "yeti09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "yeti11A,YETI11B"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0"
+        },
+        {
+          "key": "selected",
+          "value": "yeti01,yeti02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MUMB",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "umber03a,umber03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "umber04a,umber04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "umber05"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": "umber06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "umber01,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "umber07,umber08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "umber09a,umber09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": "umber01"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "3,3,3,3,3,3"
+        }
+      ]
+    },
+    {
+      "name": "MGVE",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "verbee03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "verbee04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "verbee04"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "verbee01,verbee02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "verbee07,verbee08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "verbee09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": "verbee11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0"
+        },
+        {
+          "key": "selected",
+          "value": "verbee01,verbee02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_lg01,bf_lg02,bf_lg03,bf_lg04,bf_lg05,bf_lg06"
+        },
+        {
+          "key": "fallframe",
+          "value": "3,3,3,3,3,3"
+        }
+      ]
+    },
+    {
+      "name": "MWIG",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "wight03a,wight03b,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "wight04a,wight04b,blank,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "wight05"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": "wight06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "wight01,wight02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "wight07a,wight07b,wight08a,wight08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "wight09a,wight09b,wight10a,wight10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "wight11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "wight01,wight02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MWI2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "wight03a,wight03b,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "wight04a,wight04b,blank,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "wight05"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": "wight06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "wight01,wight02,blank,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "wight07a,wight07b,wight08a,wight08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "wight09a,wight09b,wight10a,wight10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "wight11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "wight01,wight02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MWI3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "wig303a,wig303b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "wig304a,wig304b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "wig304a,wig304b,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "wig301,wig302,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "wig307a,wig307b,wig308a,wig308b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "wig309a,wig309b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "wig311,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0"
+        },
+        {
+          "key": "selected",
+          "value": "wig301,wig302"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MYU1",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "yanti03a,yanti03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "yanti04a,yanti04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "yanti05a,yanti05b,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": "yanti06a,yanti06b,blank"
+        },
+        {
+          "key": "att4frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "btlcry",
+          "value": "yanti01,yanti02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "yanti07a,yanti07b,yanti08a,yanti08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "yanti09a,yanti09b,yanti10a,yanti10b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "yanti11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "yanti01,yanti02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MYU2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "yanel03a,yanel03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": "yanel04a,yanel04b,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att3",
+          "value": "yanel05a,yanel05b,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att4",
+          "value": "yanel06a,yanel06b,blank"
+        },
+        {
+          "key": "att4frame",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "btlcry",
+          "value": "yanel01,yanel02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "yanel07a,yanel07b,yanel08a,yanel08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "yanel09a,yanel09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "yanti11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "yanel01,yanel02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MYU3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "yanpr03a,yanpr03b,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0,0"
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "yanpr01,yanpr02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "yanpr07a,yanpr07b,yanpr08a,yanpr08b"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "yanpr09a,yanpr09b"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "yanti11,blank,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "yanpr01,yanpr02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_md01,bf_md02,bf_md03,bf_md04,bf_md05,bf_md06"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MZO2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "zomwor03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "zomwor04,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "zomwor04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "zomwor01,zomwor02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "zomwor07,zomwor08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "zomwor09,zomwor10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "zomwor11,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "zomwor01,zomwor02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MZO3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "zomwor03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "zomwor04,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "zomwor04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "zomwor01,zomwor02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "zomwor07,zomwor08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "zomwor09,zomwor10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "zomwor11,blank,blank,blank"
+        },
+        {
+          "key": "fidgetframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "selected",
+          "value": "zomwor01,zomwor02"
+        },
+        {
+          "key": "selectedframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fall",
+          "value": "bf_sm01,bf_sm02,bf_sm03,bf_sm04,bf_sm05"
+        },
+        {
+          "key": "fallframe",
+          "value": "2,2,2,2,2"
+        }
+      ]
+    },
+    {
+      "name": "MBA1",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "BARB03,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "BARB03,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "BARB04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "BARB01,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "BARB07"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "BARB09,barb09,blank"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MBA2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "BARB03,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "BARB03,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "BARB04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "BARB01,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "BARB07"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "BARB09,barb09,blank"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MBA3",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "BARB03,blank,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "BARB03,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "BARB04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "BARB01,blank,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "BARB07"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "BARB09,barb09,blank"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MBA4",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SHAM03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SHAM01"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "SHAM07"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "SHAM09"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": "SHAM11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MBA5",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SHAM03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SHAM01"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "SHAM07"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "SHAM09"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": "SHAM11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MBA6",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SHAM03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SHAM01"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "SHAM07"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "SHAM09"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": "SHAM11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MBAI",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "WYLF03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "WYLF03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "WYLF04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "WYLF01"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "WYLF07"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "WYLF09"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MCOR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "CORNU03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "CORNU03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "CORNU04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "CORNU01,CORNU02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "CORNU07,CORNU08"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "CORNU09,CORNU10"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MWDR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "DRAGON03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "DRAGON01,DRAGON02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "DRAGON07,DRAGON08"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "DRAGON09"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MDRD",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "DROWN03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "DROWN03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "DROWN04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "DROWN01,DROWN02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "DROWN07,DROWN08"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "DROWN09,DROWN10"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MEAE",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SHAMB03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "SHAMB04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "SHAMB05"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SHAMB01,SHAMB02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "SHAMB06"
+        },
+        {
+          "key": "damageframe",
+          "value": "0"
+        },
+        {
+          "key": "death",
+          "value": "SHAMB07"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MGLA",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "GLABR03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "GLABR03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "GLABR04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "GLABR01,GLABR02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "GLABR07,GLABR08"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "GLABR09,GLABR10"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MGIC",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "ICEGOL03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "ICEGOL03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "ICEGOL04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "ICEGOL01,ICEGOL02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "ICEGOL07,ICEGOL08"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "ICEGOL09,ICEGOL10"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MREM",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "REMOR03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "REMOR01,REMOR02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "REMOR07,REMOR08"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "REMOR09,REMOR10"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSAH",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SMSAH03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "SMSAH03,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "SMSAH04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": "SMSAH06"
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SMSAH01,SMSAH02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "SMSAH07,SMSAH08,blank"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "SMSAH09,SMSAH10,blank"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSAT",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "LGSAH03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "LGSAH03,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "LGSAH04,blank"
+        },
+        {
+          "key": "att3frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att4",
+          "value": "LGSAH06"
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "LGSAH01,LGSAH02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "LGSAH07,LGSAH08,blank"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "LGSAH09,LGSAH10,blank"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSEE",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SEER03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SEER01"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "SEER07,SEER08"
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "SEER09"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSCR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SCRAG03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "SCRAG03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "SCRAG04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SCRAG01,SCRAG02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": ""
+        },
+        {
+          "key": "damage",
+          "value": "SCRAG07,SCRAG08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "SCRAG09,SCRAG10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MUM2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "VODYA03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "VODYA03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "VODYA04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "VODYA01,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "VODYA07,VODYA08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "VODYA09,VODYA10"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": "VODYA11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MWAV",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "VIRGIN03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "VIRGIN03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "VIRGIN04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": "VIRGIN06"
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "VIRGIN01,VIRGIN02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "VIRGIN07,VIRGIN08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "VIRGIN09,VIRGIN10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": "VIRGIN11"
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MWWE",
+      "entries": [
+        {
+          "key": "att1",
+          "value": ""
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": ""
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": "WEIRD06"
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "WEIRD01,WEIRD02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "WEIRD07,WEIRD08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "WEIRD09,WEIRD10"
+        },
+        {
+          "key": "deathframe",
+          "value": ""
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MWI4",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "barrow03,blank"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "barrow03,blank"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": "barrow04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "barrow01,barrow02,blank,blank"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0,0,0"
+        },
+        {
+          "key": "damage",
+          "value": "barrow07,barrow08,blank"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0,0"
+        },
+        {
+          "key": "death",
+          "value": "barrow09,barrow10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MWYV",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "WYVSR03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "WYVSR05"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "WYVSR06"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": "WYVSR06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "WYVRS01"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0"
+        },
+        {
+          "key": "damage",
+          "value": "WYVSR07,WYVSR08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "WYVSR09,WYVSR02"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MWY2",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "WYVER03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "WYVER05"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": "WYVER06"
+        },
+        {
+          "key": "att3frame",
+          "value": "0"
+        },
+        {
+          "key": "att4",
+          "value": "WYVER06"
+        },
+        {
+          "key": "att4frame",
+          "value": "0"
+        },
+        {
+          "key": "btlcry",
+          "value": "WYVER01,WYVER02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "WYVER07,WYVER08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "WYVER09,WYVER04"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSKL",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "SKELT03,SKELT05"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "SKELT04,SKELT06"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "SKELT01,SKELT02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "SKELT08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0"
+        },
+        {
+          "key": "death",
+          "value": "SKELT09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "ACOW",
+      "entries": []
+    },
+    {
+      "name": "AHRS",
+      "entries": []
+    },
+    {
+      "name": "ABAT",
+      "entries": []
+    },
+    {
+      "name": "ACAT",
+      "entries": []
+    },
+    {
+      "name": "ACHK",
+      "entries": []
+    },
+    {
+      "name": "ARAT",
+      "entries": []
+    },
+    {
+      "name": "ASQU",
+      "entries": []
+    },
+    {
+      "name": "AEAG",
+      "entries": []
+    },
+    {
+      "name": "AGUL",
+      "entries": []
+    },
+    {
+      "name": "AVUL",
+      "entries": []
+    },
+    {
+      "name": "ABIR",
+      "entries": []
+    },
+    {
+      "name": "MBEH",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "BEHOLS03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "BEHOLS06"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "BEHOLS01,BEHOLS02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": "0"
+        },
+        {
+          "key": "death",
+          "value": "BEHOLS07"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MDOG",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "WADOG03,WADOG05"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "WADOG04,WADOG06"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "WADOG01,WADOG02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "WADOG08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0"
+        },
+        {
+          "key": "death",
+          "value": "WADOG09"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MDJL",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "DJINNI03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "DJINNI04,DJINNI06"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "DJINNI01,DJINNI02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "DJINNI07"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MHAR",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "HARPY03"
+        },
+        {
+          "key": "att1frame",
+          "value": ""
+        },
+        {
+          "key": "att2",
+          "value": "HARPY03"
+        },
+        {
+          "key": "att2frame",
+          "value": ""
+        },
+        {
+          "key": "att3",
+          "value": "HARPY04"
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "HARPY01,HARPY02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "HARPY07,HARPY08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0,0"
+        },
+        {
+          "key": "death",
+          "value": "HARPY09,HARPY10"
+        },
+        {
+          "key": "deathframe",
+          "value": "0,0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MRAK",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "RAKSH03"
+        },
+        {
+          "key": "att1frame",
+          "value": "0"
+        },
+        {
+          "key": "att2",
+          "value": "RAKSH04,RAKSH06"
+        },
+        {
+          "key": "att2frame",
+          "value": "0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "RAKSH01"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0"
+        },
+        {
+          "key": "damage",
+          "value": ""
+        },
+        {
+          "key": "damageframe",
+          "value": ""
+        },
+        {
+          "key": "death",
+          "value": "RAKSH07"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "MSLI",
+      "entries": [
+        {
+          "key": "att1",
+          "value": "GSLIM03,GSLIM05"
+        },
+        {
+          "key": "att1frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att2",
+          "value": "GSLIM04"
+        },
+        {
+          "key": "att2frame",
+          "value": "0,0"
+        },
+        {
+          "key": "att3",
+          "value": ""
+        },
+        {
+          "key": "att3frame",
+          "value": ""
+        },
+        {
+          "key": "att4",
+          "value": ""
+        },
+        {
+          "key": "att4frame",
+          "value": ""
+        },
+        {
+          "key": "btlcry",
+          "value": "GSLIM01,GSLIM02"
+        },
+        {
+          "key": "btlcryframe",
+          "value": "0,0"
+        },
+        {
+          "key": "damage",
+          "value": "GSLIM08"
+        },
+        {
+          "key": "damageframe",
+          "value": "0"
+        },
+        {
+          "key": "death",
+          "value": "GSLIM07"
+        },
+        {
+          "key": "deathframe",
+          "value": "0"
+        },
+        {
+          "key": "fidget",
+          "value": ""
+        },
+        {
+          "key": "fidgetframe",
+          "value": ""
+        },
+        {
+          "key": "selected",
+          "value": ""
+        },
+        {
+          "key": "selectedframe",
+          "value": ""
+        },
+        {
+          "key": "fall",
+          "value": ""
+        },
+        {
+          "key": "fallframe",
+          "value": ""
+        }
+      ]
+    }
+  ]
+}
