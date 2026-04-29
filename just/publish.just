@@ -17,6 +17,7 @@ publish:
     cargo publish -p infinitier_bif_importer
     cargo publish -p infinitier_bmp_importer
     cargo publish -p infinitier_ids_importer
+    cargo publish -p infinitier_ini_importer
     cargo publish -p infinitier_key_importer
     cargo publish -p infinitier_pvr_importer
     cargo publish -p infinitier_two_da_importer

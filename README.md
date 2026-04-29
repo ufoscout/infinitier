@@ -30,7 +30,7 @@ The goal is to implement pure Rust readers for all file formats used by the Infi
 | GLSL | GLSL shader | |
 | GUI | GUI definition | |
 | IDS | Identifier / enumeration reference | Done |
-| INI | Configuration | |
+| INI | Configuration | Done |
 | ITM | Item | |
 | KEY | Resource index | Done |
 | LUA | Lua script | |
