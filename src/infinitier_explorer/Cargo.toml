@@ -12,6 +12,8 @@ infinitier_datasource = { workspace = true }
 infinitier_fs = { workspace = true }
 infinitier_key_importer = { workspace = true }
 
+clap = { version = "4", features = ["derive"] }
+
 eframe = { workspace = true }
 egui_extras = { workspace = true }
 egui_ltreeview = { workspace = true }

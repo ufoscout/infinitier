@@ -2,26 +2,27 @@ mod app;
 mod components;
 mod ui;
 
+use clap::Parser;
 use eframe::egui;
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 use infinitier_key_importer::{Key, KeyImporter};
 use std::path::PathBuf;
 
-fn main() {
-    let game_path = std::env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            eprintln!(
-                "Usage: infinitier_explorer <game_folder>\n\
-                 Supported games: bg, bg2, bgee, bg2ee, idw, idwee, idw2, pst, pstee"
-            );
-            std::process::exit(1);
-        });
+/// Infinitier Explorer — browse resources from Infinity Engine games.
+#[derive(Parser)]
+#[command(author, version, about)]
+struct Args {
+    /// Path to the game folder (bg, bg2, bgee, bg2ee, idw, idwee, idw2, pst, pstee).
+    /// The folder must contain a CHITIN.KEY file.
+    game_path: PathBuf,
+}
 
-    let key = load_key(&game_path).unwrap_or_else(|e| {
-        eprintln!("Failed to load key file from '{}': {e}", game_path.display());
+fn main() {
+    let args = Args::parse();
+
+    let key = load_key(&args.game_path).unwrap_or_else(|e| {
+        eprintln!("Failed to load key file from '{}': {e}", args.game_path.display());
         std::process::exit(1);
     });
 
