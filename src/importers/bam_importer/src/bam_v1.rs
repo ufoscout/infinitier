@@ -155,7 +155,11 @@ impl BamV1Parser {
             cycles
         };
 
-        debug!("Loaded BAM V1: {} frames, {} cycles", frames.len(), cycles.len());
+        debug!(
+            "Loaded BAM V1: {} frames, {} cycles",
+            frames.len(),
+            cycles.len()
+        );
         Ok(BamV1 {
             r#type: expected_type,
             frames,

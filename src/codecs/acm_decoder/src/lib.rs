@@ -1,8 +1,8 @@
 #![allow(clippy::needless_range_loop)]
 #![doc = include_str!("../readme.md")]
 
-use std::io::BufRead;
 use log::{debug, error};
+use std::io::BufRead;
 use thiserror::Error as ThisError;
 
 use hound::WavWriter;

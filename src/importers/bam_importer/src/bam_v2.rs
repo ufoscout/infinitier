@@ -103,7 +103,12 @@ impl BamV2Parser {
             data_blocks
         };
 
-        debug!("Loaded BAM V2: {} frames, {} cycles, {} data blocks", frames.len(), cycles.len(), data_blocks.len());
+        debug!(
+            "Loaded BAM V2: {} frames, {} cycles, {} data blocks",
+            frames.len(),
+            cycles.len(),
+            data_blocks.len()
+        );
         Ok(BamV2 {
             r#type: expected_type,
             frames,

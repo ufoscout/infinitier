@@ -38,7 +38,10 @@ impl BifcParser {
             let signature = zip.read_string(8)?;
 
             if !signature.eq(BIFFV1_SIGNATURE) {
-                error!("BIFC inner decompressed signature not BIFF V1: {:?}", signature);
+                error!(
+                    "BIFC inner decompressed signature not BIFF V1: {:?}",
+                    signature
+                );
                 return Err(std::io::Error::other(format!(
                     "Wrong file type: {}",
                     signature

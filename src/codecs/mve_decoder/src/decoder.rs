@@ -283,7 +283,10 @@ impl<R: BufRead + Seek> MveDecoder<R> {
                 return Ok(StepResult::Ok);
             }
             _ => {
-                warn!("Unknown MVE segment type {:#04x}, skipping {} bytes", seg_type, size);
+                warn!(
+                    "Unknown MVE segment type {:#04x}, skipping {} bytes",
+                    seg_type, size
+                );
                 self.skip(size as u64)?;
                 return Ok(StepResult::Ok);
             }

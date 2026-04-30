@@ -20,7 +20,10 @@ impl Importer for KeyImporter {
         let version = reader.read_string(4)?.trim().to_string();
 
         if !(signature.eq("KEY") && version.eq("V1")) {
-            error!("Not a KEY V1 file: signature={:?} version={:?}", signature, version);
+            error!(
+                "Not a KEY V1 file: signature={:?} version={:?}",
+                signature, version
+            );
             return Err(io::Error::other("Wrong file type"));
         }
 
@@ -178,10 +181,7 @@ impl BifEntry {
 
         reader.set_position(offset_position)?;
 
-        debug!(
-            "BIF entry: {} - {}",
-            index, file_name
-        );
+        debug!("BIF entry: {} - {}", index, file_name);
         Ok(BifEntry {
             file_size,
             index,

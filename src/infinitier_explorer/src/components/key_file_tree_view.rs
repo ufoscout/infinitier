@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use eframe::egui;
 use egui_ltreeview::{NodeBuilder, TreeView};
 use infinitier_key_importer::Key;
@@ -8,16 +10,17 @@ pub enum TreeNodeId {
     Resource(usize),
 }
 
+type Groups = Vec<(&'static str, u16, Vec<(usize, String)>)>;
+type GroupsMap = BTreeMap<&'static str, (u16, Vec<(usize, String)>)>;
+
 pub struct KeyFileTreeView {
     // (dir_label, type_code, [(resource_index, leaf_label)])
-    groups: Vec<(&'static str, u16, Vec<(usize, String)>)>,
+    groups: Groups,
 }
 
 impl KeyFileTreeView {
     pub fn new(key: &Key) -> Self {
-        use std::collections::BTreeMap;
-
-        let mut type_map: BTreeMap<&'static str, (u16, Vec<(usize, String)>)> = BTreeMap::new();
+        let mut type_map: GroupsMap = BTreeMap::new();
         for (i, entry) in key.resource_entries.iter().enumerate() {
             let type_code = entry.r#type.to_u16();
             let ext = entry.r#type.get_extension().unwrap_or("unknown");

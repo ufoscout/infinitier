@@ -27,14 +27,17 @@ fn main() {
     env_logger::Builder::new().parse_filters(&args.log).init();
 
     let key = load_key(&args.game_path).unwrap_or_else(|e| {
-        eprintln!("Failed to load key file from '{}': {e}", args.game_path.display());
+        eprintln!(
+            "Failed to load key file from '{}': {e}",
+            args.game_path.display()
+        );
         std::process::exit(1);
     });
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("Infinitier Explorer")
-            .with_clamp_size_to_monitor_size(true) 
+            .with_clamp_size_to_monitor_size(true)
             .with_maximized(true),
         renderer: eframe::Renderer::Wgpu,
         ..Default::default()

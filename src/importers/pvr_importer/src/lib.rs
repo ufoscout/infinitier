@@ -40,7 +40,10 @@ impl Importer for PvrzImporter {
             mip_map_count: reader.read_u32()?,
             metadata_size: reader.read_u32()?,
         };
-        debug!("Loaded PVRZ: {}x{} {:?}", header.width, header.height, header.pixel_format);
+        debug!(
+            "Loaded PVRZ: {}x{} {:?}",
+            header.width, header.height, header.pixel_format
+        );
         Ok(header)
     }
 }
