@@ -1,4 +1,4 @@
-use std::{io::{self, BufRead, Seek}, os::linux::raw::stat};
+use std::io::{self, BufRead, Seek};
 
 use serde::{Deserialize, Serialize};
 
@@ -13,6 +13,8 @@ impl Importer for KeyImporter {
     type T = Key;
 
     fn import(data: &DataSource) -> std::io::Result<Key> {
+        debug!("Importing KEY file from datasource {:?}", data);
+
         let mut reader = data.reader()?;
         let signature = reader.read_string(4)?.trim().to_string();
         let version = reader.read_string(4)?.trim().to_string();
@@ -176,6 +178,10 @@ impl BifEntry {
 
         reader.set_position(offset_position)?;
 
+        debug!(
+            "BIF entry: {} - {}",
+            index, file_name
+        );
         Ok(BifEntry {
             file_size,
             index,
