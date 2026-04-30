@@ -59,10 +59,10 @@ impl KeyFileTreeView {
         for action in actions {
             if let Action::SetSelected(ids) = action {
                 for id in &ids {
-                    if let TreeNodeId::Resource(idx) = id {
-                        state.key_file.resource_entries.get(*idx).map(|resource| {
-                            state.selected_resource = Some(resource.clone());
-                        });
+                    if let TreeNodeId::Resource(idx) = id
+                        && let Some(resource) = state.key_file.resource_entries.get(*idx)
+                    {
+                        state.selected_resource = Some(resource.clone());
                     }
                 }
             }
