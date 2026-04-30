@@ -1,4 +1,5 @@
 use infinitier_datasource::Reader;
+use log::{debug, warn};
 use std::{
     io::{BufRead, Seek, SeekFrom},
     path::Path,
@@ -102,6 +103,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
     pub fn new(mut reader: Reader<R>) -> Result<Self, Error> {
         let sig = reader.read_exact::<26>()?;
         if &sig[..24] != MVE_SIGNATURE_PREFIX {
+            log::error!("Invalid MVE signature");
             return Err(Error::InvalidSignature);
         }
 
@@ -123,6 +125,10 @@ impl<R: BufRead + Seek> MveDecoder<R> {
         dec.process_chunk()?;
         dec.process_chunk()?;
 
+        debug!(
+            "MVE decoder ready: {}x{}, {:?}, frame_duration={}µs",
+            dec.width, dec.height, dec.format, dec.frame_duration_us
+        );
         Ok(dec)
     }
 
@@ -277,6 +283,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
                 return Ok(StepResult::Ok);
             }
             _ => {
+                warn!("Unknown MVE segment type {:#04x}, skipping {} bytes", seg_type, size);
                 self.skip(size as u64)?;
                 return Ok(StepResult::Ok);
             }

@@ -4,6 +4,7 @@ mod biff_reader;
 
 use infinitier_datasource::{Importer, Reader};
 use infinitier_key_importer::ResourceType;
+use log::{debug, error};
 use std::io::Read;
 
 use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
@@ -84,13 +85,25 @@ pub fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type
     let value = reader.read_string(8)?;
 
     match value.as_str() {
-        BIFFV1_SIGNATURE => Ok(Type::Biff),
-        BIF_V1_0_SIGNATURE => Ok(Type::Bif),
-        BIFCV1_0_SIGNATURE => Ok(Type::Bifc),
-        val => Err(std::io::Error::other(format!(
-            "Unsupported BIFF file: {}",
-            val
-        ))),
+        BIFFV1_SIGNATURE => {
+            debug!("Detected BIF type: BIFF V1");
+            Ok(Type::Biff)
+        }
+        BIF_V1_0_SIGNATURE => {
+            debug!("Detected BIF type: BIF V1.0");
+            Ok(Type::Bif)
+        }
+        BIFCV1_0_SIGNATURE => {
+            debug!("Detected BIF type: BIFC V1.0");
+            Ok(Type::Bifc)
+        }
+        val => {
+            error!("Unsupported BIFF file signature: {:?}", val);
+            Err(std::io::Error::other(format!(
+                "Unsupported BIFF file: {}",
+                val
+            )))
+        }
     }
 }
 

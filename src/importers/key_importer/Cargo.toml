@@ -13,6 +13,7 @@ keywords = ["key", "chitin", "index", "infinity-engine", "baldurs-gate"]
 [dependencies]
 infinitier_datasource = { workspace = true }
 infinitier_fs = { workspace = true }
+log = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

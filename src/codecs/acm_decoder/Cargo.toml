@@ -13,6 +13,7 @@ keywords = ["audio", "acm", "decoder", "interplay", "infinity-engine"]
 [dependencies]
 hound = { workspace = true }
 infinitier_datasource = { workspace = true }
+log = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

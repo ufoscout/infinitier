@@ -11,8 +11,9 @@ readme = "readme.md"
 keywords = ["bmp", "bitmap", "image", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
-infinitier_datasource = { workspace = true }
 image = { workspace = true }
+infinitier_datasource = { workspace = true }
+log = { workspace = true }
 
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }

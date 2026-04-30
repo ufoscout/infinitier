@@ -12,6 +12,7 @@ keywords = ["video", "mve", "decoder", "interplay", "infinity-engine"]
 
 [dependencies]
 infinitier_datasource = { workspace = true }
+log = { workspace = true }
 thiserror = { workspace = true }
 hound = { workspace = true }
 encoding_rs = { workspace = true }

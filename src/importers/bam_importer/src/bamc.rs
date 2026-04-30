@@ -1,6 +1,7 @@
 use std::io::BufRead;
 
 use infinitier_datasource::Reader;
+use log::{debug, error};
 
 use crate::{Bam, BamImporter, Type};
 
@@ -13,6 +14,7 @@ impl BamcParser {
         let signature = reader.read_string(8)?;
 
         if !signature.eq(Type::BamC.signature()) {
+            error!("Not a BAMC file: {:?}", signature);
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature
@@ -21,6 +23,7 @@ impl BamcParser {
 
         let _uncompressed_size = reader.read_u32()?;
 
+        debug!("Decompressing BAMC data");
         let mut uncompressed_reader = reader.as_zip_reader().decode_all()?;
 
         BamImporter::from_reader(&mut uncompressed_reader)

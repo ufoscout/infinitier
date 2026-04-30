@@ -1,4 +1,5 @@
 use infinitier_datasource::{DataSource, Importer};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 /// An INI file importer.
@@ -50,6 +51,7 @@ impl Importer for IniImporter {
             }
         }
 
+        debug!("Loaded INI file: {} sections", sections.len());
         Ok(Ini { sections })
     }
 }

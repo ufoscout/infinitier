@@ -1,4 +1,5 @@
 use infinitier_datasource::{DataSource, Importer};
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 /// An IDS file importer.
@@ -21,6 +22,7 @@ impl Importer for IdsImporter {
             }
         }
 
+        debug!("Loaded IDS file: {} entries", entries.len());
         Ok(Ids { entries })
     }
 }

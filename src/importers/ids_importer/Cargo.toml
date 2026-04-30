@@ -12,6 +12,7 @@ keywords = ["ids", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 infinitier_datasource = { workspace = true }
+log = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

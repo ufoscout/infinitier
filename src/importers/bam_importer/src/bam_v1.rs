@@ -2,6 +2,7 @@ use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
 use infinitier_datasource::Reader;
+use log::{debug, error};
 
 use crate::{Type, common::Rgb};
 
@@ -29,6 +30,7 @@ impl BamV1Parser {
         let expected_type = Type::BamV1;
 
         if !signature.eq(expected_type.signature()) {
+            error!("Not a BAM V1 file: {:?}", signature);
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature
@@ -153,6 +155,7 @@ impl BamV1Parser {
             cycles
         };
 
+        debug!("Loaded BAM V1: {} frames, {} cycles", frames.len(), cycles.len());
         Ok(BamV1 {
             r#type: expected_type,
             frames,

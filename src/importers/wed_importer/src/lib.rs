@@ -1,5 +1,6 @@
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_key_importer::ResourceType;
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
 /// A Wed file importer
@@ -14,6 +15,7 @@ impl Importer for WedImporter {
         let signature = reader.read_string(8)?;
 
         if signature != "WED V1.3" {
+            error!("Not a WED V1.3 file: signature={:?}", signature);
             return Err(std::io::Error::other("Wrong file type"));
         }
 
@@ -142,6 +144,12 @@ impl Importer for WedImporter {
             }
         }
 
+        debug!(
+            "Loaded WED: {} overlays, {} doors, {} polygons",
+            overlays.len(),
+            doors.len(),
+            polygons.len()
+        );
         Ok(Wed {
             overlays,
             doors,

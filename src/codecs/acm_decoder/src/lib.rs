@@ -2,6 +2,7 @@
 #![doc = include_str!("../readme.md")]
 
 use std::io::BufRead;
+use log::{debug, error};
 use thiserror::Error as ThisError;
 
 use hound::WavWriter;
@@ -148,6 +149,10 @@ impl<R: BufRead> AcmDecoder<R> {
         // Allocate at least 1 element so the Vec is never empty.
         dec.wrapbuf = vec![0i32; wrapbuf_len.max(1)];
 
+        debug!(
+            "Opened ACM: channels={}, rate={}, total_values={}",
+            dec.info.channels, dec.info.rate, dec.info.total_values
+        );
         Ok(dec)
     }
 
@@ -243,6 +248,7 @@ impl<R: BufRead> AcmDecoder<R> {
         }
 
         if tmp != ACM_ID {
+            error!("Not an ACM file: expected ID {ACM_ID:#x}, got {tmp:#x}");
             return Err(AcmError::NotAcmError);
         }
         self.info.acm_id = tmp;
@@ -366,7 +372,10 @@ impl<R: BufRead> AcmDecoder<R> {
             }
 
             // ── f_bad ───────────────────────────────────────────────────────
-            1 | 2 | 25 | 28 | 30 | 31 => return Err(AcmError::CorruptError),
+            1 | 2 | 25 | 28 | 30 | 31 => {
+                error!("ACM corrupt: invalid filler index {}", ind);
+                return Err(AcmError::CorruptError);
+            }
 
             // ── f_linear (ind = 3..=16) ─────────────────────────────────────
             3..=16 => {

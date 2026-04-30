@@ -2,6 +2,7 @@ use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
 use infinitier_datasource::{DataSource, Importer, Reader};
+use log::{debug, error};
 
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 use infinitier_pvr_importer::PvrzImporter;
@@ -18,6 +19,7 @@ impl BamV2Parser {
         let expected_type = Type::BamV2;
 
         if !signature.eq(expected_type.signature()) {
+            error!("Not a BAM V2 file: {:?}", signature);
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature
@@ -101,6 +103,7 @@ impl BamV2Parser {
             data_blocks
         };
 
+        debug!("Loaded BAM V2: {} frames, {} cycles, {} data blocks", frames.len(), cycles.len(), data_blocks.len());
         Ok(BamV2 {
             r#type: expected_type,
             frames,

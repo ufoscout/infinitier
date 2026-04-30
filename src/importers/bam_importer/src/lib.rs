@@ -1,6 +1,7 @@
 use std::io::{BufRead, Read, Seek};
 
 use infinitier_datasource::{Importer, Reader};
+use log::error;
 
 use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
 
@@ -81,10 +82,13 @@ fn detect_bam_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
         BAM_V1_SIGNATURE => Ok(Type::BamV1),
         BAM_V2_SIGNATURE => Ok(Type::BamV2),
         BAMC_SIGNATURE => Ok(Type::BamC),
-        val => Err(std::io::Error::other(format!(
-            "Unsupported BAM file: {}",
-            val
-        ))),
+        val => {
+            error!("Unsupported BAM file signature: {:?}", val);
+            Err(std::io::Error::other(format!(
+                "Unsupported BAM file: {}",
+                val
+            )))
+        }
     }
 }
 

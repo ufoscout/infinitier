@@ -1,4 +1,5 @@
 use image::{ImageBuffer, Rgba};
+use log::debug;
 
 use infinitier_datasource::{DataSource, Importer};
 
@@ -15,6 +16,7 @@ impl Importer for BmpImporter {
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?
             .to_rgba8();
 
+        debug!("Loaded BMP: {}x{}", image.width(), image.height());
         Ok(Bmp { image })
     }
 }

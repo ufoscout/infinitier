@@ -3,8 +3,8 @@ use std::{io::{self, BufRead, Seek}, os::linux::raw::stat};
 use serde::{Deserialize, Serialize};
 
 use infinitier_datasource::{DataSource, Importer, Reader};
-
 use infinitier_fs::CaseInsensitivePath;
+use log::{debug, error};
 
 /// A KEY file importer
 pub struct KeyImporter {}
@@ -18,6 +18,7 @@ impl Importer for KeyImporter {
         let version = reader.read_string(4)?.trim().to_string();
 
         if !(signature.eq("KEY") && version.eq("V1")) {
+            error!("Not a KEY V1 file: signature={:?} version={:?}", signature, version);
             return Err(io::Error::other("Wrong file type"));
         }
 
@@ -47,6 +48,11 @@ impl Importer for KeyImporter {
             )?);
         }
 
+        debug!(
+            "Loaded KEY file: {} bif entries, {} resource entries",
+            bif_entries.len(),
+            resource_entries.len()
+        );
         Ok(Key {
             signature,
             version,

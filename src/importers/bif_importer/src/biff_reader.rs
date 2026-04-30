@@ -1,6 +1,7 @@
 use std::io::{Read, Seek};
 
 use infinitier_datasource::Reader;
+use log::{debug, error};
 
 use crate::{BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset};
 
@@ -13,6 +14,7 @@ impl BiffParser {
         let signature = reader.read_string(8)?;
 
         if !signature.eq(BIFFV1_SIGNATURE) {
+            error!("Not a BIFF V1 file: {:?}", signature);
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature
@@ -40,6 +42,7 @@ impl BiffParser {
             bif.resources.push(parse_bif_embedded_tileset(reader)?)
         }
 
+        debug!("Loaded BIFF V1: {} resources", bif.resources.len());
         Ok(bif)
     }
 }

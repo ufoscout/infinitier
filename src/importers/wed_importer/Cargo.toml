@@ -14,6 +14,7 @@ keywords = ["wed", "area", "geometry", "infinity-engine", "baldurs-gate"]
 bitflags = { workspace = true }
 infinitier_datasource = { workspace = true }
 infinitier_key_importer = { workspace = true }
+log = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

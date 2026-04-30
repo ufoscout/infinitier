@@ -1,4 +1,5 @@
 use infinitier_datasource::Reader;
+use log::{debug, error};
 
 use crate::{
     BIFCV1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
@@ -20,6 +21,7 @@ impl BifcParser {
         let signature = reader.read_string(8)?;
 
         if !signature.eq(BIFCV1_0_SIGNATURE) {
+            error!("Not a BIFC V1.0 file: {:?}", signature);
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature
@@ -36,6 +38,7 @@ impl BifcParser {
             let signature = zip.read_string(8)?;
 
             if !signature.eq(BIFFV1_SIGNATURE) {
+                error!("BIFC inner decompressed signature not BIFF V1: {:?}", signature);
                 return Err(std::io::Error::other(format!(
                     "Wrong file type: {}",
                     signature
@@ -76,6 +79,7 @@ impl BifcParser {
             bif
         };
 
+        debug!("Loaded BIFC V1.0: {} resources", bif.resources.len());
         Ok(bif)
     }
 }

@@ -2,6 +2,7 @@
 
 use image::{ImageBuffer, Rgba};
 use infinitier_datasource::{DataSource, Importer};
+use log::{debug, error};
 
 /// A PVRZ file importer
 pub struct PvrzImporter;
@@ -25,7 +26,7 @@ impl Importer for PvrzImporter {
         let mut reader = reader.as_zip_reader();
 
         // header
-        Ok(PvrzHeader {
+        let header = PvrzHeader {
             version: reader.read_u32()?,
             flags: reader.read_u32()?,
             pixel_format: PvrDataCompression::from_u64(reader.read_u64()?)?,
@@ -38,7 +39,9 @@ impl Importer for PvrzImporter {
             faces_number: reader.read_u32()?,
             mip_map_count: reader.read_u32()?,
             metadata_size: reader.read_u32()?,
-        })
+        };
+        debug!("Loaded PVRZ: {}x{} {:?}", header.width, header.height, header.pixel_format);
+        Ok(header)
     }
 }
 
@@ -130,10 +133,13 @@ impl PvrDataCompression {
         match value {
             7 => Ok(PvrDataCompression::DXT1),
             11 => Ok(PvrDataCompression::DXT5),
-            _ => Err(std::io::Error::other(format!(
-                "Unexpected pixel_format: {}",
-                value
-            ))),
+            _ => {
+                error!("Unexpected PVRZ pixel_format: {}", value);
+                Err(std::io::Error::other(format!(
+                    "Unexpected pixel_format: {}",
+                    value
+                )))
+            }
         }
     }
 
