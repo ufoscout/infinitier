@@ -13,6 +13,9 @@ pub mod common {
 pub mod ids {
     pub use infinitier_ids_importer::*;
 }
+pub mod ini {
+    pub use infinitier_ini_importer::*;
+}
 pub mod key {
     pub use infinitier_key_importer::*;
 }

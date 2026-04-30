@@ -34,6 +34,7 @@ infinitier_bam_importer = { path = "src/importers/bam_importer", version = "0.0.
 infinitier_bif_importer = { path = "src/importers/bif_importer", version = "0.0.2"  }
 infinitier_bmp_importer = { path = "src/importers/bmp_importer", version = "0.0.2"  }
 infinitier_ids_importer = { path = "src/importers/ids_importer", version = "0.0.2"  }
+infinitier_ini_importer = { path = "src/importers/ini_importer", version = "0.0.2"  }
 infinitier_key_importer = { path = "src/importers/key_importer", version = "0.0.2"  }
 infinitier_pvr_importer = { path = "src/importers/pvr_importer", version = "0.0.2"  }
 infinitier_two_da_importer = { path = "src/importers/two_da_importer", version = "0.0.2"  }

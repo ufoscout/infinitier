@@ -1735,6 +1735,7 @@ dependencies = [
  "infinitier_bmp_importer",
  "infinitier_fs",
  "infinitier_ids_importer",
+ "infinitier_ini_importer",
  "infinitier_key_importer",
  "infinitier_pvr_importer",
  "infinitier_test_utils",
