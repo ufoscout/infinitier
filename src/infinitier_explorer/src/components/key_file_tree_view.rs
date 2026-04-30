@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 
 use eframe::egui;
-use egui_ltreeview::{NodeBuilder, TreeView};
+use egui_ltreeview::{Action, NodeBuilder, TreeView};
 use infinitier_key_importer::Key;
+
+use crate::state::AppState;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum TreeNodeId {
@@ -10,8 +12,8 @@ pub enum TreeNodeId {
     Resource(usize),
 }
 
-type Groups = Vec<(&'static str, u16, Vec<(usize, String)>)>;
-type GroupsMap = BTreeMap<&'static str, (u16, Vec<(usize, String)>)>;
+/// Map from file extension to (type code, entries)
+type Groups = BTreeMap<&'static str, (u16, BTreeMap<String, usize>)>;
 
 pub struct KeyFileTreeView {
     groups: Groups,
@@ -19,34 +21,26 @@ pub struct KeyFileTreeView {
 
 impl KeyFileTreeView {
     pub fn new(key: &Key) -> Self {
-        let mut type_map: GroupsMap = BTreeMap::new();
+        let mut groups = BTreeMap::new();
         for (i, entry) in key.resource_entries.iter().enumerate() {
             let type_code = entry.r#type.to_u16();
             let ext = entry.r#type.get_extension().unwrap_or("unknown");
             let leaf_label = format!("{}.{}", entry.resource_name, ext);
-            type_map
+            let (_, entries) = groups
                 .entry(ext)
-                .or_insert_with(|| (type_code, Vec::new()))
-                .1
-                .push((i, leaf_label));
+                .or_insert_with(|| (type_code, BTreeMap::new()));
+            entries.insert(leaf_label, i);
         }
-
-        let groups = type_map
-            .into_iter()
-            .map(|(type_label, (code, mut entries))| {
-                entries.sort_by(|a, b| a.1.cmp(&b.1));
-                (type_label, code, entries)
-            })
-            .collect();
-
         Self { groups }
     }
 
-    pub fn show(&self, ui: &mut egui::Ui) {
-        TreeView::new(ui.id().with("key_file_tree_view"))
+    /// Renders the tree and returns the label of the newly selected resource leaf, if any.
+    pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState) {
+        let (_, actions) = TreeView::new(ui.id().with("key_file_tree_view"))
             .allow_drag_and_drop(false)
+            .allow_multi_selection(false)
             .show(ui, |builder| {
-                for (type_label, type_code, entries) in &self.groups {
+                for (type_label, (type_code, entries)) in &self.groups {
                     let dir_label = format!("{} ({})", type_label, entries.len());
                     let is_open = builder.node(
                         NodeBuilder::dir(TreeNodeId::TypeGroup(*type_code))
@@ -54,13 +48,25 @@ impl KeyFileTreeView {
                             .label(dir_label),
                     );
                     if is_open {
-                        for (idx, leaf_label) in entries {
+                        for (leaf_label, idx) in entries {
                             builder.leaf(TreeNodeId::Resource(*idx), leaf_label.as_str());
                         }
                     }
                     builder.close_dir();
                 }
             });
+
+        for action in actions {
+            if let Action::SetSelected(ids) = action {
+                for id in &ids {
+                    if let TreeNodeId::Resource(idx) = id {
+                        state.key_file.resource_entries.get(*idx).map(|resource| {
+                            state.selected_resource = Some(resource.clone());
+                        });
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -110,39 +116,34 @@ mod tests {
 
         let view = KeyFileTreeView::new(&key);
 
-        // Groups are keyed by extension and sorted alphabetically (BTreeMap order):
-        // "bam" < "bmp" < "unknown" < "wed"
+        // Groups are keyed by extension, sorted alphabetically: bam < bmp < unknown < wed
         assert_eq!(view.groups.len(), 4);
 
         // ── bam ──────────────────────────────────────────────────────────────
-        let (label, code, entries) = &view.groups[0];
-        assert_eq!(*label, "bam");
+        let (code, entries) = view.groups.get("bam").unwrap();
         assert_eq!(*code, ResourceType::Bam.to_u16());
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0], (4, "1CHELM.bam".to_string()));
-        assert_eq!(entries[1], (3, "SPHEART.bam".to_string()));
+        assert_eq!(entries["1CHELM.bam"], 4);
+        assert_eq!(entries["SPHEART.bam"], 3);
 
         // ── bmp ──────────────────────────────────────────────────────────────
-        let (label, code, entries) = &view.groups[1];
-        assert_eq!(*label, "bmp");
+        let (code, entries) = view.groups.get("bmp").unwrap();
         assert_eq!(*code, ResourceType::Bmp.to_u16());
         assert_eq!(entries.len(), 3);
-        assert_eq!(entries[0], (2, "AAATEST.bmp".to_string()));
-        assert_eq!(entries[1], (0, "CCHAN05.bmp".to_string()));
-        assert_eq!(entries[2], (1, "MINSCM.bmp".to_string()));
+        assert_eq!(entries["AAATEST.bmp"], 2);
+        assert_eq!(entries["CCHAN05.bmp"], 0);
+        assert_eq!(entries["MINSCM.bmp"], 1);
 
         // ── unknown ──────────────────────────────────────────────────────────
-        let (label, code, entries) = &view.groups[2];
-        assert_eq!(*label, "unknown");
+        let (code, entries) = view.groups.get("unknown").unwrap();
         assert_eq!(*code, 0x9999);
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0], (6, "UNKNOWN.unknown".to_string()));
+        assert_eq!(entries["UNKNOWN.unknown"], 6);
 
         // ── wed ──────────────────────────────────────────────────────────────
-        let (label, code, entries) = &view.groups[3];
-        assert_eq!(*label, "wed");
+        let (code, entries) = view.groups.get("wed").unwrap();
         assert_eq!(*code, ResourceType::Wed.to_u16());
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0], (5, "AR0072.wed".to_string()));
+        assert_eq!(entries["AR0072.wed"], 5);
     }
 }

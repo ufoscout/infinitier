@@ -1,5 +1,6 @@
 mod app;
 mod components;
+mod state;
 mod ui;
 
 use clap::Parser;

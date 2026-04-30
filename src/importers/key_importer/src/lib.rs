@@ -137,7 +137,7 @@ impl BifDirectory {
 }
 
 /// A resource entry inside a KEY file
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct ResourceEntry {
     /// Resource name without extension.
     pub resource_name: String,
