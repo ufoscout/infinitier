@@ -1,3 +1,4 @@
+use clap::Parser;
 use eframe::egui;
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::{MveDecoder, VideoFrame};
@@ -8,6 +9,16 @@ use std::{
     sync::mpsc::{self, Receiver, SyncSender},
     time::{Duration, Instant},
 };
+
+#[derive(Parser)]
+#[command(author, version, about = "Play Interplay MVE video files")]
+struct Args {
+    /// Path to the MVE file to play.
+    mve_file: PathBuf,
+    /// Log filter, e.g. "warn", "debug", "infinitier=debug,warn".
+    #[arg(long, default_value = "infinitier=debug,info")]
+    log: String,
+}
 
 // ---------------------------------------------------------------------------
 // Continuous streaming audio source
@@ -309,13 +320,9 @@ impl eframe::App for MvePlayer {
 }
 
 fn main() -> eframe::Result<()> {
-    let path = std::env::args()
-        .nth(1)
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            eprintln!("Usage: mve_player <file.mve>");
-            std::process::exit(1);
-        });
+    let args = Args::parse();
+    env_logger::Builder::new().parse_filters(&args.log).init();
+    let path = args.mve_file;
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

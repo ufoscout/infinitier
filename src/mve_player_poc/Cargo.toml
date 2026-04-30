@@ -9,7 +9,9 @@ name = "mve_player"
 path = "src/main.rs"
 
 [dependencies]
+clap = { workspace = true }
 eframe = { workspace = true }
+env_logger = { workspace = true }
 infinitier_datasource = { workspace = true }
 infinitier_mve_decoder = { workspace = true }
 rodio = { workspace = true }

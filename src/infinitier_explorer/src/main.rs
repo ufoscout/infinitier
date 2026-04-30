@@ -16,10 +16,15 @@ struct Args {
     /// Path to the game folder (bg, bg2, bgee, bg2ee, idw, idwee, idw2, pst, pstee).
     /// The folder must contain a CHITIN.KEY file.
     game_path: PathBuf,
+    /// Log filter, e.g. "warn", "debug", "infinitier=debug,warn".
+    #[arg(long, default_value = "infinitier=debug,warn")]
+    log: String,
 }
 
 fn main() {
     let args = Args::parse();
+
+    env_logger::Builder::new().parse_filters(&args.log).init();
 
     let key = load_key(&args.game_path).unwrap_or_else(|e| {
         eprintln!("Failed to load key file from '{}': {e}", args.game_path.display());

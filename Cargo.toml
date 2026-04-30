@@ -42,7 +42,9 @@ infinitier_two_da_importer = { path = "src/importers/two_da_importer", version =
 infinitier_wed_importer = { path = "src/importers/wed_importer", version = "0.0.2"  }
 
 bitflags = { version = "2", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
 encoding_rs = "0.8"
+env_logger = "0.11"
 flate2 = "1"
 hound = "3"
 image = { version = "0.25", default-features = false, features = ["bmp", "png"] }
