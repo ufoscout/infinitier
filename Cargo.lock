@@ -1804,7 +1804,9 @@ dependencies = [
  "eframe",
  "egui_extras",
  "egui_ltreeview",
- "infinitier_core",
+ "infinitier_datasource",
+ "infinitier_fs",
+ "infinitier_key_importer",
 ]
 
 [[package]]
