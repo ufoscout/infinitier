@@ -17,6 +17,7 @@ pub const FILE_FOLDERS: [&str; 9] = [
 /// A file system that is case insensitive
 #[derive(Debug, Clone)]
 pub struct CaseInsensitiveFS {
+    /// The root directory
     root: PathBuf,
     paths: Arc<BTreeMap<String, PathBuf>>,
 }
@@ -97,6 +98,11 @@ impl CaseInsensitivePath {
     /// Returns the path as a string
     pub fn as_str(&self) -> &str {
         &self.path
+    }
+
+    /// Returns the base name of the path
+    pub fn base_name(&self) -> &str {
+        self.path.split('/').last().expect("Should always exists")
     }
 }
 
@@ -219,5 +225,19 @@ mod tests {
                     .unwrap()
             )
         );
+    }
+
+    #[test]
+    fn test_basename() {
+        assert_eq!(CaseInsensitivePath::new("/data/AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(CaseInsensitivePath::new("/data/target").base_name(), "target");
+        assert_eq!(CaseInsensitivePath::new("data/AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(CaseInsensitivePath::new("data/target").base_name(), "target");
+        assert_eq!(CaseInsensitivePath::new("/AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(CaseInsensitivePath::new("/target").base_name(), "target");
+        assert_eq!(CaseInsensitivePath::new("AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(CaseInsensitivePath::new("target").base_name(), "target");
+        assert_eq!(CaseInsensitivePath::new("").base_name(), "");
+        assert_eq!(CaseInsensitivePath::new("/").base_name(), "");
     }
 }
