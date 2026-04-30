@@ -3,10 +3,10 @@ members = [
     "src/codecs/*",
     "src/core",
     "src/datasource",
-    "src/egui",
+    "src/mve_player_poc",
     "src/fs",
     "src/test_utils",
-    "src/importers/*",
+    "src/importers/*", "infinitier_explorer",
 ]
 resolver = "3"
 
