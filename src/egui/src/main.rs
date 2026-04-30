@@ -1,8 +1,9 @@
 use eframe::egui;
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::{MveDecoder, VideoFrame};
-use rodio::{OutputStream, Sink, Source};
+use rodio::{DeviceSinkBuilder, MixerDeviceSink, Player, Source};
 use std::{
+    num::NonZero,
     path::PathBuf,
     sync::mpsc::{self, Receiver, SyncSender},
     time::{Duration, Instant},
@@ -18,15 +19,15 @@ use std::{
 // ---------------------------------------------------------------------------
 
 struct StreamingAudioSource {
-    rx: mpsc::Receiver<Vec<i16>>,
-    current: std::vec::IntoIter<i16>,
-    channels: u16,
-    sample_rate: u32,
+    rx: mpsc::Receiver<Vec<f32>>,
+    current: std::vec::IntoIter<f32>,
+    channels: NonZero<u16>,
+    sample_rate: NonZero<u32>,
 }
 
 impl Iterator for StreamingAudioSource {
-    type Item = i16;
-    fn next(&mut self) -> Option<i16> {
+    type Item = f32;
+    fn next(&mut self) -> Option<f32> {
         loop {
             // Drain the current chunk first.
             if let Some(s) = self.current.next() {
@@ -41,7 +42,7 @@ impl Iterator for StreamingAudioSource {
                 Err(mpsc::TryRecvError::Empty) => {
                     // Decoder hasn't produced the next chunk yet.
                     // Return silence to avoid an underrun click.
-                    return Some(0);
+                    return Some(0.0);
                 }
                 Err(mpsc::TryRecvError::Disconnected) => {
                     // Sender was dropped — file is done.
@@ -53,13 +54,13 @@ impl Iterator for StreamingAudioSource {
 }
 
 impl Source for StreamingAudioSource {
-    fn current_frame_len(&self) -> Option<usize> {
+    fn current_span_len(&self) -> Option<usize> {
         None
     }
-    fn channels(&self) -> u16 {
+    fn channels(&self) -> NonZero<u16> {
         self.channels
     }
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&self) -> NonZero<u32> {
         self.sample_rate
     }
     fn total_duration(&self) -> Option<Duration> {
@@ -88,18 +89,20 @@ struct MvePlayer {
     finished: bool,
     frame_count: u32,
 
-    // Keep OutputStream and Sink alive for the duration of playback.
-    _audio_stream: OutputStream,
-    _audio_sink: Sink,
+    // Keep MixerDeviceSink and Player alive for the duration of playback.
+    _audio_stream: MixerDeviceSink,
+    _audio_sink: Player,
 }
 
 impl MvePlayer {
     fn new(cc: &eframe::CreationContext<'_>, path: PathBuf) -> Self {
         let (video_tx, video_rx) = mpsc::sync_channel::<PlayerMsg>(8);
         // Unbounded audio channel so the decoder never blocks on audio.
-        let (audio_tx, audio_rx) = mpsc::channel::<Vec<i16>>();
+        let (audio_tx, audio_rx) = mpsc::channel::<Vec<f32>>();
 
-        let (_stream, stream_handle) = OutputStream::try_default().expect("no audio output device");
+        let mut audio_device =
+            DeviceSinkBuilder::open_default_sink().expect("no audio output device");
+        audio_device.log_on_drop(false);
 
         // The streaming source is created here; its sample format is
         // discovered from the first audio chunk.  We use a placeholder
@@ -114,7 +117,9 @@ impl MvePlayer {
 
         // Wait for the decoder to tell us the audio format before we
         // create the streaming source.
-        let (channels, sample_rate) = fmt_rx.recv().unwrap_or((2, 22050));
+        let (channels_raw, sample_rate_raw) = fmt_rx.recv().unwrap_or((2, 22050));
+        let channels = NonZero::new(channels_raw).unwrap_or(NonZero::new(2).unwrap());
+        let sample_rate = NonZero::new(sample_rate_raw).unwrap_or(NonZero::new(22050).unwrap());
 
         let streaming_source = StreamingAudioSource {
             rx: audio_rx,
@@ -123,7 +128,7 @@ impl MvePlayer {
             sample_rate,
         };
 
-        let sink = Sink::try_new(&stream_handle).expect("failed to create audio sink");
+        let sink = Player::connect_new(audio_device.mixer());
         sink.append(streaming_source);
 
         MvePlayer {
@@ -133,7 +138,7 @@ impl MvePlayer {
             current_duration: Duration::from_millis(33),
             finished: false,
             frame_count: 0,
-            _audio_stream: _stream,
+            _audio_stream: audio_device,
             _audio_sink: sink,
         }
     }
@@ -141,7 +146,7 @@ impl MvePlayer {
 
 /// Decode all audio from the file in a single fast pass.
 /// Returns (channels, sample_rate, all_chunks).
-fn pre_buffer_audio(path: &std::path::Path) -> (u16, u32, Vec<Vec<i16>>) {
+fn pre_buffer_audio(path: &std::path::Path) -> (u16, u32, Vec<Vec<f32>>) {
     let data = DataSource::new(path);
     let reader = data.reader().unwrap();
     let mut dec = match MveDecoder::new(reader) {
@@ -152,7 +157,7 @@ fn pre_buffer_audio(path: &std::path::Path) -> (u16, u32, Vec<Vec<i16>>) {
         }
     };
 
-    let mut chunks: Vec<Vec<i16>> = Vec::new();
+    let mut chunks: Vec<Vec<f32>> = Vec::new();
     let mut channels = 2u16;
     let mut sample_rate = 22050u32;
 
@@ -164,7 +169,9 @@ fn pre_buffer_audio(path: &std::path::Path) -> (u16, u32, Vec<Vec<i16>>) {
                         channels = chunk.channels as u16;
                         sample_rate = chunk.sample_rate;
                     }
-                    chunks.push(chunk.samples);
+                    let f32_samples: Vec<f32> =
+                        chunk.samples.iter().map(|&s| s as f32 / 32768.0).collect();
+                    chunks.push(f32_samples);
                 }
             }
             Ok(None) => break,
@@ -182,7 +189,7 @@ fn decode_thread(
     path: PathBuf,
     video_tx: SyncSender<PlayerMsg>,
     ctx: egui::Context,
-    audio_tx: mpsc::Sender<Vec<i16>>,
+    audio_tx: mpsc::Sender<Vec<f32>>,
     fmt_tx: mpsc::Sender<(u16, u32)>,
 ) {
     // Phase 1 — pre-buffer ALL audio.
@@ -237,7 +244,7 @@ fn decode_thread(
 }
 
 impl eframe::App for MvePlayer {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Consume all ready frames until the one we should show now.
         while !self.finished {
             let now = Instant::now();
@@ -273,8 +280,10 @@ impl eframe::App for MvePlayer {
             let until_next = self.next_frame_at.saturating_duration_since(Instant::now());
             ctx.request_repaint_after(until_next.max(Duration::from_millis(1)));
         }
+    }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             if let Some(tex) = &self.current_texture {
                 let available = ui.available_size();
                 let img_size = tex.size_vec2();
