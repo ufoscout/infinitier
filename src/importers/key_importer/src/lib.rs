@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, Seek};
+use std::{io::{self, BufRead, Seek}, os::linux::raw::stat};
 
 use serde::{Deserialize, Serialize};
 
@@ -370,7 +370,7 @@ impl ResourceType {
     }
 
     /// Returns the extension of the `ResourceType` enum variant as a string, or `None` if it is unknown.
-    pub fn get_extension(&self) -> Option<&str> {
+    pub fn get_extension(&self) -> Option<&'static str> {
         match self {
             ResourceType::Bmp => Some("bmp"),
             ResourceType::Mve => Some("mve"),
@@ -390,7 +390,7 @@ impl ResourceType {
             ResourceType::Cre => Some("cre"),
             ResourceType::Are => Some("are"),
             ResourceType::Dlg => Some("dlg"),
-            ResourceType::TwoDA => Some("two"),
+            ResourceType::TwoDA => Some("2da"),
             ResourceType::Gam => Some("gam"),
             ResourceType::Sto => Some("sto"),
             ResourceType::Wmp => Some("wmp"),
@@ -447,6 +447,13 @@ mod tests {
         for i in 0..256 {
             assert_eq!(BifDirectory::from(i).to_u16(), i);
         }
+    }
+
+    #[test]
+    fn test_get_extension() {
+        assert_eq!(ResourceType::TwoDA.get_extension(), Some("2da"));
+        assert_eq!(ResourceType::Unknown(0).get_extension(), None);
+        assert_eq!(ResourceType::Bmp.get_extension(), Some("bmp"));
     }
 
     #[test]
