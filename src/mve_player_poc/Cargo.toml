@@ -9,7 +9,7 @@ name = "mve_player"
 path = "src/main.rs"
 
 [dependencies]
-eframe = "0.34"
+eframe = { workspace = true }
 infinitier_datasource = { workspace = true }
 infinitier_mve_decoder = { workspace = true }
-rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }
+rodio = { workspace = true }

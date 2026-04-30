@@ -3,10 +3,11 @@ members = [
     "src/codecs/*",
     "src/core",
     "src/datasource",
+    "src/infinitier_explorer",
     "src/mve_player_poc",
     "src/fs",
     "src/test_utils",
-    "src/importers/*", "infinitier_explorer",
+    "src/importers/*",
 ]
 resolver = "3"
 
@@ -55,6 +56,14 @@ thiserror = "2"
 # This is used to decode DDS image content into the PVR files.
 # We can switch to image-extras when this PR is merged: https://github.com/image-rs/image-extras/pull/16
 texture2ddecoder = "0.1"
+
+# Audio playback
+rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }
+
+# UI
+eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow                                                                                                                                                                                           
+egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading  
+egui_ltreeview = "0.7"
 
 
 [profile.dev]

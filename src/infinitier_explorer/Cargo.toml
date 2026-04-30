@@ -8,3 +8,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+infinitier_core = { workspace = true }
+
+eframe = { workspace = true }
+egui_extras = { workspace = true }
+egui_ltreeview = { workspace = true }

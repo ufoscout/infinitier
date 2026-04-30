@@ -11,6 +11,14 @@ readme = "readme.md"
 keywords = []
 
 [dependencies]
+infinitier_datasource = { workspace = true }
+infinitier_fs = { workspace = true }
+
+# Codecs
+infinitier_acm_decoder = { workspace = true }
+infinitier_mve_decoder = { workspace = true }
+
+# Importers
 infinitier_bam_importer = { workspace = true }
 infinitier_bif_importer = { workspace = true }
 infinitier_bmp_importer = { workspace = true }
@@ -22,5 +30,4 @@ infinitier_two_da_importer = { workspace = true }
 infinitier_wed_importer = { workspace = true }
 
 [dev-dependencies]
-infinitier_fs = { workspace = true }
 infinitier_test_utils = { workspace = true }
