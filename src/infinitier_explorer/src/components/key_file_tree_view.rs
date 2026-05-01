@@ -8,7 +8,7 @@ use crate::state::AppState;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum TreeNodeId {
-    TypeGroup,
+    TypeGroup(&'static str),
     Resource(usize),
 }
 
@@ -40,7 +40,7 @@ impl KeyFileTreeView {
                 for (type_label, entries) in &self.groups {
                     let dir_label = format!("{} ({})", type_label, entries.len());
                     let is_open = builder.node(
-                        NodeBuilder::dir(TreeNodeId::TypeGroup)
+                        NodeBuilder::dir(TreeNodeId::TypeGroup(type_label))
                             .default_open(false)
                             .label(dir_label),
                     );
