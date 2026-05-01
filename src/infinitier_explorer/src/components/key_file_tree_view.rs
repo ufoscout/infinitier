@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use eframe::egui;
 use egui_ltreeview::{Action, NodeBuilder, TreeView};
-use infinitier_core::game::GameData;
+use infinitier_core::game::{DataOrigin, GameData};
 
 use crate::state::AppState;
 
@@ -24,7 +24,11 @@ impl KeyFileTreeView {
         let mut groups: Groups = BTreeMap::new();
         for (i, entry) in game_data.resources().iter().enumerate() {
             let ext = entry.r#type.get_extension().unwrap_or("unknown");
-            let leaf_label = entry.filename.clone();
+            let leaf_label = if matches!(entry.data_origin, DataOrigin::Override { .. }) {
+                format!("{} (O)", entry.filename)
+            } else {
+                entry.filename.clone()
+            };
             let entries = groups.entry(ext).or_default();
             entries.insert(leaf_label, i);
         }
@@ -72,10 +76,19 @@ mod tests {
     use infinitier_key_importer::ResourceType;
 
     fn make_game_data(entries: Vec<(&str, ResourceType)>) -> GameData {
+        make_game_data_with_origins(
+            entries
+                .into_iter()
+                .map(|(name, r#type)| (name, r#type, DataOrigin::Missing))
+                .collect(),
+        )
+    }
+
+    fn make_game_data_with_origins(entries: Vec<(&str, ResourceType, DataOrigin)>) -> GameData {
         GameData::new(
             entries
                 .into_iter()
-                .map(|(name, r#type)| {
+                .map(|(name, r#type, data_origin)| {
                     let ext = r#type.get_extension().unwrap_or("unknown");
                     GameResource {
                         filename: format!("{}.{}", name, ext),
@@ -83,7 +96,7 @@ mod tests {
                         r#type,
                         file_size: None,
                         datasource: None,
-                        data_origin: DataOrigin::Missing,
+                        data_origin,
                     }
                 })
                 .collect(),
@@ -137,5 +150,26 @@ mod tests {
         let entries = view.groups.get("wed").unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries["AR0072.wed"], 5);
+    }
+
+    #[test]
+    fn test_override_label() {
+        use std::path::PathBuf;
+        let game_data = make_game_data_with_origins(vec![
+            ("CCHAN05", ResourceType::Bmp, DataOrigin::Missing),
+            (
+                "MINSCM",
+                ResourceType::Bmp,
+                DataOrigin::Override {
+                    path: PathBuf::from("override/MINSCM.bmp"),
+                },
+            ),
+        ]);
+
+        let view = KeyFileTreeView::new(&game_data);
+        let entries = view.groups.get("bmp").unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries["CCHAN05.bmp"], 0);
+        assert_eq!(entries["MINSCM.bmp (O)"], 1);
     }
 }
