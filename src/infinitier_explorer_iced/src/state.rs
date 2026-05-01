@@ -45,4 +45,7 @@ pub fn build_groups(game_data: &GameData) -> Groups {
 pub enum Message {
     ToggleGroup(String),
     SelectResource(ResourceId),
+    NavigateUp,
+    NavigateDown,
+    Ignored,
 }

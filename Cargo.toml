@@ -68,7 +68,7 @@ texture2ddecoder = "0.1"
 rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }
 
 # UI
-iced = { version = "0.13", features = ["image"] }
+iced = { version = "0.14", features = ["image"] }
 eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow                                                                                                                                                                                           
 egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading  
 egui_ltreeview = "0.7"
