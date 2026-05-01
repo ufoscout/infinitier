@@ -31,6 +31,11 @@ impl GameData {
         self.resources.len()
     }
 
+    /// Return true if there are no resources
+    pub fn is_empty(&self) -> bool {
+        self.resources.is_empty()
+    }
+
     /// Return all resources
     pub fn iter(&self) -> &[GameResource] {
         &self.resources
@@ -149,6 +154,20 @@ impl GameDataBuilder {
             .get_path(&CaseInsensitivePath::new(&self.key_file))?;
         let key = KeyImporter::import(&DataSource::new(key_path.as_path()))?;
 
+        // preload all bif files
+        let mut bif_all = vec![];
+        for bif_entry in key.bif_entries {
+            if let Some(bif_path) = self
+                .fs
+                .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name)) {
+                    let bif = BifImporter::import(&DataSource::new(bif_path.as_path())).unwrap();
+                    bif_all.push(Some(bif));
+                } else {
+                    warn!("Bif file {} not found", bif_entry.file_name);
+                    bif_all.push(None);
+                }
+        }
+
         for resource in key.resource_entries {
             let name = resource.resource_name;
             let r#type = resource.r#type;
@@ -173,21 +192,13 @@ impl GameDataBuilder {
                     has_override: true,
                 });
             } else {
-                if let Some(bif_entry) = key
-                    .bif_entries
+                if let Some(Some(bif)) = bif_all
                     .get(resource.bif_entries_index as usize)
-                    .and_then(|bif| {
-                        self.fs
-                            .search_path_opt(&CaseInsensitivePath::new(&bif.file_name))
-                    })
                 {
-                    // ToDo: read bif files only once
-                    let to_do = 0;
-                    let bif = BifImporter::import(&DataSource::new(bif_entry.as_path()))?;
-
                     let bif_ds = bif.datasource.clone();
+                    let bif_ds_clone = bif_ds.clone();
                     let bif_source: Arc<dyn Fn(u64, u64) -> DataSource + Send + Sync> =
-                        Arc::new(move |offset, size| bif_ds.clone().with_offset(offset, Some(size)));
+                        Arc::new(move |offset, size| bif_ds_clone.clone().with_offset(offset, Some(size)));
 
                     let key_locator = resource.bif_resource_locator;
                     let bif_resource = if resource.r#type == ResourceType::Tis {
@@ -203,24 +214,24 @@ impl GameDataBuilder {
                     };
                     if let Some(bif_resource) = bif_resource {
                         debug!(
-                            "Resource {} found in bif {}",
+                            "Resource {} found in bif {:?}",
                             filename,
-                            bif_entry.as_path().display()
+                            bif_ds
                         );
 
                         let (datasource, file_size) = match bif_resource {
                             BifEmbeddedResource::File {
-                                locator,
+                                locator: _,
                                 size,
                                 offset,
-                                r#type,
+                                r#type: _,
                             } => (bif_source(*offset, *size as u64), *size as u64),
                             BifEmbeddedResource::Tileset {
-                                locator,
+                                locator: _,
                                 size,
-                                count,
+                                count: _,
                                 offset,
-                                r#type,
+                                r#type: _,
                             } => (bif_source(*offset, *size as u64), *size as u64),
                         };
 
@@ -234,9 +245,9 @@ impl GameDataBuilder {
                         });
                     } else {
                         warn!(
-                            "Resource {} not found in bif {}",
+                            "Resource {} not found in bif {:?}",
                             filename,
-                            bif_entry.as_path().display()
+                            bif_ds
                         );
                         game_data.add_resource(GameResource {
                             name,

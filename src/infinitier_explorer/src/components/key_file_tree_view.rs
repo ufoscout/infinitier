@@ -25,7 +25,7 @@ impl KeyFileTreeView {
         for (i, entry) in key.resource_entries.iter().enumerate() {
             let ext = entry.r#type.get_extension().unwrap_or("unknown");
             let leaf_label = format!("{}.{}", entry.resource_name, ext);
-            let entries = groups.entry(ext).or_insert_with(|| BTreeMap::new());
+            let entries = groups.entry(ext).or_insert_with(BTreeMap::new);
             entries.insert(leaf_label, i);
         }
         Self { groups }
