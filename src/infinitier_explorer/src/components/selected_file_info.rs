@@ -1,4 +1,5 @@
 use eframe::egui;
+use log::error;
 
 use crate::state::AppState;
 
@@ -8,13 +9,11 @@ impl SelectedFileInfo {
     pub fn show(ui: &mut egui::Ui, state: &AppState) {
         match &state.selected_resource {
             Some(resource) => {
-                let filename = state
-                    .key_file
-                    .bif_entries
-                    .get(resource.bif_entries_index as usize)
-                    .map(|entry| entry.file_name.as_str())
-                    .unwrap_or_default();
-                ui.label(format!("Path: {filename} - Selected: {resource:?}"));
+                if let Some(resource) = state.game_data.get_by_id(*resource) {
+                    ui.label(format!("Resource: {} - Source: {:?}", resource.name, resource.data_origin));
+                } else {
+                    error!("Resource not found: {resource:?}");
+                }
             }
             None => {
                 ui.label("No file selected");

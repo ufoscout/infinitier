@@ -1914,9 +1914,8 @@ dependencies = [
  "egui_extras",
  "egui_ltreeview",
  "env_logger",
- "infinitier_datasource",
- "infinitier_fs",
- "infinitier_key_importer",
+ "infinitier_core",
+ "log",
 ]
 
 [[package]]

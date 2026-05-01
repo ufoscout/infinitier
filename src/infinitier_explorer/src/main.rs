@@ -5,9 +5,7 @@ mod ui;
 
 use clap::Parser;
 use eframe::egui;
-use infinitier_datasource::{DataSource, Importer};
-use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
-use infinitier_key_importer::{Key, KeyImporter};
+use infinitier_core::game::GameDataBuilder;
 use std::path::PathBuf;
 
 /// Infinitier Explorer — browse resources from Infinity Engine games.
@@ -27,7 +25,7 @@ fn main() {
 
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    let key = load_key(&args.game_path).unwrap_or_else(|e| {
+    let key = GameDataBuilder::new(&args.game_path).and_then(|b| b.build()).unwrap_or_else(|e| {
         eprintln!(
             "Failed to load key file from '{}': {e}",
             args.game_path.display()
@@ -54,10 +52,4 @@ fn main() {
     ) {
         eprintln!("Failed to run explorer: {e}");
     }
-}
-
-fn load_key(game_path: &std::path::Path) -> std::io::Result<Key> {
-    let fs = CaseInsensitiveFS::new(game_path)?;
-    let key_path = fs.get_path(&CaseInsensitivePath::new("CHITIN.KEY"))?;
-    KeyImporter {}.import(&DataSource::new(key_path.as_path()))
 }

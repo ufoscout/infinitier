@@ -1,14 +1,14 @@
-use infinitier_key_importer::{Key, ResourceEntry};
+use infinitier_core::game::{GameData, ResourceId};
 
 pub struct AppState {
-    pub key_file: Key,
-    pub selected_resource: Option<ResourceEntry>,
+    pub game_data: GameData,
+    pub selected_resource: Option<ResourceId>,
 }
 
 impl AppState {
-    pub fn new(key: Key) -> Self {
+    pub fn new(game_data: GameData) -> Self {
         Self {
-            key_file: key,
+            game_data,
             selected_resource: None,
         }
     }

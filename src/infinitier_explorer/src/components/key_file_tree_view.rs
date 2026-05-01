@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use eframe::egui;
 use egui_ltreeview::{Action, NodeBuilder, TreeView};
-use infinitier_key_importer::Key;
+use infinitier_core::game::GameData;
 
 use crate::state::AppState;
 
@@ -20,11 +20,11 @@ pub struct KeyFileTreeView {
 }
 
 impl KeyFileTreeView {
-    pub fn new(key: &Key) -> Self {
+    pub fn new(game_data: &GameData) -> Self {
         let mut groups = BTreeMap::new();
-        for (i, entry) in key.resource_entries.iter().enumerate() {
+        for (i, entry) in game_data.resources().iter().enumerate() {
             let ext = entry.r#type.get_extension().unwrap_or("unknown");
-            let leaf_label = format!("{}.{}", entry.resource_name, ext);
+            let leaf_label = entry.filename.clone();
             let entries = groups.entry(ext).or_insert_with(BTreeMap::new);
             entries.insert(leaf_label, i);
         }
@@ -56,10 +56,8 @@ impl KeyFileTreeView {
         for action in actions {
             if let Action::SetSelected(ids) = action {
                 for id in &ids {
-                    if let TreeNodeId::Resource(idx) = id
-                        && let Some(resource) = state.key_file.resource_entries.get(*idx)
-                    {
-                        state.selected_resource = Some(resource.clone());
+                    if let TreeNodeId::Resource(idx) = id {
+                        state.selected_resource = Some(*idx);
                     }
                 }
             }
@@ -70,7 +68,6 @@ impl KeyFileTreeView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_key_importer::{Key, ResourceEntry, ResourceType};
 
     fn make_key(entries: Vec<(&str, ResourceType)>) -> Key {
         Key {

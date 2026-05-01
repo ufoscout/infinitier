@@ -1,5 +1,5 @@
 use eframe::egui;
-use infinitier_key_importer::Key;
+use infinitier_core::game;
 
 use crate::components::key_file_tree_view::KeyFileTreeView;
 use crate::state::AppState;
@@ -11,10 +11,10 @@ pub struct ExplorerApp {
 }
 
 impl ExplorerApp {
-    pub fn new(key: Key) -> Self {
+    pub fn new(game_data: game::GameData) -> Self {
         Self {
-            key_tree: KeyFileTreeView::new(&key),
-            state: AppState::new(key),
+            key_tree: KeyFileTreeView::new(&game_data),
+            state: AppState::new(game_data),
         }
     }
 }

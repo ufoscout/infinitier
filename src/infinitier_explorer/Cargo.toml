@@ -8,12 +8,11 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-infinitier_datasource = { workspace = true }
-infinitier_fs = { workspace = true }
-infinitier_key_importer = { workspace = true }
+infinitier_core = { workspace = true }
 
 clap = { workspace = true }
 env_logger = { workspace = true }
+log = { workspace = true }
 
 eframe = { workspace = true }
 egui_extras = { workspace = true }

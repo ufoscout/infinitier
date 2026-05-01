@@ -36,7 +36,7 @@ impl GameData {
     }
 
     /// Return all resources
-    pub fn iter(&self) -> &[GameResource] {
+    pub fn resources(&self) -> &[GameResource] {
         &self.resources
     }
 
