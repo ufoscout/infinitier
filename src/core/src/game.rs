@@ -82,8 +82,19 @@ pub struct GameResource {
     pub file_size: Option<u64>,
     /// Data source
     pub datasource: Option<DataSource>,
-    /// Has an override
-    pub has_override: bool,
+    /// Where the resource is loaded
+    pub data_origin: DataOrigin,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum DataOrigin {
+    Bif{
+        name: String
+    },
+    Override{
+        path: PathBuf
+    },
+    Missing,
 }
 
 /// A game data builder
@@ -192,7 +203,9 @@ impl GameDataBuilder {
                     filename,
                     file_size,
                     datasource,
-                    has_override: true,
+                    data_origin: DataOrigin::Override{
+                        path: r#override
+                    },
                 });
             } else {
                 if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
@@ -238,13 +251,17 @@ impl GameDataBuilder {
                             } => (bif_source(*offset, *size as u64), *size as u64),
                         };
 
+                        let todo_add_BIF_name = 0;
+
                         game_data.add_resource(GameResource {
                             name,
                             r#type,
                             filename,
                             file_size: Some(file_size),
                             datasource: Some(datasource),
-                            has_override: false,
+                            data_origin: DataOrigin::Bif{
+                                name: "".to_lowercase()
+                            }
                         });
                     } else {
                         warn!("Resource {} not found in bif {:?}", filename, bif_ds);
@@ -254,7 +271,7 @@ impl GameDataBuilder {
                             filename,
                             file_size: None,
                             datasource: None,
-                            has_override: false,
+                            data_origin: DataOrigin::Missing,
                         });
                     }
                 } else {
@@ -265,7 +282,7 @@ impl GameDataBuilder {
                         filename,
                         file_size: None,
                         datasource: None,
-                        has_override: false,
+                        data_origin: DataOrigin::Missing,
                     });
                 }
             }
@@ -318,7 +335,7 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("AR0714", ResourceType::Wed)
             .unwrap();
-        assert!(!resource.has_override);
+        assert_eq!(DataOrigin::Bif { name: "".to_lowercase() }, resource.data_origin);
 
         // The data is into the assets/bg2/data/Data/AREA070C.bif file
         assert!(resource.datasource.is_some());
@@ -333,7 +350,7 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("AR0714", ResourceType::Tis)
             .unwrap();
-        assert!(!resource.has_override);
+        assert_eq!(DataOrigin::Bif { name: "".to_lowercase() }, resource.data_origin);
 
         // The data is into the assets/bg2/data/Data/AREA070C.bif file
         assert!(resource.datasource.is_some());
@@ -350,7 +367,8 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("ABCLASRQ", ResourceType::TwoDA)
             .unwrap();
-        assert!(resource.has_override);
+        let path = get_assets_path().join(BG2_RESOURCES_DIR).join("override/AbClasRq.2DA");
+        assert_eq!(DataOrigin::Override { path }, resource.data_origin);
 
         // Test that the override datasource can be read
         TwoDAImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
@@ -363,7 +381,9 @@ mod tests {
         assert_eq!(resource.name, "ABCLASRQ");
         assert_eq!(resource.r#type, ResourceType::TwoDA);
         assert_eq!(resource.filename, "abclasrq.2da");
-        assert!(resource.has_override);
+
+        let path = get_assets_path().join(BG2_RESOURCES_DIR).join("override/AbClasRq.2DA");
+        assert_eq!(DataOrigin::Override { path }, resource.data_origin);
     }
 
     #[test]
@@ -393,7 +413,9 @@ mod tests {
             .get_by_name_and_type("ABDCDSRQ", ResourceType::TwoDA)
             .unwrap();
         assert_eq!(resource.filename, "abdcdsrq.2da");
-        assert!(!resource.has_override);
+        assert!(resource.datasource.is_none());
+        assert!(resource.file_size.is_none());
+        assert_eq!(DataOrigin::Missing, resource.data_origin);
     }
 
     #[test]
