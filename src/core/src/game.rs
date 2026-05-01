@@ -185,20 +185,9 @@ impl GameDataBuilder {
                     let to_do = 0;
                     let bif = BifImporter::import(&DataSource::new(bif_entry.as_path()))?;
 
-                    // For compressed BIF types the resource offsets are into the
-                    // decompressed buffer stored in bif.data; for plain BIFF V1 we
-                    // can seek directly inside the original file.
+                    let bif_ds = bif.datasource.clone();
                     let bif_source: Arc<dyn Fn(u64, u64) -> DataSource + Send + Sync> =
-                        if let Some(data) = bif.data.clone() {
-                            Arc::new(move |offset, size| {
-                                DataSource::new_with_offset(data.clone(), offset, Some(size))
-                            })
-                        } else {
-                            let path = bif_entry.as_path().to_path_buf();
-                            Arc::new(move |offset, size| {
-                                DataSource::new_with_offset(path.clone(), offset, Some(size))
-                            })
-                        };
+                        Arc::new(move |offset, size| bif_ds.clone().with_offset(offset, Some(size)));
 
                     let key_locator = resource.bif_resource_locator;
                     let bif_resource = if resource.r#type == ResourceType::Tis {

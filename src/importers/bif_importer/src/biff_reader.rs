@@ -1,16 +1,27 @@
 use std::io::{Read, Seek};
 
-use infinitier_datasource::Reader;
+use infinitier_datasource::{DataSource, Reader};
 use log::{debug, error};
 
-use crate::{BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file, parse_bif_embedded_tileset};
+use crate::{BIFFV1_SIGNATURE, Bif, BifEmbeddedResource, Type, parse_bif_embedded_file, parse_bif_embedded_tileset};
 
 /// A BIFF V1 file importer
 pub struct BiffParser;
 
 impl BiffParser {
-    /// Imports a BIFF V1 file
-    pub fn import<R: Read + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
+    /// Imports a BIFF V1 file from a DataSource.
+    pub fn import(source: &DataSource) -> std::io::Result<Bif> {
+        let reader = &mut source.reader()?;
+        let resources = Self::parse_resources(reader)?;
+        debug!("Loaded BIFF V1: {} resources", resources.len());
+        Ok(Bif { r#type: Type::Biff, resources, datasource: source.clone() })
+    }
+
+    /// Parses BIFF V1 resource entries from an existing reader.
+    /// Used internally by compressed BIF parsers that decompress into a buffer first.
+    pub(crate) fn parse_resources<R: Read + Seek>(
+        reader: &mut Reader<R>,
+    ) -> std::io::Result<Vec<BifEmbeddedResource>> {
         let signature = reader.read_string(8)?;
 
         if !signature.eq(BIFFV1_SIGNATURE) {
@@ -27,24 +38,14 @@ impl BiffParser {
 
         reader.set_position(files_offset)?;
 
-        let mut bif = Bif {
-            r#type: Type::Biff,
-            resources: Vec::with_capacity(files_number + tilesets_number),
-            data: None,
-        };
-
-        // reading file entries
+        let mut resources = Vec::with_capacity(files_number + tilesets_number);
         for _ in 0..files_number {
-            bif.resources.push(parse_bif_embedded_file(reader)?)
+            resources.push(parse_bif_embedded_file(reader)?);
         }
-
-        // reading tileset entries
         for _ in 0..tilesets_number {
-            bif.resources.push(parse_bif_embedded_tileset(reader)?)
+            resources.push(parse_bif_embedded_tileset(reader)?);
         }
-
-        debug!("Loaded BIFF V1: {} resources", bif.resources.len());
-        Ok(bif)
+        Ok(resources)
     }
 }
 
@@ -62,7 +63,7 @@ mod tests {
     fn test_detect_biff_type() {
         let data = DataSource::new(get_assets_path().join("pst/CS_0511.bif"));
 
-        let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BiffParser::import(&data).unwrap();
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
@@ -96,7 +97,7 @@ mod tests {
     fn test_import_biff() {
         let data = DataSource::new(get_assets_path().join("bg2_ee/data/area500c.bif"));
 
-        let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BiffParser::import(&data).unwrap();
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),

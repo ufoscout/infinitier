@@ -2,10 +2,10 @@ mod bif_reader;
 mod bifc_reader;
 mod biff_reader;
 
-use infinitier_datasource::{Importer, Reader};
+use infinitier_datasource::{DataSource, Importer, Reader};
 use infinitier_key_importer::ResourceType;
 use log::{debug, error};
-use std::{io::Read, sync::Arc};
+use std::io::Read;
 
 use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
 
@@ -21,8 +21,7 @@ impl Importer for BifImporter {
 
         match detect_biff_type(reader)? {
             Type::Biff => {
-                reader.set_position(position)?;
-                BiffParser::import(reader)
+                BiffParser::import(source)
             }
             Type::Bif => {
                 reader.set_position(position)?;
@@ -61,9 +60,10 @@ impl Type {
 pub struct Bif {
     pub r#type: Type,
     pub resources: Vec<BifEmbeddedResource>,
-    /// Decompressed BIF data for compressed formats (BIFC, BIF V1.0).
-    /// Offsets in `resources` are into this buffer; for BIFF V1 the file itself is used.
-    pub data: Option<Arc<Vec<u8>>>,
+    /// DataSource for reading embedded resource data.
+    /// For uncompressed BIFF V1 this points to the original file;
+    /// for compressed formats it points to the in-memory decompressed bytes.
+    pub datasource: DataSource,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -188,7 +188,7 @@ mod tests {
             Type::Biff
         );
 
-        let bif = BiffParser::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BiffParser::import(&data).unwrap();
         assert_eq!(bif.r#type, Type::Biff);
     }
 }

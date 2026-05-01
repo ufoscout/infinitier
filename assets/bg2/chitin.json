@@ -6,49 +6,37 @@
   "bif_entries": [
     {
       "index": 0,
-      "file_name": {
-        "path": "data/default.bif"
-      },
+      "file_name": "data/default.bif",
       "file_size": 5847739,
       "directory": "Cache"
     },
     {
       "index": 1,
-      "file_name": {
-        "path": "data/items.bif"
-      },
+      "file_name": "data/items.bif",
       "file_size": 659688,
       "directory": "Cache"
     },
     {
       "index": 2,
-      "file_name": {
-        "path": "data/objanim.bif"
-      },
+      "file_name": "data/objanim.bif",
       "file_size": 26139137,
       "directory": "Cache"
     },
     {
       "index": 3,
-      "file_name": {
-        "path": "data/effects.bif"
-      },
+      "file_name": "data/effects.bif",
       "file_size": 150408,
       "directory": "Cache"
     },
     {
       "index": 4,
-      "file_name": {
-        "path": "data/chaanim.bif"
-      },
+      "file_name": "data/chaanim.bif",
       "file_size": 94931128,
       "directory": "Cache"
     },
     {
       "index": 5,
-      "file_name": {
-        "path": "data/creanim.bif"
-      },
+      "file_name": "data/creanim.bif",
       "file_size": 35328021,
       "directory": {
         "Unknown": 121
@@ -56,25 +44,19 @@
     },
     {
       "index": 6,
-      "file_name": {
-        "path": "data/portrait.bif"
-      },
+      "file_name": "data/portrait.bif",
       "file_size": 13746432,
       "directory": "Cache"
     },
     {
       "index": 7,
-      "file_name": {
-        "path": "data/npcanim.bif"
-      },
+      "file_name": "data/npcanim.bif",
       "file_size": 12165563,
       "directory": "Cache"
     },
     {
       "index": 8,
-      "file_name": {
-        "path": "data/guimosc.bif"
-      },
+      "file_name": "data/guimosc.bif",
       "file_size": 46478937,
       "directory": {
         "Unknown": 121
@@ -82,121 +64,91 @@
     },
     {
       "index": 9,
-      "file_name": {
-        "path": "data/guifont.bif"
-      },
+      "file_name": "data/guifont.bif",
       "file_size": 123946,
       "directory": "Cache"
     },
     {
       "index": 10,
-      "file_name": {
-        "path": "data/guidesc.bif"
-      },
+      "file_name": "data/guidesc.bif",
       "file_size": 7593717,
       "directory": "Cache"
     },
     {
       "index": 11,
-      "file_name": {
-        "path": "data/guibam.bif"
-      },
+      "file_name": "data/guibam.bif",
       "file_size": 6110183,
       "directory": "Cache"
     },
     {
       "index": 12,
-      "file_name": {
-        "path": "data/guiicon.bif"
-      },
+      "file_name": "data/guiicon.bif",
       "file_size": 3947747,
       "directory": "Cache"
     },
     {
       "index": 13,
-      "file_name": {
-        "path": "data/guichui.bif"
-      },
+      "file_name": "data/guichui.bif",
       "file_size": 158458,
       "directory": "Cache"
     },
     {
       "index": 14,
-      "file_name": {
-        "path": "data/creature.bif"
-      },
+      "file_name": "data/creature.bif",
       "file_size": 4197084,
       "directory": "Cache"
     },
     {
       "index": 15,
-      "file_name": {
-        "path": "data/dialog.bif"
-      },
+      "file_name": "data/dialog.bif",
       "file_size": 4557664,
       "directory": "Cache"
     },
     {
       "index": 16,
-      "file_name": {
-        "path": "data/miscanim.bif"
-      },
+      "file_name": "data/miscanim.bif",
       "file_size": 14782812,
       "directory": "Cache"
     },
     {
       "index": 17,
-      "file_name": {
-        "path": "movies/movies.bif"
-      },
+      "file_name": "movies/movies.bif",
       "file_size": 8188068,
       "directory": "Cd7"
     },
     {
       "index": 18,
-      "file_name": {
-        "path": "data/spells.bif"
-      },
+      "file_name": "data/spells.bif",
       "file_size": 0,
       "directory": "Cache"
     },
     {
       "index": 19,
-      "file_name": {
-        "path": "data/spelanim.bif"
-      },
+      "file_name": "data/spelanim.bif",
       "file_size": 14133027,
       "directory": "Cache"
     },
     {
       "index": 20,
-      "file_name": {
-        "path": "data/chasound.bif"
-      },
+      "file_name": "data/chasound.bif",
       "file_size": 73325139,
       "directory": "Cache"
     },
     {
       "index": 21,
-      "file_name": {
-        "path": "data/cresound.bif"
-      },
+      "file_name": "data/cresound.bif",
       "file_size": 15195848,
       "directory": "Cache"
     },
     {
       "index": 22,
-      "file_name": {
-        "path": "data/missound.bif"
-      },
+      "file_name": "data/missound.bif",
       "file_size": 51080,
       "directory": "Cache"
     },
     {
       "index": 23,
-      "file_name": {
-        "path": "data/npcsound.bif"
-      },
+      "file_name": "data/npcsound.bif",
       "file_size": 44553863,
       "directory": {
         "Unknown": 57
@@ -204,33 +156,25 @@
     },
     {
       "index": 24,
-      "file_name": {
-        "path": "data/scripts.bif"
-      },
+      "file_name": "data/scripts.bif",
       "file_size": 6510702,
       "directory": "Cache"
     },
     {
       "index": 25,
-      "file_name": {
-        "path": "data/armisc.bif"
-      },
+      "file_name": "data/armisc.bif",
       "file_size": 1739005,
       "directory": "Cache"
     },
     {
       "index": 26,
-      "file_name": {
-        "path": "data/areas.bif"
-      },
+      "file_name": "data/areas.bif",
       "file_size": 2463304,
       "directory": "Cache"
     },
     {
       "index": 27,
-      "file_name": {
-        "path": "data/area020a.bif"
-      },
+      "file_name": "data/area020a.bif",
       "file_size": 55992557,
       "directory": {
         "Unknown": 16
@@ -238,25 +182,19 @@
     },
     {
       "index": 28,
-      "file_name": {
-        "path": "data/area060a.bif"
-      },
+      "file_name": "data/area060a.bif",
       "file_size": 52132120,
       "directory": "Cd7"
     },
     {
       "index": 29,
-      "file_name": {
-        "path": "data/area070a.bif"
-      },
+      "file_name": "data/area070a.bif",
       "file_size": 8236488,
       "directory": "Cd7"
     },
     {
       "index": 30,
-      "file_name": {
-        "path": "data/area1900.bif"
-      },
+      "file_name": "data/area1900.bif",
       "file_size": 44734612,
       "directory": {
         "Unknown": 16
@@ -264,81 +202,61 @@
     },
     {
       "index": 31,
-      "file_name": {
-        "path": "data/area030a.bif"
-      },
+      "file_name": "data/area030a.bif",
       "file_size": 55694059,
       "directory": "Cd7"
     },
     {
       "index": 32,
-      "file_name": {
-        "path": "data/area0300.bif"
-      },
+      "file_name": "data/area0300.bif",
       "file_size": 65370567,
       "directory": "Cd7"
     },
     {
       "index": 33,
-      "file_name": {
-        "path": "data/area0600.bif"
-      },
+      "file_name": "data/area0600.bif",
       "file_size": 13145481,
       "directory": "Cd7"
     },
     {
       "index": 34,
-      "file_name": {
-        "path": "data/stores.bif"
-      },
+      "file_name": "data/stores.bif",
       "file_size": 156344,
       "directory": "Cache"
     },
     {
       "index": 35,
-      "file_name": {
-        "path": "data/area0400.bif"
-      },
+      "file_name": "data/area0400.bif",
       "file_size": 32206146,
       "directory": "Cd7"
     },
     {
       "index": 36,
-      "file_name": {
-        "path": "data/area040a.bif"
-      },
+      "file_name": "data/area040a.bif",
       "file_size": 46755858,
       "directory": "Cd7"
     },
     {
       "index": 37,
-      "file_name": {
-        "path": "data/area0500.bif"
-      },
+      "file_name": "data/area0500.bif",
       "file_size": 55383934,
       "directory": "Cd7"
     },
     {
       "index": 38,
-      "file_name": {
-        "path": "data/area050a.bif"
-      },
+      "file_name": "data/area050a.bif",
       "file_size": 40050078,
       "directory": "Cd7"
     },
     {
       "index": 39,
-      "file_name": {
-        "path": "data/area0700.bif"
-      },
+      "file_name": "data/area0700.bif",
       "file_size": 52462887,
       "directory": "Cd7"
     },
     {
       "index": 40,
-      "file_name": {
-        "path": "data/progtest.bif"
-      },
+      "file_name": "data/progtest.bif",
       "file_size": 133803439,
       "directory": {
         "Unknown": 128
@@ -346,9 +264,7 @@
     },
     {
       "index": 41,
-      "file_name": {
-        "path": "data/area000a.bif"
-      },
+      "file_name": "data/area000a.bif",
       "file_size": 27729850,
       "directory": {
         "Unknown": 120
@@ -356,17 +272,13 @@
     },
     {
       "index": 42,
-      "file_name": {
-        "path": "data/area0800.bif"
-      },
+      "file_name": "data/area0800.bif",
       "file_size": 9488062,
       "directory": "Cd7"
     },
     {
       "index": 43,
-      "file_name": {
-        "path": "data/progtes2.bif"
-      },
+      "file_name": "data/progtes2.bif",
       "file_size": 44111212,
       "directory": {
         "Unknown": 128
@@ -374,9 +286,7 @@
     },
     {
       "index": 44,
-      "file_name": {
-        "path": "data/area090a.bif"
-      },
+      "file_name": "data/area090a.bif",
       "file_size": 34628204,
       "directory": {
         "Unknown": 16
@@ -384,25 +294,19 @@
     },
     {
       "index": 45,
-      "file_name": {
-        "path": "data/area080b.bif"
-      },
+      "file_name": "data/area080b.bif",
       "file_size": 20997425,
       "directory": "Cd7"
     },
     {
       "index": 46,
-      "file_name": {
-        "path": "data/area080a.bif"
-      },
+      "file_name": "data/area080a.bif",
       "file_size": 23969812,
       "directory": "Cd7"
     },
     {
       "index": 47,
-      "file_name": {
-        "path": "data/area0900.bif"
-      },
+      "file_name": "data/area0900.bif",
       "file_size": 61931741,
       "directory": {
         "Unknown": 16
@@ -410,33 +314,25 @@
     },
     {
       "index": 48,
-      "file_name": {
-        "path": "data/area1000.bif"
-      },
+      "file_name": "data/area1000.bif",
       "file_size": 52791759,
       "directory": "Cd7"
     },
     {
       "index": 49,
-      "file_name": {
-        "path": "data/area100a.bif"
-      },
+      "file_name": "data/area100a.bif",
       "file_size": 16263432,
       "directory": "Cd7"
     },
     {
       "index": 50,
-      "file_name": {
-        "path": "data/area070b.bif"
-      },
+      "file_name": "data/area070b.bif",
       "file_size": 6439942,
       "directory": "Cd7"
     },
     {
       "index": 51,
-      "file_name": {
-        "path": "data/area110a.bif"
-      },
+      "file_name": "data/area110a.bif",
       "file_size": 10493189,
       "directory": {
         "Unknown": 16
@@ -444,9 +340,7 @@
     },
     {
       "index": 52,
-      "file_name": {
-        "path": "data/area020b.bif"
-      },
+      "file_name": "data/area020b.bif",
       "file_size": 11263631,
       "directory": {
         "Unknown": 16
@@ -454,17 +348,13 @@
     },
     {
       "index": 53,
-      "file_name": {
-        "path": "data/area040b.bif"
-      },
+      "file_name": "data/area040b.bif",
       "file_size": 31888243,
       "directory": "Cd7"
     },
     {
       "index": 54,
-      "file_name": {
-        "path": "data/area120a.bif"
-      },
+      "file_name": "data/area120a.bif",
       "file_size": 23049611,
       "directory": {
         "Unknown": 16
@@ -472,9 +362,7 @@
     },
     {
       "index": 55,
-      "file_name": {
-        "path": "data/area1200.bif"
-      },
+      "file_name": "data/area1200.bif",
       "file_size": 27767309,
       "directory": {
         "Unknown": 16
@@ -482,9 +370,7 @@
     },
     {
       "index": 56,
-      "file_name": {
-        "path": "data/area1100.bif"
-      },
+      "file_name": "data/area1100.bif",
       "file_size": 28825052,
       "directory": {
         "Unknown": 16
@@ -492,17 +378,13 @@
     },
     {
       "index": 57,
-      "file_name": {
-        "path": "data/project.bif"
-      },
+      "file_name": "data/project.bif",
       "file_size": 101668,
       "directory": "Cache"
     },
     {
       "index": 58,
-      "file_name": {
-        "path": "data/area130a.bif"
-      },
+      "file_name": "data/area130a.bif",
       "file_size": 23507305,
       "directory": {
         "Unknown": 16
@@ -510,9 +392,7 @@
     },
     {
       "index": 59,
-      "file_name": {
-        "path": "data/area1300.bif"
-      },
+      "file_name": "data/area1300.bif",
       "file_size": 26219535,
       "directory": {
         "Unknown": 16
@@ -520,9 +400,7 @@
     },
     {
       "index": 60,
-      "file_name": {
-        "path": "data/area1400.bif"
-      },
+      "file_name": "data/area1400.bif",
       "file_size": 31779048,
       "directory": {
         "Unknown": 16
@@ -530,9 +408,7 @@
     },
     {
       "index": 61,
-      "file_name": {
-        "path": "data/area140a.bif"
-      },
+      "file_name": "data/area140a.bif",
       "file_size": 20328504,
       "directory": {
         "Unknown": 16
@@ -540,9 +416,7 @@
     },
     {
       "index": 62,
-      "file_name": {
-        "path": "data/area190a.bif"
-      },
+      "file_name": "data/area190a.bif",
       "file_size": 10862871,
       "directory": {
         "Unknown": 16
@@ -550,17 +424,13 @@
     },
     {
       "index": 63,
-      "file_name": {
-        "path": "data/area040d.bif"
-      },
+      "file_name": "data/area040d.bif",
       "file_size": 23202880,
       "directory": "Cd7"
     },
     {
       "index": 64,
-      "file_name": {
-        "path": "data/area000b.bif"
-      },
+      "file_name": "data/area000b.bif",
       "file_size": 7884232,
       "directory": {
         "Unknown": 120
@@ -568,9 +438,7 @@
     },
     {
       "index": 65,
-      "file_name": {
-        "path": "data/area130b.bif"
-      },
+      "file_name": "data/area130b.bif",
       "file_size": 26333688,
       "directory": {
         "Unknown": 16
@@ -578,9 +446,7 @@
     },
     {
       "index": 66,
-      "file_name": {
-        "path": "data/area150a.bif"
-      },
+      "file_name": "data/area150a.bif",
       "file_size": 21573859,
       "directory": {
         "Unknown": 16
@@ -588,9 +454,7 @@
     },
     {
       "index": 67,
-      "file_name": {
-        "path": "data/area140b.bif"
-      },
+      "file_name": "data/area140b.bif",
       "file_size": 17650124,
       "directory": {
         "Unknown": 16
@@ -598,9 +462,7 @@
     },
     {
       "index": 68,
-      "file_name": {
-        "path": "data/area1500.bif"
-      },
+      "file_name": "data/area1500.bif",
       "file_size": 12712730,
       "directory": {
         "Unknown": 16
@@ -608,9 +470,7 @@
     },
     {
       "index": 69,
-      "file_name": {
-        "path": "data/area2000.bif"
-      },
+      "file_name": "data/area2000.bif",
       "file_size": 40095298,
       "directory": {
         "Unknown": 16
@@ -618,9 +478,7 @@
     },
     {
       "index": 70,
-      "file_name": {
-        "path": "data/area1600.bif"
-      },
+      "file_name": "data/area1600.bif",
       "file_size": 17123024,
       "directory": {
         "Unknown": 16
@@ -628,9 +486,7 @@
     },
     {
       "index": 71,
-      "file_name": {
-        "path": "data/area200a.bif"
-      },
+      "file_name": "data/area200a.bif",
       "file_size": 15292564,
       "directory": {
         "Unknown": 16
@@ -638,9 +494,7 @@
     },
     {
       "index": 72,
-      "file_name": {
-        "path": "data/area200b.bif"
-      },
+      "file_name": "data/area200b.bif",
       "file_size": 3558137,
       "directory": {
         "Unknown": 16
@@ -648,9 +502,7 @@
     },
     {
       "index": 73,
-      "file_name": {
-        "path": "data/area150b.bif"
-      },
+      "file_name": "data/area150b.bif",
       "file_size": 28591921,
       "directory": {
         "Unknown": 16
@@ -658,9 +510,7 @@
     },
     {
       "index": 74,
-      "file_name": {
-        "path": "data/area150c.bif"
-      },
+      "file_name": "data/area150c.bif",
       "file_size": 19253771,
       "directory": {
         "Unknown": 16
@@ -668,9 +518,7 @@
     },
     {
       "index": 75,
-      "file_name": {
-        "path": "data/area000c.bif"
-      },
+      "file_name": "data/area000c.bif",
       "file_size": 7356221,
       "directory": {
         "Unknown": 120
@@ -678,9 +526,7 @@
     },
     {
       "index": 76,
-      "file_name": {
-        "path": "data/area000d.bif"
-      },
+      "file_name": "data/area000d.bif",
       "file_size": 8136693,
       "directory": {
         "Unknown": 120
@@ -688,9 +534,7 @@
     },
     {
       "index": 77,
-      "file_name": {
-        "path": "data/area160b.bif"
-      },
+      "file_name": "data/area160b.bif",
       "file_size": 7542904,
       "directory": {
         "Unknown": 16
@@ -698,9 +542,7 @@
     },
     {
       "index": 78,
-      "file_name": {
-        "path": "data/area210a.bif"
-      },
+      "file_name": "data/area210a.bif",
       "file_size": 18316111,
       "directory": {
         "Unknown": 32
@@ -708,9 +550,7 @@
     },
     {
       "index": 79,
-      "file_name": {
-        "path": "data/area1700.bif"
-      },
+      "file_name": "data/area1700.bif",
       "file_size": 17200198,
       "directory": {
         "Unknown": 32
@@ -718,9 +558,7 @@
     },
     {
       "index": 80,
-      "file_name": {
-        "path": "data/area2100.bif"
-      },
+      "file_name": "data/area2100.bif",
       "file_size": 27270164,
       "directory": {
         "Unknown": 32
@@ -728,9 +566,7 @@
     },
     {
       "index": 81,
-      "file_name": {
-        "path": "data/area2200.bif"
-      },
+      "file_name": "data/area2200.bif",
       "file_size": 25379510,
       "directory": {
         "Unknown": 32
@@ -738,17 +574,13 @@
     },
     {
       "index": 82,
-      "file_name": {
-        "path": "data/criwanim.bif"
-      },
+      "file_name": "data/criwanim.bif",
       "file_size": 60941181,
       "directory": "Cache"
     },
     {
       "index": 83,
-      "file_name": {
-        "path": "data/area2400.bif"
-      },
+      "file_name": "data/area2400.bif",
       "file_size": 18720498,
       "directory": {
         "Unknown": 32
@@ -756,9 +588,7 @@
     },
     {
       "index": 84,
-      "file_name": {
-        "path": "data/area1800.bif"
-      },
+      "file_name": "data/area1800.bif",
       "file_size": 6997449,
       "directory": {
         "Unknown": 32
@@ -766,9 +596,7 @@
     },
     {
       "index": 85,
-      "file_name": {
-        "path": "data/area2500.bif"
-      },
+      "file_name": "data/area2500.bif",
       "file_size": 9867240,
       "directory": {
         "Unknown": 32
@@ -776,9 +604,7 @@
     },
     {
       "index": 86,
-      "file_name": {
-        "path": "data/area210b.bif"
-      },
+      "file_name": "data/area210b.bif",
       "file_size": 13221637,
       "directory": {
         "Unknown": 32
@@ -786,9 +612,7 @@
     },
     {
       "index": 87,
-      "file_name": {
-        "path": "data/area000e.bif"
-      },
+      "file_name": "data/area000e.bif",
       "file_size": 5151931,
       "directory": {
         "Unknown": 120
@@ -796,9 +620,7 @@
     },
     {
       "index": 88,
-      "file_name": {
-        "path": "data/area2300.bif"
-      },
+      "file_name": "data/area2300.bif",
       "file_size": 30761855,
       "directory": {
         "Unknown": 32
@@ -806,9 +628,7 @@
     },
     {
       "index": 89,
-      "file_name": {
-        "path": "data/area220a.bif"
-      },
+      "file_name": "data/area220a.bif",
       "file_size": 29953877,
       "directory": {
         "Unknown": 32
@@ -816,9 +636,7 @@
     },
     {
       "index": 90,
-      "file_name": {
-        "path": "data/area2600.bif"
-      },
+      "file_name": "data/area2600.bif",
       "file_size": 24448110,
       "directory": {
         "Unknown": 32
@@ -826,9 +644,7 @@
     },
     {
       "index": 91,
-      "file_name": {
-        "path": "data/area160a.bif"
-      },
+      "file_name": "data/area160a.bif",
       "file_size": 16478213,
       "directory": {
         "Unknown": 16
@@ -836,9 +652,7 @@
     },
     {
       "index": 92,
-      "file_name": {
-        "path": "data/area260a.bif"
-      },
+      "file_name": "data/area260a.bif",
       "file_size": 4637424,
       "directory": {
         "Unknown": 32
@@ -846,9 +660,7 @@
     },
     {
       "index": 93,
-      "file_name": {
-        "path": "data/area2700.bif"
-      },
+      "file_name": "data/area2700.bif",
       "file_size": 15089700,
       "directory": {
         "Unknown": 32
@@ -856,9 +668,7 @@
     },
     {
       "index": 94,
-      "file_name": {
-        "path": "data/area2800.bif"
-      },
+      "file_name": "data/area2800.bif",
       "file_size": 49473215,
       "directory": {
         "Unknown": 32
@@ -866,9 +676,7 @@
     },
     {
       "index": 95,
-      "file_name": {
-        "path": "data/area280a.bif"
-      },
+      "file_name": "data/area280a.bif",
       "file_size": 14418244,
       "directory": {
         "Unknown": 32
@@ -876,9 +684,7 @@
     },
     {
       "index": 96,
-      "file_name": {
-        "path": "data/area2900.bif"
-      },
+      "file_name": "data/area2900.bif",
       "file_size": 16958558,
       "directory": {
         "Unknown": 32
@@ -886,9 +692,7 @@
     },
     {
       "index": 97,
-      "file_name": {
-        "path": "data/area290a.bif"
-      },
+      "file_name": "data/area290a.bif",
       "file_size": 20611621,
       "directory": {
         "Unknown": 32
@@ -896,17 +700,13 @@
     },
     {
       "index": 98,
-      "file_name": {
-        "path": "data/paperdol.bif"
-      },
+      "file_name": "data/paperdol.bif",
       "file_size": 8333725,
       "directory": "Cache"
     },
     {
       "index": 99,
-      "file_name": {
-        "path": "data/creanim1.bif"
-      },
+      "file_name": "data/creanim1.bif",
       "file_size": 63927017,
       "directory": {
         "Unknown": 57
@@ -914,17 +714,13 @@
     },
     {
       "index": 100,
-      "file_name": {
-        "path": "data/area070c.bif"
-      },
+      "file_name": "data/area070c.bif",
       "file_size": 1776224,
       "directory": "Cd7"
     },
     {
       "index": 101,
-      "file_name": {
-        "path": "data/movhd0.bif"
-      },
+      "file_name": "data/movhd0.bif",
       "file_size": 18987040,
       "directory": {
         "Unknown": 121
@@ -932,9 +728,7 @@
     },
     {
       "index": 102,
-      "file_name": {
-        "path": "movies/movend.bif"
-      },
+      "file_name": "movies/movend.bif",
       "file_size": 93269184,
       "directory": {
         "Unknown": 32
@@ -942,17 +736,13 @@
     },
     {
       "index": 103,
-      "file_name": {
-        "path": "movies/movintro.bif"
-      },
+      "file_name": "movies/movintro.bif",
       "file_size": 54513286,
       "directory": "Cd7"
     },
     {
       "index": 104,
-      "file_name": {
-        "path": "data/area000h.bif"
-      },
+      "file_name": "data/area000h.bif",
       "file_size": 7673095,
       "directory": {
         "Unknown": 120
@@ -960,17 +750,13 @@
     },
     {
       "index": 105,
-      "file_name": {
-        "path": "data/sfxsound.bif"
-      },
+      "file_name": "data/sfxsound.bif",
       "file_size": 34405842,
       "directory": "Cache"
     },
     {
       "index": 106,
-      "file_name": {
-        "path": "data/area280b.bif"
-      },
+      "file_name": "data/area280b.bif",
       "file_size": 17729218,
       "directory": {
         "Unknown": 32
@@ -978,33 +764,25 @@
     },
     {
       "index": 107,
-      "file_name": {
-        "path": "data/area030b.bif"
-      },
+      "file_name": "data/area030b.bif",
       "file_size": 16518229,
       "directory": "Cd7"
     },
     {
       "index": 108,
-      "file_name": {
-        "path": "data/area050b.bif"
-      },
+      "file_name": "data/area050b.bif",
       "file_size": 25013274,
       "directory": "Cd7"
     },
     {
       "index": 109,
-      "file_name": {
-        "path": "data/area040c.bif"
-      },
+      "file_name": "data/area040c.bif",
       "file_size": 6359303,
       "directory": "Cd7"
     },
     {
       "index": 110,
-      "file_name": {
-        "path": "data/area090b.bif"
-      },
+      "file_name": "data/area090b.bif",
       "file_size": 13149031,
       "directory": {
         "Unknown": 16
@@ -1012,9 +790,7 @@
     },
     {
       "index": 111,
-      "file_name": {
-        "path": "data/area090c.bif"
-      },
+      "file_name": "data/area090c.bif",
       "file_size": 11055260,
       "directory": {
         "Unknown": 16
@@ -1022,9 +798,7 @@
     },
     {
       "index": 112,
-      "file_name": {
-        "path": "data/cd3crean.bif"
-      },
+      "file_name": "data/cd3crean.bif",
       "file_size": 19882759,
       "directory": {
         "Unknown": 81
@@ -1032,9 +806,7 @@
     },
     {
       "index": 113,
-      "file_name": {
-        "path": "data/cd4crean.bif"
-      },
+      "file_name": "data/cd4crean.bif",
       "file_size": 23135666,
       "directory": {
         "Unknown": 33
@@ -1042,9 +814,7 @@
     },
     {
       "index": 114,
-      "file_name": {
-        "path": "data/cdcreani.bif"
-      },
+      "file_name": "data/cdcreani.bif",
       "file_size": 21687376,
       "directory": {
         "Unknown": 49
@@ -1052,9 +822,7 @@
     },
     {
       "index": 115,
-      "file_name": {
-        "path": "data/area120b.bif"
-      },
+      "file_name": "data/area120b.bif",
       "file_size": 15765430,
       "directory": {
         "Unknown": 16
@@ -1062,33 +830,25 @@
     },
     {
       "index": 116,
-      "file_name": {
-        "path": "data/ambsound.bif"
-      },
+      "file_name": "data/ambsound.bif",
       "file_size": 42814843,
       "directory": "Cache"
     },
     {
       "index": 117,
-      "file_name": {
-        "path": "data/area060b.bif"
-      },
+      "file_name": "data/area060b.bif",
       "file_size": 8896925,
       "directory": "Cd7"
     },
     {
       "index": 118,
-      "file_name": {
-        "path": "data/npcsocd2.bif"
-      },
+      "file_name": "data/npcsocd2.bif",
       "file_size": 11489025,
       "directory": "Cache"
     },
     {
       "index": 119,
-      "file_name": {
-        "path": "data/npcsocd3.bif"
-      },
+      "file_name": "data/npcsocd3.bif",
       "file_size": 9565466,
       "directory": {
         "Unknown": 121
@@ -1096,25 +856,19 @@
     },
     {
       "index": 120,
-      "file_name": {
-        "path": "data/npcsocd4.bif"
-      },
+      "file_name": "data/npcsocd4.bif",
       "file_size": 10595448,
       "directory": "Cache"
     },
     {
       "index": 121,
-      "file_name": {
-        "path": "data/hd0cran.bif"
-      },
+      "file_name": "data/hd0cran.bif",
       "file_size": 0,
       "directory": "Cache"
     },
     {
       "index": 122,
-      "file_name": {
-        "path": "data/cd3crea2.bif"
-      },
+      "file_name": "data/cd3crea2.bif",
       "file_size": 3913279,
       "directory": {
         "Unknown": 17
@@ -1122,9 +876,7 @@
     },
     {
       "index": 123,
-      "file_name": {
-        "path": "data/cd4crea2.bif"
-      },
+      "file_name": "data/cd4crea2.bif",
       "file_size": 7371056,
       "directory": {
         "Unknown": 33
@@ -1132,9 +884,7 @@
     },
     {
       "index": 124,
-      "file_name": {
-        "path": "data/cd4crea3.bif"
-      },
+      "file_name": "data/cd4crea3.bif",
       "file_size": 6661604,
       "directory": {
         "Unknown": 97
@@ -1142,9 +892,7 @@
     },
     {
       "index": 125,
-      "file_name": {
-        "path": "movies/movcd3.bif"
-      },
+      "file_name": "movies/movcd3.bif",
       "file_size": 6967442,
       "directory": {
         "Unknown": 16
@@ -1152,33 +900,25 @@
     },
     {
       "index": 126,
-      "file_name": {
-        "path": "data/hd0gmosc.bif"
-      },
+      "file_name": "data/hd0gmosc.bif",
       "file_size": 1406803,
       "directory": "Cache"
     },
     {
       "index": 127,
-      "file_name": {
-        "path": "data/npchd0so.bif"
-      },
+      "file_name": "data/npchd0so.bif",
       "file_size": 6452152,
       "directory": "Cache"
     },
     {
       "index": 128,
-      "file_name": {
-        "path": "data/desound.bif"
-      },
+      "file_name": "data/desound.bif",
       "file_size": 619279,
       "directory": "Cache"
     },
     {
       "index": 129,
-      "file_name": {
-        "path": "data/area4000.bif"
-      },
+      "file_name": "data/area4000.bif",
       "file_size": 8253700,
       "directory": {
         "Unknown": 64
@@ -1186,9 +926,7 @@
     },
     {
       "index": 130,
-      "file_name": {
-        "path": "data/area4500.bif"
-      },
+      "file_name": "data/area4500.bif",
       "file_size": 25568032,
       "directory": {
         "Unknown": 64
@@ -1196,9 +934,7 @@
     },
     {
       "index": 131,
-      "file_name": {
-        "path": "data/area3000.bif"
-      },
+      "file_name": "data/area3000.bif",
       "file_size": 13147893,
       "directory": {
         "Unknown": 64
@@ -1206,9 +942,7 @@
     },
     {
       "index": 132,
-      "file_name": {
-        "path": "data/25scripts.bif"
-      },
+      "file_name": "data/25scripts.bif",
       "file_size": 3935784,
       "directory": {
         "Unknown": 65
@@ -1216,9 +950,7 @@
     },
     {
       "index": 133,
-      "file_name": {
-        "path": "data/25creatures.bif"
-      },
+      "file_name": "data/25creatures.bif",
       "file_size": 1463444,
       "directory": {
         "Unknown": 65
@@ -1226,9 +958,7 @@
     },
     {
       "index": 134,
-      "file_name": {
-        "path": "data/25areas.bif"
-      },
+      "file_name": "data/25areas.bif",
       "file_size": 745628,
       "directory": {
         "Unknown": 65
@@ -1236,9 +966,7 @@
     },
     {
       "index": 135,
-      "file_name": {
-        "path": "data/area300a.bif"
-      },
+      "file_name": "data/area300a.bif",
       "file_size": 41257206,
       "directory": {
         "Unknown": 64
@@ -1246,9 +974,7 @@
     },
     {
       "index": 136,
-      "file_name": {
-        "path": "data/25items.bif"
-      },
+      "file_name": "data/25items.bif",
       "file_size": 222370,
       "directory": {
         "Unknown": 65
@@ -1256,9 +982,7 @@
     },
     {
       "index": 137,
-      "file_name": {
-        "path": "data/25spells.bif"
-      },
+      "file_name": "data/25spells.bif",
       "file_size": 229496,
       "directory": {
         "Unknown": 65
@@ -1266,17 +990,13 @@
     },
     {
       "index": 138,
-      "file_name": {
-        "path": "data/stores.bif"
-      },
+      "file_name": "data/stores.bif",
       "file_size": 156344,
       "directory": "Cache"
     },
     {
       "index": 139,
-      "file_name": {
-        "path": "data/area5500.bif"
-      },
+      "file_name": "data/area5500.bif",
       "file_size": 15390910,
       "directory": {
         "Unknown": 64
@@ -1284,9 +1004,7 @@
     },
     {
       "index": 140,
-      "file_name": {
-        "path": "data/area300b.bif"
-      },
+      "file_name": "data/area300b.bif",
       "file_size": 18512441,
       "directory": {
         "Unknown": 64
@@ -1294,9 +1012,7 @@
     },
     {
       "index": 141,
-      "file_name": {
-        "path": "data/25deflt.bif"
-      },
+      "file_name": "data/25deflt.bif",
       "file_size": 2818187,
       "directory": {
         "Unknown": 65
@@ -1304,9 +1020,7 @@
     },
     {
       "index": 142,
-      "file_name": {
-        "path": "data/25dialog.bif"
-      },
+      "file_name": "data/25dialog.bif",
       "file_size": 705847,
       "directory": {
         "Unknown": 65
@@ -1314,9 +1028,7 @@
     },
     {
       "index": 143,
-      "file_name": {
-        "path": "data/25effect.bif"
-      },
+      "file_name": "data/25effect.bif",
       "file_size": 44212,
       "directory": {
         "Unknown": 65
@@ -1324,9 +1036,7 @@
     },
     {
       "index": 144,
-      "file_name": {
-        "path": "data/25store.bif"
-      },
+      "file_name": "data/25store.bif",
       "file_size": 51164,
       "directory": {
         "Unknown": 65
@@ -1334,9 +1044,7 @@
     },
     {
       "index": 145,
-      "file_name": {
-        "path": "data/area300c.bif"
-      },
+      "file_name": "data/area300c.bif",
       "file_size": 27000450,
       "directory": {
         "Unknown": 64
@@ -1344,9 +1052,7 @@
     },
     {
       "index": 146,
-      "file_name": {
-        "path": "data/25guibam.bif"
-      },
+      "file_name": "data/25guibam.bif",
       "file_size": 1033328,
       "directory": {
         "Unknown": 65
@@ -1354,9 +1060,7 @@
     },
     {
       "index": 147,
-      "file_name": {
-        "path": "data/25sndfx.bif"
-      },
+      "file_name": "data/25sndfx.bif",
       "file_size": 2284216,
       "directory": {
         "Unknown": 65
@@ -1364,9 +1068,7 @@
     },
     {
       "index": 148,
-      "file_name": {
-        "path": "data/area300d.bif"
-      },
+      "file_name": "data/area300d.bif",
       "file_size": 27392587,
       "directory": {
         "Unknown": 64
@@ -1374,9 +1076,7 @@
     },
     {
       "index": 149,
-      "file_name": {
-        "path": "data/area300e.bif"
-      },
+      "file_name": "data/area300e.bif",
       "file_size": 38754876,
       "directory": {
         "Unknown": 64
@@ -1384,9 +1084,7 @@
     },
     {
       "index": 150,
-      "file_name": {
-        "path": "data/area550a.bif"
-      },
+      "file_name": "data/area550a.bif",
       "file_size": 16191680,
       "directory": {
         "Unknown": 64
@@ -1394,9 +1092,7 @@
     },
     {
       "index": 151,
-      "file_name": {
-        "path": "data/25iwanim.bif"
-      },
+      "file_name": "data/25iwanim.bif",
       "file_size": 25720292,
       "directory": {
         "Unknown": 65
@@ -1404,9 +1100,7 @@
     },
     {
       "index": 152,
-      "file_name": {
-        "path": "data/area5200.bif"
-      },
+      "file_name": "data/area5200.bif",
       "file_size": 9564413,
       "directory": {
         "Unknown": 64
@@ -1414,9 +1108,7 @@
     },
     {
       "index": 153,
-      "file_name": {
-        "path": "data/area520a.bif"
-      },
+      "file_name": "data/area520a.bif",
       "file_size": 22024071,
       "directory": {
         "Unknown": 64
@@ -1424,9 +1116,7 @@
     },
     {
       "index": 154,
-      "file_name": {
-        "path": "data/25creani.bif"
-      },
+      "file_name": "data/25creani.bif",
       "file_size": 38419815,
       "directory": {
         "Unknown": 65
@@ -1434,17 +1124,13 @@
     },
     {
       "index": 155,
-      "file_name": {
-        "path": "data/stores.bif"
-      },
+      "file_name": "data/stores.bif",
       "file_size": 156344,
       "directory": "Cache"
     },
     {
       "index": 156,
-      "file_name": {
-        "path": "data/25spelan.bif"
-      },
+      "file_name": "data/25spelan.bif",
       "file_size": 2956344,
       "directory": {
         "Unknown": 65
@@ -1452,9 +1138,7 @@
     },
     {
       "index": 157,
-      "file_name": {
-        "path": "data/25projct.bif"
-      },
+      "file_name": "data/25projct.bif",
       "file_size": 6820,
       "directory": {
         "Unknown": 65
@@ -1462,9 +1146,7 @@
     },
     {
       "index": 158,
-      "file_name": {
-        "path": "data/area500a.bif"
-      },
+      "file_name": "data/area500a.bif",
       "file_size": 20962485,
       "directory": {
         "Unknown": 64
@@ -1472,9 +1154,7 @@
     },
     {
       "index": 159,
-      "file_name": {
-        "path": "data/25miscan.bif"
-      },
+      "file_name": "data/25miscan.bif",
       "file_size": 5124079,
       "directory": {
         "Unknown": 65
@@ -1482,9 +1162,7 @@
     },
     {
       "index": 160,
-      "file_name": {
-        "path": "data/area520b.bif"
-      },
+      "file_name": "data/area520b.bif",
       "file_size": 13299086,
       "directory": {
         "Unknown": 64
@@ -1492,9 +1170,7 @@
     },
     {
       "index": 161,
-      "file_name": {
-        "path": "data/area520c.bif"
-      },
+      "file_name": "data/area520c.bif",
       "file_size": 13104701,
       "directory": {
         "Unknown": 64
@@ -1502,9 +1178,7 @@
     },
     {
       "index": 162,
-      "file_name": {
-        "path": "movies/25movies.bif"
-      },
+      "file_name": "movies/25movies.bif",
       "file_size": 96891690,
       "directory": {
         "Unknown": 64
@@ -1512,9 +1186,7 @@
     },
     {
       "index": 163,
-      "file_name": {
-        "path": "data/area5000.bif"
-      },
+      "file_name": "data/area5000.bif",
       "file_size": 18610701,
       "directory": {
         "Unknown": 64
@@ -1522,9 +1194,7 @@
     },
     {
       "index": 164,
-      "file_name": {
-        "path": "data/25ambsnd.bif"
-      },
+      "file_name": "data/25ambsnd.bif",
       "file_size": 7686110,
       "directory": {
         "Unknown": 65
@@ -1532,9 +1202,7 @@
     },
     {
       "index": 165,
-      "file_name": {
-        "path": "data/area500b.bif"
-      },
+      "file_name": "data/area500b.bif",
       "file_size": 11310433,
       "directory": {
         "Unknown": 64
@@ -1542,9 +1210,7 @@
     },
     {
       "index": 166,
-      "file_name": {
-        "path": "data/25portrt.bif"
-      },
+      "file_name": "data/25portrt.bif",
       "file_size": 342516,
       "directory": {
         "Unknown": 65
@@ -1552,9 +1218,7 @@
     },
     {
       "index": 167,
-      "file_name": {
-        "path": "data/25guimos.bif"
-      },
+      "file_name": "data/25guimos.bif",
       "file_size": 3383768,
       "directory": {
         "Unknown": 65
@@ -1562,9 +1226,7 @@
     },
     {
       "index": 168,
-      "file_name": {
-        "path": "data/area6000.bif"
-      },
+      "file_name": "data/area6000.bif",
       "file_size": 8343848,
       "directory": {
         "Unknown": 64
@@ -1572,9 +1234,7 @@
     },
     {
       "index": 169,
-      "file_name": {
-        "path": "data/area600a.bif"
-      },
+      "file_name": "data/area600a.bif",
       "file_size": 11124295,
       "directory": {
         "Unknown": 64
@@ -1582,9 +1242,7 @@
     },
     {
       "index": 170,
-      "file_name": {
-        "path": "data/area600b.bif"
-      },
+      "file_name": "data/area600b.bif",
       "file_size": 17474912,
       "directory": {
         "Unknown": 64
@@ -1592,9 +1250,7 @@
     },
     {
       "index": 171,
-      "file_name": {
-        "path": "data/25guides.bif"
-      },
+      "file_name": "data/25guides.bif",
       "file_size": 2701859,
       "directory": {
         "Unknown": 65
@@ -1602,9 +1258,7 @@
     },
     {
       "index": 172,
-      "file_name": {
-        "path": "data/area6100.bif"
-      },
+      "file_name": "data/area6100.bif",
       "file_size": 21066759,
       "directory": {
         "Unknown": 64
@@ -1612,9 +1266,7 @@
     },
     {
       "index": 173,
-      "file_name": {
-        "path": "data/25cresou.bif"
-      },
+      "file_name": "data/25cresou.bif",
       "file_size": 2220594,
       "directory": {
         "Unknown": 65
@@ -1622,9 +1274,7 @@
     },
     {
       "index": 174,
-      "file_name": {
-        "path": "data/area610a.bif"
-      },
+      "file_name": "data/area610a.bif",
       "file_size": 20509572,
       "directory": {
         "Unknown": 64
@@ -1632,9 +1282,7 @@
     },
     {
       "index": 175,
-      "file_name": {
-        "path": "data/area500c.bif"
-      },
+      "file_name": "data/area500c.bif",
       "file_size": 13017738,
       "directory": {
         "Unknown": 64
@@ -1642,9 +1290,7 @@
     },
     {
       "index": 176,
-      "file_name": {
-        "path": "data/area610b.bif"
-      },
+      "file_name": "data/area610b.bif",
       "file_size": 16838126,
       "directory": {
         "Unknown": 64
@@ -1652,9 +1298,7 @@
     },
     {
       "index": 177,
-      "file_name": {
-        "path": "data/area6200.bif"
-      },
+      "file_name": "data/area6200.bif",
       "file_size": 7919426,
       "directory": {
         "Unknown": 64
@@ -1662,9 +1306,7 @@
     },
     {
       "index": 178,
-      "file_name": {
-        "path": "data/area6300.bif"
-      },
+      "file_name": "data/area6300.bif",
       "file_size": 6455483,
       "directory": {
         "Unknown": 64
@@ -1672,9 +1314,7 @@
     },
     {
       "index": 179,
-      "file_name": {
-        "path": "data/area6400.bif"
-      },
+      "file_name": "data/area6400.bif",
       "file_size": 7849969,
       "directory": {
         "Unknown": 64
@@ -1682,9 +1322,7 @@
     },
     {
       "index": 180,
-      "file_name": {
-        "path": "data/25armisc.bif"
-      },
+      "file_name": "data/25armisc.bif",
       "file_size": 655700,
       "directory": {
         "Unknown": 65
@@ -1692,9 +1330,7 @@
     },
     {
       "index": 181,
-      "file_name": {
-        "path": "data/25npcso.bif"
-      },
+      "file_name": "data/25npcso.bif",
       "file_size": 93009187,
       "directory": {
         "Unknown": 65

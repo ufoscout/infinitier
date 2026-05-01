@@ -1,6 +1,6 @@
-use std::{io::{BufRead, Cursor}, sync::Arc};
+use std::io::{BufRead, Cursor};
 
-use infinitier_datasource::Reader;
+use infinitier_datasource::{DataSource, Reader};
 use log::{debug, error};
 
 use crate::{BIF_V1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
@@ -34,17 +34,16 @@ impl BifParser {
             decoded.data.into_inner()
         };
 
-        // Parse the embedded BIFF V1 from the decompressed bytes.
+        // Parse the embedded BIFF V1 resource table from the decompressed bytes.
         let resources = {
             let cursor = Cursor::new(decompressed.as_slice());
             let mut inner = Reader { data: cursor, charset: reader.charset };
-            let mut bif = BiffParser::import(&mut inner)?;
-            bif.resources
+            BiffParser::parse_resources(&mut inner)?
         };
 
-        let data = Arc::new(decompressed);
+        let datasource = DataSource::new(decompressed);
         debug!("Loaded BIF V1.0: {} resources", resources.len());
-        Ok(Bif { r#type: Type::Bif, resources, data: Some(data) })
+        Ok(Bif { r#type: Type::Bif, resources, datasource })
     }
 }
 

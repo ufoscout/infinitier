@@ -1,11 +1,10 @@
-use infinitier_datasource::Reader;
+use infinitier_datasource::{DataSource, Reader};
 use log::{debug, error};
 
 use crate::{BIFCV1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
 use std::{
     collections::VecDeque,
     io::{BufRead, Cursor, Read, Seek},
-    sync::Arc,
 };
 
 /// A BIFC V1.0 file importer
@@ -34,17 +33,16 @@ impl BifcParser {
             bytes
         };
 
-        // Parse the embedded BIFF V1 from the decompressed bytes.
+        // Parse the embedded BIFF V1 resource table from the decompressed bytes.
         let resources = {
             let cursor = Cursor::new(decompressed.as_slice());
             let mut inner = Reader { data: cursor, charset: reader.charset };
-            let mut bif = BiffParser::import(&mut inner)?;
-            bif.resources
+            BiffParser::parse_resources(&mut inner)?
         };
 
-        let data = Arc::new(decompressed);
+        let datasource = DataSource::new(decompressed);
         debug!("Loaded BIFC V1.0: {} resources", resources.len());
-        Ok(Bif { r#type: Type::Bifc, resources, data: Some(data) })
+        Ok(Bif { r#type: Type::Bifc, resources, datasource })
     }
 }
 
