@@ -11,7 +11,7 @@ pub struct TwoDAImporter;
 impl Importer for TwoDAImporter {
     type T = TwoDA;
 
-    fn import(source: &DataSource) -> std::io::Result<TwoDA> {
+    fn import(&self, source: &DataSource) -> std::io::Result<TwoDA> {
         let mut reader = source.reader()?;
 
         let signature = reader.read_line()?.0.trim().to_string();
@@ -277,7 +277,7 @@ mod tests {
             .unwrap()
             .get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA"))
             .unwrap();
-        let two_da = TwoDAImporter::import(&DataSource::new(path)).unwrap();
+        let two_da = TwoDAImporter.import(&DataSource::new(path)).unwrap();
 
         assert_eq!(
             two_da.headers,

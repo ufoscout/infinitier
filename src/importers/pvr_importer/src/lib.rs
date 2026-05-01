@@ -16,7 +16,7 @@ impl Importer for PvrzImporter {
     /// (see: https://crates.io/crates/dds).
     /// The specific algorithm for the data is specified in the PVR pixel_format header field. Games based on the Infinity engine
     /// only use pixel_format 7 (DXT1/BC1) and 11 (DXT5/BC3).
-    fn import(source: &DataSource) -> std::io::Result<PvrzHeader> {
+    fn import(&self, source: &DataSource) -> std::io::Result<PvrzHeader> {
         let mut reader = source.reader()?;
 
         // Not sure for what this is used.
@@ -165,7 +165,7 @@ mod tests {
     fn test_parse_pvrz_dxt1() {
         let data = DataSource::new(get_assets_path().join("resources/MOS_DXT1/A004602.PVRZ"));
 
-        let pvrz_header = PvrzImporter::import(&data).unwrap();
+        let pvrz_header = PvrzImporter.import(&data).unwrap();
 
         assert_eq!(
             pvrz_header,
@@ -200,7 +200,7 @@ mod tests {
     fn test_parse_pvrz_dxt5() {
         let data = DataSource::new(get_assets_path().join("resources/MOS_DXT5/MOS0000.PVRZ"));
 
-        let pvrz_header = PvrzImporter::import(&data).unwrap();
+        let pvrz_header = PvrzImporter.import(&data).unwrap();
 
         assert_eq!(
             pvrz_header,

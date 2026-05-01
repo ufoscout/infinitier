@@ -19,7 +19,7 @@ pub struct BamImporter {}
 impl Importer for BamImporter {
     type T = Bam;
 
-    fn import(source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
+    fn import(&self, source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
         Self::from_reader(reader)
     }

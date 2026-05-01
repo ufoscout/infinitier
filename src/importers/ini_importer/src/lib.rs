@@ -15,7 +15,7 @@ pub struct IniImporter;
 impl Importer for IniImporter {
     type T = Ini;
 
-    fn import(source: &DataSource) -> std::io::Result<Ini> {
+    fn import(&self, source: &DataSource) -> std::io::Result<Ini> {
         let mut reader = source.reader()?;
         let mut sections: Vec<IniSection> = Vec::new();
 
@@ -112,7 +112,7 @@ mod tests {
     }
 
     fn parse(src: &str) -> Ini {
-        IniImporter::import(&DataSource::new(src.as_bytes())).unwrap()
+        IniImporter.import(&DataSource::new(src.as_bytes())).unwrap()
     }
 
     #[test]
@@ -204,7 +204,7 @@ mod tests {
         for ini_path in paths {
             let json_path = ini_path.with_extension("json");
             let expected: Ini = parse_json_file(&json_path);
-            let actual = IniImporter::import(&DataSource::new(ini_path.as_path()))
+            let actual = IniImporter.import(&DataSource::new(ini_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ini_path.display()));
             assert_eq!(actual, expected, "INI mismatch for {}", ini_path.display());
         }

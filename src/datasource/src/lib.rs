@@ -18,7 +18,7 @@ pub use generator::TempFileGenerator;
 pub trait Importer {
     type T;
     /// Imports a data source
-    fn import(source: &DataSource) -> std::io::Result<Self::T>;
+    fn import(&self, source: &DataSource) -> std::io::Result<Self::T>;
 }
 
 /// A data source

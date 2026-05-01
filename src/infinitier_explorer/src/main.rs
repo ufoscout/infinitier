@@ -59,5 +59,5 @@ fn main() {
 fn load_key(game_path: &std::path::Path) -> std::io::Result<Key> {
     let fs = CaseInsensitiveFS::new(game_path)?;
     let key_path = fs.get_path(&CaseInsensitivePath::new("CHITIN.KEY"))?;
-    KeyImporter::import(&DataSource::new(key_path.as_path()))
+    KeyImporter{}.import(&DataSource::new(key_path.as_path()))
 }

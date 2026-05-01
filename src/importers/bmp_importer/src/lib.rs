@@ -9,7 +9,7 @@ pub struct BmpImporter;
 impl Importer for BmpImporter {
     type T = Bmp;
 
-    fn import(source: &DataSource) -> std::io::Result<Bmp> {
+    fn import(&self, source: &DataSource) -> std::io::Result<Bmp> {
         let reader = source.reader()?;
         let image = image::ImageReader::with_format(reader.data, image::ImageFormat::Bmp)
             .decode()
@@ -37,7 +37,7 @@ mod tests {
 
         let original = image::open(get_assets_path().join("resources/BMP/CCHAN05.BMP")).unwrap();
 
-        let bmp = BmpImporter::import(&data).unwrap();
+        let bmp = BmpImporter.import(&data).unwrap();
 
         assert_images_are_equal(&bmp.image.into(), &original);
     }
@@ -48,7 +48,7 @@ mod tests {
 
         let original = image::open(get_assets_path().join("resources/BMP/MINSCM.BMP")).unwrap();
 
-        let bmp = BmpImporter::import(&data).unwrap();
+        let bmp = BmpImporter.import(&data).unwrap();
 
         assert_images_are_equal(&bmp.image.into(), &original);
     }

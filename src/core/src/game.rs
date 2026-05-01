@@ -165,7 +165,7 @@ impl GameDataBuilder {
         let key_path = self
             .fs
             .get_path(&CaseInsensitivePath::new(&self.key_file))?;
-        let key = KeyImporter::import(&DataSource::new(key_path.as_path()))?;
+        let key = KeyImporter{}.import(&DataSource::new(key_path.as_path()))?;
 
         // preload all bif files
         let mut bif_all = vec![];
@@ -174,7 +174,7 @@ impl GameDataBuilder {
                 .fs
                 .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name))
             {
-                let bif = BifImporter::import(&DataSource::new(bif_path.as_path())).unwrap();
+                let bif = BifImporter{}.import(&DataSource::new(bif_path.as_path())).unwrap();
                 bif_all.push(Some(bif));
             } else {
                 warn!("Bif file {} not found", bif_entry.file_name);
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn test_game_data_builder() {
         let game_data = build_bg2();
-        let key = KeyImporter::import(&DataSource::new(
+        let key = KeyImporter{}.import(&DataSource::new(
             get_assets_path().join(BG2_RESOURCES_DIR).join("CHITIN.KEY"),
         ))
         .unwrap();
@@ -341,7 +341,7 @@ mod tests {
         assert!(resource.datasource.is_some());
 
         // Test that the data can be read
-        WedImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
+        WedImporter.import(resource.datasource.as_ref().unwrap()).unwrap();
     }
 
     #[test]
@@ -371,7 +371,7 @@ mod tests {
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);
 
         // Test that the override datasource can be read
-        TwoDAImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
+        TwoDAImporter.import(resource.datasource.as_ref().unwrap()).unwrap();
     }
 
     #[test]

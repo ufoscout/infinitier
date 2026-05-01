@@ -9,7 +9,7 @@ pub struct WedImporter;
 impl Importer for WedImporter {
     type T = Wed;
 
-    fn import(source: &DataSource) -> std::io::Result<Wed> {
+    fn import(&self, source: &DataSource) -> std::io::Result<Wed> {
         let mut reader = source.reader()?;
 
         let signature = reader.read_string(8)?;
@@ -299,7 +299,7 @@ mod tests {
 
         let expected: Wed = parse_json_file(&json_path);
 
-        let actual = WedImporter::import(&DataSource::new(web_path.as_path())).unwrap();
+        let actual = WedImporter.import(&DataSource::new(web_path.as_path())).unwrap();
 
         assert_eq!(actual.overlays.len(), 5);
         assert_eq!(actual.doors.len(), 2);

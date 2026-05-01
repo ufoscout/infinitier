@@ -15,7 +15,7 @@ pub struct BifImporter {}
 impl Importer for BifImporter {
     type T = Bif;
 
-    fn import(source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
+    fn import(&self, source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
 
         match detect_biff_type(reader)? {
