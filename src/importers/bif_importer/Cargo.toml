@@ -14,6 +14,7 @@ keywords = ["bif", "biff", "archive", "infinity-engine", "baldurs-gate"]
 infinitier_datasource = { workspace = true }
 infinitier_key_importer = { workspace = true }
 log = { workspace = true }
+tempfile = { workspace = true }
 
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }

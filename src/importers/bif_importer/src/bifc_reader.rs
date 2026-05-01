@@ -1,10 +1,10 @@
-use infinitier_datasource::{DataSource, Reader};
+use infinitier_datasource::{Data, DataSource, Reader, TempFileGenerator};
 use log::{debug, error};
 
 use crate::{BIFCV1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
 use std::{
     collections::VecDeque,
-    io::{BufRead, Cursor, Read, Seek},
+    io::{BufRead, Cursor, Read, Seek}, sync::Arc,
 };
 
 /// A BIFC V1.0 file importer
@@ -14,7 +14,8 @@ impl BifcParser {
     /// Imports a BIFC V1.0 file.
     /// Decompresses the entire archive into memory so that resource offsets
     /// can be used to slice the decompressed buffer directly.
-    pub fn import<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
+    pub fn import(source: &DataSource) -> std::io::Result<Bif> {
+        let reader = &mut source.reader()?;
         let signature = reader.read_string(8)?;
         if !signature.eq(BIFCV1_0_SIGNATURE) {
             error!("Not a BIFC V1.0 file: {:?}", signature);
@@ -24,6 +25,23 @@ impl BifcParser {
             )));
         }
         let total_uncompressed_size = reader.read_u32()? as u64;
+
+        // let temp_file = {
+        //     tempfile::Builder::new().prefix("infinitier_").tempfile()?;
+
+        // }
+
+        // let temp_dir = tempfile::Builder::new().prefix("infinitier_").tempdir()?;
+        // let lazy_datasource = DataSource::new(Data::Generator(Arc::new(TempFileGenerator::new(Box::new(move || {
+        //     let path = temp_dir.path().join("bifc.bif");
+        //     let mut temp_file = std::fs::File::create(&path)?;
+        //     let mut zip = Reader {
+        //         charset: reader.charset,
+        //         data: BifcCompressedReader::new(reader, total_uncompressed_size),
+        //     };
+        //     zip.copy(&mut temp_file)?;
+        //     Ok(path)
+        // })))));
 
         // Decompress the entire BIFC payload into memory.
         let decompressed = {
@@ -128,7 +146,7 @@ mod tests {
             Type::Bifc
         );
 
-        let bif = BifcParser::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BifcParser::import(&data).unwrap();
         assert_eq!(bif.r#type, Type::Bifc);
 
         assert_eq!(bif.resources.len(), 6);

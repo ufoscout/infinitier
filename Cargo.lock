@@ -1862,6 +1862,7 @@ dependencies = [
  "infinitier_key_importer",
  "infinitier_test_utils",
  "log",
+ "tempfile",
 ]
 
 [[package]]

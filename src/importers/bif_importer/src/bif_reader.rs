@@ -12,7 +12,8 @@ impl BifParser {
     /// Imports a BIF V1.0 (compressed) file.
     /// Decompresses the payload into memory so resource offsets refer to the
     /// decompressed buffer.
-    pub fn import<R: BufRead>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
+    pub fn import(source: &DataSource) -> std::io::Result<Bif> {
+        let reader = &mut source.reader()?;
         let signature = reader.read_string(8)?;
         if !signature.eq(BIF_V1_0_SIGNATURE) {
             error!("Not a BIF V1.0 file: {:?}", signature);
@@ -61,8 +62,7 @@ mod tests {
     fn test_detect_bif_type() {
         let data = DataSource::new(get_assets_path().join("iwd/CD2/Data/AR3603.cbf"));
 
-        let mut reader = data.reader().unwrap();
-        let bif = BifParser::import(&mut reader).unwrap();
+        let bif = BifParser::import(&data).unwrap();
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),

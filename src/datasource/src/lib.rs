@@ -24,26 +24,26 @@ pub trait Importer {
 /// A data source
 #[derive(Debug, Clone)]
 pub enum Data {
-    FileSource(PathBuf),
+    Path(PathBuf),
     Generator(Arc<TempFileGenerator>),
     MemorySource(Arc<Vec<u8>>),
 }
 
 impl From<PathBuf> for Data {
     fn from(value: PathBuf) -> Self {
-        Data::FileSource(value)
+        Data::Path(value)
     }
 }
 
 impl From<&Path> for Data {
     fn from(value: &Path) -> Self {
-        Data::FileSource(value.to_path_buf())
+        Data::Path(value.to_path_buf())
     }
 }
 
 impl From<&str> for Data {
     fn from(value: &str) -> Self {
-        Data::FileSource(PathBuf::from(value))
+        Data::Path(PathBuf::from(value))
     }
 }
 
@@ -85,7 +85,7 @@ impl Data {
         limit: Option<u64>,
     ) -> std::io::Result<Box<dyn DataTrait + '_>> {
         match self {
-            Data::FileSource(reader) => {
+            Data::Path(reader) => {
                 let mut data = BufReader::new(File::open(reader)?);
                 data.seek(std::io::SeekFrom::Start(offset))?;
                 if let Some(limit) = limit {
@@ -333,6 +333,12 @@ impl<T: Read> Reader<T> {
     pub fn read_i8(&mut self) -> std::io::Result<i8> {
         Ok(i8::from_le_bytes(self.read_exact::<1>()?))
     }
+
+
+    /// Copy data from the reader to the writer
+    pub fn copy(&mut self, writer: &mut impl std::io::Write) -> std::io::Result<u64> {
+        std::io::copy(&mut self.data, writer)
+    }
 }
 
 impl<T: Read + Seek> Reader<T> {
@@ -371,6 +377,7 @@ impl<T: Read + Seek> Reader<T> {
         self.set_position(offset)?;
         self.read_u16()
     }
+
 }
 
 impl<T: BufRead> Reader<T> {

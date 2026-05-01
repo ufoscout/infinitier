@@ -17,19 +17,16 @@ impl Importer for BifImporter {
 
     fn import(source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
-        let position = reader.position()?;
 
         match detect_biff_type(reader)? {
             Type::Biff => {
                 BiffParser::import(source)
             }
             Type::Bif => {
-                reader.set_position(position)?;
-                BifParser::import(reader)
+                BifParser::import(source)
             }
             Type::Bifc => {
-                reader.set_position(position)?;
-                BifcParser::import(reader)
+                BifcParser::import(source)
             }
         }
     }
@@ -162,7 +159,7 @@ mod tests {
             Type::Bif
         );
 
-        let bif = BifParser::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BifParser::import(&data).unwrap();
         assert_eq!(bif.r#type, Type::Bif);
     }
 
@@ -175,7 +172,7 @@ mod tests {
             Type::Bifc
         );
 
-        let bif = BifcParser::import(&mut data.reader().unwrap()).unwrap();
+        let bif = BifcParser::import(&data).unwrap();
         assert_eq!(bif.r#type, Type::Bifc);
     }
 
