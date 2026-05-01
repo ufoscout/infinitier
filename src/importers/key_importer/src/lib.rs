@@ -219,7 +219,7 @@ impl ResourceEntry {
 }
 
 /// A Resource file type
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceType {
     Bmp,
     Mve,

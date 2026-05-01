@@ -1987,6 +1987,7 @@ dependencies = [
 name = "infinitier_test_utils"
 version = "0.0.2"
 dependencies = [
+ "env_logger",
  "image",
  "serde",
  "serde_json",

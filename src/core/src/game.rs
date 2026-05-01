@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io,
     path::{Path, PathBuf},
 };
@@ -14,7 +15,53 @@ pub type ResourceId = usize;
 /// The Data of a game.
 #[derive(Debug, PartialEq, Eq)]
 pub struct GameData {
-    pub resources: Vec<GameResource>,
+    /// All resources
+    resources: Vec<GameResource>,
+    /// A map from filename to resource id
+    filename_index: HashMap<String, ResourceId>,
+    /// A map from (name, type) to resource id
+    name_type_index: HashMap<(String, ResourceType), ResourceId>,
+}
+
+impl GameData {
+
+    /// Return the number of resources
+    pub fn len(&self) -> usize {
+        self.resources.len()
+    }
+
+    /// Return all resources
+    pub fn iter(&self) -> &[GameResource] {
+        &self.resources
+    }
+
+    /// Get a resource by id
+    pub fn get_by_id(&self, id: ResourceId) -> Option<&GameResource> {
+        self.resources.get(id)
+    }
+
+    /// Get a resource by filename
+    pub fn get_by_filename(&self, filename: &str) -> Option<&GameResource> {
+        self.filename_index
+            .get(filename)
+            .and_then(|&id| self.resources.get(id))
+    }
+
+    /// Get a resource by name and type
+    pub fn get_by_name_and_type(&self, name: &str, r#type: ResourceType) -> Option<&GameResource> {
+        self.name_type_index
+            .get(&(name.to_string(), r#type))
+            .and_then(|&id| self.resources.get(id))
+    }
+
+    /// Add a resource to the data structure 
+    fn add_resource(&mut self, resource: GameResource) {
+        let id = self.resources.len();
+        self.filename_index.insert(resource.filename.clone(), id);
+        self.name_type_index
+            .insert((resource.name.clone(), resource.r#type), id);
+        self.resources.push(resource);
+    }
 }
 
 /// A game resource
@@ -36,24 +83,22 @@ pub struct GameResource {
 
 /// A game data builder
 pub struct GameDataBuilder {
+    /// File system root
+    root: PathBuf,
     /// File system
     fs: CaseInsensitiveFS,
     /// Name of the key file
     key_file: String,
     /// Resource overrides folders
-    overrides: Vec<String>,
-    /// Resource fallback folders
-    fallbacks: Vec<String>,
+    overrides: Vec<String>
 }
 
 impl GameDataBuilder {
     /// Create a new game data builder
     pub fn new<P: AsRef<Path>>(game_root: P) -> io::Result<GameDataBuilder> {
         Ok(GameDataBuilder {
-            fs: CaseInsensitiveFS::new(game_root)?,
-            overrides: vec!["override".to_string()],
-            key_file: "chitin.key".to_string(),
-            fallbacks: vec![
+            root: game_root.as_ref().to_path_buf(),
+            fs: CaseInsensitiveFS::new_with_fallback(game_root, vec![
                 "data".to_string(),
                 "cache".to_string(),
                 "cd1".to_string(),
@@ -63,7 +108,9 @@ impl GameDataBuilder {
                 "cd5".to_string(),
                 "cd6".to_string(),
                 "cd7".to_string(),
-            ],
+            ])?,
+            overrides: vec!["override".to_string()],
+            key_file: "chitin.key".to_string(),
         })
     }
 
@@ -76,9 +123,9 @@ impl GameDataBuilder {
 
     /// Set the fallback folders.
     /// Default: ["data", "cache", "cd1", "cd2", "cd3", "cd4", "cd5", "cd6", "cd7"]
-    pub fn with_fallbacks(mut self, fallbacks: Vec<String>) -> GameDataBuilder {
-        self.fallbacks = fallbacks;
-        self
+    pub fn with_fallbacks(mut self, fallbacks: Vec<String>) -> io::Result<GameDataBuilder> {
+        self.fs = CaseInsensitiveFS::new_with_fallback(&self.root, fallbacks)?;
+        Ok(self)
     }
 
     /// Set the resource override folders
@@ -90,7 +137,11 @@ impl GameDataBuilder {
 
     /// Build the game data
     pub fn build(&self) -> io::Result<GameData> {
-        let mut game_data = GameData { resources: vec![] };
+        let mut game_data = GameData {
+            resources: vec![],
+            filename_index: HashMap::new(),
+            name_type_index: HashMap::new(),
+        };
 
         let key_path = self
             .fs
@@ -112,7 +163,7 @@ impl GameDataBuilder {
                 debug!("Resource {} has an override", filename);
                 let file_size = Some(r#override.metadata()?.len());
                 let datasource = Some(DataSource::new(r#override.as_path()));
-                game_data.resources.push(GameResource {
+                game_data.add_resource(GameResource {
                     name,
                     r#type,
                     filename,
@@ -126,7 +177,7 @@ impl GameDataBuilder {
                     .get(resource.bif_entries_index as usize)
                     .and_then(|bif| {
                         self.fs
-                            .get_path_opt(&CaseInsensitivePath::new(&bif.file_name))
+                            .search_path_opt(&CaseInsensitivePath::new(&bif.file_name))
                     })
                 {
                     // ToDo: read bif files only once
@@ -172,7 +223,7 @@ impl GameDataBuilder {
                             ),
                         };
 
-                        game_data.resources.push(GameResource {
+                        game_data.add_resource(GameResource {
                             name,
                             r#type,
                             filename,
@@ -186,7 +237,7 @@ impl GameDataBuilder {
                             filename,
                             bif_entry.as_path().display()
                         );
-                        game_data.resources.push(GameResource {
+                        game_data.add_resource(GameResource {
                             name,
                             r#type,
                             filename,
@@ -197,7 +248,7 @@ impl GameDataBuilder {
                     }
                 } else {
                     warn!("Resource {} not found", filename);
-                    game_data.resources.push(GameResource {
+                    game_data.add_resource(GameResource {
                         name,
                         r#type,
                         filename,
@@ -229,18 +280,97 @@ impl GameDataBuilder {
 
 #[cfg(test)]
 mod tests {
-    use infinitier_test_utils::{constants::BG2_RESOURCES_DIR, get_assets_path};
+    use infinitier_test_utils::{constants::BG2_RESOURCES_DIR, get_assets_path, start_logger};
+    use infinitier_two_da_importer::TwoDAImporter;
+    use infinitier_wed_importer::WedImporter;
 
     use super::*;
 
+    fn build_bg2() -> GameData {
+        let bg_root = get_assets_path().join(BG2_RESOURCES_DIR);
+        GameDataBuilder::new(bg_root).unwrap().build().unwrap()
+    }
+
     #[test]
     fn test_game_data_builder() {
-        let bg_root = get_assets_path().join(BG2_RESOURCES_DIR);
-        let game_data = GameDataBuilder::new(bg_root).unwrap()
-            .build()
+        let game_data = build_bg2();
+        let key = KeyImporter::import(&DataSource::new(get_assets_path().join(BG2_RESOURCES_DIR).join("CHITIN.KEY"))).unwrap();
+        assert_eq!(game_data.resources.len(), key.resource_entries.len());
+    }
+
+    #[test]
+    fn test_resource_found() {
+        let game_data = build_bg2();
+        let resource = game_data
+            .get_by_name_and_type("AR0714", ResourceType::Wed)
             .unwrap();
-        assert_eq!(game_data.resources.len(), 41793);
+        assert!(!resource.has_override);
 
+        // The data is into the assets/bg2/data/Data/AREA070C.bif file
+        assert!(resource.datasource.is_some());
 
+        // Test that the data can be read
+        WedImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_resource_found_in_override() {
+        let game_data = build_bg2();
+
+        let resource = game_data
+            .get_by_name_and_type("ABCLASRQ", ResourceType::TwoDA)
+            .unwrap();
+        assert!(resource.has_override);
+
+        // Test that the override datasource can be read
+        TwoDAImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_get_by_id_found() {
+        let game_data = build_bg2();
+        let resource = game_data.get_by_id(0).unwrap();
+        assert_eq!(resource.name, "ABCLASRQ");
+        assert_eq!(resource.r#type, ResourceType::TwoDA);
+        assert_eq!(resource.filename, "abclasrq.2da");
+        assert!(resource.has_override);
+    }
+
+    #[test]
+    fn test_get_by_id_not_found() {
+        let game_data = build_bg2();
+        assert!(game_data.get_by_id(game_data.resources.len()).is_none());
+    }
+
+    #[test]
+    fn test_get_by_filename_found() {
+        let game_data = build_bg2();
+        let resource = game_data.get_by_filename("abclasrq.2da").unwrap();
+        assert_eq!(resource.name, "ABCLASRQ");
+        assert_eq!(resource.r#type, ResourceType::TwoDA);
+    }
+
+    #[test]
+    fn test_get_by_filename_not_found() {
+        let game_data = build_bg2();
+        assert!(game_data.get_by_filename("nonexistent.bam").is_none());
+    }
+
+    #[test]
+    fn test_get_by_name_and_type_found() {
+        let game_data = build_bg2();
+        let resource = game_data
+            .get_by_name_and_type("ABDCDSRQ", ResourceType::TwoDA)
+            .unwrap();
+        assert_eq!(resource.filename, "abdcdsrq.2da");
+        assert!(!resource.has_override);
+    }
+
+    #[test]
+    fn test_get_by_name_and_type_not_found() {
+        let game_data = build_bg2();
+        assert!(game_data
+            .get_by_name_and_type("ABCLASRQ", ResourceType::Bam)
+            .is_none());
     }
 }

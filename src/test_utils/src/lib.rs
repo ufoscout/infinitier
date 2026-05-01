@@ -62,6 +62,11 @@ pub fn parse_json_file<T: serde::de::DeserializeOwned>(path: impl AsRef<std::pat
     serde_json::from_str(&file).expect("Cannot parse json")
 }
 
+/// Starts a logger on stdout
+pub fn start_logger() {
+    let _ = env_logger::builder().parse_filters("debug").format_timestamp(None).try_init();
+}
+
 #[cfg(test)]
 mod tests {
     use crate::constants::BG_RESOURCES_DIR;
