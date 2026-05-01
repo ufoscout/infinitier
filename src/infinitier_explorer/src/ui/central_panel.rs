@@ -1,9 +1,10 @@
 use eframe::egui;
 
-pub fn show(ui: &mut egui::Ui) {
+use crate::components::resource_viewer::ResourceViewer;
+use crate::state::AppState;
+
+pub fn show(ui: &mut egui::Ui, state: &AppState) {
     egui::CentralPanel::default().show_inside(ui, |ui| {
-        ui.centered_and_justified(|ui| {
-            ui.label("Select a resource from the panel on the left.");
-        });
+        ResourceViewer::show(ui, state);
     });
 }

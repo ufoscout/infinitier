@@ -23,6 +23,6 @@ impl eframe::App for ExplorerApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         ui::bottom_panel::show(ui, &self.state);
         ui::left_panel::show(ui, &self.key_tree, &mut self.state);
-        ui::central_panel::show(ui);
+        ui::central_panel::show(ui, &self.state);
     }
 }
