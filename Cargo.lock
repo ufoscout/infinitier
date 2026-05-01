@@ -1901,6 +1901,7 @@ version = "0.0.2"
 dependencies = [
  "encoding_rs",
  "flate2",
+ "parking_lot",
 ]
 
 [[package]]

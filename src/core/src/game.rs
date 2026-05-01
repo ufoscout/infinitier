@@ -14,7 +14,7 @@ use log::{debug, warn};
 pub type ResourceId = usize;
 
 /// The Data of a game.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct GameData {
     /// All resources
     resources: Vec<GameResource>,
@@ -66,7 +66,7 @@ impl GameData {
 }
 
 /// A game resource
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct GameResource {
     /// Resource name without extension.
     pub name: String,

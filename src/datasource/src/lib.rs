@@ -10,6 +10,9 @@ use std::{
 use encoding_rs::{Encoding, WINDOWS_1252};
 use flate2::bufread::ZlibDecoder;
 
+mod generator;
+pub use generator::TempFileGenerator;
+
 /// A data importer.
 /// Parses data from a data source and returns the parsed data
 pub trait Importer {
@@ -19,9 +22,10 @@ pub trait Importer {
 }
 
 /// A data source
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Data {
     FileSource(PathBuf),
+    Generator(Arc<TempFileGenerator>),
     MemorySource(Arc<Vec<u8>>),
 }
 
@@ -90,6 +94,15 @@ impl Data {
                     Ok(Box::new(data))
                 }
             }
+            Data::Generator(generator) => {
+                let mut data = BufReader::new(File::open(generator.path()?)?);
+                data.seek(std::io::SeekFrom::Start(offset))?;
+                if let Some(limit) = limit {
+                    Ok(Box::new(data.take(limit)))
+                } else {
+                    Ok(Box::new(data))
+                }
+            }
             Data::MemorySource(reader) => {
                 let mut data = Cursor::new(reader.as_slice());
                 data.seek(std::io::SeekFrom::Start(offset))?;
@@ -104,7 +117,7 @@ impl Data {
 }
 
 /// A data source with a specific encoding
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum DataSource {
     Full {
         encoding: &'static Encoding,
@@ -405,6 +418,7 @@ impl<R: BufRead> Reader<ZlibDecoder<R>> {
 #[cfg(test)]
 mod tests {
 
+
     use super::*;
 
     #[test]
@@ -496,4 +510,59 @@ mod tests {
         let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_u16_at(2).unwrap(), 0x0403);
     }
+
+    #[test]
+    fn test_read_i16() {
+        let reader = DataSource::new(&[0x01, 0x02]);
+        let mut reader = reader.reader().unwrap();
+        assert_eq!(reader.read_i16().unwrap(), 0x0201);
+    }
+
+    #[test]
+    fn test_data_generator() {
+        use std::io::Write;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let call_count = Arc::new(AtomicUsize::new(0));
+
+        let tmp_path = std::env::temp_dir()
+            .join(format!("infinitier_test_data_generator_{}.tmp", std::process::id()));
+        let _ = std::fs::remove_file(&tmp_path);
+        assert!(!tmp_path.exists());
+
+        let tmp_path_clone = tmp_path.clone();
+        let generator = TempFileGenerator::new(Box::new(move || {
+            let count = call_count.fetch_add(1, Ordering::SeqCst);
+            let mut file = std::fs::File::create(&tmp_path_clone)?;
+            file.write_all(format!("Hello, World! - {}", count).as_bytes())?;
+            Ok(tmp_path_clone.clone())
+        }));
+
+        let datasource = DataSource::new(Data::Generator(Arc::new(generator)));
+        assert!(!tmp_path.exists());
+
+        // First read should create the file.
+        {
+            assert_eq!(datasource.reader().unwrap().read_string(100).unwrap(), "Hello, World! - 0"); 
+            assert!(tmp_path.exists());
+        }
+
+        // Second read should not create the file again.
+        {
+            assert_eq!(datasource.reader().unwrap().read_string(100).unwrap(), "Hello, World! - 0"); 
+            assert!(tmp_path.exists());
+        }
+
+        // If the file is deleted, the generator should be called again.
+        {
+            std::fs::remove_file(&tmp_path).unwrap();
+            assert!(!tmp_path.exists());
+    
+            assert_eq!(datasource.reader().unwrap().read_string(100).unwrap(), "Hello, World! - 1"); 
+            assert!(tmp_path.exists());
+        }
+
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+
 }
