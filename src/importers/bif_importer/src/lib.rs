@@ -5,7 +5,7 @@ mod biff_reader;
 use infinitier_datasource::{Importer, Reader};
 use infinitier_key_importer::ResourceType;
 use log::{debug, error};
-use std::io::Read;
+use std::{io::Read, sync::Arc};
 
 use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
 
@@ -57,10 +57,13 @@ impl Type {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Bif {
     pub r#type: Type,
     pub resources: Vec<BifEmbeddedResource>,
+    /// Decompressed BIF data for compressed formats (BIFC, BIF V1.0).
+    /// Offsets in `resources` are into this buffer; for BIFF V1 the file itself is used.
+    pub data: Option<Arc<Vec<u8>>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]

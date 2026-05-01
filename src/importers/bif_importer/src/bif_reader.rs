@@ -1,21 +1,19 @@
-use std::io::BufRead;
+use std::{io::{BufRead, Cursor}, sync::Arc};
 
 use infinitier_datasource::Reader;
 use log::{debug, error};
 
-use crate::{
-    BIF_V1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
-    parse_bif_embedded_tileset,
-};
+use crate::{BIF_V1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
 
 /// A BIFC V1 file importer
 pub struct BifParser;
 
 impl BifParser {
-    /// Imports a BIFC V1 file
+    /// Imports a BIF V1.0 (compressed) file.
+    /// Decompresses the payload into memory so resource offsets refer to the
+    /// decompressed buffer.
     pub fn import<R: BufRead>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
-
         if !signature.eq(BIF_V1_0_SIGNATURE) {
             error!("Not a BIF V1.0 file: {:?}", signature);
             return Err(std::io::Error::other(format!(
@@ -26,58 +24,27 @@ impl BifParser {
 
         let name_length = reader.read_u32()? as u64;
         let _name = reader.read_string(name_length)?;
+        let _uncompressed_data_length = reader.read_u32()? as u64;
+        let _compressed_data_length = reader.read_u32()? as u64;
 
-        let _uncompressed_data_lenght = reader.read_u32()? as u64;
-        let _compressed_data_lenght = reader.read_u32()? as u64;
-
-        let mut zip = reader.as_zip_reader();
-
-        let signature = zip.read_string(8)?;
-
-        if !signature.eq(BIFFV1_SIGNATURE) {
-            error!(
-                "BIF V1.0 inner decompressed signature not BIFF V1: {:?}",
-                signature
-            );
-            return Err(std::io::Error::other(format!(
-                "Wrong file type: {}",
-                signature
-            )));
-        }
-
-        let files_number = zip.read_u32()? as usize;
-        let tilesets_number = zip.read_u32()? as usize;
-        let files_offset = zip.read_u32()? as u64;
-
-        let current_offset = 20;
-        if files_offset < current_offset {
-            return Err(std::io::Error::other(format!(
-                "Invalid decompressed BIFF header offset: {}",
-                files_offset
-            )));
-        }
-
-        let remaining_bytes = files_offset - current_offset;
-
-        zip.skip(remaining_bytes)?;
-
-        let mut bif = Bif {
-            r#type: Type::Bif,
-            resources: Vec::with_capacity(files_number + tilesets_number),
+        // Decompress the entire payload into memory.
+        let decompressed = {
+            let mut zip = reader.as_zip_reader();
+            let decoded = zip.decode_all()?;
+            decoded.data.into_inner()
         };
 
-        // reading file entries
-        for _ in 0..files_number {
-            bif.resources.push(parse_bif_embedded_file(&mut zip)?);
-        }
+        // Parse the embedded BIFF V1 from the decompressed bytes.
+        let resources = {
+            let cursor = Cursor::new(decompressed.as_slice());
+            let mut inner = Reader { data: cursor, charset: reader.charset };
+            let mut bif = BiffParser::import(&mut inner)?;
+            bif.resources
+        };
 
-        // reading tileset entries
-        for _ in 0..tilesets_number {
-            bif.resources.push(parse_bif_embedded_tileset(&mut zip)?);
-        }
-
-        debug!("Loaded BIF V1.0: {} resources", bif.resources.len());
-        Ok(bif)
+        let data = Arc::new(decompressed);
+        debug!("Loaded BIF V1.0: {} resources", resources.len());
+        Ok(Bif { r#type: Type::Bif, resources, data: Some(data) })
     }
 }
 

@@ -30,6 +30,7 @@ impl BiffParser {
         let mut bif = Bif {
             r#type: Type::Biff,
             resources: Vec::with_capacity(files_number + tilesets_number),
+            data: None,
         };
 
         // reading file entries

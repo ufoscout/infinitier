@@ -86,6 +86,7 @@ mod tests {
                     r#type,
                     bif_entries_index: 0,
                     index_into_bif_file: 0,
+                    bif_resource_locator: 0,
                 })
                 .collect(),
         }

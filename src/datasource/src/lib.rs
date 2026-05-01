@@ -49,6 +49,12 @@ impl From<Vec<u8>> for Data {
     }
 }
 
+impl From<Arc<Vec<u8>>> for Data {
+    fn from(value: Arc<Vec<u8>>) -> Self {
+        Data::MemorySource(value)
+    }
+}
+
 impl From<&[u8]> for Data {
     fn from(value: &[u8]) -> Self {
         Data::MemorySource(Arc::new(value.to_vec()))

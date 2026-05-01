@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     io,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use infinitier_bif_importer::{BifEmbeddedResource, BifImporter};
@@ -184,9 +185,34 @@ impl GameDataBuilder {
                     let to_do = 0;
                     let bif = BifImporter::import(&DataSource::new(bif_entry.as_path()))?;
 
-                    if let Some(bif_resource) =
-                        bif.resources.get(resource.index_into_bif_file as usize)
-                    {
+                    // For compressed BIF types the resource offsets are into the
+                    // decompressed buffer stored in bif.data; for plain BIFF V1 we
+                    // can seek directly inside the original file.
+                    let bif_source: Arc<dyn Fn(u64, u64) -> DataSource + Send + Sync> =
+                        if let Some(data) = bif.data.clone() {
+                            Arc::new(move |offset, size| {
+                                DataSource::new_with_offset(data.clone(), offset, Some(size))
+                            })
+                        } else {
+                            let path = bif_entry.as_path().to_path_buf();
+                            Arc::new(move |offset, size| {
+                                DataSource::new_with_offset(path.clone(), offset, Some(size))
+                            })
+                        };
+
+                    let key_locator = resource.bif_resource_locator;
+                    let bif_resource = if resource.r#type == ResourceType::Tis {
+                        bif.resources.iter().find(|r| matches!(r,
+                            BifEmbeddedResource::Tileset { locator, .. }
+                            if (*locator & 0xFC000) == (key_locator & 0xFC000)
+                        ))
+                    } else {
+                        bif.resources.iter().find(|r| matches!(r,
+                            BifEmbeddedResource::File { locator, .. }
+                            if (*locator & 0x3FFF) == (key_locator & 0x3FFF)
+                        ))
+                    };
+                    if let Some(bif_resource) = bif_resource {
                         debug!(
                             "Resource {} found in bif {}",
                             filename,
@@ -199,28 +225,14 @@ impl GameDataBuilder {
                                 size,
                                 offset,
                                 r#type,
-                            } => (
-                                DataSource::new_with_offset(
-                                    bif_entry.as_path(),
-                                    *offset,
-                                    Some(*size as u64),
-                                ),
-                                *size as u64,
-                            ),
+                            } => (bif_source(*offset, *size as u64), *size as u64),
                             BifEmbeddedResource::Tileset {
                                 locator,
                                 size,
                                 count,
                                 offset,
                                 r#type,
-                            } => (
-                                DataSource::new_with_offset(
-                                    bif_entry.as_path(),
-                                    *offset,
-                                    Some(*size as u64),
-                                ),
-                                *size as u64,
-                            ),
+                            } => (bif_source(*offset, *size as u64), *size as u64),
                         };
 
                         game_data.add_resource(GameResource {

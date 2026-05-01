@@ -1,89 +1,50 @@
 use infinitier_datasource::Reader;
 use log::{debug, error};
 
-use crate::{
-    BIFCV1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, Type, parse_bif_embedded_file,
-    parse_bif_embedded_tileset,
-};
+use crate::{BIFCV1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
 use std::{
     collections::VecDeque,
-    io::{BufRead, Read, Seek},
+    io::{BufRead, Cursor, Read, Seek},
+    sync::Arc,
 };
 
 /// A BIFC V1.0 file importer
 pub struct BifcParser;
 
 impl BifcParser {
-    /// Imports a BIFC V1.0 file
-    pub fn import<'a: 'b, 'b, R: BufRead + Seek>(
-        reader: &'b mut Reader<R>,
-    ) -> std::io::Result<Bif> {
+    /// Imports a BIFC V1.0 file.
+    /// Decompresses the entire archive into memory so that resource offsets
+    /// can be used to slice the decompressed buffer directly.
+    pub fn import<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bif> {
         let signature = reader.read_string(8)?;
-
         if !signature.eq(BIFCV1_0_SIGNATURE) {
             error!("Not a BIFC V1.0 file: {:?}", signature);
             return Err(std::io::Error::other(format!(
                 "Wrong file type: {}",
                 signature
             )));
+        }
+        let total_uncompressed_size = reader.read_u32()? as u64;
+
+        // Decompress the entire BIFC payload into memory.
+        let decompressed = {
+            let mut bytes = Vec::with_capacity(total_uncompressed_size as usize);
+            let mut cr = BifcCompressedReader::new(reader, total_uncompressed_size);
+            cr.read_to_end(&mut bytes)?;
+            bytes
         };
 
-        let _uncompressed_size = reader.read_u32()?;
-
-        let bif = {
-            let mut zip = Reader {
-                charset: reader.charset,
-                data: BifcCompressedReader::new(reader),
-            };
-            let signature = zip.read_string(8)?;
-
-            if !signature.eq(BIFFV1_SIGNATURE) {
-                error!(
-                    "BIFC inner decompressed signature not BIFF V1: {:?}",
-                    signature
-                );
-                return Err(std::io::Error::other(format!(
-                    "Wrong file type: {}",
-                    signature
-                )));
-            }
-
-            let files_number = zip.read_u32()? as usize;
-            let tilesets_number = zip.read_u32()? as usize;
-            let files_offset = zip.read_u32()? as u64;
-
-            let current_offset = 20;
-            if files_offset < current_offset {
-                return Err(std::io::Error::other(format!(
-                    "Invalid decompressed BIFF header offset: {}",
-                    files_offset
-                )));
-            }
-
-            let remaining_bytes = files_offset - current_offset;
-
-            zip.skip(remaining_bytes)?;
-
-            let mut bif = Bif {
-                r#type: Type::Bifc,
-                resources: Vec::with_capacity(files_number + tilesets_number),
-            };
-
-            // reading file entries
-            for _ in 0..files_number {
-                bif.resources.push(parse_bif_embedded_file(&mut zip)?);
-            }
-
-            // reading tileset entries
-            for _ in 0..tilesets_number {
-                bif.resources.push(parse_bif_embedded_tileset(&mut zip)?);
-            }
-
-            bif
+        // Parse the embedded BIFF V1 from the decompressed bytes.
+        let resources = {
+            let cursor = Cursor::new(decompressed.as_slice());
+            let mut inner = Reader { data: cursor, charset: reader.charset };
+            let mut bif = BiffParser::import(&mut inner)?;
+            bif.resources
         };
 
-        debug!("Loaded BIFC V1.0: {} resources", bif.resources.len());
-        Ok(bif)
+        let data = Arc::new(decompressed);
+        debug!("Loaded BIFC V1.0: {} resources", resources.len());
+        Ok(Bif { r#type: Type::Bifc, resources, data: Some(data) })
     }
 }
 
@@ -91,19 +52,22 @@ struct BifcCompressedReader<'a, R: BufRead> {
     reader: &'a mut Reader<R>,
     buffer: VecDeque<u8>,
     offset: u64,
+    total_size: u64,
 }
 
 impl<'a, R: BufRead + Seek> Read for BifcCompressedReader<'a, R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let len = buf.len();
+        if self.offset >= self.total_size {
+            return Ok(0);
+        }
 
-        if self.buffer.len() < len {
+        let len = buf.len();
+        if self.buffer.is_empty() {
             self.fill_buffer()?;
         }
 
         let len = std::cmp::min(len, self.buffer.len());
         self.buffer.read(buf)?;
-
         self.offset += len as u64;
 
         Ok(len)
@@ -111,11 +75,12 @@ impl<'a, R: BufRead + Seek> Read for BifcCompressedReader<'a, R> {
 }
 
 impl<'a, R: BufRead + Seek> BifcCompressedReader<'a, R> {
-    fn new(reader: &'a mut Reader<R>) -> Self {
+    fn new(reader: &'a mut Reader<R>, total_size: u64) -> Self {
         BifcCompressedReader {
             reader,
             buffer: VecDeque::new(),
             offset: 0,
+            total_size,
         }
     }
 

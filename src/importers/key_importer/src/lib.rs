@@ -136,7 +136,7 @@ impl BifDirectory {
 }
 
 /// A resource entry inside a KEY file
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ResourceEntry {
     /// Resource name without extension.
     pub resource_name: String,
@@ -144,9 +144,24 @@ pub struct ResourceEntry {
     pub r#type: ResourceType,
     /// Index of the entry in the key.bif_entries vector that contains this resource
     pub bif_entries_index: u64,
-    /// Index of this resource into the bif.entries vector
+    /// Index of this resource into the bif.entries vector (sequential counter, legacy)
     pub index_into_bif_file: u64,
+    /// Lower 20 bits of the KEY locator for this resource.
+    /// Used to find the matching entry inside the BIF by locator-bit comparison.
+    #[serde(default)]
+    pub bif_resource_locator: u32,
 }
+
+impl PartialEq for ResourceEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.resource_name == other.resource_name
+            && self.r#type == other.r#type
+            && self.bif_entries_index == other.bif_entries_index
+            && self.index_into_bif_file == other.index_into_bif_file
+    }
+}
+
+impl Eq for ResourceEntry {}
 
 impl BifEntry {
     /// Reads a BIF entry inside a KEY file
@@ -214,6 +229,7 @@ impl ResourceEntry {
             r#type: ResourceType::from(resource_type),
             bif_entries_index,
             index_into_bif_file: index_inside_bif_file,
+            bif_resource_locator: locator & 0x000FFFFF,
         })
     }
 }
