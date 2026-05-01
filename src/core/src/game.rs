@@ -59,6 +59,19 @@ impl GameData {
             .and_then(|&id| self.resources.get(id))
     }
 
+    /// Creates a GameData from a list of resources
+    pub fn new(resources: Vec<GameResource>) -> Self {
+        let mut game_data = GameData {
+            resources: Vec::new(),
+            filename_index: HashMap::new(),
+            name_type_index: HashMap::new(),
+        };
+        for resource in resources {
+            game_data.add_resource(resource);
+        }
+        game_data
+    }
+
     /// Add a resource to the data structure
     fn add_resource(&mut self, resource: GameResource) {
         let id = self.resources.len();

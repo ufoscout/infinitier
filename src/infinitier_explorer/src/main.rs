@@ -25,13 +25,15 @@ fn main() {
 
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    let key = GameDataBuilder::new(&args.game_path).and_then(|b| b.build()).unwrap_or_else(|e| {
-        eprintln!(
-            "Failed to load key file from '{}': {e}",
-            args.game_path.display()
-        );
-        std::process::exit(1);
-    });
+    let key = GameDataBuilder::new(&args.game_path)
+        .and_then(|b| b.build())
+        .unwrap_or_else(|e| {
+            eprintln!(
+                "Failed to load key file from '{}': {e}",
+                args.game_path.display()
+            );
+            std::process::exit(1);
+        });
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

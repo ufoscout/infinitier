@@ -1915,6 +1915,7 @@ dependencies = [
  "egui_ltreeview",
  "env_logger",
  "infinitier_core",
+ "infinitier_key_importer",
  "log",
 ]
 

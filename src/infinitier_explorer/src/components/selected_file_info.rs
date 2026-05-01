@@ -10,7 +10,10 @@ impl SelectedFileInfo {
         match &state.selected_resource {
             Some(resource) => {
                 if let Some(resource) = state.game_data.get_by_id(*resource) {
-                    ui.label(format!("Resource: {} - Source: {:?}", resource.name, resource.data_origin));
+                    ui.label(format!(
+                        "Resource: {} - Source: {:?}",
+                        resource.name, resource.data_origin
+                    ));
                 } else {
                     error!("Resource not found: {resource:?}");
                 }
