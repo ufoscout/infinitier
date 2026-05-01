@@ -19,15 +19,9 @@ impl Importer for BifImporter {
         let reader = &mut source.reader()?;
 
         match detect_biff_type(reader)? {
-            Type::Biff => {
-                BiffParser::import(source)
-            }
-            Type::Bif => {
-                BifParser::import(source)
-            }
-            Type::Bifc => {
-                BifcParser::import(source)
-            }
+            Type::Biff => BiffParser::import(source),
+            Type::Bif => BifParser::import(source),
+            Type::Bifc => BifcParser::import(source),
         }
     }
 }

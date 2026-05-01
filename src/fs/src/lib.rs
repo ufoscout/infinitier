@@ -119,7 +119,10 @@ impl CaseInsensitivePath {
 
     /// Returns the base name of the path
     pub fn base_name(&self) -> &str {
-        self.path.split('/').next_back().expect("Should always exists")
+        self.path
+            .split('/')
+            .next_back()
+            .expect("Should always exists")
     }
 }
 

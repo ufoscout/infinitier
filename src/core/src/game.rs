@@ -25,7 +25,6 @@ pub struct GameData {
 }
 
 impl GameData {
-
     /// Return the number of resources
     pub fn len(&self) -> usize {
         self.resources.len()
@@ -60,7 +59,7 @@ impl GameData {
             .and_then(|&id| self.resources.get(id))
     }
 
-    /// Add a resource to the data structure 
+    /// Add a resource to the data structure
     fn add_resource(&mut self, resource: GameResource) {
         let id = self.resources.len();
         self.filename_index.insert(resource.filename.clone(), id);
@@ -96,7 +95,7 @@ pub struct GameDataBuilder {
     /// Name of the key file
     key_file: String,
     /// Resource overrides folders
-    overrides: Vec<String>
+    overrides: Vec<String>,
 }
 
 impl GameDataBuilder {
@@ -104,17 +103,20 @@ impl GameDataBuilder {
     pub fn new<P: AsRef<Path>>(game_root: P) -> io::Result<GameDataBuilder> {
         Ok(GameDataBuilder {
             root: game_root.as_ref().to_path_buf(),
-            fs: CaseInsensitiveFS::new_with_fallback(game_root, vec![
-                "data".to_string(),
-                "cache".to_string(),
-                "cd1".to_string(),
-                "cd2".to_string(),
-                "cd3".to_string(),
-                "cd4".to_string(),
-                "cd5".to_string(),
-                "cd6".to_string(),
-                "cd7".to_string(),
-            ])?,
+            fs: CaseInsensitiveFS::new_with_fallback(
+                game_root,
+                vec![
+                    "data".to_string(),
+                    "cache".to_string(),
+                    "cd1".to_string(),
+                    "cd2".to_string(),
+                    "cd3".to_string(),
+                    "cd4".to_string(),
+                    "cd5".to_string(),
+                    "cd6".to_string(),
+                    "cd7".to_string(),
+                ],
+            )?,
             overrides: vec!["override".to_string()],
             key_file: "chitin.key".to_string(),
         })
@@ -159,13 +161,14 @@ impl GameDataBuilder {
         for bif_entry in key.bif_entries {
             if let Some(bif_path) = self
                 .fs
-                .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name)) {
-                    let bif = BifImporter::import(&DataSource::new(bif_path.as_path())).unwrap();
-                    bif_all.push(Some(bif));
-                } else {
-                    warn!("Bif file {} not found", bif_entry.file_name);
-                    bif_all.push(None);
-                }
+                .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name))
+            {
+                let bif = BifImporter::import(&DataSource::new(bif_path.as_path())).unwrap();
+                bif_all.push(Some(bif));
+            } else {
+                warn!("Bif file {} not found", bif_entry.file_name);
+                bif_all.push(None);
+            }
         }
 
         for resource in key.resource_entries {
@@ -192,32 +195,32 @@ impl GameDataBuilder {
                     has_override: true,
                 });
             } else {
-                if let Some(Some(bif)) = bif_all
-                    .get(resource.bif_entries_index as usize)
-                {
+                if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
                     let bif_ds = bif.datasource.clone();
                     let bif_ds_clone = bif_ds.clone();
                     let bif_source: Arc<dyn Fn(u64, u64) -> DataSource + Send + Sync> =
-                        Arc::new(move |offset, size| bif_ds_clone.clone().with_offset(offset, Some(size)));
+                        Arc::new(move |offset, size| {
+                            bif_ds_clone.clone().with_offset(offset, Some(size))
+                        });
 
                     let key_locator = resource.bif_resource_locator;
                     let bif_resource = if resource.r#type == ResourceType::Tis {
-                        bif.resources.iter().find(|r| matches!(r,
-                            BifEmbeddedResource::Tileset { locator, .. }
-                            if (*locator & 0xFC000) == (key_locator & 0xFC000)
-                        ))
+                        bif.resources.iter().find(|r| {
+                            matches!(r,
+                                BifEmbeddedResource::Tileset { locator, .. }
+                                if (*locator & 0xFC000) == (key_locator & 0xFC000)
+                            )
+                        })
                     } else {
-                        bif.resources.iter().find(|r| matches!(r,
-                            BifEmbeddedResource::File { locator, .. }
-                            if (*locator & 0x3FFF) == (key_locator & 0x3FFF)
-                        ))
+                        bif.resources.iter().find(|r| {
+                            matches!(r,
+                                BifEmbeddedResource::File { locator, .. }
+                                if (*locator & 0x3FFF) == (key_locator & 0x3FFF)
+                            )
+                        })
                     };
                     if let Some(bif_resource) = bif_resource {
-                        debug!(
-                            "Resource {} found in bif {:?}",
-                            filename,
-                            bif_ds
-                        );
+                        debug!("Resource {} found in bif {:?}", filename, bif_ds);
 
                         let (datasource, file_size) = match bif_resource {
                             BifEmbeddedResource::File {
@@ -244,11 +247,7 @@ impl GameDataBuilder {
                             has_override: false,
                         });
                     } else {
-                        warn!(
-                            "Resource {} not found in bif {:?}",
-                            filename,
-                            bif_ds
-                        );
+                        warn!("Resource {} not found in bif {:?}", filename, bif_ds);
                         game_data.add_resource(GameResource {
                             name,
                             r#type,
@@ -306,7 +305,10 @@ mod tests {
     #[test]
     fn test_game_data_builder() {
         let game_data = build_bg2();
-        let key = KeyImporter::import(&DataSource::new(get_assets_path().join(BG2_RESOURCES_DIR).join("CHITIN.KEY"))).unwrap();
+        let key = KeyImporter::import(&DataSource::new(
+            get_assets_path().join(BG2_RESOURCES_DIR).join("CHITIN.KEY"),
+        ))
+        .unwrap();
         assert_eq!(game_data.resources.len(), key.resource_entries.len());
     }
 
@@ -397,8 +399,10 @@ mod tests {
     #[test]
     fn test_get_by_name_and_type_not_found() {
         let game_data = build_bg2();
-        assert!(game_data
-            .get_by_name_and_type("ABCLASRQ", ResourceType::Bam)
-            .is_none());
+        assert!(
+            game_data
+                .get_by_name_and_type("ABCLASRQ", ResourceType::Bam)
+                .is_none()
+        );
     }
 }

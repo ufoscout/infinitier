@@ -334,7 +334,6 @@ impl<T: Read> Reader<T> {
         Ok(i8::from_le_bytes(self.read_exact::<1>()?))
     }
 
-
     /// Copy data from the reader to the writer
     pub fn copy(&mut self, writer: &mut impl std::io::Write) -> std::io::Result<u64> {
         std::io::copy(&mut self.data, writer)
@@ -377,7 +376,6 @@ impl<T: Read + Seek> Reader<T> {
         self.set_position(offset)?;
         self.read_u16()
     }
-
 }
 
 impl<T: BufRead> Reader<T> {
@@ -424,7 +422,6 @@ impl<R: BufRead> Reader<ZlibDecoder<R>> {
 
 #[cfg(test)]
 mod tests {
-
 
     use super::*;
 
@@ -532,8 +529,10 @@ mod tests {
 
         let call_count = Arc::new(AtomicUsize::new(0));
 
-        let tmp_path = std::env::temp_dir()
-            .join(format!("infinitier_test_data_generator_{}.tmp", std::process::id()));
+        let tmp_path = std::env::temp_dir().join(format!(
+            "infinitier_test_data_generator_{}.tmp",
+            std::process::id()
+        ));
         let _ = std::fs::remove_file(&tmp_path);
         assert!(!tmp_path.exists());
 
@@ -550,13 +549,19 @@ mod tests {
 
         // First read should create the file.
         {
-            assert_eq!(datasource.reader().unwrap().read_string(100).unwrap(), "Hello, World! - 0"); 
+            assert_eq!(
+                datasource.reader().unwrap().read_string(100).unwrap(),
+                "Hello, World! - 0"
+            );
             assert!(tmp_path.exists());
         }
 
         // Second read should not create the file again.
         {
-            assert_eq!(datasource.reader().unwrap().read_string(100).unwrap(), "Hello, World! - 0"); 
+            assert_eq!(
+                datasource.reader().unwrap().read_string(100).unwrap(),
+                "Hello, World! - 0"
+            );
             assert!(tmp_path.exists());
         }
 
@@ -564,12 +569,14 @@ mod tests {
         {
             std::fs::remove_file(&tmp_path).unwrap();
             assert!(!tmp_path.exists());
-    
-            assert_eq!(datasource.reader().unwrap().read_string(100).unwrap(), "Hello, World! - 1"); 
+
+            assert_eq!(
+                datasource.reader().unwrap().read_string(100).unwrap(),
+                "Hello, World! - 1"
+            );
             assert!(tmp_path.exists());
         }
 
         let _ = std::fs::remove_file(&tmp_path);
     }
-
 }

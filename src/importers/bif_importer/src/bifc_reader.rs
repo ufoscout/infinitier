@@ -4,7 +4,8 @@ use log::{debug, error};
 use crate::{BIFCV1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
 use std::{
     collections::VecDeque,
-    io::{BufRead, Read, Seek}, sync::Arc,
+    io::{BufRead, Read, Seek},
+    sync::Arc,
 };
 
 /// A BIFC V1.0 file importer
@@ -26,34 +27,39 @@ impl BifcParser {
         }
         let total_uncompressed_size = reader.read_u32()? as u64;
 
-        // Decompress the BIFC lazily into a temporary file. 
+        // Decompress the BIFC lazily into a temporary file.
         // Every read will be performed from this temporary file.
         let lazy_datasource = {
             let temp_dir = tempfile::Builder::new().prefix("infinitier_").tempdir()?;
-        let source_clone = source.clone();
-        DataSource::new(Data::Generator(Arc::new(TempFileGenerator::new(Box::new(move || {
-            let path = temp_dir.path().join("bifc.bif");
-            let mut temp_file = std::fs::File::create(&path)?;
+            let source_clone = source.clone();
+            DataSource::new(Data::Generator(Arc::new(TempFileGenerator::new(Box::new(
+                move || {
+                    let path = temp_dir.path().join("bifc.bif");
+                    let mut temp_file = std::fs::File::create(&path)?;
 
-            let reader = &mut source_clone.reader()?;
+                    let reader = &mut source_clone.reader()?;
 
-            // Throw away the first 12 bytes (signature + total_uncompressed_size)
-            let _signature_and_total_uncompressed_size = reader.read_string(12)?;
-            
-            let mut zip = Reader {
-                charset: reader.charset,
-                data: BifcCompressedReader::new(reader, total_uncompressed_size),
-            };
-            zip.copy(&mut temp_file)?;
-            Ok(path)
-        })))))
-    };
+                    // Throw away the first 12 bytes (signature + total_uncompressed_size)
+                    let _signature_and_total_uncompressed_size = reader.read_string(12)?;
 
-        let resources = 
-            BiffParser::parse_resources(&mut lazy_datasource.reader()?)?;
+                    let mut zip = Reader {
+                        charset: reader.charset,
+                        data: BifcCompressedReader::new(reader, total_uncompressed_size),
+                    };
+                    zip.copy(&mut temp_file)?;
+                    Ok(path)
+                },
+            )))))
+        };
+
+        let resources = BiffParser::parse_resources(&mut lazy_datasource.reader()?)?;
 
         debug!("Loaded BIFC V1.0: {} resources", resources.len());
-        Ok(Bif { r#type: Type::Bifc, resources, datasource: lazy_datasource })
+        Ok(Bif {
+            r#type: Type::Bifc,
+            resources,
+            datasource: lazy_datasource,
+        })
     }
 }
 

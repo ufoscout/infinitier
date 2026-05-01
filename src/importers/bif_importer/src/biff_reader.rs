@@ -3,7 +3,10 @@ use std::io::{Read, Seek};
 use infinitier_datasource::{DataSource, Reader};
 use log::{debug, error};
 
-use crate::{BIFFV1_SIGNATURE, Bif, BifEmbeddedResource, Type, parse_bif_embedded_file, parse_bif_embedded_tileset};
+use crate::{
+    BIFFV1_SIGNATURE, Bif, BifEmbeddedResource, Type, parse_bif_embedded_file,
+    parse_bif_embedded_tileset,
+};
 
 /// A BIFF V1 file importer
 pub struct BiffParser;
@@ -14,7 +17,11 @@ impl BiffParser {
         let reader = &mut source.reader()?;
         let resources = Self::parse_resources(reader)?;
         debug!("Loaded BIFF V1: {} resources", resources.len());
-        Ok(Bif { r#type: Type::Biff, resources, datasource: source.clone() })
+        Ok(Bif {
+            r#type: Type::Biff,
+            resources,
+            datasource: source.clone(),
+        })
     }
 
     /// Parses BIFF V1 resource entries from an existing reader.

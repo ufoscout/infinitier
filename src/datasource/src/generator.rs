@@ -17,7 +17,6 @@ impl std::fmt::Debug for TempFileGenerator {
 }
 
 impl TempFileGenerator {
-
     /// Creates a new temporary file generator
     pub fn new(generator: Box<dyn Fn() -> std::io::Result<PathBuf> + Send + Sync>) -> Self {
         Self {

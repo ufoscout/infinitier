@@ -64,7 +64,10 @@ pub fn parse_json_file<T: serde::de::DeserializeOwned>(path: impl AsRef<std::pat
 
 /// Starts a logger on stdout
 pub fn start_logger() {
-    let _ = env_logger::builder().parse_filters("debug").format_timestamp(None).try_init();
+    let _ = env_logger::builder()
+        .parse_filters("debug")
+        .format_timestamp(None)
+        .try_init();
 }
 
 #[cfg(test)]
