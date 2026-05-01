@@ -136,7 +136,7 @@ impl BifDirectory {
 }
 
 /// A resource entry inside a KEY file
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub struct ResourceEntry {
     /// Resource name without extension.
     pub resource_name: String,
@@ -148,20 +148,8 @@ pub struct ResourceEntry {
     pub index_into_bif_file: u64,
     /// Lower 20 bits of the KEY locator for this resource.
     /// Used to find the matching entry inside the BIF by locator-bit comparison.
-    #[serde(default)]
     pub bif_resource_locator: u32,
 }
-
-impl PartialEq for ResourceEntry {
-    fn eq(&self, other: &Self) -> bool {
-        self.resource_name == other.resource_name
-            && self.r#type == other.r#type
-            && self.bif_entries_index == other.bif_entries_index
-            && self.index_into_bif_file == other.index_into_bif_file
-    }
-}
-
-impl Eq for ResourceEntry {}
 
 impl BifEntry {
     /// Reads a BIF entry inside a KEY file
