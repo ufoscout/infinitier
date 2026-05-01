@@ -3,7 +3,6 @@ use std::io::{self, BufRead, Seek};
 use serde::{Deserialize, Serialize};
 
 use infinitier_datasource::{DataSource, Importer, Reader};
-use infinitier_fs::CaseInsensitivePath;
 use log::{debug, error};
 
 /// A KEY file importer
@@ -84,7 +83,7 @@ pub struct Key {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BifEntry {
     pub index: u64,
-    pub file_name: CaseInsensitivePath,
+    pub file_name: String,
     pub file_size: Option<u32>,
     pub directory: BifDirectory,
 }
@@ -185,7 +184,7 @@ impl BifEntry {
         Ok(BifEntry {
             file_size,
             index,
-            file_name: CaseInsensitivePath::new(&file_name),
+            file_name,
             directory: BifDirectory::from(location),
         })
     }

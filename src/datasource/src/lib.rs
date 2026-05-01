@@ -19,7 +19,7 @@ pub trait Importer {
 }
 
 /// A data source
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
     FileSource(PathBuf),
     MemorySource(Arc<Vec<u8>>),
@@ -98,7 +98,7 @@ impl Data {
 }
 
 /// A data source with a specific encoding
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataSource {
     Full {
         encoding: &'static Encoding,

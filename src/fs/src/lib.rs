@@ -9,16 +9,13 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
 
-/// Possible folders where files could be found
-pub const FILE_FOLDERS: [&str; 9] = [
-    "data", "cache", "cd1", "cd2", "cd3", "cd4", "cd5", "cd6", "cd7",
-];
-
 /// A file system that is case insensitive
 #[derive(Debug, Clone)]
 pub struct CaseInsensitiveFS {
     /// The root directory
     root: PathBuf,
+    /// Resource fallback folders
+    fallbacks: Vec<String>,
     paths: Arc<BTreeMap<String, PathBuf>>,
 }
 
@@ -31,9 +28,29 @@ impl CaseInsensitiveFS {
     /// where the keys are the lowercased path strings and the values are the
     /// corresponding absolute paths.
     pub fn new<P: AsRef<Path>>(root: P) -> io::Result<CaseInsensitiveFS> {
+        Self::new_with_fallback(root, vec![])
+    }
+
+    /// Creates a new `CaseInsensitiveFS` from the given root path.
+    ///
+    /// The given root path is used as the root directory for the file system.
+    /// All files and directories underneath the given root path are then
+    /// traversed recursively, and their paths are stored in a map
+    /// where the keys are the lowercased path strings and the values are the
+    /// corresponding absolute paths.
+    ///
+    /// The fallbacks are used to search for files that are not found in the root directory.
+    pub fn new_with_fallback<P: AsRef<Path>>(
+        root: P,
+        fallbacks: Vec<String>,
+    ) -> io::Result<CaseInsensitiveFS> {
         let root = root.as_ref().canonicalize()?;
         let paths = Arc::new(list_real_entries_recursive(&root)?);
-        Ok(CaseInsensitiveFS { root, paths })
+        Ok(CaseInsensitiveFS {
+            root,
+            fallbacks,
+            paths,
+        })
     }
 
     /// Returns the root directory of the file system
@@ -65,7 +82,7 @@ impl CaseInsensitiveFS {
             return Some(path);
         }
 
-        for dir in FILE_FOLDERS {
+        for dir in self.fallbacks.iter() {
             let search_name = format!("{}/{}", dir, path.path);
             if let Some(path) = self.paths.get(&search_name) {
                 return Some(path.to_owned());
@@ -211,8 +228,12 @@ mod tests {
     }
 
     #[test]
-    fn test_search_path_in_subfolder() {
-        let fs = CaseInsensitiveFS::new(get_assets_path().join(IWD_RESOURCES_DIR)).unwrap();
+    fn test_search_path_in_fallbacks() {
+        let fs = CaseInsensitiveFS::new_with_fallback(
+            get_assets_path().join(IWD_RESOURCES_DIR),
+            vec!["cd1".to_string(), "cd2".to_string()],
+        )
+        .unwrap();
 
         let path = fs.search_path_opt(&CaseInsensitivePath::new("/DATA/AR3603.cbf"));
         assert_eq!(
@@ -229,13 +250,31 @@ mod tests {
 
     #[test]
     fn test_basename() {
-        assert_eq!(CaseInsensitivePath::new("/data/AR3603.cbf").base_name(), "ar3603.cbf");
-        assert_eq!(CaseInsensitivePath::new("/data/target").base_name(), "target");
-        assert_eq!(CaseInsensitivePath::new("data/AR3603.cbf").base_name(), "ar3603.cbf");
-        assert_eq!(CaseInsensitivePath::new("data/target").base_name(), "target");
-        assert_eq!(CaseInsensitivePath::new("/AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(
+            CaseInsensitivePath::new("/data/AR3603.cbf").base_name(),
+            "ar3603.cbf"
+        );
+        assert_eq!(
+            CaseInsensitivePath::new("/data/target").base_name(),
+            "target"
+        );
+        assert_eq!(
+            CaseInsensitivePath::new("data/AR3603.cbf").base_name(),
+            "ar3603.cbf"
+        );
+        assert_eq!(
+            CaseInsensitivePath::new("data/target").base_name(),
+            "target"
+        );
+        assert_eq!(
+            CaseInsensitivePath::new("/AR3603.cbf").base_name(),
+            "ar3603.cbf"
+        );
         assert_eq!(CaseInsensitivePath::new("/target").base_name(), "target");
-        assert_eq!(CaseInsensitivePath::new("AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(
+            CaseInsensitivePath::new("AR3603.cbf").base_name(),
+            "ar3603.cbf"
+        );
         assert_eq!(CaseInsensitivePath::new("target").base_name(), "target");
         assert_eq!(CaseInsensitivePath::new("").base_name(), "");
         assert_eq!(CaseInsensitivePath::new("/").base_name(), "");

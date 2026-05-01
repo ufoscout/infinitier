@@ -1892,6 +1892,7 @@ dependencies = [
  "infinitier_test_utils",
  "infinitier_two_da_importer",
  "infinitier_wed_importer",
+ "log",
 ]
 
 [[package]]
