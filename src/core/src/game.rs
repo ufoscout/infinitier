@@ -281,7 +281,7 @@ impl GameDataBuilder {
 
 #[cfg(test)]
 mod tests {
-    use infinitier_test_utils::{constants::BG2_RESOURCES_DIR, get_assets_path, start_logger};
+    use infinitier_test_utils::{constants::BG2_RESOURCES_DIR, get_assets_path};
     use infinitier_two_da_importer::TwoDAImporter;
     use infinitier_wed_importer::WedImporter;
 
@@ -312,6 +312,22 @@ mod tests {
 
         // Test that the data can be read
         WedImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
+    }
+
+    #[test]
+    fn test_tis_resource_found() {
+        let game_data = build_bg2();
+        let resource = game_data
+            .get_by_name_and_type("AR0714", ResourceType::Tis)
+            .unwrap();
+        assert!(!resource.has_override);
+
+        // The data is into the assets/bg2/data/Data/AREA070C.bif file
+        assert!(resource.datasource.is_some());
+
+        // ToDo: implement when tis importer is available
+        // Test that the data can be read
+        // WedImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
     }
 
     #[test]

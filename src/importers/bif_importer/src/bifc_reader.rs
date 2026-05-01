@@ -28,8 +28,11 @@ impl BifcParser {
         // Decompress the entire BIFC payload into memory.
         let decompressed = {
             let mut bytes = Vec::with_capacity(total_uncompressed_size as usize);
-            let mut cr = BifcCompressedReader::new(reader, total_uncompressed_size);
-            cr.read_to_end(&mut bytes)?;
+             let mut zip = Reader {
+                charset: reader.charset,
+                data: BifcCompressedReader::new(reader, total_uncompressed_size),
+            };
+            zip.read_to_end(&mut bytes)?;
             bytes
         };
 
