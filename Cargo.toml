@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "src/codecs/*",
+    "src/common",
     "src/core",
     "src/datasource",
     "src/infinitier_explorer",
@@ -25,6 +26,7 @@ infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.2" }
 infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.2"  }
 
 # Core
+infinitier_common = { path = "src/common", version = "0.0.2" }
 infinitier_core = { path = "src/core", version = "0.0.2"  }
 infinitier_datasource = { path = "src/datasource", version = "0.0.2"  }
 infinitier_fs = { path = "src/fs", version = "0.0.2"  }

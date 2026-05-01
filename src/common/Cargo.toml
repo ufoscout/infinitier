@@ -1,0 +1,14 @@
+[package]
+name = "infinitier_common"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Shared types for Infinity Engine game resource handling"
+readme = "readme.md"
+keywords = ["infinity-engine", "baldurs-gate"]
+
+[dependencies]
+serde = { workspace = true }

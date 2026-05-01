@@ -11,8 +11,8 @@ readme = "readme.md"
 keywords = ["bif", "biff", "archive", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
+infinitier_common = { workspace = true }
 infinitier_datasource = { workspace = true }
-infinitier_key_importer = { workspace = true }
 log = { workspace = true }
 tempfile = { workspace = true }
 

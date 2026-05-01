@@ -7,6 +7,7 @@ publish-dry-run:
 
 # Publish all public crates to crates.io in dependency order
 publish:
+    cargo publish -p infinitier_common
     cargo publish -p infinitier_datasource
     cargo publish -p infinitier_fs
 
@@ -22,3 +23,5 @@ publish:
     cargo publish -p infinitier_pvr_importer
     cargo publish -p infinitier_two_da_importer
     cargo publish -p infinitier_wed_importer
+
+    cargo publish -p infinitier_core

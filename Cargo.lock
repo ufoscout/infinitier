@@ -1858,8 +1858,8 @@ dependencies = [
 name = "infinitier_bif_importer"
 version = "0.0.2"
 dependencies = [
+ "infinitier_common",
  "infinitier_datasource",
- "infinitier_key_importer",
  "infinitier_test_utils",
  "log",
  "tempfile",
@@ -1876,6 +1876,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_common"
+version = "0.0.2"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "infinitier_core"
 version = "0.0.2"
 dependencies = [
@@ -1883,6 +1890,7 @@ dependencies = [
  "infinitier_bam_importer",
  "infinitier_bif_importer",
  "infinitier_bmp_importer",
+ "infinitier_common",
  "infinitier_datasource",
  "infinitier_fs",
  "infinitier_ids_importer",
@@ -1915,7 +1923,6 @@ dependencies = [
  "egui_ltreeview",
  "env_logger",
  "infinitier_core",
- "infinitier_key_importer",
  "log",
 ]
 
@@ -1952,6 +1959,7 @@ dependencies = [
 name = "infinitier_key_importer"
 version = "0.0.2"
 dependencies = [
+ "infinitier_common",
  "infinitier_datasource",
  "infinitier_fs",
  "infinitier_test_utils",
@@ -2011,8 +2019,8 @@ name = "infinitier_wed_importer"
 version = "0.0.2"
 dependencies = [
  "bitflags 2.11.1",
+ "infinitier_common",
  "infinitier_datasource",
- "infinitier_key_importer",
  "infinitier_test_utils",
  "log",
  "serde",

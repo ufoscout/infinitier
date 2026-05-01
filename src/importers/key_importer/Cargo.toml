@@ -11,6 +11,7 @@ readme = "readme.md"
 keywords = ["key", "chitin", "index", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
+infinitier_common = { workspace = true }
 infinitier_datasource = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }

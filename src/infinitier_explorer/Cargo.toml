@@ -9,7 +9,6 @@ repository.workspace = true
 
 [dependencies]
 infinitier_core = { workspace = true }
-infinitier_key_importer = { workspace = true }
 
 clap = { workspace = true }
 env_logger = { workspace = true }

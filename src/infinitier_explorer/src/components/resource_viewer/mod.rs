@@ -1,5 +1,5 @@
 use eframe::egui;
-use infinitier_key_importer::ResourceType;
+use infinitier_core::resource::key::ResourceType;
 
 use crate::state::AppState;
 
@@ -101,10 +101,18 @@ use wed::WedViewer;
 use wfx::WfxViewer;
 use wmp::WmpViewer;
 
-pub struct ResourceViewer;
+pub struct ResourceViewer {
+    bmp: BmpViewer,
+}
 
 impl ResourceViewer {
-    pub fn show(ui: &mut egui::Ui, state: &AppState) {
+    pub fn new() -> Self {
+        Self {
+            bmp: BmpViewer::new(),
+        }
+    }
+
+    pub fn show(&mut self, ui: &mut egui::Ui, state: &AppState) {
         match state.selected_resource {
             None => {
                 ui.centered_and_justified(|ui| {
@@ -120,7 +128,7 @@ impl ResourceViewer {
                         ResourceType::Bam => BamViewer::show(ui),
                         ResourceType::Bcs => BcsViewer::show(ui),
                         ResourceType::Bio => BioViewer::show(ui),
-                        ResourceType::Bmp => BmpViewer::show(ui),
+                        ResourceType::Bmp => self.bmp.show(ui, resource_id, resource),
                         ResourceType::Bs => BsViewer::show(ui),
                         ResourceType::Chr => ChrViewer::show(ui),
                         ResourceType::Chu => ChuViewer::show(ui),

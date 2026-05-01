@@ -60,7 +60,7 @@ impl BiffParser {
 #[cfg(test)]
 mod tests {
     use infinitier_datasource::DataSource;
-    use infinitier_key_importer::ResourceType;
+    use infinitier_common::ResourceType;
     use infinitier_test_utils::get_assets_path;
 
     use crate::{BifEmbeddedResource, detect_biff_type};
