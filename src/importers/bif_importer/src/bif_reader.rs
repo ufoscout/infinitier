@@ -12,7 +12,7 @@ impl BifParser {
     /// Imports a BIF V1.0 (compressed) file.
     /// Decompresses the payload into a temporary file so resource offsets refer to the
     /// decompressed buffer.
-    pub fn import(source: &DataSource) -> std::io::Result<Bif> {
+    pub fn import(source: &DataSource, name: &str) -> std::io::Result<Bif> {
         let reader = &mut source.reader()?;
         let signature = reader.read_string(8)?;
         if !signature.eq(BIF_V1_0_SIGNATURE) {
@@ -60,6 +60,7 @@ impl BifParser {
 
         debug!("Loaded BIF V1.0: {} resources", resources.len());
         Ok(Bif {
+            name: name.to_string(),
             r#type: Type::Bif,
             resources,
             datasource: lazy_datasource,
@@ -81,13 +82,14 @@ mod tests {
     fn test_detect_bif_type() {
         let data = DataSource::new(get_assets_path().join("iwd/CD2/Data/AR3603.cbf"));
 
-        let bif = BifParser::import(&data).unwrap();
+        let bif = BifParser::import(&data, "bif_name").unwrap();
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
             Type::Bif
         );
 
+        assert_eq!(bif.name, "bif_name");
         assert_eq!(bif.r#type, Type::Bif);
         assert_eq!(bif.resources.len(), 6);
 

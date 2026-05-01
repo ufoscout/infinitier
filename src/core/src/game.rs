@@ -174,7 +174,7 @@ impl GameDataBuilder {
                 .fs
                 .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name))
             {
-                let bif = BifImporter{}.import(&DataSource::new(bif_path.as_path())).unwrap();
+                let bif = BifImporter{name: bif_entry.file_name}.import(&DataSource::new(bif_path.as_path())).unwrap();
                 bif_all.push(Some(bif));
             } else {
                 warn!("Bif file {} not found", bif_entry.file_name);
@@ -251,8 +251,6 @@ impl GameDataBuilder {
                             } => (bif_source(*offset, *size as u64), *size as u64),
                         };
 
-                        let todo_add_BIF_name = 0;
-
                         game_data.add_resource(GameResource {
                             name,
                             r#type,
@@ -260,7 +258,7 @@ impl GameDataBuilder {
                             file_size: Some(file_size),
                             datasource: Some(datasource),
                             data_origin: DataOrigin::Bif{
-                                name: "".to_lowercase()
+                                name: bif.name.clone()
                             }
                         });
                     } else {
@@ -335,7 +333,7 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("AR0714", ResourceType::Wed)
             .unwrap();
-        assert_eq!(DataOrigin::Bif { name: "".to_lowercase() }, resource.data_origin);
+        assert_eq!(DataOrigin::Bif { name: "data/area070c.bif".to_string() }, resource.data_origin);
 
         // The data is into the assets/bg2/data/Data/AREA070C.bif file
         assert!(resource.datasource.is_some());
@@ -350,7 +348,7 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("AR0714", ResourceType::Tis)
             .unwrap();
-        assert_eq!(DataOrigin::Bif { name: "".to_lowercase() }, resource.data_origin);
+        assert_eq!(DataOrigin::Bif { name: "data/area070c.bif".to_string() }, resource.data_origin);
 
         // The data is into the assets/bg2/data/Data/AREA070C.bif file
         assert!(resource.datasource.is_some());

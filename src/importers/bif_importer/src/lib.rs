@@ -10,7 +10,9 @@ use std::io::Read;
 use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
 
 /// A BIF file importer
-pub struct BifImporter {}
+pub struct BifImporter {
+    pub name: String,
+}
 
 impl Importer for BifImporter {
     type T = Bif;
@@ -19,9 +21,9 @@ impl Importer for BifImporter {
         let reader = &mut source.reader()?;
 
         match detect_biff_type(reader)? {
-            Type::Biff => BiffParser::import(source),
-            Type::Bif => BifParser::import(source),
-            Type::Bifc => BifcParser::import(source),
+            Type::Biff => BiffParser::import(source, &self.name),
+            Type::Bif => BifParser::import(source, &self.name),
+            Type::Bifc => BifcParser::import(source, &self.name),
         }
     }
 }
@@ -49,6 +51,7 @@ impl Type {
 
 #[derive(Debug)]
 pub struct Bif {
+    pub name: String,
     pub r#type: Type,
     pub resources: Vec<BifEmbeddedResource>,
     /// DataSource for reading embedded resource data.
@@ -153,7 +156,8 @@ mod tests {
             Type::Bif
         );
 
-        let bif = BifParser::import(&data).unwrap();
+        let bif = BifParser::import(&data, "bif_name").unwrap();
+        assert_eq!(bif.name, "bif_name");
         assert_eq!(bif.r#type, Type::Bif);
     }
 
@@ -166,7 +170,8 @@ mod tests {
             Type::Bifc
         );
 
-        let bif = BifcParser::import(&data).unwrap();
+        let bif = BifcParser::import(&data, "bifc_name").unwrap();
+        assert_eq!(bif.name, "bifc_name");
         assert_eq!(bif.r#type, Type::Bifc);
     }
 
@@ -179,7 +184,8 @@ mod tests {
             Type::Biff
         );
 
-        let bif = BiffParser::import(&data).unwrap();
+        let bif = BiffParser::import(&data, "biff_name").unwrap();
+        assert_eq!(bif.name, "biff_name");
         assert_eq!(bif.r#type, Type::Biff);
     }
 }

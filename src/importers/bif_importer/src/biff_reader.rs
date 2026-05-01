@@ -14,11 +14,12 @@ pub struct BiffParser {
 
 impl BiffParser {
     /// Imports a BIFF V1 file from a DataSource.
-    pub fn import(source: &DataSource) -> std::io::Result<Bif> {
+    pub fn import(source: &DataSource, name: &str) -> std::io::Result<Bif> {
         let reader = &mut source.reader()?;
         let resources = Self::parse_resources(reader)?;
         debug!("Loaded BIFF V1: {} resources", resources.len());
         Ok(Bif {
+            name: name.to_string(),
             r#type: Type::Biff,
             resources,
             datasource: source.clone(),
@@ -71,13 +72,14 @@ mod tests {
     fn test_detect_biff_type() {
         let data = DataSource::new(get_assets_path().join("pst/CS_0511.bif"));
 
-        let bif = BiffParser::import(&data).unwrap();
+        let bif = BiffParser::import(&data, "the name").unwrap();
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),
             Type::Biff
         );
 
+        assert_eq!(bif.name, "the name");
         assert_eq!(bif.r#type, Type::Biff);
         assert_eq!(bif.resources.len(), 4);
 
@@ -105,7 +107,7 @@ mod tests {
     fn test_import_biff() {
         let data = DataSource::new(get_assets_path().join("bg2_ee/data/area500c.bif"));
 
-        let bif = BiffParser::import(&data).unwrap();
+        let bif = BiffParser::import(&data, "").unwrap();
 
         assert_eq!(
             detect_biff_type(&mut data.reader().unwrap()).unwrap(),

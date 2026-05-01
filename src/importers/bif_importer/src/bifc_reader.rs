@@ -15,7 +15,7 @@ impl BifcParser {
     /// Imports a BIFC V1.0 file.
     /// Decompresses the entire archive into a temporary file so that resource offsets
     /// can be used to slice the decompressed buffer directly.
-    pub fn import(source: &DataSource) -> std::io::Result<Bif> {
+    pub fn import(source: &DataSource, name: &str) -> std::io::Result<Bif> {
         let reader = &mut source.reader()?;
         let signature = reader.read_string(8)?;
         if !signature.eq(BIFCV1_0_SIGNATURE) {
@@ -56,6 +56,7 @@ impl BifcParser {
 
         debug!("Loaded BIFC V1.0: {} resources", resources.len());
         Ok(Bif {
+            name: name.to_string(),
             r#type: Type::Bifc,
             resources,
             datasource: lazy_datasource,
@@ -142,9 +143,10 @@ mod tests {
             Type::Bifc
         );
 
-        let bif = BifcParser::import(&data).unwrap();
-        assert_eq!(bif.r#type, Type::Bifc);
+        let bif = BifcParser::import(&data, "some name").unwrap();
 
+        assert_eq!(bif.name, "some name");
+        assert_eq!(bif.r#type, Type::Bifc);
         assert_eq!(bif.resources.len(), 6);
 
         assert_eq!(
