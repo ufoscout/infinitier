@@ -1,4 +1,7 @@
 mod app;
+mod components;
+mod state;
+mod ui;
 
 use clap::Parser;
 use infinitier_core::game::GameDataBuilder;
