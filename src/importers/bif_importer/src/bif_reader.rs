@@ -1,6 +1,6 @@
-use std::io::{BufRead, Cursor};
+use std::sync::Arc;
 
-use infinitier_datasource::{DataSource, Reader};
+use infinitier_datasource::{Data, DataSource, TempFileGenerator};
 use log::{debug, error};
 
 use crate::{BIF_V1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
@@ -10,7 +10,7 @@ pub struct BifParser;
 
 impl BifParser {
     /// Imports a BIF V1.0 (compressed) file.
-    /// Decompresses the payload into memory so resource offsets refer to the
+    /// Decompresses the payload into a temporary file so resource offsets refer to the
     /// decompressed buffer.
     pub fn import(source: &DataSource) -> std::io::Result<Bif> {
         let reader = &mut source.reader()?;
@@ -28,23 +28,38 @@ impl BifParser {
         let _uncompressed_data_length = reader.read_u32()? as u64;
         let _compressed_data_length = reader.read_u32()? as u64;
 
-        // Decompress the entire payload into memory.
-        let decompressed = {
+        // Decompress the BIF lazily into a temporary file. 
+        // Every read will be performed from this temporary file.
+        let lazy_datasource = {
+            let temp_dir = tempfile::Builder::new().prefix("infinitier_").tempdir()?;
+        let source_clone = source.clone();
+        DataSource::new(Data::Generator(Arc::new(TempFileGenerator::new(Box::new(move || {
+            let path = temp_dir.path().join("bif.bif");
+            let mut temp_file = std::fs::File::create(&path)?;
+
+            let reader = &mut source_clone.reader()?;
+
+            // Throw away the first bytes 
+            {
+                let _signature = reader.read_string(8)?;
+                let name_length = reader.read_u32()? as u64;
+                let _name = reader.read_string(name_length)?;
+                let _uncompressed_data_length = reader.read_u32()? as u64;
+                let _compressed_data_length = reader.read_u32()? as u64;
+            }            
+            
             let mut zip = reader.as_zip_reader();
-            let decoded = zip.decode_all()?;
-            decoded.data.into_inner()
-        };
+            zip.copy(&mut temp_file)?;
+            Ok(path)
+        })))))
+    };
 
-        // Parse the embedded BIFF V1 resource table from the decompressed bytes.
-        let resources = {
-            let cursor = Cursor::new(decompressed.as_slice());
-            let mut inner = Reader { data: cursor, charset: reader.charset };
-            BiffParser::parse_resources(&mut inner)?
-        };
+            let resources = 
+            BiffParser::parse_resources(&mut lazy_datasource.reader()?)?;
 
-        let datasource = DataSource::new(decompressed);
         debug!("Loaded BIF V1.0: {} resources", resources.len());
-        Ok(Bif { r#type: Type::Bif, resources, datasource })
+        Ok(Bif { r#type: Type::Bif, resources, datasource: lazy_datasource })
+
     }
 }
 

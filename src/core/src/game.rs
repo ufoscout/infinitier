@@ -8,7 +8,7 @@ use std::{
 use infinitier_bif_importer::{BifEmbeddedResource, BifImporter};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
-use infinitier_key_importer::{Key, KeyImporter, ResourceType};
+use infinitier_key_importer::{KeyImporter, ResourceType};
 use log::{debug, warn};
 
 pub type ResourceId = usize;
