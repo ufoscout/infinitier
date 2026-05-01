@@ -483,7 +483,8 @@ mod tests {
 
             let expected: Key = parse_json_file(&json_path);
 
-            let actual = KeyImporter{}.import(&DataSource::new(key_path.as_path()))
+            let actual = KeyImporter {}
+                .import(&DataSource::new(key_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", key_path.display()));
 
             assert_eq!(actual, expected, "key mismatch for {}", dir.display());

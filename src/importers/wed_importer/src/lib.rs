@@ -299,7 +299,9 @@ mod tests {
 
         let expected: Wed = parse_json_file(&json_path);
 
-        let actual = WedImporter.import(&DataSource::new(web_path.as_path())).unwrap();
+        let actual = WedImporter
+            .import(&DataSource::new(web_path.as_path()))
+            .unwrap();
 
         assert_eq!(actual.overlays.len(), 5);
         assert_eq!(actual.doors.len(), 2);

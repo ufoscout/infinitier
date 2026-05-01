@@ -235,7 +235,8 @@ mod tests {
         for ids_path in paths {
             let json_path = ids_path.with_extension("json");
             let expected: Ids = parse_json_file(&json_path);
-            let actual = IdsImporter.import(&DataSource::new(ids_path.as_path()))
+            let actual = IdsImporter
+                .import(&DataSource::new(ids_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ids_path.display()));
             assert_eq!(actual, expected, "IDS mismatch for {}", ids_path.display());
         }

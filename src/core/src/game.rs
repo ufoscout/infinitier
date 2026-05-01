@@ -88,12 +88,8 @@ pub struct GameResource {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DataOrigin {
-    Bif{
-        name: String
-    },
-    Override{
-        path: PathBuf
-    },
+    Bif { name: String },
+    Override { path: PathBuf },
     Missing,
 }
 
@@ -165,7 +161,7 @@ impl GameDataBuilder {
         let key_path = self
             .fs
             .get_path(&CaseInsensitivePath::new(&self.key_file))?;
-        let key = KeyImporter{}.import(&DataSource::new(key_path.as_path()))?;
+        let key = KeyImporter {}.import(&DataSource::new(key_path.as_path()))?;
 
         // preload all bif files
         let mut bif_all = vec![];
@@ -174,7 +170,11 @@ impl GameDataBuilder {
                 .fs
                 .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name))
             {
-                let bif = BifImporter{name: bif_entry.file_name}.import(&DataSource::new(bif_path.as_path())).unwrap();
+                let bif = BifImporter {
+                    name: bif_entry.file_name,
+                }
+                .import(&DataSource::new(bif_path.as_path()))
+                .unwrap();
                 bif_all.push(Some(bif));
             } else {
                 warn!("Bif file {} not found", bif_entry.file_name);
@@ -203,9 +203,7 @@ impl GameDataBuilder {
                     filename,
                     file_size,
                     datasource,
-                    data_origin: DataOrigin::Override{
-                        path: r#override
-                    },
+                    data_origin: DataOrigin::Override { path: r#override },
                 });
             } else {
                 if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
@@ -257,9 +255,9 @@ impl GameDataBuilder {
                             filename,
                             file_size: Some(file_size),
                             datasource: Some(datasource),
-                            data_origin: DataOrigin::Bif{
-                                name: bif.name.clone()
-                            }
+                            data_origin: DataOrigin::Bif {
+                                name: bif.name.clone(),
+                            },
                         });
                     } else {
                         warn!("Resource {} not found in bif {:?}", filename, bif_ds);
@@ -320,10 +318,11 @@ mod tests {
     #[test]
     fn test_game_data_builder() {
         let game_data = build_bg2();
-        let key = KeyImporter{}.import(&DataSource::new(
-            get_assets_path().join(BG2_RESOURCES_DIR).join("CHITIN.KEY"),
-        ))
-        .unwrap();
+        let key = KeyImporter {}
+            .import(&DataSource::new(
+                get_assets_path().join(BG2_RESOURCES_DIR).join("CHITIN.KEY"),
+            ))
+            .unwrap();
         assert_eq!(game_data.resources.len(), key.resource_entries.len());
     }
 
@@ -333,13 +332,20 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("AR0714", ResourceType::Wed)
             .unwrap();
-        assert_eq!(DataOrigin::Bif { name: "data/area070c.bif".to_string() }, resource.data_origin);
+        assert_eq!(
+            DataOrigin::Bif {
+                name: "data/area070c.bif".to_string()
+            },
+            resource.data_origin
+        );
 
         // The data is into the assets/bg2/data/Data/AREA070C.bif file
         assert!(resource.datasource.is_some());
 
         // Test that the data can be read
-        WedImporter.import(resource.datasource.as_ref().unwrap()).unwrap();
+        WedImporter
+            .import(resource.datasource.as_ref().unwrap())
+            .unwrap();
     }
 
     #[test]
@@ -348,7 +354,12 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("AR0714", ResourceType::Tis)
             .unwrap();
-        assert_eq!(DataOrigin::Bif { name: "data/area070c.bif".to_string() }, resource.data_origin);
+        assert_eq!(
+            DataOrigin::Bif {
+                name: "data/area070c.bif".to_string()
+            },
+            resource.data_origin
+        );
 
         // The data is into the assets/bg2/data/Data/AREA070C.bif file
         assert!(resource.datasource.is_some());
@@ -365,11 +376,15 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("ABCLASRQ", ResourceType::TwoDA)
             .unwrap();
-        let path = get_assets_path().join(BG2_RESOURCES_DIR).join("override/AbClasRq.2DA");
+        let path = get_assets_path()
+            .join(BG2_RESOURCES_DIR)
+            .join("override/AbClasRq.2DA");
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);
 
         // Test that the override datasource can be read
-        TwoDAImporter.import(resource.datasource.as_ref().unwrap()).unwrap();
+        TwoDAImporter
+            .import(resource.datasource.as_ref().unwrap())
+            .unwrap();
     }
 
     #[test]
@@ -380,7 +395,9 @@ mod tests {
         assert_eq!(resource.r#type, ResourceType::TwoDA);
         assert_eq!(resource.filename, "abclasrq.2da");
 
-        let path = get_assets_path().join(BG2_RESOURCES_DIR).join("override/AbClasRq.2DA");
+        let path = get_assets_path()
+            .join(BG2_RESOURCES_DIR)
+            .join("override/AbClasRq.2DA");
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);
     }
 

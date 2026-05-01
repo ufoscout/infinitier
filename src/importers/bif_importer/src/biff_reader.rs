@@ -9,8 +9,7 @@ use crate::{
 };
 
 /// A BIFF V1 file importer
-pub struct BiffParser {
-}
+pub struct BiffParser {}
 
 impl BiffParser {
     /// Imports a BIFF V1 file from a DataSource.
