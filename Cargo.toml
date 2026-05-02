@@ -4,12 +4,9 @@ members = [
     "src/common",
     "src/core",
     "src/datasource",
-    "src/infinitier_explorer",
+    "src/infinitier_explorer_egui",
     "src/infinitier_explorer_iced",
     "src/infinitier_explorer_slint",
-    "src/infinitier_explorer_gpui",
-    "src/infinitier_explorer_xilem",
-    "src/infinitier_explorer_floem",
     "src/mve_player_poc",
     "src/fs",
     "src/test_utils",
@@ -77,9 +74,6 @@ eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead o
 egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
 egui_ltreeview = "0.7"
 slint = "1"
-gpui = "0.2"
-xilem = "0.4"
-floem = { version = "0.2", features = ["default", "image-bmp"] }
 
 
 [profile.dev]

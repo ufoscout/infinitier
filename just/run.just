@@ -3,17 +3,7 @@ GAMES_FOLDER:="/home/ufo/Temp/Games"
 # Run Infinitier Explorer Egui with local Baldur's Gate
 [group('run')]
 run_egui_bg:
-  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate/"
-
-# Run Infinitier Explorer Floem with local Baldur's Gate
-[group('run')]
-run_floem_bg:
-  cargo run -p infinitier_explorer_floem -- "{{GAMES_FOLDER}}/Baldur's Gate/"
-
-# Run Infinitier Explorer GPUI with local Baldur's Gate
-[group('run')]
-run_gpui_bg:
-  cargo run -p infinitier_explorer_gpui -- "{{GAMES_FOLDER}}/Baldur's Gate/"
+  cargo run --release -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate/"
 
 # Run Infinitier Explorer ICED with local Baldur's Gate
 [group('run')]
@@ -24,11 +14,6 @@ run_iced_bg:
 [group('run')]
 run_slint_bg:
   cargo run -p infinitier_explorer_slint -- "{{GAMES_FOLDER}}/Baldur's Gate/"
-
-# Run Infinitier Explorer Xilem with local Baldur's Gate
-[group('run')]
-run_xilem_bg:
-  cargo run -p infinitier_explorer_xilem -- "{{GAMES_FOLDER}}/Baldur's Gate/"
 
 # Run Infinitier Explorer with local Baldur's Gate
 [group('run')]

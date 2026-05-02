@@ -1,5 +1,5 @@
 [package]
-name = "infinitier_explorer_gpui"
+name = "infinitier_explorer_egui"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
@@ -9,9 +9,11 @@ repository.workspace = true
 
 [dependencies]
 infinitier_core = { workspace = true }
-gpui = { workspace = true }
-image = { workspace = true }
 
 clap = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
+
+eframe = { workspace = true }
+egui_extras = { workspace = true }
+egui_ltreeview = { workspace = true }
