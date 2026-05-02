@@ -9,6 +9,7 @@ members = [
     "src/infinitier_explorer_slint",
     "src/infinitier_explorer_gpui",
     "src/infinitier_explorer_xilem",
+    "src/infinitier_explorer_floem",
     "src/mve_player_poc",
     "src/fs",
     "src/test_utils",
@@ -78,6 +79,7 @@ egui_ltreeview = "0.7"
 slint = "1"
 gpui = "0.2"
 xilem = "0.4"
+floem = { version = "0.2", features = ["default", "image-bmp"] }
 
 
 [profile.dev]

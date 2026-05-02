@@ -5,6 +5,11 @@ GAMES_FOLDER:="/home/ufo/Temp/Games"
 run_egui_bg:
   cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate/"
 
+# Run Infinitier Explorer Floem with local Baldur's Gate
+[group('run')]
+run_floem_bg:
+  cargo run -p infinitier_explorer_floem -- "{{GAMES_FOLDER}}/Baldur's Gate/"
+
 # Run Infinitier Explorer GPUI with local Baldur's Gate
 [group('run')]
 run_gpui_bg:
