@@ -1,0 +1,132 @@
+import { ListView } from "std-widgets.slint";
+
+export struct TreeItem {
+    label: string,
+    is-group: bool,
+    is-expanded: bool,
+    resource-index: int,
+    group-key: string,
+}
+
+export component MainWindow inherits Window {
+    title: "Infinitier Explorer (Slint)";
+    preferred-width: 1200px;
+    preferred-height: 800px;
+
+    in property <[TreeItem]> tree-items: [];
+    in property <string> info-text: "No file selected";
+    in property <string> viewer-text: "Select a resource from the panel on the left.";
+    in property <image> preview-image;
+    in property <bool> show-image: false;
+    in property <int> selected-resource: -1;
+
+    callback item-clicked(int);
+
+    VerticalLayout {
+        HorizontalLayout {
+            vertical-stretch: 1;
+
+            // Left panel — resource tree
+            VerticalLayout {
+                width: 270px;
+                padding: 6px;
+                spacing: 4px;
+
+                Text {
+                    text: "Resources";
+                    font-size: 14px;
+                    font-weight: 700;
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: #cccccc;
+                }
+
+                ListView {
+                    vertical-stretch: 1;
+
+                    for item[idx] in root.tree-items: Rectangle {
+                        height: 22px;
+                        background: touch.has-hover
+                            ? #d8e4f0
+                            : (!item.is-group && item.resource-index == root.selected-resource
+                                ? #b0c8e8
+                                : transparent);
+
+                        HorizontalLayout {
+                            padding-left: item.is-group ? 4px : 16px;
+                            spacing: 4px;
+                            alignment: start;
+
+                            Text {
+                                width: 14px;
+                                text: item.is-group ? (item.is-expanded ? "▼" : "▶") : "";
+                                color: #555555;
+                                vertical-alignment: center;
+                            }
+
+                            Text {
+                                text: item.label;
+                                color: item.is-group ? #333333 : #111111;
+                                font-weight: item.is-group ? 700 : 400;
+                                overflow: elide;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        touch := TouchArea {
+                            clicked => { root.item-clicked(idx); }
+                        }
+                    }
+                }
+            }
+
+            // Vertical separator
+            Rectangle {
+                width: 1px;
+                background: #cccccc;
+            }
+
+            // Central viewer panel
+            Rectangle {
+                horizontal-stretch: 1;
+
+                Image {
+                    visible: root.show-image;
+                    source: root.preview-image;
+                    image-fit: contain;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                Text {
+                    visible: !root.show-image;
+                    text: root.viewer-text;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    width: 100%;
+                    height: 100%;
+                }
+            }
+        }
+
+        // Bottom status bar
+        Rectangle {
+            height: 28px;
+            background: #e8e8e8;
+            border-color: #cccccc;
+            border-width: 1px;
+
+            HorizontalLayout {
+                padding-left: 8px;
+                alignment: start;
+
+                Text {
+                    vertical-alignment: center;
+                    text: root.info-text;
+                }
+            }
+        }
+    }
+}

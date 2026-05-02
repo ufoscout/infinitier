@@ -6,6 +6,8 @@ members = [
     "src/datasource",
     "src/infinitier_explorer",
     "src/infinitier_explorer_iced",
+    "src/infinitier_explorer_slint",
+    "src/infinitier_explorer_gpui",
     "src/mve_player_poc",
     "src/fs",
     "src/test_utils",
@@ -69,9 +71,11 @@ rodio = { version = "0.22", default-features = false, features = ["playback", "s
 
 # UI
 iced = { version = "0.14", features = ["image"] }
-eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow                                                                                                                                                                                           
-egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading  
+eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow
+egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
 egui_ltreeview = "0.7"
+slint = "1"
+gpui = "0.2"
 
 
 [profile.dev]
