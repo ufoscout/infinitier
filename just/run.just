@@ -10,11 +10,6 @@ run_egui_bg:
 run_iced_bg:
   cargo run -p infinitier_explorer_iced -- "{{GAMES_FOLDER}}/Baldur's Gate/"
 
-# Run Infinitier Explorer Slint with local Baldur's Gate
-[group('run')]
-run_slint_bg:
-  cargo run -p infinitier_explorer_slint -- "{{GAMES_FOLDER}}/Baldur's Gate/"
-
 # Run Infinitier Explorer with local Baldur's Gate
 [group('run')]
 run_bg:

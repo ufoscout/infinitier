@@ -6,7 +6,6 @@ members = [
     "src/datasource",
     "src/infinitier_explorer_egui",
     "src/infinitier_explorer_iced",
-    "src/infinitier_explorer_slint",
     "src/mve_player_poc",
     "src/fs",
     "src/test_utils",
@@ -73,7 +72,6 @@ iced = { version = "0.14", features = ["image"] }
 eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow
 egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
 egui_ltreeview = "0.7"
-slint = "1"
 
 
 [profile.dev]
