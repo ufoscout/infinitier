@@ -43,13 +43,13 @@ impl Explorer {
                 self.select_resource(id);
             }
             Message::NavigateUp => {
-                let visible = self.resource_tree.visible_items(&self.state);
+                let visible = self.resource_tree.visible_items();
                 if let Some(id) = navigate(&visible, self.state.selected, Direction::Up) {
                     self.select_resource(id);
                 }
             }
             Message::NavigateDown => {
-                let visible = self.resource_tree.visible_items(&self.state);
+                let visible = self.resource_tree.visible_items();
                 if let Some(id) = navigate(&visible, self.state.selected, Direction::Down) {
                     self.select_resource(id);
                 }

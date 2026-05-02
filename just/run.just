@@ -20,6 +20,11 @@ run_iced_bg:
 run_slint_bg:
   cargo run -p infinitier_explorer_slint -- "{{GAMES_FOLDER}}/Baldur's Gate/"
 
+# Run Infinitier Explorer Xilem with local Baldur's Gate
+[group('run')]
+run_xilem_bg:
+  cargo run -p infinitier_explorer_xilem -- "{{GAMES_FOLDER}}/Baldur's Gate/"
+
 # Run Infinitier Explorer with local Baldur's Gate
 [group('run')]
 run_bg:

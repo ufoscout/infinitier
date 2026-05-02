@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use iced::widget::{button, column, scrollable, text, Column};
 use iced::{Element, Length};
 
@@ -7,21 +9,23 @@ use crate::state::{AppState, Groups, Message, build_groups};
 
 pub struct ResourceTree {
     groups: Groups,
+    expanded: BTreeSet<String>,
 }
 
 impl ResourceTree {
     pub fn new(game_data: &GameData) -> Self {
         Self {
             groups: build_groups(game_data),
+            expanded: BTreeSet::new(),
         }
     }
 
     /// Returns the resource IDs of all items currently visible in the tree (expanded groups only),
     /// in the same top-to-bottom order they appear on screen.
-    pub fn visible_items(&self, state: &AppState) -> Vec<ResourceId> {
+    pub fn visible_items(&self) -> Vec<ResourceId> {
         let mut items = Vec::new();
         for (ext, entries) in &self.groups {
-            if state.expanded.contains(ext) {
+            if self.expanded.contains(ext) {
                 for (_, resource_id) in entries {
                     items.push(*resource_id);
                 }

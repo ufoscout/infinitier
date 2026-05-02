@@ -71,6 +71,7 @@ pub fn run(game_data: GameData) -> Result<(), slint::PlatformError> {
 }
 
 fn build_flat_items(groups: &Groups, expanded: &BTreeSet<String>) -> Vec<TreeItem> {
+    println!("building flat items");
     let mut items = Vec::new();
     for (ext, entries) in groups {
         let is_expanded = expanded.contains(ext);
