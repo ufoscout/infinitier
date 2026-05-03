@@ -1,5 +1,10 @@
+use bytesize::ByteSize;
 use eframe::egui;
-use infinitier_core::{fs::Importer, game::{GameResource, ResourceId}, resource::bmp::BmpImporter};
+use infinitier_core::{
+    fs::Importer,
+    game::{DataOrigin, GameResource, ResourceId},
+    resource::bmp::BmpImporter,
+};
 
 pub struct BmpViewer {
     cached: Option<(ResourceId, Result<egui::TextureHandle, String>)>,
@@ -42,6 +47,26 @@ impl BmpViewer {
                 });
             }
             Ok(texture) => {
+                egui::Panel::bottom("bmp_info_panel").show_inside(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        let [w, h] = texture.size();
+                        ui.label(format!("{w} × {h} px"));
+                        ui.separator();
+                        match resource.file_size {
+                            Some(size) => { ui.label(ByteSize(size).to_string()); }
+                            None => { ui.label("? B"); }
+                        }
+                        ui.separator();
+                        ui.label("RGBA8");
+                        ui.separator();
+                        match &resource.data_origin {
+                            DataOrigin::Bif { name } => { ui.label(format!("BIF: {name}")); }
+                            DataOrigin::Override { path } => { ui.label(format!("Override: {}", path.display())); }
+                            DataOrigin::Missing => { ui.label("Missing"); }
+                        }
+                    });
+                });
+
                 let available = ui.available_size();
                 let natural = texture.size_vec2();
                 let scale = (available.x / natural.x)

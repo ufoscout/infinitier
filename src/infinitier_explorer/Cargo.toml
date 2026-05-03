@@ -10,6 +10,7 @@ repository.workspace = true
 [dependencies]
 infinitier_core = { workspace = true }
 
+bytesize = { workspace = true }
 clap = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
