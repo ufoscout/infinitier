@@ -1,5 +1,5 @@
 use infinitier_core::game::{DataOrigin, GameDataBuilder};
-use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path, start_logger};
+use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
 
 /// Returns the list of game directories to test.
 ///

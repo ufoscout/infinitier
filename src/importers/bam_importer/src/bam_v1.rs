@@ -47,7 +47,7 @@ impl BamV1Parser {
 
         // Initializing palette
         let palette = {
-            let palette_entries = 256.min((lookup_offset - palette_offset) / 4) as usize;
+            let palette_entries = 256.min(lookup_offset.saturating_sub(palette_offset) / 4) as usize;
             let mut palette = Vec::with_capacity(palette_entries);
             reader.set_position(palette_offset)?;
 
@@ -71,15 +71,17 @@ impl BamV1Parser {
                 palette.push(Rgb { r, g, b, alpha });
             }
 
-            let _ = std::mem::replace(
-                &mut palette[transparency_index],
-                Rgb {
-                    r: 0,
-                    g: 255,
-                    b: 0,
-                    alpha: 0,
-                },
-            );
+            if transparency_index < palette.len() {
+                let _ = std::mem::replace(
+                    &mut palette[transparency_index],
+                    Rgb {
+                        r: 0,
+                        g: 255,
+                        b: 0,
+                        alpha: 0,
+                    },
+                );
+            }
 
             palette
         };

@@ -97,7 +97,7 @@ fn parse_data_row(line: &str, columns: &[usize], default: &str) -> (String, Vec<
             result.push(default.to_owned());
             continue;
         }
-        let word = line[*s..*e].trim();
+        let word = line[*s..(*e).min(max_len)].trim();
         if word.is_empty() {
             result.push(default.to_owned());
         } else {

@@ -138,15 +138,21 @@ fn list_real_entries_recursive(path: &Path) -> io::Result<BTreeMap<String, PathB
 fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) -> io::Result<()> {
     for entry in fs::read_dir(path)? {
         let entry = entry?;
-        let metadata = entry.metadata()?;
-        let entry_path = entry.path().canonicalize()?;
-        let relative_path = entry_path
-            .strip_prefix(root)
-            .unwrap_or_else(|_| panic!("Cannot strip prefix from path {}", path.display()))
-            .to_str()
-            .unwrap_or_else(|| panic!("Cannot convert path to string {}", path.display()))
-            .to_lowercase();
+        // Canonicalize to resolve symlinks; skip broken symlinks gracefully.
+        let entry_path = match entry.path().canonicalize() {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        // Skip entries that resolve outside the root (e.g. Wine symlinks to system paths).
+        let relative_path = match entry_path.strip_prefix(root) {
+            Ok(rel) => match rel.to_str() {
+                Some(s) => s.to_lowercase(),
+                None => continue,
+            },
+            Err(_) => continue,
+        };
 
+        let metadata = entry.metadata()?;
         if metadata.is_file() {
             results.insert(relative_path, entry_path);
         } else if metadata.is_dir() {
