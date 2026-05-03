@@ -1,53 +1,36 @@
 use bytesize::ByteSize;
-use eframe::egui;
+use eframe::egui::{self, TextureHandle};
 use infinitier_core::{
-    fs::Importer,
     game::{DataOrigin, GameResource, ResourceId},
-    resource::bmp::BmpImporter,
+    resource::bmp::Bmp,
 };
 use super::ResourceViewerTrait;
 
 pub struct BmpViewer {
-    cached: Option<(ResourceId, Result<egui::TextureHandle, String>)>,
+    cached: TextureHandle,
 }
 
 impl BmpViewer {
-    pub fn new() -> Self {
-        Self { cached: None }
+    pub fn new(bmp: Bmp, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
+        let w = bmp.image.width() as usize;
+                        let h = bmp.image.height() as usize;
+                        let color_image =
+                            egui::ColorImage::from_rgba_unmultiplied([w, h], bmp.image.as_raw());
+        let handle = ui.ctx().load_texture(
+                            format!("bmp_{resource_id}"),
+                            color_image,
+                            egui::TextureOptions::default(),
+                        );
+
+        Self { cached: handle }
     }
 }
 
 impl ResourceViewerTrait for BmpViewer {
-    fn show(&mut self, ui: &mut egui::Ui, resource_id: ResourceId, resource: &GameResource) {
-        if self.cached.as_ref().map(|(id, _)| *id) != Some(resource_id) {
-            let result = match &resource.datasource {
-                None => Err("no datasource available".to_string()),
-                Some(ds) => BmpImporter
-                    .import(ds)
-                    .map_err(|e| e.to_string())
-                    .map(|bmp| {
-                        let w = bmp.image.width() as usize;
-                        let h = bmp.image.height() as usize;
-                        let color_image =
-                            egui::ColorImage::from_rgba_unmultiplied([w, h], bmp.image.as_raw());
-                        ui.ctx().load_texture(
-                            format!("bmp_{resource_id}"),
-                            color_image,
-                            egui::TextureOptions::default(),
-                        )
-                    }),
-            };
-            self.cached = Some((resource_id, result));
-        }
+    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
 
-        let (_, result) = self.cached.as_ref().unwrap();
-        match result {
-            Err(msg) => {
-                ui.centered_and_justified(|ui| {
-                    ui.label(format!("Error loading BMP: {msg}"));
-                });
-            }
-            Ok(texture) => {
+        let texture = &self.cached;
+
                 egui::Panel::bottom("bmp_info_panel").show_inside(ui, |ui| {
                     ui.horizontal(|ui| {
                         let [w, h] = texture.size();
@@ -92,7 +75,6 @@ impl ResourceViewerTrait for BmpViewer {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                     ui.add(egui::Image::new(texture).fit_to_exact_size(display));
                 });
-            }
-        }
+
     }
 }

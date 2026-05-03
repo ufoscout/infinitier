@@ -140,7 +140,7 @@ impl ResourceViewer {
                     match resource.import() {
                         Ok(imported) => match imported {
                             ImportedResource::Bam(bam) => Box::new(BamViewer::new()),
-                            ImportedResource::Bmp(bmp) => Box::new(BmpViewer::new()),
+                            ImportedResource::Bmp(bmp) => Box::new(BmpViewer::new(bmp, ui, resource_id)),
                             ImportedResource::Ids(ids) => Box::new(IdsViewer::new()),
                             ImportedResource::Ini(ini) => Box::new(IniViewer::new()),
                             ImportedResource::Pvrz(prvz) => Box::new(PvrzViewer::new()),
