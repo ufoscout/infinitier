@@ -41,8 +41,8 @@ impl BamV2Parser {
             for _ in 0..frames_count {
                 let width = reader.read_u16()? as u32;
                 let height = reader.read_u16()? as u32;
-                let center_x = reader.read_u16()? as u32;
-                let center_y = reader.read_u16()? as u32;
+                let center_x = reader.read_i16()? as i32;
+                let center_y = reader.read_i16()? as i32;
                 let data_blocks_start_index = reader.read_u16()? as usize;
                 let data_blocks_count = reader.read_u16()? as usize;
 
@@ -142,8 +142,8 @@ pub struct BamV2Cycle {
 pub struct BamV2Frame {
     pub width: u32,
     pub height: u32,
-    pub center_x: u32,
-    pub center_y: u32,
+    pub center_x: i32,
+    pub center_y: i32,
     /// Count of data_block entries in this cycle
     pub data_blocks_count: usize,
     /// Start index of data_block entries in this cycle
@@ -207,19 +207,39 @@ impl BamV2 {
             let source_image = PvrzImporter::to_image(&source_header, &datasource)?;
             let source_image_buffer = source_image.as_raw();
 
-            for row in 0..block.height {
+            let mut w = block.width;
+            let mut h = block.height;
+            if block.source_x_coordinate + w > source_header.width {
+                log::warn!(
+                    "PVRZ {} texture width out of bounds: src_x={} w={} texture_w={}",
+                    block.pvrz_name(), block.source_x_coordinate, w, source_header.width
+                );
+                w = source_header.width.saturating_sub(block.source_x_coordinate);
+            }
+            if block.source_y_coordinate + h > source_header.height {
+                log::warn!(
+                    "PVRZ {} texture height out of bounds: src_y={} h={} texture_h={}",
+                    block.pvrz_name(), block.source_y_coordinate, h, source_header.height
+                );
+                h = source_header.height.saturating_sub(block.source_y_coordinate);
+            }
+            if w == 0 || h == 0 {
+                continue;
+            }
+
+            for row in 0..h {
                 let block_source_row = block.source_y_coordinate + row;
                 let block_destination_row = block.target_y_coordinate + row;
 
                 let source_start = ((block_source_row * source_header.width
                     + block.source_x_coordinate)
                     * 4) as usize;
-                let source_end = source_start + (block.width * 4) as usize;
+                let source_end = source_start + (w * 4) as usize;
 
                 let target_start = ((block_destination_row * frame.width
                     + block.target_x_coordinate)
                     * 4) as usize;
-                let target_end = target_start + (block.width * 4) as usize;
+                let target_end = target_start + (w * 4) as usize;
 
                 target_image_buffer[target_start..target_end]
                     .copy_from_slice(&source_image_buffer[source_start..source_end]);

@@ -47,7 +47,15 @@ impl BamV1Parser {
 
         // Initializing palette
         let palette = {
-            let palette_entries = 256.min(lookup_offset.saturating_sub(palette_offset) / 4) as usize;
+            // Find the nearest section offset after palette_offset to determine palette size,
+            // regardless of which section (frames or lookup table) comes after it.
+            let file_end = reader.data.seek(std::io::SeekFrom::End(0))?;
+            let next_offset = [frames_offset, lookup_offset, file_end]
+                .into_iter()
+                .filter(|&o| o > palette_offset)
+                .min()
+                .unwrap_or(file_end);
+            let palette_entries = 256.min((next_offset - palette_offset) / 4) as usize;
             let mut palette = Vec::with_capacity(palette_entries);
             reader.set_position(palette_offset)?;
 
@@ -93,8 +101,8 @@ impl BamV1Parser {
             for _ in 0..frames_count {
                 let width = reader.read_u16()? as u32;
                 let height = reader.read_u16()? as u32;
-                let center_x = reader.read_u16()? as u32;
-                let center_y = reader.read_u16()? as u32;
+                let center_x = reader.read_i16()? as i32;
+                let center_y = reader.read_i16()? as i32;
                 let data_bits = reader.read_u32()?;
                 let data_offset = (data_bits & 0x7fffffff) as u64;
                 let compressed = (data_bits & 0x80000000) == 0;
@@ -181,8 +189,8 @@ pub struct BamV1Cycle {
 pub struct BamV1Frame {
     pub width: u32,
     pub height: u32,
-    pub center_x: u32,
-    pub center_y: u32,
+    pub center_x: i32,
+    pub center_y: i32,
     /// The indexes of the pixels in the palette
     pub pixel_palette_indexes: Vec<u8>,
 }
@@ -281,9 +289,9 @@ mod tests {
 
         for (i, frame) in bam.frames.iter().enumerate() {
             assert!(frame.center_x > 0);
-            assert!(frame.center_x < frame.width);
+            assert!(frame.center_x < frame.width as i32);
             assert!(frame.center_y > 0);
-            assert!(frame.center_y < frame.height);
+            assert!(frame.center_y < frame.height as i32);
             assert_eq!(
                 frame.pixel_palette_indexes.len(),
                 (frame.width * frame.height) as usize
