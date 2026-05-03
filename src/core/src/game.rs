@@ -118,9 +118,10 @@ impl GameResource {
         use infinitier_two_da_importer::TwoDAImporter;
         use infinitier_wed_importer::WedImporter;
 
-        let ds = self.datasource.as_ref().ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotFound, "no datasource available")
-        })?;
+        let ds = self
+            .datasource
+            .as_ref()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no datasource available"))?;
         match self.r#type {
             ResourceType::Bam => BamImporter {}.import(ds).map(ImportedResource::Bam),
             ResourceType::Bmp => BmpImporter.import(ds).map(ImportedResource::Bmp),

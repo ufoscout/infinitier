@@ -1,16 +1,14 @@
+use super::ResourceViewerTrait;
 use eframe::egui;
 use infinitier_core::game::{GameResource, ResourceId};
-use super::ResourceViewerTrait;
 
-pub struct ErrorViewer{
-    message: String
+pub struct ErrorViewer {
+    message: String,
 }
 
 impl ErrorViewer {
     pub fn new(message: String) -> Self {
-        Self {
-            message
-        }
+        Self { message }
     }
 }
 

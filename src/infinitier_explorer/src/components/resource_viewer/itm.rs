@@ -1,6 +1,6 @@
+use super::ResourceViewerTrait;
 use eframe::egui;
 use infinitier_core::game::{GameResource, ResourceId};
-use super::ResourceViewerTrait;
 
 pub struct ItmViewer;
 
