@@ -392,9 +392,10 @@ impl<T: BufRead> Reader<T> {
     /// and returns it as a `String` and the number of bytes read.
     /// If bytes read is 0, then EOF has been reached
     pub fn read_line(&mut self) -> std::io::Result<(String, usize)> {
-        let mut buf = String::new();
-        let bytes = self.data.read_line(&mut buf)?;
-        Ok((buf, bytes))
+        let mut buf = vec![];
+        let bytes = self.data.read_until(b'\n', &mut buf)?;
+        let (decoded, _, _) = self.charset.decode(&buf);
+        Ok((decoded.into_owned(), bytes))
     }
 }
 
