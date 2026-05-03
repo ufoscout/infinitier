@@ -1,3 +1,5 @@
+use std::io::SeekFrom;
+
 use infinitier_common::ResourceType;
 use infinitier_datasource::{DataSource, Importer};
 use log::{debug, error};
@@ -40,8 +42,8 @@ impl Importer for WedImporter {
                     },
                     unique_tiles_count: reader.read_u16()?,
                     movement_type: reader.read_u16()?,
-                    tile_index_lookup_offset: reader.read_u32()? as u64,
                     tilemap_offset: reader.read_u32()? as u64,
+                    tile_index_lookup_offset: reader.read_u32()? as u64,
                 });
             }
         }
@@ -98,7 +100,25 @@ impl Importer for WedImporter {
         }
 
         // Read Wall Groups
-        let wall_group_count = overlays[0].width as usize * overlays[0].height as usize / 75;
+        // Derive count from section byte range, matching NearInfinity's approach.
+        let file_size = reader.data.seek(SeekFrom::End(0))?;
+        let mut section_ends = [
+            overlays_offset,
+            secondary_header_offset,
+            doors_offset,
+            door_tiles_offset,
+            polygons_offset,
+            verticles_offset,
+            wall_groups_offset,
+            polytable_offset,
+            file_size,
+        ];
+        section_ends.sort();
+        let wall_group_count = section_ends
+            .iter()
+            .find(|&&o| o > wall_groups_offset)
+            .map(|&next| ((next - wall_groups_offset) / 4) as usize)
+            .unwrap_or(0);
         let mut wall_groups = Vec::with_capacity(wall_group_count);
         let mut polytable_count = 0;
         {

@@ -23,7 +23,12 @@ impl Importer for TwoDAImporter {
             );
         }
 
-        let default = reader.read_line()?.0.trim().to_string();
+        let raw_default = reader.read_line()?.0.trim().to_string();
+        let default = if raw_default.is_empty() {
+            "0".to_string()
+        } else {
+            raw_default
+        };
         let (headers, columns) = parse_headers(&reader.read_line()?.0);
 
         let mut rows = HashMap::new();
