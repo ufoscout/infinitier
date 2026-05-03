@@ -40,6 +40,16 @@ impl Importer for IniImporter {
                 continue;
             }
 
+            // Strip inline // comments from entry lines (Infinity Engine INI format
+            // uses // instead of ; for comments, per NearInfinity's IniMap).
+            let line = match line.find("//") {
+                Some(p) => line[..p].trim_end(),
+                None => line,
+            };
+            if line.is_empty() {
+                continue;
+            }
+
             if let Some(eq) = line.find('=')
                 && let Some(section) = sections.last_mut()
             {
@@ -189,6 +199,26 @@ mod tests {
         assert_eq!(ini.sections.len(), 2);
         assert_eq!(ini.get("a", "x"), Some("1"));
         assert_eq!(ini.get("b", "y"), Some("2"));
+    }
+
+    #[test]
+    fn test_double_slash_standalone_comment_skipped() {
+        let ini = parse("[s]\n// this is a comment\nk=v\n");
+        assert_eq!(ini.sections[0].entries.len(), 1);
+        assert_eq!(ini.sections[0].entries[0].key, "k");
+    }
+
+    #[test]
+    fn test_double_slash_inline_comment_stripped_from_value() {
+        let ini = parse("[s]\nk=hello // world\n");
+        assert_eq!(ini.sections[0].entries[0].value, "hello");
+    }
+
+    #[test]
+    fn test_double_slash_before_equals_drops_entry() {
+        // // before = means the whole meaningful part is a comment → entry is dropped
+        let ini = parse("[s]\nkey // = value\n");
+        assert!(ini.sections[0].entries.is_empty());
     }
 
     #[test]

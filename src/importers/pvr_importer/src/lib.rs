@@ -26,8 +26,16 @@ impl Importer for PvrzImporter {
         let mut reader = reader.as_zip_reader();
 
         // header
+        let version = reader.read_u32()?;
+        if version != 0x03525650 {
+            error!("Invalid PVR signature: 0x{:08X}", version);
+            return Err(std::io::Error::other(format!(
+                "Invalid PVR signature: 0x{:08X}",
+                version
+            )));
+        }
         let header = PvrzHeader {
-            version: reader.read_u32()?,
+            version,
             flags: reader.read_u32()?,
             pixel_format: PvrDataCompression::from_u64(reader.read_u64()?)?,
             color_space: reader.read_u32()?,
