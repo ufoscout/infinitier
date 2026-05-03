@@ -1,5 +1,5 @@
 use eframe::egui;
-use infinitier_core::{game::{GameResource, ResourceId}, resource::key::ResourceType};
+use infinitier_core::{game::{GameResource, ResourceId}, imported_resource::ImportedResource};
 use log::*;
 
 use crate::state::AppState;
@@ -17,6 +17,7 @@ mod chu;
 mod cre;
 mod dlg;
 mod eff;
+mod error;
 mod fnt;
 mod gam;
 mod glsl;
@@ -66,6 +67,7 @@ use chu::ChuViewer;
 use cre::CreViewer;
 use dlg::DlgViewer;
 use eff::EffViewer;
+use error::ErrorViewer;
 use fnt::FntViewer;
 use gam::GamViewer;
 use glsl::GlslViewer;
@@ -103,11 +105,10 @@ use wfx::WfxViewer;
 use wmp::WmpViewer;
 
 pub trait ResourceViewerTrait {
-    fn show(&mut self, ui: &mut egui::Ui, resource_id: ResourceId, resource: &GameResource); 
+    fn show(&mut self, ui: &mut egui::Ui, resource_id: ResourceId, resource: &GameResource);
 }
 
 pub struct ResourceViewer {
-    bmp: BmpViewer,
     inner: Option<InnerResource>,
 }
 
@@ -118,10 +119,7 @@ struct InnerResource {
 
 impl ResourceViewer {
     pub fn new() -> Self {
-        Self {
-            bmp: BmpViewer::new(),
-            inner: None,
-        }
+        Self { inner: None }
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, state: &AppState) {
@@ -137,67 +135,73 @@ impl ResourceViewer {
                         inner.resource.show(ui, resource_id, state.game_data.get_by_id(resource_id).unwrap());
                         return;
                     }
-                } else {
-                    if let Some(resource) = state.game_data.get_by_id(resource_id) {
-                    // TODO Create a new inner resource
-                    } else {
-                        error!("Resource not found: {resource_id:?}");
-                        ui.centered_and_justified(|ui| {
-                            ui.label(format!("Resource not found: {resource_id:?}"));
-                        });
-                    }
                 }
+                let viewer: Box<dyn ResourceViewerTrait> = if let Some(resource) = state.game_data.get_by_id(resource_id) {
+                    match resource.import() {
+                        Ok(imported) => match imported {
+                            ImportedResource::Bam(bam) => Box::new(BamViewer::new()),
+                            ImportedResource::Bmp(bmp) => Box::new(BmpViewer::new()),
+                            ImportedResource::Ids(ids) => Box::new(IdsViewer::new()),
+                            ImportedResource::Ini(ini) => Box::new(IniViewer::new()),
+                            ImportedResource::Pvrz(prvz) => Box::new(PvrzViewer::new()),
+                            ImportedResource::TwoDA(twoda) => Box::new(TwoDAViewer::new()),
+                            ImportedResource::Wed(wed) => Box::new(WedViewer::new()),
+                            ImportedResource::Acm => Box::new(AcmViewer::new()),
+                            ImportedResource::Are => Box::new(AreViewer::new()),
+                            ImportedResource::Bah => Box::new(BahViewer::new()),
+                            ImportedResource::Bcs => Box::new(BcsViewer::new()),
+                            ImportedResource::Bio => Box::new(BioViewer::new()),
+                            ImportedResource::Bs => Box::new(BsViewer::new()),
+                            ImportedResource::Chr => Box::new(ChrViewer::new()),
+                            ImportedResource::Chu => Box::new(ChuViewer::new()),
+                            ImportedResource::Cre => Box::new(CreViewer::new()),
+                            ImportedResource::Dlg => Box::new(DlgViewer::new()),
+                            ImportedResource::Eff => Box::new(EffViewer::new()),
+                            ImportedResource::Fnt => Box::new(FntViewer::new()),
+                            ImportedResource::Gam => Box::new(GamViewer::new()),
+                            ImportedResource::Glsl => Box::new(GlslViewer::new()),
+                            ImportedResource::Gui => Box::new(GuiViewer::new()),
+                            ImportedResource::Itm => Box::new(ItmViewer::new()),
+                            ImportedResource::Lua => Box::new(LuaViewer::new()),
+                            ImportedResource::Maze => Box::new(MazeViewer::new()),
+                            ImportedResource::Menu => Box::new(MenuViewer::new()),
+                            ImportedResource::Mos => Box::new(MosViewer::new()),
+                            ImportedResource::Mus => Box::new(MusViewer::new()),
+                            ImportedResource::Mve => Box::new(MveViewer::new()),
+                            ImportedResource::Plt => Box::new(PltViewer::new()),
+                            ImportedResource::Png => Box::new(PngViewer::new()),
+                            ImportedResource::Pro => Box::new(ProViewer::new()),
+                            ImportedResource::Spl => Box::new(SplViewer::new()),
+                            ImportedResource::Sql => Box::new(SqlViewer::new()),
+                            ImportedResource::Src => Box::new(SrcViewer::new()),
+                            ImportedResource::Sto => Box::new(StoViewer::new()),
+                            ImportedResource::Tga => Box::new(TgaViewer::new()),
+                            ImportedResource::Tis => Box::new(TisViewer::new()),
+                            ImportedResource::Toh => Box::new(TohViewer::new()),
+                            ImportedResource::Tot => Box::new(TotViewer::new()),
+                            ImportedResource::Ttf => Box::new(TtfViewer::new()),
+                            ImportedResource::Vef => Box::new(VefViewer::new()),
+                            ImportedResource::Vvc => Box::new(VvcViewer::new()),
+                            ImportedResource::Wav => Box::new(WavViewer::new()),
+                            ImportedResource::Wbm => Box::new(WbmViewer::new()),
+                            ImportedResource::Wfx => Box::new(WfxViewer::new()),
+                            ImportedResource::Wmp => Box::new(WmpViewer::new()),
+                            ImportedResource::Unknown(_) => Box::new(UnknownViewer::new()),
+                        },
+                        Err(err) => {
+                            error!("Error importing resource: {resource_id:?}, {err:?}");
+                            Box::new(ErrorViewer::new(format!("Error importing resource: {resource_id:?}, {err:?}")))
+                        }
+                    }
+                } else {
+                    error!("Resource not found: {resource_id:?}");
+                    Box::new(ErrorViewer::new(format!("Resource not found: {resource_id:?}")))
+                };
 
-                if let Some(resource) = state.game_data.get_by_id(resource_id) {
-                    match resource.r#type {
-                        ResourceType::Acm => AcmViewer::show(ui),
-                        ResourceType::Are => AreViewer::show(ui),
-                        ResourceType::Bah => BahViewer::show(ui),
-                        ResourceType::Bam => BamViewer::show(ui),
-                        ResourceType::Bcs => BcsViewer::show(ui),
-                        ResourceType::Bio => BioViewer::show(ui),
-                        ResourceType::Bmp => self.bmp.show(ui, resource_id, resource),
-                        ResourceType::Bs => BsViewer::show(ui),
-                        ResourceType::Chr => ChrViewer::show(ui),
-                        ResourceType::Chu => ChuViewer::show(ui),
-                        ResourceType::Cre => CreViewer::show(ui),
-                        ResourceType::Dlg => DlgViewer::show(ui),
-                        ResourceType::Eff => EffViewer::show(ui),
-                        ResourceType::Fnt => FntViewer::show(ui),
-                        ResourceType::Gam => GamViewer::show(ui),
-                        ResourceType::Glsl => GlslViewer::show(ui),
-                        ResourceType::Gui => GuiViewer::show(ui),
-                        ResourceType::Ids => IdsViewer::show(ui),
-                        ResourceType::Ini => IniViewer::show(ui),
-                        ResourceType::Itm => ItmViewer::show(ui),
-                        ResourceType::Lua => LuaViewer::show(ui),
-                        ResourceType::Maze => MazeViewer::show(ui),
-                        ResourceType::Menu => MenuViewer::show(ui),
-                        ResourceType::Mos => MosViewer::show(ui),
-                        ResourceType::Mve => MveViewer::show(ui),
-                        ResourceType::Mus => MusViewer::show(ui),
-                        ResourceType::Plt => PltViewer::show(ui),
-                        ResourceType::Png => PngViewer::show(ui),
-                        ResourceType::Pro => ProViewer::show(ui),
-                        ResourceType::Pvrz => PvrzViewer::show(ui),
-                        ResourceType::Spl => SplViewer::show(ui),
-                        ResourceType::Sql => SqlViewer::show(ui),
-                        ResourceType::Src => SrcViewer::show(ui),
-                        ResourceType::Sto => StoViewer::show(ui),
-                        ResourceType::Tga => TgaViewer::show(ui),
-                        ResourceType::Tis => TisViewer::show(ui),
-                        ResourceType::Toh => TohViewer::show(ui),
-                        ResourceType::Tot => TotViewer::show(ui),
-                        ResourceType::Ttf => TtfViewer::show(ui),
-                        ResourceType::TwoDA => TwoDAViewer::show(ui),
-                        ResourceType::Vef => VefViewer::show(ui),
-                        ResourceType::Vvc => VvcViewer::show(ui),
-                        ResourceType::Wav => WavViewer::show(ui),
-                        ResourceType::Wbm => WbmViewer::show(ui),
-                        ResourceType::Wed => WedViewer::show(ui),
-                        ResourceType::Wfx => WfxViewer::show(ui),
-                        ResourceType::Wmp => WmpViewer::show(ui),
-                        ResourceType::Unknown(type_id) => UnknownViewer::show(ui, type_id),
+                self.inner = Some(InnerResource { id: resource_id, resource: viewer });
+                if let Some(inner) = &mut self.inner {
+                    if let Some(resource) = state.game_data.get_by_id(resource_id) {
+                        inner.resource.show(ui, resource_id, resource);
                     }
                 }
             }

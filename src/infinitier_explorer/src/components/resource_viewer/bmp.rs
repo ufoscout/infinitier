@@ -5,6 +5,7 @@ use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     resource::bmp::BmpImporter,
 };
+use super::ResourceViewerTrait;
 
 pub struct BmpViewer {
     cached: Option<(ResourceId, Result<egui::TextureHandle, String>)>,
@@ -14,8 +15,10 @@ impl BmpViewer {
     pub fn new() -> Self {
         Self { cached: None }
     }
+}
 
-    pub fn show(&mut self, ui: &mut egui::Ui, resource_id: ResourceId, resource: &GameResource) {
+impl ResourceViewerTrait for BmpViewer {
+    fn show(&mut self, ui: &mut egui::Ui, resource_id: ResourceId, resource: &GameResource) {
         if self.cached.as_ref().map(|(id, _)| *id) != Some(resource_id) {
             let result = match &resource.datasource {
                 None => Err("no datasource available".to_string()),

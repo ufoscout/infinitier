@@ -1,9 +1,17 @@
 use eframe::egui;
+use infinitier_core::game::{GameResource, ResourceId};
+use super::ResourceViewerTrait;
 
 pub struct StoViewer;
 
 impl StoViewer {
-    pub fn show(ui: &mut egui::Ui) {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl ResourceViewerTrait for StoViewer {
+    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
         ui.label("STO Viewer");
     }
 }
