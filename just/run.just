@@ -1,5 +1,10 @@
 GAMES_FOLDER:="/home/ufo/Temp/Games"
 
+# Run Infinitier Explorer Freya with local Baldur's Gate
+[group('run')]
+run_freya_bg:
+  cargo run -p infinitier_explorer_freya -- "{{GAMES_FOLDER}}/Baldur's Gate/"
+
 # Run Infinitier Explorer Egui with local Baldur's Gate
 [group('run')]
 run_egui_bg:

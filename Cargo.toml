@@ -5,6 +5,7 @@ members = [
     "src/core",
     "src/datasource",
     "src/infinitier_explorer_egui",
+    "src/infinitier_explorer_freya",
     "src/infinitier_explorer_iced",
     "src/mve_player_poc",
     "src/fs",
@@ -68,6 +69,7 @@ texture2ddecoder = "0.1"
 rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }
 
 # UI
+freya = "0.4.0-rc.19"
 iced = { version = "0.14", features = ["image"] }
 eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow
 egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
