@@ -25,10 +25,8 @@ impl BmpViewer {
                     .map(|bmp| {
                         let w = bmp.image.width() as usize;
                         let h = bmp.image.height() as usize;
-                        let color_image = egui::ColorImage::from_rgba_unmultiplied(
-                            [w, h],
-                            bmp.image.as_raw(),
-                        );
+                        let color_image =
+                            egui::ColorImage::from_rgba_unmultiplied([w, h], bmp.image.as_raw());
                         ui.ctx().load_texture(
                             format!("bmp_{resource_id}"),
                             color_image,
@@ -53,16 +51,26 @@ impl BmpViewer {
                         ui.label(format!("{w} × {h} px"));
                         ui.separator();
                         match resource.file_size {
-                            Some(size) => { ui.label(ByteSize(size).to_string()); }
-                            None => { ui.label("? B"); }
+                            Some(size) => {
+                                ui.label(ByteSize(size).to_string());
+                            }
+                            None => {
+                                ui.label("? B");
+                            }
                         }
                         ui.separator();
                         ui.label("RGBA8");
                         ui.separator();
                         match &resource.data_origin {
-                            DataOrigin::Bif { name } => { ui.label(format!("BIF: {name}")); }
-                            DataOrigin::Override { path } => { ui.label(format!("Override: {}", path.display())); }
-                            DataOrigin::Missing => { ui.label("Missing"); }
+                            DataOrigin::Bif { name } => {
+                                ui.label(format!("BIF: {name}"));
+                            }
+                            DataOrigin::Override { path } => {
+                                ui.label(format!("Override: {}", path.display()));
+                            }
+                            DataOrigin::Missing => {
+                                ui.label("Missing");
+                            }
                         }
                     });
                 });

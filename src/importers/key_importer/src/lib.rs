@@ -224,7 +224,6 @@ impl ResourceEntry {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
@@ -269,5 +268,4 @@ mod tests {
             assert_eq!(actual, expected, "key mismatch for {}", dir.display());
         }
     }
-
 }

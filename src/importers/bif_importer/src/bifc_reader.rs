@@ -127,8 +127,8 @@ impl<'a, R: BufRead + Seek> BifcCompressedReader<'a, R> {
 
 #[cfg(test)]
 mod tests {
-    use infinitier_datasource::DataSource;
     use infinitier_common::ResourceType;
+    use infinitier_datasource::DataSource;
     use infinitier_test_utils::get_assets_path;
 
     use super::*;

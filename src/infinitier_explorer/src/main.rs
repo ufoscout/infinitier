@@ -56,8 +56,8 @@ fn main() {
             // otherwise cap at 1.5 to prevent runaway zoom on misconfigured displays.
             #[cfg(target_os = "linux")]
             {
-                let is_x11 = std::env::var("WAYLAND_DISPLAY").is_err()
-                    && std::env::var("DISPLAY").is_ok();
+                let is_x11 =
+                    std::env::var("WAYLAND_DISPLAY").is_err() && std::env::var("DISPLAY").is_ok();
                 if is_x11 {
                     if let Ok(scale) = std::env::var("INFINITIER_SCALE") {
                         if let Ok(ppp) = scale.parse::<f32>() {
@@ -71,7 +71,7 @@ fn main() {
                     }
                 }
             }
-            
+
             Ok(Box::new(app::ExplorerApp::new(key)))
         }),
     ) {

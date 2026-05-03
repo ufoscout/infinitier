@@ -7,7 +7,7 @@ pub mod mve {
     pub use infinitier_mve_decoder::*;
 }
 
-// Common 
+// Common
 pub use infinitier_common::*;
 
 // Importers

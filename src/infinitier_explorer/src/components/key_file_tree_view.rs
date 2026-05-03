@@ -72,7 +72,10 @@ impl KeyFileTreeView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_core::{game::{DataOrigin, GameData, GameResource}, resource::key::ResourceType};
+    use infinitier_core::{
+        game::{DataOrigin, GameData, GameResource},
+        resource::key::ResourceType,
+    };
 
     fn make_game_data(entries: Vec<(&str, ResourceType)>) -> GameData {
         make_game_data_with_origins(

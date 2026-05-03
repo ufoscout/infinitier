@@ -1,5 +1,5 @@
-use infinitier_datasource::{DataSource, Importer};
 use infinitier_common::ResourceType;
+use infinitier_datasource::{DataSource, Importer};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
 

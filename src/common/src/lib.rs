@@ -228,7 +228,7 @@ mod tests {
         }
     }
 
-        #[test]
+    #[test]
     fn test_get_extension() {
         assert_eq!(ResourceType::TwoDA.get_extension(), Some("2da"));
         assert_eq!(ResourceType::Unknown(0).get_extension(), None);

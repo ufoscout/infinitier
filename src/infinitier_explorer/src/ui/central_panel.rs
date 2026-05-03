@@ -13,11 +13,10 @@ impl CentralPanel {
             viewer: ResourceViewer::new(),
         }
     }
-    
+
     pub fn show(&mut self, ui: &mut egui::Ui, state: &AppState) {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             self.viewer.show(ui, state);
         });
     }
 }
-    

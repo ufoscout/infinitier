@@ -6,9 +6,9 @@ use std::{
 };
 
 use infinitier_bif_importer::{BifEmbeddedResource, BifImporter};
+use infinitier_common::ResourceType;
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
-use infinitier_common::ResourceType;
 use infinitier_key_importer::KeyImporter;
 use log::{debug, warn};
 

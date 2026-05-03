@@ -2,8 +2,8 @@ mod bif_reader;
 mod bifc_reader;
 mod biff_reader;
 
-use infinitier_datasource::{DataSource, Importer, Reader};
 use infinitier_common::ResourceType;
+use infinitier_datasource::{DataSource, Importer, Reader};
 use log::{debug, error};
 use std::io::Read;
 
