@@ -46,6 +46,7 @@ impl Importer for TwoDAImporter {
 }
 
 /// Represents a 2DA file.
+#[derive(Debug)]
 pub struct TwoDA {
     pub headers: Vec<String>,
     pub columns: Vec<usize>,

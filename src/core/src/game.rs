@@ -107,6 +107,73 @@ pub enum DataOrigin {
     Missing,
 }
 
+impl GameResource {
+    pub fn import(&self) -> io::Result<crate::imported_resource::ImportedResource> {
+        use crate::imported_resource::ImportedResource;
+        use infinitier_bam_importer::BamImporter;
+        use infinitier_bmp_importer::BmpImporter;
+        use infinitier_ids_importer::IdsImporter;
+        use infinitier_ini_importer::IniImporter;
+        use infinitier_pvr_importer::PvrzImporter;
+        use infinitier_two_da_importer::TwoDAImporter;
+        use infinitier_wed_importer::WedImporter;
+
+        let ds = self.datasource.as_ref().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, "no datasource available")
+        })?;
+        match self.r#type {
+            ResourceType::Bam => BamImporter {}.import(ds).map(ImportedResource::Bam),
+            ResourceType::Bmp => BmpImporter.import(ds).map(ImportedResource::Bmp),
+            ResourceType::Ids => IdsImporter.import(ds).map(ImportedResource::Ids),
+            ResourceType::Ini => IniImporter.import(ds).map(ImportedResource::Ini),
+            ResourceType::Pvrz => PvrzImporter.import(ds).map(ImportedResource::Pvrz),
+            ResourceType::TwoDA => TwoDAImporter.import(ds).map(ImportedResource::TwoDA),
+            ResourceType::Wed => WedImporter.import(ds).map(ImportedResource::Wed),
+            ResourceType::Acm => Ok(ImportedResource::Acm),
+            ResourceType::Are => Ok(ImportedResource::Are),
+            ResourceType::Bah => Ok(ImportedResource::Bah),
+            ResourceType::Bcs => Ok(ImportedResource::Bcs),
+            ResourceType::Bio => Ok(ImportedResource::Bio),
+            ResourceType::Bs => Ok(ImportedResource::Bs),
+            ResourceType::Chr => Ok(ImportedResource::Chr),
+            ResourceType::Chu => Ok(ImportedResource::Chu),
+            ResourceType::Cre => Ok(ImportedResource::Cre),
+            ResourceType::Dlg => Ok(ImportedResource::Dlg),
+            ResourceType::Eff => Ok(ImportedResource::Eff),
+            ResourceType::Fnt => Ok(ImportedResource::Fnt),
+            ResourceType::Gam => Ok(ImportedResource::Gam),
+            ResourceType::Glsl => Ok(ImportedResource::Glsl),
+            ResourceType::Gui => Ok(ImportedResource::Gui),
+            ResourceType::Itm => Ok(ImportedResource::Itm),
+            ResourceType::Lua => Ok(ImportedResource::Lua),
+            ResourceType::Maze => Ok(ImportedResource::Maze),
+            ResourceType::Menu => Ok(ImportedResource::Menu),
+            ResourceType::Mos => Ok(ImportedResource::Mos),
+            ResourceType::Mus => Ok(ImportedResource::Mus),
+            ResourceType::Mve => Ok(ImportedResource::Mve),
+            ResourceType::Plt => Ok(ImportedResource::Plt),
+            ResourceType::Png => Ok(ImportedResource::Png),
+            ResourceType::Pro => Ok(ImportedResource::Pro),
+            ResourceType::Spl => Ok(ImportedResource::Spl),
+            ResourceType::Sql => Ok(ImportedResource::Sql),
+            ResourceType::Src => Ok(ImportedResource::Src),
+            ResourceType::Sto => Ok(ImportedResource::Sto),
+            ResourceType::Tga => Ok(ImportedResource::Tga),
+            ResourceType::Tis => Ok(ImportedResource::Tis),
+            ResourceType::Toh => Ok(ImportedResource::Toh),
+            ResourceType::Tot => Ok(ImportedResource::Tot),
+            ResourceType::Ttf => Ok(ImportedResource::Ttf),
+            ResourceType::Vef => Ok(ImportedResource::Vef),
+            ResourceType::Vvc => Ok(ImportedResource::Vvc),
+            ResourceType::Wav => Ok(ImportedResource::Wav),
+            ResourceType::Wbm => Ok(ImportedResource::Wbm),
+            ResourceType::Wfx => Ok(ImportedResource::Wfx),
+            ResourceType::Wmp => Ok(ImportedResource::Wmp),
+            ResourceType::Unknown(id) => Ok(ImportedResource::Unknown(id)),
+        }
+    }
+}
+
 /// A game data builder
 pub struct GameDataBuilder {
     /// File system root

@@ -22,6 +22,7 @@ impl Importer for BmpImporter {
 }
 
 /// A BMP file
+#[derive(Debug)]
 pub struct Bmp {
     pub image: ImageBuffer<Rgba<u8>, Vec<u8>>,
 }
