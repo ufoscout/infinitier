@@ -1,5 +1,6 @@
 use eframe::egui;
-use infinitier_core::resource::key::ResourceType;
+use infinitier_core::{game::{GameResource, ResourceId}, resource::key::ResourceType};
+use log::*;
 
 use crate::state::AppState;
 
@@ -101,14 +102,25 @@ use wed::WedViewer;
 use wfx::WfxViewer;
 use wmp::WmpViewer;
 
+pub trait ResourceViewerTrait {
+    fn show(&mut self, ui: &mut egui::Ui, resource_id: ResourceId, resource: &GameResource); 
+}
+
 pub struct ResourceViewer {
     bmp: BmpViewer,
+    inner: Option<InnerResource>,
+}
+
+struct InnerResource {
+    id: ResourceId,
+    resource: Box<dyn ResourceViewerTrait>,
 }
 
 impl ResourceViewer {
     pub fn new() -> Self {
         Self {
             bmp: BmpViewer::new(),
+            inner: None,
         }
     }
 
@@ -120,6 +132,22 @@ impl ResourceViewer {
                 });
             }
             Some(resource_id) => {
+                if let Some(inner) = &mut self.inner {
+                    if inner.id == resource_id {
+                        inner.resource.show(ui, resource_id, state.game_data.get_by_id(resource_id).unwrap());
+                        return;
+                    }
+                } else {
+                    if let Some(resource) = state.game_data.get_by_id(resource_id) {
+                    // TODO Create a new inner resource
+                    } else {
+                        error!("Resource not found: {resource_id:?}");
+                        ui.centered_and_justified(|ui| {
+                            ui.label(format!("Resource not found: {resource_id:?}"));
+                        });
+                    }
+                }
+
                 if let Some(resource) = state.game_data.get_by_id(resource_id) {
                     match resource.r#type {
                         ResourceType::Acm => AcmViewer::show(ui),
