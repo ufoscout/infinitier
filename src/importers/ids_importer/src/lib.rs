@@ -88,6 +88,11 @@ fn parse_line(line: &str) -> Option<IdsEntry> {
         return None;
     }
     let (value_str, rest) = line.split_once(|c: char| c.is_ascii_whitespace())?;
+    // Strip inline // comments, matching NearInfinity's extractIDS behaviour.
+    let rest = match rest.find("//") {
+        Some(p) => &rest[..p],
+        None => rest,
+    };
     let name = rest.trim();
     if name.is_empty() {
         return None;
@@ -173,6 +178,28 @@ mod tests {
                 name: "HITPOINTS".into()
             })
         );
+    }
+
+    #[test]
+    fn test_parse_line_inline_comment_stripped() {
+        assert_eq!(
+            parse_line("5 SOMENAME // this is a comment"),
+            Some(IdsEntry {
+                value: 5,
+                value_str: "5".to_owned(),
+                name: "SOMENAME".into()
+            })
+        );
+        assert_eq!(
+            parse_line("1 TRIGGER//no space before comment"),
+            Some(IdsEntry {
+                value: 1,
+                value_str: "1".to_owned(),
+                name: "TRIGGER".into()
+            })
+        );
+        // line with only a comment after value: name becomes empty → skip
+        assert_eq!(parse_line("3 // only a comment"), None);
     }
 
     #[test]
