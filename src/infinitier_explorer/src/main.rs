@@ -49,6 +49,20 @@ fn main() {
         options,
         Box::new(move |cc| {
             cc.egui_ctx.set_visuals(egui::Visuals::light());
+            // On Linux/X11, winit reads xrandr physical dimensions (~189 DPI on HiDPI
+            // laptops) rather than the X server's pre-configured DPI (~96 DPI), causing
+            // pixels_per_point to be set ~2x too high. Honor INFINITIER_SCALE if set,
+            // otherwise cap at 1.5 to prevent runaway zoom on misconfigured displays.
+            if let Ok(scale) = std::env::var("INFINITIER_SCALE") {
+                if let Ok(ppp) = scale.parse::<f32>() {
+                    cc.egui_ctx.set_pixels_per_point(ppp);
+                }
+            } else {
+                let ppp = cc.egui_ctx.pixels_per_point();
+                if ppp > 1.5 {
+                    cc.egui_ctx.set_pixels_per_point(1.5);
+                }
+            }
             Ok(Box::new(app::ExplorerApp::new(key)))
         }),
     ) {
