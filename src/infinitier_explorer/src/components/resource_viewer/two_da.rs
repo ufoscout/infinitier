@@ -1,12 +1,17 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
-use infinitier_core::game::{GameResource, ResourceId};
+use infinitier_core::{
+    game::{GameResource, ResourceId},
+    resource::two_da::TwoDA,
+};
 
-pub struct TwoDAViewer;
+pub struct TwoDAViewer {
+    twoda: TwoDA,
+}
 
 impl TwoDAViewer {
-    pub fn new() -> Self {
-        Self
+    pub fn new(twoda: TwoDA) -> Self {
+        Self { twoda }
     }
 }
 

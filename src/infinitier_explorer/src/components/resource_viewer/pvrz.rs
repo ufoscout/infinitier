@@ -1,12 +1,17 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
-use infinitier_core::game::{GameResource, ResourceId};
+use infinitier_core::{
+    game::{GameResource, ResourceId},
+    resource::pvr::PvrzHeader,
+};
 
-pub struct PvrzViewer;
+pub struct PvrzViewer {
+    prvz: PvrzHeader,
+}
 
 impl PvrzViewer {
-    pub fn new() -> Self {
-        Self
+    pub fn new(prvz: PvrzHeader) -> Self {
+        Self { prvz }
     }
 }
 

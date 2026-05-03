@@ -1,12 +1,17 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
-use infinitier_core::game::{GameResource, ResourceId};
+use infinitier_core::{
+    game::{GameResource, ResourceId},
+    resource::ini::Ini,
+};
 
-pub struct IniViewer;
+pub struct IniViewer {
+    ini: Ini,
+}
 
 impl IniViewer {
-    pub fn new() -> Self {
-        Self
+    pub fn new(ini: Ini) -> Self {
+        Self { ini }
     }
 }
 

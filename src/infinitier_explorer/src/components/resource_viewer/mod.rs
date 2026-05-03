@@ -147,15 +147,15 @@ impl ResourceViewer {
                     if let Some(resource) = state.game_data.get_by_id(resource_id) {
                         match resource.import() {
                             Ok(imported) => match imported {
-                                ImportedResource::Bam(_bam) => Box::new(BamViewer::new()),
+                                ImportedResource::Bam(bam) => Box::new(BamViewer::new(bam)),
                                 ImportedResource::Bmp(bmp) => {
                                     Box::new(BmpViewer::new(bmp, ui, resource_id))
                                 }
-                                ImportedResource::Ids(_ids) => Box::new(IdsViewer::new()),
-                                ImportedResource::Ini(_ini) => Box::new(IniViewer::new()),
-                                ImportedResource::Pvrz(_prvz) => Box::new(PvrzViewer::new()),
-                                ImportedResource::TwoDA(_twoda) => Box::new(TwoDAViewer::new()),
-                                ImportedResource::Wed(_wed) => Box::new(WedViewer::new()),
+                                ImportedResource::Ids(ids) => Box::new(IdsViewer::new(ids)),
+                                ImportedResource::Ini(ini) => Box::new(IniViewer::new(ini)),
+                                ImportedResource::Pvrz(prvz) => Box::new(PvrzViewer::new(prvz)),
+                                ImportedResource::TwoDA(twoda) => Box::new(TwoDAViewer::new(twoda)),
+                                ImportedResource::Wed(wed) => Box::new(WedViewer::new(wed)),
                                 ImportedResource::Acm => Box::new(AcmViewer::new()),
                                 ImportedResource::Are => Box::new(AreViewer::new()),
                                 ImportedResource::Bah => Box::new(BahViewer::new()),

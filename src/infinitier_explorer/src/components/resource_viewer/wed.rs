@@ -1,12 +1,17 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
-use infinitier_core::game::{GameResource, ResourceId};
+use infinitier_core::{
+    game::{GameResource, ResourceId},
+    resource::wed::Wed,
+};
 
-pub struct WedViewer;
+pub struct WedViewer {
+    wed: Wed,
+}
 
 impl WedViewer {
-    pub fn new() -> Self {
-        Self
+    pub fn new(wed: Wed) -> Self {
+        Self { wed }
     }
 }
 

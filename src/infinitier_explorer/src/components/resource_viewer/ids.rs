@@ -1,12 +1,17 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
-use infinitier_core::game::{GameResource, ResourceId};
+use infinitier_core::{
+    game::{GameResource, ResourceId},
+    resource::ids::Ids,
+};
 
-pub struct IdsViewer;
+pub struct IdsViewer {
+    ids: Ids,
+}
 
 impl IdsViewer {
-    pub fn new() -> Self {
-        Self
+    pub fn new(ids: Ids) -> Self {
+        Self { ids }
     }
 }
 
