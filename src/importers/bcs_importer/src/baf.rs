@@ -106,6 +106,23 @@ pub struct BafContext {
     /// String prepended once per nesting level. NearInfinity uses `\t` when
     /// running headless, which is what we default to.
     pub indent: String,
+    /// Whether the engine's object bytecode includes the `[x.y.w.h]`
+    /// rectangle slot (PST / IWD / IWD2). The BG family (BG, BG2, EE
+    /// derivatives — including PSTEE — and IWDEE) leaves this `false`.
+    /// Used by the BAF compiler to know whether to write the empty
+    /// `[-1.-1.-1.-1]` sentinel into the recompiled bytecode when the BAF
+    /// has no region; the decompiler doesn't read this directly because
+    /// it derives the answer from each `BcsObject`'s `region` field.
+    pub object_has_region: bool,
+    /// Whether the engine's trigger bytecode includes the `[x,y]` point slot
+    /// (PST only). When `true`, `Trigger::t7_x` / `t7_y` round-trip back to
+    /// the bytecode even when the BAF doesn't include the point.
+    pub trigger_has_point: bool,
+    /// Number of object-target slots that the engine emits *after* the name
+    /// in OB blocks (IWD2's `T10` / `T11`). On every other engine this is `0`.
+    /// Used by the BAF compiler so recompiled IWD2 bytecode matches NI's
+    /// `PARSE_CODE_IWD2` layout.
+    pub object_trailing_targets: usize,
 }
 
 impl BafContext {
@@ -120,6 +137,9 @@ impl BafContext {
             ids: HashMap::new(),
             combined_strings: combined_strings_bg_family(),
             indent: "\t".to_string(),
+            object_has_region: false,
+            trigger_has_point: false,
+            object_trailing_targets: 0,
         }
     }
 
@@ -487,7 +507,8 @@ fn decompile_trigger_body(trigger: &Trigger, ctx: &BafContext) -> String {
                 cur_obj += 1;
             }
             ParamKind::Point => {
-                sb.push_str(&format!("[{}.{}]", trigger.t7_x, trigger.t7_y));
+                let (x, y) = trigger.t7.map(|p| (p.x, p.y)).unwrap_or((0, 0));
+                sb.push_str(&format!("[{}.{}]", x, y));
             }
             ParamKind::Action | ParamKind::Trigger => {
                 // Not produced in trigger signatures we care about.
@@ -730,13 +751,9 @@ fn decompile_object(object: &BcsObject, ctx: &BafContext) -> String {
         identifiers = Some(list);
     }
 
-    let region_suffix = if !object.region.is_empty() {
-        Some(format!(
-            "[{}.{}.{}.{}]",
-            object.region.x, object.region.y, object.region.width, object.region.height
-        ))
-    } else {
-        None
+    let region_suffix = match &object.region {
+        Some(r) if !r.is_empty() => Some(format!("[{}.{}.{}.{}]", r.x, r.y, r.width, r.height)),
+        _ => None,
     };
 
     if target.is_none() && identifiers.is_none() {
@@ -1097,12 +1114,12 @@ mod tests {
     fn object_with_region_appends_rect() {
         // PST / IWD / IWD2 search rectangles render as `[ANYONE][x.y.w.h]`.
         let obj = BcsObject {
-            region: BcsRegion {
+            region: Some(BcsRegion {
                 x: 0,
                 y: 0,
                 width: 10000,
                 height: 10000,
-            },
+            }),
             ..BcsObject::empty()
         };
         let out = decompile_object(&obj, &ctx_minimal());
@@ -1140,8 +1157,7 @@ mod tests {
                             t4: String::new(),
                             t5: String::new(),
                             target: BcsObject::empty(),
-                            t7_x: 0,
-                            t7_y: 0,
+                            t7: None,
                         },
                         Trigger {
                             id: 0x4036,
@@ -1152,8 +1168,7 @@ mod tests {
                             t4: String::new(),
                             t5: String::new(),
                             target: BcsObject::empty(),
-                            t7_x: 0,
-                            t7_y: 0,
+                            t7: None,
                         },
                         Trigger {
                             id: 0x4036,
@@ -1164,8 +1179,7 @@ mod tests {
                             t4: String::new(),
                             t5: String::new(),
                             target: BcsObject::empty(),
-                            t7_x: 0,
-                            t7_y: 0,
+                            t7: None,
                         },
                     ],
                 },
@@ -1362,6 +1376,7 @@ mod corpus_tests {
             GameKind::Bg => {} // already configured by new_bg
             GameKind::Iwd => {
                 ctx.combined_strings = combined_strings_iwd();
+                ctx.object_has_region = true;
             }
             GameKind::Iwd2 => {
                 ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_IWD2
@@ -1369,6 +1384,8 @@ mod corpus_tests {
                     .map(|s| s.to_string())
                     .collect();
                 ctx.combined_strings = combined_strings_iwd2();
+                ctx.object_has_region = true;
+                ctx.object_trailing_targets = 2;
             }
             GameKind::Pst => {
                 ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_PST
@@ -1376,14 +1393,14 @@ mod corpus_tests {
                     .map(|s| s.to_string())
                     .collect();
                 ctx.combined_strings = combined_strings_pst();
+                ctx.object_has_region = true;
+                ctx.trigger_has_point = true;
             }
             GameKind::Pstee => {
-                ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_PST
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect();
-                // PSTEE runs on the EE engine; its concat map matches the BG
-                // family, not the original PST.
+                // PSTEE runs on the EE engine — same 7-slot object-specifier
+                // layout and combined-string map as the BG family. Despite
+                // descending from PST, its compiled BCS uses the BG bytecode
+                // layout (7 target slots, no rectangle) rather than PST's.
             }
         }
         ctx

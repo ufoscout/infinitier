@@ -3,6 +3,7 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 
 pub mod baf;
+pub mod baf_compile;
 pub mod signatures;
 
 /// A BCS script file importer.
@@ -61,8 +62,9 @@ pub struct Response {
 /// A trigger (`TR … TR`).
 ///
 /// Parameters follow the BG/BG2 byte-code order: id, t1, flags, t2, t3, t4, t5, target-object.
-/// `flags & 1` means the trigger result is negated. `t7_x` / `t7_y` carry the
-/// PST-only point parameter and default to zero on the BG / IWD families.
+/// `flags & 1` means the trigger result is negated. `t7` carries the PST-only
+/// point parameter; it is `None` outside PST so bytecode round-trips don't
+/// emit a phantom `[0,0]` for non-PST scripts.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Trigger {
     pub id: i32,
@@ -73,21 +75,19 @@ pub struct Trigger {
     pub t4: String,
     pub t5: String,
     pub target: BcsObject,
-    /// PST-only point parameter (x). Always `0` on non-PST scripts.
-    #[serde(default, skip_serializing_if = "is_zero_i32")]
-    pub t7_x: i32,
-    /// PST-only point parameter (y). Always `0` on non-PST scripts.
-    #[serde(default, skip_serializing_if = "is_zero_i32")]
-    pub t7_y: i32,
+    /// PST-only `[x,y]` point parameter; `None` on non-PST scripts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub t7: Option<BcsPoint>,
 }
 
-fn is_zero_i32(v: &i32) -> bool {
-    *v == 0
+/// A 2D `(x, y)` point — used for the PST trigger point and as a primitive
+/// inside other places where a `[x,y]` literal appears.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct BcsPoint {
+    pub x: i32,
+    pub y: i32,
 }
 
-fn is_default_region(r: &BcsRegion) -> bool {
-    *r == BcsRegion::default()
-}
 
 /// An action (`AC … AC`).
 ///
@@ -124,10 +124,21 @@ pub struct BcsObject {
     pub targets: Vec<i32>,
     pub identifiers: [i32; 5],
     pub name: String,
-    /// Optional `[x.y.w.h]` search rectangle. Defaults to the empty marker
-    /// `(-1, -1, -1, -1)`, matching NI's `Rectangle(-1, -1, -1, -1)` sentinel.
-    #[serde(default, skip_serializing_if = "is_default_region")]
-    pub region: BcsRegion,
+    /// Optional `[x.y.w.h]` search rectangle. `None` means the parser saw no
+    /// rectangle in the bytecode (BG-family layout); `Some(_)` is preserved
+    /// even for the empty sentinel `(-1, -1, -1, -1)` so PST / IWD / IWD2
+    /// scripts round-trip back to identical bytecode.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub region: Option<BcsRegion>,
+    /// Number of target slots that the bytecode emits *after* the name
+    /// (IWD2 only — its `PARSE_CODE` interleaves two extra `T` slots after
+    /// `R0:S0`). On every other engine this is `0`.
+    #[serde(default, skip_serializing_if = "is_zero_usize")]
+    pub trailing_targets: usize,
+}
+
+fn is_zero_usize(v: &usize) -> bool {
+    *v == 0
 }
 
 /// A `[x.y.w.h]` rectangle attached to a BCS object (PST / IWD / IWD2).
@@ -171,7 +182,8 @@ impl BcsObject {
             targets: vec![0; 7],
             identifiers: [0; 5],
             name: String::new(),
-            region: BcsRegion::default(),
+            region: None,
+            trailing_targets: 0,
         }
     }
 }
@@ -371,8 +383,7 @@ fn parse_trigger(s: &mut BcsStream<'_>) -> std::io::Result<Trigger> {
     let mut strings: [String; 2] = [String::new(), String::new()];
     let mut str_count = 0;
     let mut target: Option<BcsObject> = None;
-    let mut t7_x = 0;
-    let mut t7_y = 0;
+    let mut t7: Option<BcsPoint> = None;
     loop {
         if s.try_skip("TR") {
             break;
@@ -405,8 +416,10 @@ fn parse_trigger(s: &mut BcsStream<'_>) -> std::io::Result<Trigger> {
                 // PST trigger point parameter `[x,y]`.
                 let parts = s.read_point_or_rect()?;
                 if parts.len() >= 2 {
-                    t7_x = parts[0];
-                    t7_y = parts[1];
+                    t7 = Some(BcsPoint {
+                        x: parts[0],
+                        y: parts[1],
+                    });
                 }
             }
             None => return Err(std::io::Error::other("unexpected EOS inside TR")),
@@ -427,8 +440,7 @@ fn parse_trigger(s: &mut BcsStream<'_>) -> std::io::Result<Trigger> {
         t4: std::mem::take(&mut strings[0]),
         t5: std::mem::take(&mut strings[1]),
         target: target.unwrap_or_else(BcsObject::empty),
-        t7_x,
-        t7_y,
+        t7,
     })
 }
 
@@ -549,17 +561,17 @@ fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
     let mut pos_rect: Option<usize> = None;
     let mut pos_name: Option<usize> = None;
     let mut name = String::new();
-    let mut region = BcsRegion::default();
+    let mut region: Option<BcsRegion> = None;
     for (i, tok) in tokens.iter().enumerate() {
         match tok {
             Tok::Rect(r) => {
                 pos_rect.get_or_insert(i);
-                region = BcsRegion {
+                region = Some(BcsRegion {
                     x: r[0],
                     y: r[1],
                     width: r[2],
                     height: r[3],
-                };
+                });
             }
             Tok::Str(s) => {
                 pos_name.get_or_insert(i);
@@ -572,10 +584,12 @@ fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
     let pos_separator = pos_rect.or(pos_name).unwrap_or(tokens.len());
     let id_start = pos_separator.saturating_sub(5);
     let id_end = id_start + 5;
+    let post_name_start = pos_name.map(|p| p + 1).unwrap_or(tokens.len());
 
     let mut targets: Vec<i32> = Vec::new();
     let mut identifiers = [0i32; 5];
     let mut ident_idx = 0;
+    let mut trailing_targets = 0usize;
     for (i, tok) in tokens.iter().enumerate() {
         if let Tok::Int(v) = tok {
             if i >= id_start && i < id_end {
@@ -585,6 +599,9 @@ fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
                 }
             } else {
                 targets.push(*v);
+                if i >= post_name_start {
+                    trailing_targets += 1;
+                }
             }
         }
     }
@@ -594,6 +611,7 @@ fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
         identifiers,
         name,
         region,
+        trailing_targets,
     })
 }
 
@@ -629,10 +647,21 @@ fn push_condition_response(out: &mut String, cr: &ConditionResponse) {
 
 fn push_trigger(out: &mut String, t: &Trigger) {
     out.push_str("TR\n");
-    out.push_str(&format!(
-        "{} {} {} {} {} \"{}\" \"{}\" OB\n",
-        t.id, t.t1, t.flags, t.t2, t.t3, t.t4, t.t5
-    ));
+    // PST emits the trigger point `[x,y]` between t3 and t4 (PARSE_CODE_PST =
+    // "X1N237456"); other engines (BG / IWD / IWD2) skip it. We rely on the
+    // parser populating `t7` only on PST scripts to know whether to write it
+    // back here.
+    if let Some(p) = t.t7 {
+        out.push_str(&format!(
+            "{} {} {} {} {} [{},{}] \"{}\" \"{}\" OB\n",
+            t.id, t.t1, t.flags, t.t2, t.t3, p.x, p.y, t.t4, t.t5
+        ));
+    } else {
+        out.push_str(&format!(
+            "{} {} {} {} {} \"{}\" \"{}\" OB\n",
+            t.id, t.t1, t.flags, t.t2, t.t3, t.t4, t.t5
+        ));
+    }
     push_object_content(out, &t.target);
     out.push_str("TR\n");
 }
@@ -662,16 +691,33 @@ fn push_action(out: &mut String, a: &Action) {
 }
 
 fn push_object_content(out: &mut String, obj: &BcsObject) {
-    // N targets + 5 identifiers + closing "name"OB on one line; OB is adjacent
-    // to the closing quote. Target count is engine-dependent (7 BG, 9 PST,
-    // 10 IWD2) and read straight off the parsed Vec.
-    for v in &obj.targets {
+    // Layout (engine-dependent):
+    //   leading-targets  identifiers  [region]  "name"  trailing-targets  OB
+    // BG / IWD / PST emit only leading targets (`trailing_targets == 0`).
+    // IWD2's parse code interleaves two trailing target slots after the
+    // name — those come from `obj.targets` last `trailing_targets` entries.
+    let leading_end = obj.targets.len().saturating_sub(obj.trailing_targets);
+    for v in &obj.targets[..leading_end] {
         out.push_str(&format!("{} ", v));
     }
     for v in &obj.identifiers {
         out.push_str(&format!("{} ", v));
     }
-    out.push_str(&format!("\"{}\"OB\n", obj.name));
+    if let Some(r) = &obj.region {
+        out.push_str(&format!("[{}.{}.{}.{}] ", r.x, r.y, r.width, r.height));
+    }
+    if obj.trailing_targets > 0 {
+        out.push_str(&format!("\"{}\" ", obj.name));
+        for (i, v) in obj.targets[leading_end..].iter().enumerate() {
+            if i + 1 == obj.trailing_targets {
+                out.push_str(&format!("{} OB\n", v));
+            } else {
+                out.push_str(&format!("{} ", v));
+            }
+        }
+    } else {
+        out.push_str(&format!("\"{}\"OB\n", obj.name));
+    }
 }
 
 #[cfg(test)]
