@@ -338,15 +338,95 @@ fn parse_object(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
     })
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+
+impl Bcs {
+    /// Serializes this script to the BCS byte-code text format (the SC/CR/CO/TR/… encoding
+    /// stored in game files). Parsing the returned string produces an equal `Bcs`.
+    pub fn to_byte_code(&self) -> String {
+        let mut out = String::new();
+        out.push_str("SC\n");
+        for cr in &self.condition_responses {
+            push_condition_response(&mut out, cr);
+        }
+        out.push_str("SC\n");
+        out
+    }
+}
+
+fn push_condition_response(out: &mut String, cr: &ConditionResponse) {
+    out.push_str("CR\n");
+    out.push_str("CO\n");
+    for trigger in &cr.condition.triggers {
+        push_trigger(out, trigger);
+    }
+    out.push_str("CO\n");
+    out.push_str("RS\n");
+    for response in &cr.response_set.responses {
+        push_response(out, response);
+    }
+    out.push_str("RS\n");
+    out.push_str("CR\n");
+}
+
+fn push_trigger(out: &mut String, t: &Trigger) {
+    out.push_str("TR\n");
+    out.push_str(&format!(
+        "{} {} {} {} {} \"{}\" \"{}\" OB\n",
+        t.id, t.t1, t.flags, t.t2, t.t3, t.t4, t.t5
+    ));
+    push_object_content(out, &t.target);
+    out.push_str("TR\n");
+}
+
+fn push_response(out: &mut String, r: &Response) {
+    out.push_str("RE\n");
+    out.push_str(&r.weight.to_string());
+    for action in &r.actions {
+        out.push_str("AC\n");
+        push_action(out, action);
+    }
+    out.push_str("RE\n");
+}
+
+fn push_action(out: &mut String, a: &Action) {
+    out.push_str(&format!("{}OB\n", a.id));
+    push_object_content(out, &a.a1);
+    out.push_str("OB\n");
+    push_object_content(out, &a.a2);
+    out.push_str("OB\n");
+    push_object_content(out, &a.a3);
+    // no space between a7 and the opening quote — matches the game format
+    out.push_str(&format!(
+        "{} {} {} {} {}\"{}\" \"{}\" AC\n",
+        a.a4, a.a5_x, a.a5_y, a.a6, a.a7, a.a8, a.a9
+    ));
+}
+
+fn push_object_content(out: &mut String, obj: &BcsObject) {
+    // 12 integers + closing "name"OB on one line; OB is adjacent to the closing quote
+    out.push_str(&format!(
+        "{} {} {} {} {} {} {} {} {} {} {} {} \"{}\"OB\n",
+        obj.targets[0],
+        obj.targets[1],
+        obj.targets[2],
+        obj.targets[3],
+        obj.targets[4],
+        obj.targets[5],
+        obj.targets[6],
+        obj.identifiers[0],
+        obj.identifiers[1],
+        obj.identifiers[2],
+        obj.identifiers[3],
+        obj.identifiers[4],
+        obj.name
+    ));
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use infinitier_datasource::DataSource;
     use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, parse_json_file};
-
-    // ── unit tests ────────────────────────────────────────────────────────────
 
     #[test]
     fn test_parse_empty_script() {
@@ -456,8 +536,6 @@ mod tests {
         assert_eq!(a.a9, "");
     }
 
-    // ── integration tests ─────────────────────────────────────────────────────
-
     #[test]
     fn test_all_bcs_files() {
         let bcs_folder = get_assets_path().join("resources/BCS");
@@ -465,94 +543,30 @@ mod tests {
         assert!(!paths.is_empty(), "no BCS files found");
 
         for bcs_path in paths {
-            let json_path = bcs_path.with_extension("json");
-            let expected: Bcs = parse_json_file(&json_path);
+
             let actual = BcsImporter
                 .import(&DataSource::new(bcs_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", bcs_path.display()));
-            assert_eq!(actual, expected, "BCS mismatch for {}", bcs_path.display());
+
+            // Test parsing the BCS file
+            {
+                let json_path = bcs_path.with_extension("json");
+                let expected: Bcs = parse_json_file(&json_path);
+                assert_eq!(actual, expected, "BCS mismatch for {}", bcs_path.display());
+            }
+
+            // Test that BCS `to_byte_code` reproduces the original BCS file
+            {
+                let bcs_bytes_generated = actual.to_byte_code();
+                let bcs_from_bytes = BcsImporter
+                    .import(&DataSource::new(bcs_bytes_generated.as_bytes()))
+                    .unwrap_or_else(|e| panic!("cannot import {}: {e}", bcs_path.display()));
+                assert_eq!(bcs_from_bytes, actual, "BCS mismatch for {}", bcs_path.display());
+
+                let bcs_from_file: String = std::fs::read_to_string(bcs_path).unwrap();
+                assert_eq!(bcs_from_file, bcs_bytes_generated);
+            }
         }
     }
 
-    #[test]
-    fn test_parse_randwlkc() {
-        let path = get_assets_path().join("resources/BCS/randwlkc.bcs");
-        let bcs = BcsImporter
-            .import(&DataSource::new(path.as_path()))
-            .unwrap();
-        assert_eq!(bcs.condition_responses.len(), 1);
-        let cr = &bcs.condition_responses[0];
-        assert_eq!(cr.condition.triggers.len(), 1);
-        assert_eq!(cr.condition.triggers[0].id, 16419);
-        assert_eq!(cr.response_set.responses.len(), 1);
-        assert_eq!(cr.response_set.responses[0].weight, 100);
-        assert_eq!(cr.response_set.responses[0].actions.len(), 1);
-        assert_eq!(cr.response_set.responses[0].actions[0].id, 200);
-    }
-
-    #[test]
-    fn test_parse_dplayer3() {
-        let path = get_assets_path().join("resources/BCS/dplayer3.bcs");
-        let bcs = BcsImporter
-            .import(&DataSource::new(path.as_path()))
-            .unwrap();
-        assert_eq!(bcs.condition_responses.len(), 1);
-        let cr = &bcs.condition_responses[0];
-        assert_eq!(cr.condition.triggers.len(), 2);
-        let t1 = &cr.condition.triggers[0];
-        assert_eq!(t1.id, 16399);
-        assert_eq!(t1.flags, 1); // negated
-        assert_eq!(t1.t4, "GLOBALSeenBlockade");
-        let t2 = &cr.condition.triggers[1];
-        assert_eq!(t2.id, 16412);
-        assert_eq!(t2.target.name, "Caveentrance");
-        assert_eq!(cr.response_set.responses[0].actions[0].id, 30);
-        assert_eq!(cr.response_set.responses[0].actions[0].a4, 1);
-        assert_eq!(
-            cr.response_set.responses[0].actions[0].a8,
-            "GLOBALSeenBlockade"
-        );
-    }
-
-    #[test]
-    fn test_parse_ar0100() {
-        let path = get_assets_path().join("resources/BCS/ar0100.bcs");
-        let bcs = BcsImporter
-            .import(&DataSource::new(path.as_path()))
-            .unwrap();
-        assert_eq!(bcs.condition_responses.len(), 2);
-        let cr0 = &bcs.condition_responses[0];
-        assert_eq!(cr0.condition.triggers[0].id, 16399);
-        assert_eq!(cr0.condition.triggers[0].t4, "GLOBALReturnedOutside");
-        assert_eq!(cr0.response_set.responses[0].actions.len(), 3);
-        let a2 = &cr0.response_set.responses[0].actions[2];
-        assert_eq!(a2.id, 30);
-        assert_eq!(a2.a4, 2);
-        assert_eq!(a2.a8, "GLOBALReturnedOutside");
-    }
-
-    #[test]
-    fn test_parse_foozle() {
-        let path = get_assets_path().join("resources/BCS/foozle.bcs");
-        let bcs = BcsImporter
-            .import(&DataSource::new(path.as_path()))
-            .unwrap();
-        assert_eq!(bcs.condition_responses.len(), 4);
-
-        let cr1 = &bcs.condition_responses[0];
-        assert_eq!(cr1.condition.triggers[0].id, 47);
-        assert_eq!(cr1.condition.triggers[0].t1, 111);
-        assert_eq!(cr1.response_set.responses[0].actions[0].id, 22);
-
-        let cr2 = &bcs.condition_responses[1];
-        assert_eq!(cr2.condition.triggers.len(), 2);
-        assert_eq!(cr2.condition.triggers[0].target.targets[0], 30);
-        assert_eq!(cr2.condition.triggers[1].flags, 1);
-
-        let cr3 = &bcs.condition_responses[2];
-        assert_eq!(cr3.response_set.responses[0].actions[0].a4, 30);
-
-        let cr4 = &bcs.condition_responses[3];
-        assert_eq!(cr4.response_set.responses[0].actions[0].id, 3);
-    }
 }
