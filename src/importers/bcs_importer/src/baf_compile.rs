@@ -1353,14 +1353,8 @@ mod roundtrip_tests {
     }
 
     fn build_context(game: Game, ids_dir: &Path) -> BafContext {
-        let mut triggers = load_signatures(ids_dir, "TRIGGER");
+        let triggers = load_signatures(ids_dir, "TRIGGER");
         let actions = load_signatures(ids_dir, "ACTION");
-        if matches!(game, Game::Pst) {
-            // PST is missing `0x4070 Clicked(O:Object*)` from its TRIGGER.IDS;
-            // patch it in so the compiled bytecode references the same
-            // function NI does.
-            triggers.add_function(0x4070, "Clicked(O:Object*)");
-        }
         BafContext::new(triggers, actions, game)
     }
 

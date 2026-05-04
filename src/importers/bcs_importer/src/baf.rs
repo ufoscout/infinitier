@@ -128,8 +128,16 @@ impl BafContext {
     /// signatures. All engine-specific knobs (object specifier layout,
     /// combined-string map, region / point / trailing-target presence) are
     /// derived from `game.engine()`.
-    pub fn new(triggers: Signatures, actions: Signatures, game: Game) -> Self {
+    ///
+    /// Per-game signature patches are also applied here for functions that
+    /// NearInfinity hardcodes because they're missing from the engine's IDS
+    /// files — e.g. PST scripts use `Clicked(O:Object*)` (`0x4070`) but the
+    /// classic PST install ships a TRIGGER.IDS without that entry. Without
+    /// this fix, decompiling PST scripts produces `// Error - Could not find
+    /// trigger 0x4070` instead of `Clicked(...)`, and round-trips fail.
+    pub fn new(mut triggers: Signatures, actions: Signatures, game: Game) -> Self {
         let engine = game.engine();
+        Self::apply_signature_patches(&mut triggers, game);
         let object_specifier_ids: Vec<String> = match engine {
             Engine::Iwd2 => OBJECT_SPECIFIER_IDS_IWD2.iter().map(|s| s.to_string()).collect(),
             Engine::Pst => OBJECT_SPECIFIER_IDS_PST.iter().map(|s| s.to_string()).collect(),
@@ -166,6 +174,20 @@ impl BafContext {
             object_has_region,
             trigger_has_point,
             object_trailing_targets,
+        }
+    }
+
+    /// Applies the per-game signature patches NI's `ScriptInfo` adds at
+    /// load time. Today only PST needs this (for `Clicked`); kept as a
+    /// dedicated helper so additional NI hardcodings can land here without
+    /// reshaping `new`.
+    fn apply_signature_patches(triggers: &mut Signatures, game: Game) {
+        if matches!(game, Game::Pst) {
+            // PST's TRIGGER.IDS is missing `0x4070 Clicked(O:Object*)` even
+            // though numerous scripts reference it. Patch it in so the
+            // decompiler emits `Clicked(...)` rather than an error comment,
+            // and so the compiler resolves it on the way back.
+            triggers.add_function(0x4070, "Clicked(O:Object*)");
         }
     }
 
@@ -1395,14 +1417,8 @@ mod corpus_tests {
     }
 
     fn build_context(game: Game, ids_dir: &Path) -> BafContext {
-        let mut triggers = load_signatures(ids_dir, "TRIGGER");
+        let triggers = load_signatures(ids_dir, "TRIGGER");
         let actions = load_signatures(ids_dir, "ACTION");
-        // NI hardcodes `Clicked` (0x4070) for PST because it's missing from
-        // PST's TRIGGER.IDS even though scripts reference it. Patch it in so
-        // the corpus output matches.
-        if matches!(game, Game::Pst) {
-            triggers.add_function(0x4070, "Clicked(O:Object*)");
-        }
         BafContext::new(triggers, actions, game)
     }
 
