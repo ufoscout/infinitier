@@ -2,6 +2,9 @@ use infinitier_datasource::{DataSource, Importer};
 use log::debug;
 use serde::{Deserialize, Serialize};
 
+pub mod baf;
+pub mod signatures;
+
 /// A BCS script file importer.
 pub struct BcsImporter;
 
@@ -569,4 +572,94 @@ mod tests {
         }
     }
 
+    /// Decompiles every BS script in the bg2ee corpus and checks that the
+    /// generated BAF matches the reference produced by NearInfinity. Skipped
+    /// when the extracted-resources directory is not present so the test
+    /// remains opt-in for environments that don't have the BG2EE dump.
+    ///
+    /// The path is configurable via the `BG2EE_RESOURCES` env var; default is
+    /// the location used in this workspace.
+    #[test]
+    fn decompile_bg2ee_bs_corpus_matches_nearinfinity_baf() {
+        use crate::baf::BafContext;
+        use crate::signatures::Signatures;
+        use infinitier_ids_importer::IdsImporter;
+
+        let root_str = std::env::var("BG2EE_RESOURCES").unwrap_or_else(|_| {
+            "/home/ufo/workspaces/github_ufoscout/baldurs_gate/extracted_resources/bg2ee"
+                .to_string()
+        });
+        let root = std::path::PathBuf::from(&root_str);
+        if !root.is_dir() {
+            eprintln!(
+                "Skipping bg2ee BAF decompiler test: {} not found",
+                root.display()
+            );
+            return;
+        }
+
+        let triggers_ids = IdsImporter
+            .import(&DataSource::new(root.join("ids/TRIGGER.ids").as_path()))
+            .expect("TRIGGER.ids");
+        let actions_ids = IdsImporter
+            .import(&DataSource::new(root.join("ids/ACTION.ids").as_path()))
+            .expect("ACTION.ids");
+
+        // Mirror NI's headless extractor configuration: only the function
+        // signature tables are loaded — no OBJECT/EA/CLASS/... lookups —
+        // which is why the reference BAFs use `UnknownObjectN` and raw
+        // numeric target slots.
+        let ctx = BafContext::new_bg(
+            Signatures::from_ids(&triggers_ids),
+            Signatures::from_ids(&actions_ids),
+        );
+
+        let bs_dir = root.join("bs/original");
+        let baf_dir = root.join("bs/source");
+        let bs_paths = get_all_in_folder_by_extension(&bs_dir, "bs");
+        assert!(!bs_paths.is_empty(), "no BS files in {}", bs_dir.display());
+
+        let mut failures: Vec<String> = Vec::new();
+        for bs_path in &bs_paths {
+            let bcs = BcsImporter
+                .import(&DataSource::new(bs_path.as_path()))
+                .unwrap_or_else(|e| panic!("cannot parse {}: {e}", bs_path.display()));
+            let actual = bcs.to_baf(&ctx);
+
+            let stem = bs_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .expect("file stem");
+            let baf_path = baf_dir.join(format!("{}.baf", stem));
+            let expected = std::fs::read_to_string(&baf_path)
+                .unwrap_or_else(|e| panic!("cannot read {}: {e}", baf_path.display()));
+
+            if expected != actual {
+                let first_diff = expected
+                    .lines()
+                    .zip(actual.lines())
+                    .enumerate()
+                    .find(|(_, (e, a))| e != a)
+                    .map(|(i, (e, a))| format!("line {}:\n  expected: {:?}\n  actual:   {:?}", i + 1, e, a))
+                    .unwrap_or_else(|| {
+                        format!(
+                            "lines match but lengths differ: expected {} bytes / {} lines, actual {} bytes / {} lines",
+                            expected.len(),
+                            expected.lines().count(),
+                            actual.len(),
+                            actual.lines().count(),
+                        )
+                    });
+                failures.push(format!("BAF mismatch for {}\n{}", baf_path.display(), first_diff));
+            }
+        }
+
+        assert!(
+            failures.is_empty(),
+            "{} of {} BAF files mismatched:\n{}",
+            failures.len(),
+            bs_paths.len(),
+            failures.join("\n\n")
+        );
+    }
 }

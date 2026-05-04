@@ -1,0 +1,226 @@
+//! Trigger / action function signatures parsed from `TRIGGER.IDS` and `ACTION.IDS`.
+//!
+//! Each entry in those IDS files maps a function id to a signature like
+//! `Acquired(S:ResRef*)` or `0x4051 HaveSpell(I:Spell*Spell)`. This module turns
+//! that text into a structured form so the BAF decompiler can render
+//! `<Name>(<arg>, <arg>, ...)` from a parsed BCS trigger / action.
+
+use std::collections::HashMap;
+
+use infinitier_ids_importer::Ids;
+
+/// Parsed signatures for a function table (TRIGGER.IDS or ACTION.IDS).
+///
+/// The same numeric id can map to several signatures; resolution at decompile
+/// time picks the one whose parameter shape best fits the actual values.
+#[derive(Debug, Clone, Default)]
+pub struct Signatures {
+    by_id: HashMap<i32, Vec<Function>>,
+    by_name: HashMap<String, Function>,
+}
+
+/// One function definition as parsed from an IDS line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Function {
+    pub id: i32,
+    pub name: String,
+    pub params: Vec<Parameter>,
+}
+
+/// One parameter inside a function signature.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Parameter {
+    pub kind: ParamKind,
+    pub name: String,
+    /// Lower-cased IDS resource name referenced by this parameter (without
+    /// extension); empty when no IDS lookup is requested.
+    pub ids_ref: String,
+}
+
+/// Parameter type letters used in TRIGGER.IDS / ACTION.IDS signatures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParamKind {
+    /// `A` — nested action (only the `ActionOverride` slot uses this).
+    Action,
+    /// `T` — nested trigger (only the `TriggerOverride` slot uses this).
+    Trigger,
+    /// `I` — numeric parameter.
+    Integer,
+    /// `O` — object specifier.
+    Object,
+    /// `P` — point structure.
+    Point,
+    /// `S` — string parameter.
+    String,
+}
+
+impl Signatures {
+    /// Builds a [`Signatures`] table from a parsed IDS file.
+    pub fn from_ids(ids: &Ids) -> Self {
+        let mut by_id: HashMap<i32, Vec<Function>> = HashMap::new();
+        let mut by_name: HashMap<String, Function> = HashMap::new();
+        for entry in &ids.entries {
+            if let Some(func) = Function::parse(entry.value, &entry.name) {
+                by_id.entry(func.id).or_default().push(func.clone());
+                by_name.insert(func.name.to_ascii_lowercase(), func);
+            }
+        }
+        Self { by_id, by_name }
+    }
+
+    /// Returns the signatures registered for a given numeric id, if any.
+    pub fn get(&self, id: i32) -> Option<&[Function]> {
+        self.by_id.get(&id).map(|v| v.as_slice())
+    }
+
+    /// Returns a function by name (case-insensitive).
+    pub fn get_by_name(&self, name: &str) -> Option<&Function> {
+        self.by_name.get(&name.to_ascii_lowercase())
+    }
+}
+
+impl Function {
+    /// Parses a function signature like `Acquired(S:ResRef*)` paired with its id.
+    /// Returns `None` when the line cannot be parsed (e.g. a bare entry count,
+    /// missing parentheses, …).
+    pub fn parse(id: i32, signature: &str) -> Option<Self> {
+        let signature = signature.trim();
+        let open = signature.find('(')?;
+        let close = signature.rfind(')')?;
+        if close < open {
+            return None;
+        }
+        let name = signature[..open].trim().to_string();
+        if name.is_empty() {
+            return None;
+        }
+        let params = parse_params(&signature[open + 1..close]);
+        Some(Function { id, name, params })
+    }
+}
+
+fn parse_params(s: &str) -> Vec<Parameter> {
+    // Each parameter follows `T:Name*IdsRef` where T is a single letter
+    // ([AIOPST]) and the ids reference is optional. Parameters are
+    // comma-separated and may be padded with whitespace.
+    let mut out = Vec::new();
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b',') {
+            i += 1;
+        }
+        if i + 1 >= bytes.len() || bytes[i + 1] != b':' {
+            break;
+        }
+        let kind = match (bytes[i] as char).to_ascii_uppercase() {
+            'A' => ParamKind::Action,
+            'T' => ParamKind::Trigger,
+            'I' => ParamKind::Integer,
+            // '0' is a known typo for 'O' in some IDS files (matches NI behaviour).
+            'O' | '0' => ParamKind::Object,
+            'P' => ParamKind::Point,
+            'S' => ParamKind::String,
+            _ => {
+                i += 2;
+                continue;
+            }
+        };
+        i += 2;
+        let name_start = i;
+        while i < bytes.len() && bytes[i] != b'*' && bytes[i] != b',' && bytes[i] != b')' {
+            i += 1;
+        }
+        let name: String = std::str::from_utf8(&bytes[name_start..i])
+            .unwrap_or("")
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect();
+        let mut ids_ref = String::new();
+        if i < bytes.len() && bytes[i] == b'*' {
+            i += 1;
+            let ref_start = i;
+            while i < bytes.len()
+                && bytes[i] != b' '
+                && bytes[i] != b'\t'
+                && bytes[i] != b','
+                && bytes[i] != b')'
+            {
+                i += 1;
+            }
+            ids_ref = std::str::from_utf8(&bytes[ref_start..i])
+                .unwrap_or("")
+                .to_ascii_lowercase();
+        }
+        out.push(Parameter {
+            kind,
+            name,
+            ids_ref,
+        });
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use infinitier_ids_importer::IdsEntry;
+
+    fn ids(entries: &[(i32, &str, &str)]) -> Ids {
+        Ids {
+            entries: entries
+                .iter()
+                .map(|(v, vs, n)| IdsEntry {
+                    value: *v,
+                    value_str: (*vs).to_string(),
+                    name: (*n).to_string(),
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn parses_simple_trigger_signature() {
+        let f = Function::parse(0x0001, "Acquired(S:ResRef*)").unwrap();
+        assert_eq!(f.id, 0x0001);
+        assert_eq!(f.name, "Acquired");
+        assert_eq!(f.params.len(), 1);
+        assert_eq!(f.params[0].kind, ParamKind::String);
+        assert_eq!(f.params[0].name, "ResRef");
+        assert_eq!(f.params[0].ids_ref, "");
+    }
+
+    #[test]
+    fn parses_signature_with_ids_ref_and_object() {
+        let f = Function::parse(0x0002, "AttackedBy(O:Object*,I:Style*AStyles)").unwrap();
+        assert_eq!(f.params.len(), 2);
+        assert_eq!(f.params[0].kind, ParamKind::Object);
+        assert_eq!(f.params[1].kind, ParamKind::Integer);
+        assert_eq!(f.params[1].ids_ref, "astyles");
+    }
+
+    #[test]
+    fn parses_zero_arg_function() {
+        let f = Function::parse(0, "NoAction()").unwrap();
+        assert!(f.params.is_empty());
+    }
+
+    #[test]
+    fn parses_signature_with_typed_zero_object() {
+        // Some IDS files use '0' instead of 'O' for object parameters.
+        let f = Function::parse(7, "CreateCreature(0:Target*)").unwrap();
+        assert_eq!(f.params.len(), 1);
+        assert_eq!(f.params[0].kind, ParamKind::Object);
+    }
+
+    #[test]
+    fn registers_function_by_id_and_name() {
+        let table = Signatures::from_ids(&ids(&[
+            (0x0001, "0x0001", "Acquired(S:ResRef*)"),
+            (0x4036, "0x4036", "OR(I:OrCount*)"),
+        ]));
+        assert!(table.get(0x0001).is_some());
+        assert!(table.get_by_name("OR").is_some());
+        assert!(table.get_by_name("or").is_some()); // case-insensitive
+    }
+}

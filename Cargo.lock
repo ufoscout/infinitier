@@ -1892,6 +1892,7 @@ name = "infinitier_bcs_importer"
 version = "0.0.2"
 dependencies = [
  "infinitier_datasource",
+ "infinitier_ids_importer",
  "infinitier_test_utils",
  "log",
  "serde",
