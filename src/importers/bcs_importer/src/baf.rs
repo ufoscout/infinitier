@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use infinitier_ids_importer::Ids;
 
 use crate::signatures::{Function, ParamKind, Signatures};
-use crate::{Action, Bcs, BcsObject, Trigger};
+use crate::{Action, Bcs, BcsObject, BcsRegion, Trigger};
 
 /// Object specifier slots (target IDS resources in array order) used by BG
 /// and BG2 (Enhanced Edition included), Icewind Dale and Icewind Dale EE.
@@ -154,37 +154,152 @@ impl BafContext {
     }
 }
 
-/// Combined-string encodings shared by the BG, BG2, EE (BGEE/BG2EE), IWD and
-/// IWDEE engines. Each entry packs its first (and sometimes second) string
-/// parameter into a single bytecode slot.
+/// Combined-string encodings used by the BG family (BG, BGEE, BG2, BG2EE)
+/// and IWDEE.
 ///
-/// The id values are stable across that engine family — `Global` is always
-/// `0x400F`, `SetGlobal` is always `30`, etc. — so the same map works for
-/// all of them. PST, PSTEE and IWD2 layer additional entries; build a custom
-/// map for those.
+/// IWD's separate engine reassigns several of these ids to BitGlobal /
+/// GlobalBitGlobal — use [`combined_strings_iwd`] there. PST and IWD2 use
+/// their own maps.
 pub fn combined_strings_bg_family() -> HashMap<i32, ConcatInfo> {
-    // Sourced from NearInfinity's ScriptInfo for BG1/BG2/EE/IWD profiles.
+    let entries: &[(i32, u32)] = &[
+        // Triggers (stable across BG1/BG2/EE)
+        (0x400F, 0x0001), // Global
+        (0x4034, 0x0001), // GlobalGT
+        (0x4035, 0x0001), // GlobalLT
+        // Actions: BG1 base
+        (30, 0x0001),  // SetGlobal
+        (109, 0x0001), // IncrementGlobal
+        (115, 0x0001), // SetGlobalTimer
+        // BG2 additions
+        (246, 0x0001), // CreateCreatureAtLocation
+        (256, 0x0001), // CreateItemGlobal
+        (268, 0x0001), // RealSetGlobalTimer
+        (297, 0x0001), // MoveToSavedLocation
+        (335, 0x0001), // SetTokenGlobal
+        // EE additions
+        (364, 0x0001), // SetGlobalRandom
+        (377, 0x0001), // SetGlobalTimerRandom
+    ];
+    entries
+        .iter()
+        .map(|(id, v)| (*id, ConcatInfo::from_packed(*v)))
+        .collect()
+}
+
+/// Combined-string encodings used by Icewind Dale (the original, non-EE).
+///
+/// IWD reassigns several BG ids — `0x40A5` is `BitGlobal` (not BG's `Name`),
+/// `247` / `248` are `BitGlobal` / `GlobalBitGlobal` actions (not BG's
+/// `SetToken` / `SetTokenObject`) — so it needs its own map. Pair with
+/// [`OBJECT_SPECIFIER_IDS_BG`].
+pub fn combined_strings_iwd() -> HashMap<i32, ConcatInfo> {
     let entries: &[(i32, u32)] = &[
         // Triggers
         (0x400F, 0x0001), // Global
         (0x4034, 0x0001), // GlobalGT
         (0x4035, 0x0001), // GlobalLT
-        (0x40A5, 0x0101), // BitGlobal (IWD)
-        (0x40A6, 0x1111), // GlobalBitGlobal (IWD)
+        (0x40A5, 0x0101), // BitGlobal
+        (0x40A6, 0x1111), // GlobalBitGlobal
         // Actions
         (30, 0x0001),  // SetGlobal
         (109, 0x0001), // IncrementGlobal
         (115, 0x0001), // SetGlobalTimer
-        (243, 0x0011), // IncrementGlobalOnce (IWD)
-        (247, 0x0101), // BitGlobal (IWD)
-        (248, 0x1111), // GlobalBitGlobal (IWD)
-        (246, 0x0001), // CreateCreatureAtLocation (BG2)
-        (256, 0x0001), // CreateItemGlobal (BG2)
-        (268, 0x0001), // RealSetGlobalTimer (BG2)
-        (297, 0x0001), // MoveToSavedLocation (BG2)
-        (335, 0x0001), // SetTokenGlobal (BG2)
-        (364, 0x0001), // SetGlobalRandom (EE)
-        (377, 0x0001), // SetGlobalTimerRandom (EE)
+        (243, 0x0011), // IncrementGlobalOnce
+        (247, 0x0101), // BitGlobal
+        (248, 0x1111), // GlobalBitGlobal
+    ];
+    entries
+        .iter()
+        .map(|(id, v)| (*id, ConcatInfo::from_packed(*v)))
+        .collect()
+}
+
+/// Combined-string encodings used by Icewind Dale 2.
+///
+/// Mostly the BG-family layout plus IWD2-specific additions (SpellCastEffect,
+/// SetGlobalRandom, SetGlobalTimerOnce, …). Pair with
+/// [`OBJECT_SPECIFIER_IDS_IWD2`].
+pub fn combined_strings_iwd2() -> HashMap<i32, ConcatInfo> {
+    let entries: &[(i32, u32)] = &[
+        (0x400F, 0x0001), // Global
+        (0x4034, 0x0001), // GlobalGT
+        (0x4035, 0x0001), // GlobalLT
+        (30, 0x0001),     // SetGlobal
+        (109, 0x0001),    // IncrementGlobal
+        (115, 0x0001),    // SetGlobalTimer
+        (308, 0x0001),    // SetGlobalTimerOnce
+        (243, 0x0011),    // IncrementGlobalOnce
+        (0x40A5, 0x0101), // BitGlobal
+        (247, 0x0101),    // BitGlobal
+        (306, 0x0101),    // SetGlobalRandom
+        (307, 0x0101),    // SetGlobalTimerRandom
+        (0x40A6, 0x1111), // GlobalBitGlobal
+        (289, 0x1010),    // SpellCastEffect
+        (248, 0x1111),    // GlobalBitGlobal
+    ];
+    entries
+        .iter()
+        .map(|(id, v)| (*id, ConcatInfo::from_packed(*v)))
+        .collect()
+}
+
+/// Combined-string encodings used by Planescape: Torment (and PSTEE).
+///
+/// PST has its own large set of bitwise / arithmetic Global functions that
+/// pack their string parameters; PSTEE adds the EE-style SetGlobalRandom
+/// family on top. The PSTEE-only entries are harmless on PST because the
+/// same numeric ids aren't assigned to any function in PST's IDS files.
+/// Pair with [`OBJECT_SPECIFIER_IDS_PST`].
+pub fn combined_strings_pst() -> HashMap<i32, ConcatInfo> {
+    let entries: &[(i32, u32)] = &[
+        // Triggers shared with BG and PST-specific bitwise
+        (0x400F, 0x0001), // Global
+        (0x4034, 0x0001), // GlobalGT
+        (0x4035, 0x0001), // GlobalLT
+        (0x407F, 0x0001), // BitCheck
+        (0x4080, 0x0001), // GlobalBAND
+        (0x4081, 0x0001), // BitCheckExact
+        (0x4095, 0x0001), // Xor
+        (0x409C, 0x0001), // StuffGlobalRandom
+        (0x4109, 0x0001), // StuffGlobalRandom (PSTEE)
+        // Two-string-pair triggers (var1+area1, var2+area2 packed each into one slot)
+        (0x4082, 0x0011), // GlobalEqualsGlobal
+        (0x4083, 0x0011), // GlobalLTGlobal
+        (0x4084, 0x0011), // GlobalGTGlobal
+        (0x4085, 0x0011), // GlobalANDGlobal
+        (0x4086, 0x0011), // GlobalORGlobal
+        (0x4087, 0x0011), // GlobalBANDGlobal
+        (0x4088, 0x0011), // GlobalBANDGlobalExact
+        // Actions
+        (30, 0x0001),  // SetGlobal
+        (109, 0x0001), // IncrementGlobal
+        (115, 0x0001), // SetGlobalTimer
+        (227, 0x0001), // GlobalBAND
+        (228, 0x0001), // GlobalBOR
+        (229, 0x0001), // GlobalSHR
+        (230, 0x0001), // GlobalSHL
+        (231, 0x0001), // GlobalMAX
+        (232, 0x0001), // GlobalMIN
+        (244, 0x0001), // BitSet
+        (245, 0x0001), // BitClear
+        (260, 0x0001), // GlobalXOR
+        (364, 0x0001), // SetGlobalRandom (PSTEE)
+        (377, 0x0001), // SetGlobalTimerRandom (PSTEE)
+        (202, 0x0011), // IncrementGlobalOnce
+        (233, 0x0011), // GlobalSetGlobal
+        (234, 0x0011), // GlobalAddGlobal
+        (235, 0x0011), // GlobalSubGlobal
+        (236, 0x0011), // GlobalANDGlobal
+        (237, 0x0011), // GlobalORGlobal
+        (238, 0x0011), // GlobalBANDGlobal
+        (239, 0x0011), // GlobalBORGlobal
+        (240, 0x0011), // GlobalSHRGlobal
+        (241, 0x0011), // GlobalSHLGlobal
+        (242, 0x0011), // GlobalMAXGlobal
+        (243, 0x0011), // GlobalMINGlobal
+        (261, 0x0011), // GlobalXORGlobal
+        // Only the 5-param IncrementGlobalOnce signature combines strings.
+        (446, 0x0011 | (5 << 16)), // IncrementGlobalOnce (PSTEE)
     ];
     entries
         .iter()
@@ -246,9 +361,17 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
 
         out.push_str(&ctx.indent);
         let text = if let Some(over) = override_pending.take() {
-            let inner = decompile_trigger(trigger, ctx);
+            // The negation belongs to the OUTER TriggerOverride, not to the
+            // wrapped inner trigger — mirror NI's `! TriggerOverride(obj, fn(...))`
+            // emission.
+            let inner_body = decompile_trigger_body(trigger, ctx);
             let obj = decompile_object(&over.target, ctx);
-            format!("TriggerOverride({},{})", obj, inner)
+            let mut s = String::new();
+            if (trigger.flags & 1) != 0 {
+                s.push('!');
+            }
+            s.push_str(&format!("TriggerOverride({},{})", obj, inner_body));
+            s
         } else {
             decompile_trigger(trigger, ctx)
         };
@@ -293,6 +416,21 @@ fn trigger_or_count(trigger: &Trigger, ctx: &BafContext) -> Option<i32> {
 }
 
 fn decompile_trigger(trigger: &Trigger, ctx: &BafContext) -> String {
+    let body = decompile_trigger_body(trigger, ctx);
+    if (trigger.flags & 1) != 0 {
+        let mut s = String::with_capacity(body.len() + 1);
+        s.push('!');
+        s.push_str(&body);
+        s
+    } else {
+        body
+    }
+}
+
+/// Renders a trigger as `Name(args, ...)` with no leading `!`. The caller
+/// decides where to put the negation — for plain triggers it's a prefix,
+/// for `TriggerOverride(obj, ...)` wrapping it goes on the outer call.
+fn decompile_trigger_body(trigger: &Trigger, ctx: &BafContext) -> String {
     let mut effective_id = trigger.id;
     let funcs = match ctx.triggers.get(effective_id) {
         Some(f) => f,
@@ -316,9 +454,6 @@ fn decompile_trigger(trigger: &Trigger, ctx: &BafContext) -> String {
     };
 
     let mut sb = String::new();
-    if (trigger.flags & 1) != 0 {
-        sb.push('!');
-    }
     sb.push_str(&function.name);
     sb.push('(');
     let concat = ctx.concat_info(function.id, function.params.len());
@@ -352,8 +487,7 @@ fn decompile_trigger(trigger: &Trigger, ctx: &BafContext) -> String {
                 cur_obj += 1;
             }
             ParamKind::Point => {
-                // Triggers in BG/EE/IWD don't carry a point; emit a default.
-                sb.push_str("[0.0]");
+                sb.push_str(&format!("[{}.{}]", trigger.t7_x, trigger.t7_y));
             }
             ParamKind::Action | ParamKind::Trigger => {
                 // Not produced in trigger signatures we care about.
@@ -567,7 +701,8 @@ fn decompile_object(object: &BcsObject, ctx: &BafContext) -> String {
     //      `name` string if no targets are set.
     //   2. Walk the identifier slots from outer to inner, wrapping the target
     //      with `OuterId(InnerId(target))`.
-    //   3. If nothing at all was set, output `[ANYONE]`.
+    //   3. If a search rectangle is set, append `[x.y.w.h]` after everything.
+    //   4. If nothing at all was set, output `[ANYONE]`.
 
     let mut target = decompile_object_target(object, false, ctx);
     if target.is_none() && !object.name.is_empty() {
@@ -595,8 +730,21 @@ fn decompile_object(object: &BcsObject, ctx: &BafContext) -> String {
         identifiers = Some(list);
     }
 
+    let region_suffix = if !object.region.is_empty() {
+        Some(format!(
+            "[{}.{}.{}.{}]",
+            object.region.x, object.region.y, object.region.width, object.region.height
+        ))
+    } else {
+        None
+    };
+
     if target.is_none() && identifiers.is_none() {
-        return "[ANYONE]".to_string();
+        let mut s = "[ANYONE]".to_string();
+        if let Some(r) = region_suffix {
+            s.push_str(&r);
+        }
+        return s;
     }
 
     let mut sb = String::new();
@@ -615,6 +763,9 @@ fn decompile_object(object: &BcsObject, ctx: &BafContext) -> String {
         sb.push_str(t);
     }
     sb.push_str(&closing);
+    if let Some(r) = region_suffix {
+        sb.push_str(&r);
+    }
     sb
 }
 
@@ -719,11 +870,10 @@ fn is_id_mid_char(b: u8) -> bool {
 
 impl BcsObject {
     fn default_empty() -> Self {
-        Self {
-            targets: [0; 7],
-            identifiers: [0; 5],
-            name: String::new(),
-        }
+        // Defer to the public `BcsObject::empty()` which fills in the
+        // `region` sentinel as well; kept as a thin alias because the
+        // decompiler module otherwise wouldn't need to reach for it.
+        Self::empty()
     }
 }
 
@@ -904,11 +1054,7 @@ mod tests {
 
     #[test]
     fn empty_object_renders_as_anyone() {
-        let obj = BcsObject {
-            targets: [0; 7],
-            identifiers: [0; 5],
-            name: String::new(),
-        };
+        let obj = BcsObject::empty();
         let out = decompile_object(&obj, &ctx_minimal());
         assert_eq!(out, "[ANYONE]");
     }
@@ -919,9 +1065,8 @@ mod tests {
         // innermost wrap, the last non-zero slot is the outermost. Without
         // OBJECT.IDS both fall back to UnknownObject.
         let obj = BcsObject {
-            targets: [0; 7],
             identifiers: [1, 12, 0, 0, 0],
-            name: String::new(),
+            ..BcsObject::empty()
         };
         let out = decompile_object(&obj, &ctx_minimal());
         assert_eq!(out, "UnknownObject12(UnknownObject1)");
@@ -929,13 +1074,9 @@ mod tests {
 
     #[test]
     fn object_with_target_renders_as_bracketed_numbers_when_ids_missing() {
-        let mut targets = [0i32; 7];
-        targets[0] = 200;
-        targets[1] = 4;
         let obj = BcsObject {
-            targets,
-            identifiers: [0; 5],
-            name: String::new(),
+            targets: vec![200, 4, 0, 0, 0, 0, 0],
+            ..BcsObject::empty()
         };
         let out = decompile_object(&obj, &ctx_minimal());
         assert_eq!(out, "[200.4]");
@@ -943,16 +1084,29 @@ mod tests {
 
     #[test]
     fn object_with_loaded_target_ids_resolves_symbols() {
-        let mut targets = [0i32; 7];
-        targets[0] = 255;
         let obj = BcsObject {
-            targets,
-            identifiers: [0; 5],
-            name: String::new(),
+            targets: vec![255, 0, 0, 0, 0, 0, 0],
+            ..BcsObject::empty()
         };
         let ctx = ctx_minimal().with_ids("EA", ids_from(&[(255, "ENEMY")]));
         let out = decompile_object(&obj, &ctx);
         assert_eq!(out, "[ENEMY]");
+    }
+
+    #[test]
+    fn object_with_region_appends_rect() {
+        // PST / IWD / IWD2 search rectangles render as `[ANYONE][x.y.w.h]`.
+        let obj = BcsObject {
+            region: BcsRegion {
+                x: 0,
+                y: 0,
+                width: 10000,
+                height: 10000,
+            },
+            ..BcsObject::empty()
+        };
+        let out = decompile_object(&obj, &ctx_minimal());
+        assert_eq!(out, "[ANYONE][0.0.10000.10000]");
     }
 
     #[test]
@@ -985,11 +1139,9 @@ mod tests {
                             t3: 0,
                             t4: String::new(),
                             t5: String::new(),
-                            target: BcsObject {
-                                targets: [0; 7],
-                                identifiers: [0; 5],
-                                name: String::new(),
-                            },
+                            target: BcsObject::empty(),
+                            t7_x: 0,
+                            t7_y: 0,
                         },
                         Trigger {
                             id: 0x4036,
@@ -999,11 +1151,9 @@ mod tests {
                             t3: 0,
                             t4: String::new(),
                             t5: String::new(),
-                            target: BcsObject {
-                                targets: [0; 7],
-                                identifiers: [0; 5],
-                                name: String::new(),
-                            },
+                            target: BcsObject::empty(),
+                            t7_x: 0,
+                            t7_y: 0,
                         },
                         Trigger {
                             id: 0x4036,
@@ -1013,11 +1163,9 @@ mod tests {
                             t3: 0,
                             t4: String::new(),
                             t5: String::new(),
-                            target: BcsObject {
-                                targets: [0; 7],
-                                identifiers: [0; 5],
-                                name: String::new(),
-                            },
+                            target: BcsObject::empty(),
+                            t7_x: 0,
+                            t7_y: 0,
                         },
                     ],
                 },
@@ -1033,5 +1181,271 @@ mod tests {
         let out = bcs.to_baf(&ctx);
         let expected = "IF\n\tOR(2)\n\t\tTrue()\n\t\tTrue()\nTHEN\n\tRESPONSE #100\nEND\n\n";
         assert_eq!(out, expected);
+    }
+}
+
+/// Integration tests that decompile every BCS / BS file in a real game's
+/// `extracted_resources/<game>/bcs/original/` and verify byte-exact equality
+/// against NearInfinity's reference `bcs/source/<stem>.baf`. Each game has
+/// its own `#[test]` so failures stay attributable; tests transparently skip
+/// when the game's directory is not present (since the corpus lives outside
+/// the repo).
+///
+/// Override the corpus root via the `EXTRACTED_RESOURCES` env var; it
+/// defaults to the path used in this workspace.
+#[cfg(test)]
+mod corpus_tests {
+    use super::*;
+    use crate::BcsImporter;
+    use infinitier_datasource::{DataSource, Importer};
+    use infinitier_ids_importer::IdsImporter;
+    use std::path::{Path, PathBuf};
+
+    /// Loads `<ids_dir>/<file>` (case-insensitive on extension) into a
+    /// `Signatures` table; panics if missing or unparseable.
+    fn load_signatures(ids_dir: &Path, file_stem: &str) -> Signatures {
+        let path = find_ids(ids_dir, file_stem)
+            .unwrap_or_else(|| panic!("missing IDS {}.IDS in {}", file_stem, ids_dir.display()));
+        let ids = IdsImporter
+            .import(&DataSource::new(path.as_path()))
+            .unwrap_or_else(|e| panic!("cannot parse {}: {e}", path.display()));
+        Signatures::from_ids(&ids)
+    }
+
+    /// Returns `<ids_dir>/<stem>.IDS`, tolerating the variations used across
+    /// game extracts (`TRIGGER.ids`, `TRIGGER.IDS`, `trigger.ids`).
+    fn find_ids(ids_dir: &Path, stem: &str) -> Option<PathBuf> {
+        for ext in ["IDS", "ids", "Ids"] {
+            let p = ids_dir.join(format!("{}.{}", stem, ext));
+            if p.is_file() {
+                return Some(p);
+            }
+            let p = ids_dir.join(format!("{}.{}", stem.to_ascii_lowercase(), ext));
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+        None
+    }
+
+    /// Iterates every BCS / BS file in `<corpus_dir>/original`, decompiles it
+    /// with `ctx`, and asserts the output matches `<corpus_dir>/source/<stem>.baf`.
+    /// Reports a bounded number of failures so a broken decompiler doesn't
+    /// produce megabytes of test output.
+    fn assert_corpus_matches(corpus_dir: &Path, ctx: &BafContext) {
+        let original_dir = corpus_dir.join("original");
+        let source_dir = corpus_dir.join("source");
+        assert!(
+            original_dir.is_dir(),
+            "missing {}",
+            original_dir.display()
+        );
+        assert!(source_dir.is_dir(), "missing {}", source_dir.display());
+
+        let mut paths: Vec<PathBuf> = std::fs::read_dir(&original_dir)
+            .expect("read original")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| {
+                p.extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| matches!(e.to_ascii_lowercase().as_str(), "bcs" | "bs"))
+                    .unwrap_or(false)
+            })
+            .collect();
+        paths.sort();
+        assert!(
+            !paths.is_empty(),
+            "no BCS/BS files in {}",
+            original_dir.display()
+        );
+
+        let mut failures: Vec<String> = Vec::new();
+        const MAX_REPORTED: usize = 5;
+
+        for src_path in &paths {
+            let bcs = match BcsImporter.import(&DataSource::new(src_path.as_path())) {
+                Ok(b) => b,
+                Err(e) => {
+                    failures.push(format!("parse error in {}: {}", src_path.display(), e));
+                    continue;
+                }
+            };
+            let actual = bcs.to_baf(ctx);
+            let stem = src_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .expect("file stem");
+            let baf_path = source_dir.join(format!("{}.baf", stem));
+            let expected = match std::fs::read_to_string(&baf_path) {
+                Ok(s) => s,
+                Err(e) => {
+                    failures.push(format!(
+                        "missing reference {}: {}",
+                        baf_path.display(),
+                        e
+                    ));
+                    continue;
+                }
+            };
+            if expected != actual {
+                let first_diff = expected
+                    .lines()
+                    .zip(actual.lines())
+                    .enumerate()
+                    .find(|(_, (e, a))| e != a)
+                    .map(|(i, (e, a))| {
+                        format!("  line {}: expected {:?}\n            actual   {:?}", i + 1, e, a)
+                    })
+                    .unwrap_or_else(|| {
+                        format!(
+                            "  trailing line difference (expected {} lines / {} bytes, actual {} / {})",
+                            expected.lines().count(),
+                            expected.len(),
+                            actual.lines().count(),
+                            actual.len(),
+                        )
+                    });
+                failures.push(format!("BAF mismatch {}\n{}", baf_path.display(), first_diff));
+            }
+        }
+
+        if !failures.is_empty() {
+            let shown: Vec<String> = failures.iter().take(MAX_REPORTED).cloned().collect();
+            panic!(
+                "{}/{} files failed (showing first {}):\n{}",
+                failures.len(),
+                paths.len(),
+                shown.len(),
+                shown.join("\n\n")
+            );
+        }
+    }
+
+    /// Default corpus root; override with the `EXTRACTED_RESOURCES` env var.
+    fn extracted_root() -> PathBuf {
+        let raw = std::env::var("EXTRACTED_RESOURCES").unwrap_or_else(|_| {
+            "/home/ufo/workspaces/github_ufoscout/baldurs_gate/extracted_resources".to_string()
+        });
+        PathBuf::from(raw)
+    }
+
+    /// Builder enum picks the right object-specifier order and combined-string
+    /// map per engine family.
+    enum GameKind {
+        /// BG, BGEE, BG2, BG2EE, IWDEE — same EE-derived combined-string map
+        /// and 7-slot object specifier.
+        Bg,
+        /// Original Icewind Dale — has its own BitGlobal / GlobalBitGlobal.
+        Iwd,
+        /// Icewind Dale 2.
+        Iwd2,
+        /// Planescape: Torment (the original).
+        Pst,
+        /// Planescape: Torment Enhanced Edition. Re-implemented on the EE
+        /// engine, so its combined-string map matches the BG family even
+        /// though it keeps PST's 9-slot object specifier layout.
+        Pstee,
+    }
+
+    fn build_context(kind: GameKind, ids_dir: &Path) -> BafContext {
+        let mut triggers = load_signatures(ids_dir, "TRIGGER");
+        let actions = load_signatures(ids_dir, "ACTION");
+        // NI hardcodes `Clicked` (0x4070) for PST because it's missing from
+        // PST's TRIGGER.IDS even though scripts reference it. Patch it in so
+        // the corpus output matches.
+        if matches!(kind, GameKind::Pst) {
+            triggers.add_function(0x4070, "Clicked(O:Object*)");
+        }
+        let mut ctx = BafContext::new_bg(triggers, actions);
+        match kind {
+            GameKind::Bg => {} // already configured by new_bg
+            GameKind::Iwd => {
+                ctx.combined_strings = combined_strings_iwd();
+            }
+            GameKind::Iwd2 => {
+                ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_IWD2
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                ctx.combined_strings = combined_strings_iwd2();
+            }
+            GameKind::Pst => {
+                ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_PST
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                ctx.combined_strings = combined_strings_pst();
+            }
+            GameKind::Pstee => {
+                ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_PST
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                // PSTEE runs on the EE engine; its concat map matches the BG
+                // family, not the original PST.
+            }
+        }
+        ctx
+    }
+
+    /// Runs the corpus test for `<root>/<game>/bcs/` against
+    /// `<root>/<game>/ids/`. Skips silently when the game folder is absent.
+    fn run_game(game: &str, kind: GameKind) {
+        let root = extracted_root();
+        let game_dir = root.join(game);
+        let corpus = game_dir.join("bcs");
+        let ids_dir = game_dir.join("ids");
+        if !corpus.is_dir() || !ids_dir.is_dir() {
+            eprintln!("skip baf corpus test for {}: missing {}", game, game_dir.display());
+            return;
+        }
+        let ctx = build_context(kind, &ids_dir);
+        assert_corpus_matches(&corpus, &ctx);
+    }
+
+    #[test]
+    fn baf_corpus_bg() {
+        run_game("bg", GameKind::Bg);
+    }
+
+    #[test]
+    fn baf_corpus_bgee() {
+        run_game("bgee", GameKind::Bg);
+    }
+
+    #[test]
+    fn baf_corpus_bg2() {
+        run_game("bg2", GameKind::Bg);
+    }
+
+    #[test]
+    fn baf_corpus_bg2ee() {
+        run_game("bg2ee", GameKind::Bg);
+    }
+
+    #[test]
+    fn baf_corpus_iwd() {
+        run_game("iwd", GameKind::Iwd);
+    }
+
+    #[test]
+    fn baf_corpus_iwdee() {
+        run_game("iwdee", GameKind::Bg);
+    }
+
+    #[test]
+    fn baf_corpus_iwd2() {
+        run_game("iwd2", GameKind::Iwd2);
+    }
+
+    #[test]
+    fn baf_corpus_pst() {
+        run_game("pst", GameKind::Pst);
+    }
+
+    #[test]
+    fn baf_corpus_pstee() {
+        run_game("pstee", GameKind::Pstee);
     }
 }

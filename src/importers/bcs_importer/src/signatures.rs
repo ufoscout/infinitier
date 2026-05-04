@@ -56,14 +56,31 @@ pub enum ParamKind {
 
 impl Signatures {
     /// Builds a [`Signatures`] table from a parsed IDS file.
+    ///
+    /// Matches NearInfinity's deduplication: when several IDS lines share the
+    /// same id *and* the same parameter shape (e.g. `8 Dialogue(O:Object*)`
+    /// followed by `8 Dialog(O:Object*)`), only the first one is kept.
+    /// Functions sharing an id but having different parameter shapes (e.g.
+    /// `7 CreateCreature(...)` vs `7 CreateCreatureEffect(...)`) are all
+    /// retained; the BAF decompiler picks among them by param-shape scoring.
     pub fn from_ids(ids: &Ids) -> Self {
         let mut by_id: HashMap<i32, Vec<Function>> = HashMap::new();
         let mut by_name: HashMap<String, Function> = HashMap::new();
         for entry in &ids.entries {
-            if let Some(func) = Function::parse(entry.value, &entry.name) {
-                by_id.entry(func.id).or_default().push(func.clone());
-                by_name.insert(func.name.to_ascii_lowercase(), func);
+            let Some(func) = Function::parse(entry.value, &entry.name) else {
+                continue;
+            };
+            let bucket = by_id.entry(func.id).or_default();
+            // NI's Function.equals ignores the name and only compares id +
+            // params + type, so two same-id same-shape definitions collide and
+            // the first added wins. Mirror that here.
+            if bucket.iter().any(|existing| existing.params == func.params) {
+                continue;
             }
+            bucket.push(func.clone());
+            by_name
+                .entry(func.name.to_ascii_lowercase())
+                .or_insert(func);
         }
         Self { by_id, by_name }
     }
@@ -76,6 +93,27 @@ impl Signatures {
     /// Returns a function by name (case-insensitive).
     pub fn get_by_name(&self, name: &str) -> Option<&Function> {
         self.by_name.get(&name.to_ascii_lowercase())
+    }
+
+    /// Adds a function signature parsed from raw text (e.g.
+    /// `"Clicked(O:Object*)"`). Used to patch in functions that NearInfinity
+    /// hardcodes for specific games but that aren't in their TRIGGER.IDS /
+    /// ACTION.IDS — for example, PST is missing `0x4070 Clicked(O:Object*)`.
+    /// Returns `true` if added, `false` if a same-shape definition already
+    /// exists for `id`.
+    pub fn add_function(&mut self, id: i32, signature: &str) -> bool {
+        let Some(func) = Function::parse(id, signature) else {
+            return false;
+        };
+        let bucket = self.by_id.entry(id).or_default();
+        if bucket.iter().any(|existing| existing.params == func.params) {
+            return false;
+        }
+        bucket.push(func.clone());
+        self.by_name
+            .entry(func.name.to_ascii_lowercase())
+            .or_insert(func);
+        true
     }
 }
 

@@ -61,7 +61,8 @@ pub struct Response {
 /// A trigger (`TR … TR`).
 ///
 /// Parameters follow the BG/BG2 byte-code order: id, t1, flags, t2, t3, t4, t5, target-object.
-/// `flags & 1` means the trigger result is negated.
+/// `flags & 1` means the trigger result is negated. `t7_x` / `t7_y` carry the
+/// PST-only point parameter and default to zero on the BG / IWD families.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Trigger {
     pub id: i32,
@@ -72,6 +73,20 @@ pub struct Trigger {
     pub t4: String,
     pub t5: String,
     pub target: BcsObject,
+    /// PST-only point parameter (x). Always `0` on non-PST scripts.
+    #[serde(default, skip_serializing_if = "is_zero_i32")]
+    pub t7_x: i32,
+    /// PST-only point parameter (y). Always `0` on non-PST scripts.
+    #[serde(default, skip_serializing_if = "is_zero_i32")]
+    pub t7_y: i32,
+}
+
+fn is_zero_i32(v: &i32) -> bool {
+    *v == 0
+}
+
+fn is_default_region(r: &BcsRegion) -> bool {
+    *r == BcsRegion::default()
 }
 
 /// An action (`AC … AC`).
@@ -95,16 +110,70 @@ pub struct Action {
 
 /// An object parameter (`OB … OB`).
 ///
-/// For BG/BG2 the 12 numeric values split as:
-/// * `targets[0..7]`     — EA, General, Race, Class, Specific, Gender, Alignment
-/// * `identifiers[0..5]` — OBJECT.IDS nesting levels
+/// `targets` carries the engine's target specifier slots (EA, General, Race,
+/// Class, …) — 7 entries on BG / BG2 / EE, 9 on PST and 10 on IWD2. The
+/// caller pairs each slot with the appropriate IDS file via
+/// [`crate::baf::BafContext::object_specifier_ids`]. `identifiers[0..5]` are
+/// always the OBJECT.IDS nesting levels regardless of engine.
 ///
-/// `name` is the script name string.
+/// `name` is the script name string. `region` carries the rectangular search
+/// area used by PST / IWD / IWD2 scripts (`[x.y.w.h]`); on BG it stays at the
+/// default empty value.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BcsObject {
-    pub targets: [i32; 7],
+    pub targets: Vec<i32>,
     pub identifiers: [i32; 5],
     pub name: String,
+    /// Optional `[x.y.w.h]` search rectangle. Defaults to the empty marker
+    /// `(-1, -1, -1, -1)`, matching NI's `Rectangle(-1, -1, -1, -1)` sentinel.
+    #[serde(default, skip_serializing_if = "is_default_region")]
+    pub region: BcsRegion,
+}
+
+/// A `[x.y.w.h]` rectangle attached to a BCS object (PST / IWD / IWD2).
+///
+/// The all-`-1` value is the canonical "no region" sentinel and is never
+/// rendered in the BAF output (matching NI's `isEmptyRect` check).
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+pub struct BcsRegion {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+impl Default for BcsRegion {
+    fn default() -> Self {
+        Self {
+            x: -1,
+            y: -1,
+            width: -1,
+            height: -1,
+        }
+    }
+}
+
+impl BcsRegion {
+    /// Returns whether this region is the empty `(-1, -1, -1, -1)` sentinel.
+    pub fn is_empty(&self) -> bool {
+        self == &Self::default()
+    }
+}
+
+impl BcsObject {
+    /// Returns an object with every slot zeroed and an empty name. Used as
+    /// the default trigger target when the BCS bytecode omits the object.
+    /// Defaults to the BG-family 7-slot target layout — callers running
+    /// against PST or IWD2 corpora will get longer arrays from the parser
+    /// directly.
+    pub fn empty() -> Self {
+        Self {
+            targets: vec![0; 7],
+            identifiers: [0; 5],
+            name: String::new(),
+            region: BcsRegion::default(),
+        }
+    }
 }
 
 // ── Token stream ─────────────────────────────────────────────────────────────
@@ -202,6 +271,32 @@ impl<'a> BcsStream<'a> {
         Ok(s)
     }
 
+    /// Consumes a `[x,y]` point or `[x.y.w.h]` rectangle and returns the raw
+    /// integers. Used to skip over PST point parameters and PST/IWD/IWD2
+    /// object rectangles, which the public structs don't currently model.
+    fn read_point_or_rect(&mut self) -> std::io::Result<Vec<i32>> {
+        self.skip_ws();
+        if self.data.get(self.pos) != Some(&b'[') {
+            return Err(std::io::Error::other("expected '['"));
+        }
+        self.pos += 1;
+        let mut nums = Vec::with_capacity(4);
+        loop {
+            self.skip_ws();
+            // separators between numbers are either '.' or ','; consume one.
+            if matches!(self.data.get(self.pos), Some(&b'.') | Some(&b',')) {
+                self.pos += 1;
+            }
+            self.skip_ws();
+            if self.data.get(self.pos) == Some(&b']') {
+                self.pos += 1;
+                return Ok(nums);
+            }
+            nums.push(self.read_i32()?);
+            // Loop continues; either next byte is a separator, ']', or another digit.
+        }
+    }
+
     fn is_eos(&self) -> bool {
         self.pos >= self.data.len()
     }
@@ -210,7 +305,15 @@ impl<'a> BcsStream<'a> {
 // ── Parser ────────────────────────────────────────────────────────────────────
 
 fn parse_bcs(s: &mut BcsStream<'_>) -> std::io::Result<Bcs> {
-    s.expect("SC")?;
+    // NI's decompiler returns empty output for any file that doesn't start
+    // with `SC` (including empty BCS and the misnamed BAF-source files
+    // sprinkled through some game extracts, e.g. iwd2/TESTOCLE.bcs). Match
+    // that behaviour so the corpus tests don't trip on those.
+    if !s.try_skip("SC") {
+        return Ok(Bcs {
+            condition_responses: Vec::new(),
+        });
+    }
     let mut condition_responses = Vec::new();
     while !s.is_eos() && !s.try_skip("SC") {
         condition_responses.push(parse_condition_response(s)?);
@@ -258,86 +361,239 @@ fn parse_response(s: &mut BcsStream<'_>) -> std::io::Result<Response> {
 }
 
 fn parse_trigger(s: &mut BcsStream<'_>) -> std::io::Result<Trigger> {
+    // Triggers are token-driven, not field-positional: BG / BG2 occasionally
+    // emit short forms (e.g. `2 0 OB ... TR`) and PST adds a point parameter.
+    // We mirror NI's BcsTrigger.init: read whatever comes next until we hit
+    // the closing TR, dispatching by lookahead.
     s.expect("TR")?;
-    let id = s.read_i32()?;
-    let t1 = s.read_i32()?;
-    let flags = s.read_i32()?;
-    let t2 = s.read_i32()?;
-    let t3 = s.read_i32()?;
-    let t4 = s.read_string()?;
-    let t5 = s.read_string()?;
-    let target = parse_object(s)?;
-    s.expect("TR")?;
+    let mut nums = [0i32; 5];
+    let mut num_count = 0;
+    let mut strings: [String; 2] = [String::new(), String::new()];
+    let mut str_count = 0;
+    let mut target: Option<BcsObject> = None;
+    let mut t7_x = 0;
+    let mut t7_y = 0;
+    loop {
+        if s.try_skip("TR") {
+            break;
+        }
+        if s.try_skip("OB") {
+            // OB is consumed; parse the rest of the object body and store as
+            // the (single) trigger target slot.
+            let obj = parse_object_body(s)?;
+            if target.is_none() {
+                target = Some(obj);
+            }
+            continue;
+        }
+        match s.peek() {
+            Some(b'-') | Some(b'0'..=b'9') => {
+                let n = s.read_i32()?;
+                if num_count < nums.len() {
+                    nums[num_count] = n;
+                }
+                num_count += 1;
+            }
+            Some(b'"') => {
+                let st = s.read_string()?;
+                if str_count < strings.len() {
+                    strings[str_count] = st;
+                }
+                str_count += 1;
+            }
+            Some(b'[') => {
+                // PST trigger point parameter `[x,y]`.
+                let parts = s.read_point_or_rect()?;
+                if parts.len() >= 2 {
+                    t7_x = parts[0];
+                    t7_y = parts[1];
+                }
+            }
+            None => return Err(std::io::Error::other("unexpected EOS inside TR")),
+            Some(c) => {
+                return Err(std::io::Error::other(format!(
+                    "unexpected token in TR: {:?}",
+                    c as char
+                )));
+            }
+        }
+    }
     Ok(Trigger {
-        id,
-        flags,
-        t1,
-        t2,
-        t3,
-        t4,
-        t5,
-        target,
+        id: nums[0],
+        t1: nums[1],
+        flags: nums[2],
+        t2: nums[3],
+        t3: nums[4],
+        t4: std::mem::take(&mut strings[0]),
+        t5: std::mem::take(&mut strings[1]),
+        target: target.unwrap_or_else(BcsObject::empty),
+        t7_x,
+        t7_y,
     })
 }
 
 fn parse_action(s: &mut BcsStream<'_>) -> std::io::Result<Action> {
+    // Like parse_trigger, action bytecode is token-driven: BG1's older scripts
+    // sometimes omit the trailing string parameters entirely (`... 0 0 0 0
+    // 85AC` with no `""` slots), so we scan tokens until the closing AC.
     s.expect("AC")?;
-    let id = s.read_i32()?;
-    let a1 = parse_object(s)?;
-    let a2 = parse_object(s)?;
-    let a3 = parse_object(s)?;
-    let a4 = s.read_i32()?;
-    let a5_x = s.read_i32()?;
-    let a5_y = s.read_i32()?;
-    let a6 = s.read_i32()?;
-    let a7 = s.read_i32()?;
-    let a8 = s.read_string()?;
-    let a9 = s.read_string()?;
-    s.expect("AC")?;
+    let mut nums = [0i32; 6];
+    let mut num_count = 0;
+    let mut strings: [String; 2] = [String::new(), String::new()];
+    let mut str_count = 0;
+    let mut objects: Vec<BcsObject> = Vec::with_capacity(3);
+    loop {
+        if s.try_skip("AC") {
+            break;
+        }
+        if s.try_skip("OB") {
+            objects.push(parse_object_body(s)?);
+            continue;
+        }
+        match s.peek() {
+            Some(b'-') | Some(b'0'..=b'9') => {
+                let n = s.read_i32()?;
+                if num_count < nums.len() {
+                    nums[num_count] = n;
+                }
+                num_count += 1;
+            }
+            Some(b'"') => {
+                let st = s.read_string()?;
+                if str_count < strings.len() {
+                    strings[str_count] = st;
+                }
+                str_count += 1;
+            }
+            None => return Err(std::io::Error::other("unexpected EOS inside AC")),
+            Some(c) => {
+                return Err(std::io::Error::other(format!(
+                    "unexpected token in AC: {:?}",
+                    c as char
+                )));
+            }
+        }
+    }
+
+    let mut take_obj = |i: usize| -> BcsObject {
+        if i < objects.len() {
+            std::mem::replace(&mut objects[i], BcsObject::empty())
+        } else {
+            BcsObject::empty()
+        }
+    };
+
     Ok(Action {
-        id,
-        a1,
-        a2,
-        a3,
-        a4,
-        a5_x,
-        a5_y,
-        a6,
-        a7,
-        a8,
-        a9,
+        id: nums[0],
+        a4: nums[1],
+        a5_x: nums[2],
+        a5_y: nums[3],
+        a6: nums[4],
+        a7: nums[5],
+        a1: take_obj(0),
+        a2: take_obj(1),
+        a3: take_obj(2),
+        a8: std::mem::take(&mut strings[0]),
+        a9: std::mem::take(&mut strings[1]),
     })
 }
 
 fn parse_object(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
     s.expect("OB")?;
-    let mut nums: Vec<i32> = Vec::new();
+    parse_object_body(s)
+}
+
+/// Parses everything between an already-consumed opening `OB` and its
+/// closing `OB`. Mirrors NI's BcsObject.init: token-driven, with the
+/// 5 OBJECT.IDS identifiers carved out of the position immediately before
+/// the rectangle (or the name, if no rectangle is present). On BG / BG2 /
+/// EE this matches "last 5 numbers"; on IWD2 the layout interleaves the
+/// rectangle and additional target slots after the identifiers, which is
+/// why we have to track positions explicitly.
+fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
+    enum Tok {
+        Int(i32),
+        Str(String),
+        Rect([i32; 4]),
+    }
+    let mut tokens: Vec<Tok> = Vec::new();
     loop {
+        if s.try_skip("OB") {
+            break;
+        }
         match s.peek() {
-            Some(b'-') | Some(b'0'..=b'9') => nums.push(s.read_i32()?),
-            _ => break,
+            Some(b'-') | Some(b'0'..=b'9') => tokens.push(Tok::Int(s.read_i32()?)),
+            Some(b'"') => tokens.push(Tok::Str(s.read_string()?)),
+            Some(b'[') => {
+                let parts = s.read_point_or_rect()?;
+                let r = if parts.len() == 4 {
+                    [parts[0], parts[1], parts[2], parts[3]]
+                } else {
+                    [-1, -1, -1, -1]
+                };
+                tokens.push(Tok::Rect(r));
+            }
+            None => return Err(std::io::Error::other("unexpected EOS inside OB")),
+            Some(c) => {
+                return Err(std::io::Error::other(format!(
+                    "unexpected token in OB: {:?}",
+                    c as char
+                )));
+            }
         }
     }
-    let name = s.read_string()?;
-    s.expect("OB")?;
 
-    // Last 5 numbers are OBJECT.IDS identifiers; the rest are target specifiers.
-    let n = nums.len();
-    let split = n.saturating_sub(5);
-
-    let mut targets = [0i32; 7];
-    let mut identifiers = [0i32; 5];
-    for (i, &v) in nums[..split].iter().enumerate().take(7) {
-        targets[i] = v;
+    // Locate the rectangle and the name; identifiers occupy the 5 integer
+    // slots immediately before whichever non-integer marker appears first
+    // (rectangle preferred, name otherwise).
+    let mut pos_rect: Option<usize> = None;
+    let mut pos_name: Option<usize> = None;
+    let mut name = String::new();
+    let mut region = BcsRegion::default();
+    for (i, tok) in tokens.iter().enumerate() {
+        match tok {
+            Tok::Rect(r) => {
+                pos_rect.get_or_insert(i);
+                region = BcsRegion {
+                    x: r[0],
+                    y: r[1],
+                    width: r[2],
+                    height: r[3],
+                };
+            }
+            Tok::Str(s) => {
+                pos_name.get_or_insert(i);
+                name = s.clone();
+            }
+            _ => {}
+        }
     }
-    for (i, &v) in nums[split..].iter().enumerate().take(5) {
-        identifiers[i] = v;
+
+    let pos_separator = pos_rect.or(pos_name).unwrap_or(tokens.len());
+    let id_start = pos_separator.saturating_sub(5);
+    let id_end = id_start + 5;
+
+    let mut targets: Vec<i32> = Vec::new();
+    let mut identifiers = [0i32; 5];
+    let mut ident_idx = 0;
+    for (i, tok) in tokens.iter().enumerate() {
+        if let Tok::Int(v) = tok {
+            if i >= id_start && i < id_end {
+                if ident_idx < 5 {
+                    identifiers[ident_idx] = *v;
+                    ident_idx += 1;
+                }
+            } else {
+                targets.push(*v);
+            }
+        }
     }
 
     Ok(BcsObject {
         targets,
         identifiers,
         name,
+        region,
     })
 }
 
@@ -406,23 +662,16 @@ fn push_action(out: &mut String, a: &Action) {
 }
 
 fn push_object_content(out: &mut String, obj: &BcsObject) {
-    // 12 integers + closing "name"OB on one line; OB is adjacent to the closing quote
-    out.push_str(&format!(
-        "{} {} {} {} {} {} {} {} {} {} {} {} \"{}\"OB\n",
-        obj.targets[0],
-        obj.targets[1],
-        obj.targets[2],
-        obj.targets[3],
-        obj.targets[4],
-        obj.targets[5],
-        obj.targets[6],
-        obj.identifiers[0],
-        obj.identifiers[1],
-        obj.identifiers[2],
-        obj.identifiers[3],
-        obj.identifiers[4],
-        obj.name
-    ));
+    // N targets + 5 identifiers + closing "name"OB on one line; OB is adjacent
+    // to the closing quote. Target count is engine-dependent (7 BG, 9 PST,
+    // 10 IWD2) and read straight off the parsed Vec.
+    for v in &obj.targets {
+        out.push_str(&format!("{} ", v));
+    }
+    for v in &obj.identifiers {
+        out.push_str(&format!("{} ", v));
+    }
+    out.push_str(&format!("\"{}\"OB\n", obj.name));
 }
 
 #[cfg(test)]
@@ -443,7 +692,7 @@ mod tests {
         let src = "OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\n";
         let mut s = BcsStream::new(src);
         let obj = parse_object(&mut s).unwrap();
-        assert_eq!(obj.targets, [0; 7]);
+        assert_eq!(obj.targets, vec![0; 7]);
         assert_eq!(obj.identifiers, [0; 5]);
         assert_eq!(obj.name, "");
     }
@@ -454,7 +703,7 @@ mod tests {
         let src = "OB\n30 0 0 0 0 0 0 1 12 0 0 0 \"\"OB\n";
         let mut s = BcsStream::new(src);
         let obj = parse_object(&mut s).unwrap();
-        assert_eq!(obj.targets, [30, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(obj.targets, vec![30, 0, 0, 0, 0, 0, 0]);
         assert_eq!(obj.identifiers, [1, 12, 0, 0, 0]);
         assert_eq!(obj.name, "");
     }
@@ -572,94 +821,4 @@ mod tests {
         }
     }
 
-    /// Decompiles every BS script in the bg2ee corpus and checks that the
-    /// generated BAF matches the reference produced by NearInfinity. Skipped
-    /// when the extracted-resources directory is not present so the test
-    /// remains opt-in for environments that don't have the BG2EE dump.
-    ///
-    /// The path is configurable via the `BG2EE_RESOURCES` env var; default is
-    /// the location used in this workspace.
-    #[test]
-    fn decompile_bg2ee_bs_corpus_matches_nearinfinity_baf() {
-        use crate::baf::BafContext;
-        use crate::signatures::Signatures;
-        use infinitier_ids_importer::IdsImporter;
-
-        let root_str = std::env::var("BG2EE_RESOURCES").unwrap_or_else(|_| {
-            "/home/ufo/workspaces/github_ufoscout/baldurs_gate/extracted_resources/bg2ee"
-                .to_string()
-        });
-        let root = std::path::PathBuf::from(&root_str);
-        if !root.is_dir() {
-            eprintln!(
-                "Skipping bg2ee BAF decompiler test: {} not found",
-                root.display()
-            );
-            return;
-        }
-
-        let triggers_ids = IdsImporter
-            .import(&DataSource::new(root.join("ids/TRIGGER.ids").as_path()))
-            .expect("TRIGGER.ids");
-        let actions_ids = IdsImporter
-            .import(&DataSource::new(root.join("ids/ACTION.ids").as_path()))
-            .expect("ACTION.ids");
-
-        // Mirror NI's headless extractor configuration: only the function
-        // signature tables are loaded — no OBJECT/EA/CLASS/... lookups —
-        // which is why the reference BAFs use `UnknownObjectN` and raw
-        // numeric target slots.
-        let ctx = BafContext::new_bg(
-            Signatures::from_ids(&triggers_ids),
-            Signatures::from_ids(&actions_ids),
-        );
-
-        let bs_dir = root.join("bs/original");
-        let baf_dir = root.join("bs/source");
-        let bs_paths = get_all_in_folder_by_extension(&bs_dir, "bs");
-        assert!(!bs_paths.is_empty(), "no BS files in {}", bs_dir.display());
-
-        let mut failures: Vec<String> = Vec::new();
-        for bs_path in &bs_paths {
-            let bcs = BcsImporter
-                .import(&DataSource::new(bs_path.as_path()))
-                .unwrap_or_else(|e| panic!("cannot parse {}: {e}", bs_path.display()));
-            let actual = bcs.to_baf(&ctx);
-
-            let stem = bs_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .expect("file stem");
-            let baf_path = baf_dir.join(format!("{}.baf", stem));
-            let expected = std::fs::read_to_string(&baf_path)
-                .unwrap_or_else(|e| panic!("cannot read {}: {e}", baf_path.display()));
-
-            if expected != actual {
-                let first_diff = expected
-                    .lines()
-                    .zip(actual.lines())
-                    .enumerate()
-                    .find(|(_, (e, a))| e != a)
-                    .map(|(i, (e, a))| format!("line {}:\n  expected: {:?}\n  actual:   {:?}", i + 1, e, a))
-                    .unwrap_or_else(|| {
-                        format!(
-                            "lines match but lengths differ: expected {} bytes / {} lines, actual {} bytes / {} lines",
-                            expected.len(),
-                            expected.lines().count(),
-                            actual.len(),
-                            actual.lines().count(),
-                        )
-                    });
-                failures.push(format!("BAF mismatch for {}\n{}", baf_path.display(), first_diff));
-            }
-        }
-
-        assert!(
-            failures.is_empty(),
-            "{} of {} BAF files mismatched:\n{}",
-            failures.len(),
-            bs_paths.len(),
-            failures.join("\n\n")
-        );
-    }
 }
