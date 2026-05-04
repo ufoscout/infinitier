@@ -95,4 +95,27 @@ mod tests {
 
         assert_eq!(Bam::V1(bam_from_decompressed), bam_from_compressed);
     }
+
+        #[test]
+    fn test_parse_bam_v1_compressed_03() {
+        let bam_from_decompressed = {
+            let data = DataSource::new(
+                get_assets_path().join("resources/BAM_V1/03/SPWI524D_decompressed.BAM"),
+            );
+
+            let mut reader = data.reader().unwrap();
+            BamV1Parser::import(&mut reader).unwrap()
+        };
+
+        let bam_from_compressed = {
+            let data = DataSource::new(
+                get_assets_path().join("resources/BAM_V1/03/SPWI524D_compressed.BAM"),
+            );
+
+            let mut reader = data.reader().unwrap();
+            BamcParser::import(&mut reader).unwrap()
+        };
+
+        assert_eq!(Bam::V1(bam_from_decompressed), bam_from_compressed);
+    }
 }

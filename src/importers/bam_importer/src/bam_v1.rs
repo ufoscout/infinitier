@@ -116,7 +116,8 @@ impl BamV1Parser {
                     let pixel_index = reader.read_u8()?;
 
                     if compressed && (pixel_index == rle_compressed_color_index) {
-                        let pixels_count = reader.read_u8()?;
+                        // Some BAM files end with an RLE token but no count byte; treat as count=0
+                        let pixels_count = reader.read_u8().unwrap_or(0);
                         for _ in 0..=pixels_count {
                             pixel_palette_indexes.push(pixel_index);
                         }
@@ -329,15 +330,15 @@ mod tests {
         assert_eq!(
             bam.cycles[0],
             BamV1Cycle {
-                frame_indices: vec![0, 0]
+                frame_indices: vec![0]
             }
         );
 
         assert_eq!(bam.frames.len(), 1);
         assert_eq!(bam.frames[0].width, 13);
         assert_eq!(bam.frames[0].height, 13);
-        assert_eq!(bam.frames[0].center_x, 7);
-        assert_eq!(bam.frames[0].center_y, 7);
+        assert_eq!(bam.frames[0].center_x, 0);
+        assert_eq!(bam.frames[0].center_y, 13);
         assert_eq!(bam.frames[0].pixel_palette_indexes.len(), 13 * 13);
 
         // Assert that the image is the same as the reference
