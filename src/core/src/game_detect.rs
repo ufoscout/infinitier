@@ -22,80 +22,10 @@
 
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 
-/// One concrete Infinity Engine game.
-///
-/// The variants intentionally distinguish the canonical and Enhanced
-/// Edition releases (BG vs BGEE, IWD vs IWDEE, PST vs PSTEE), plus the
-/// closely-related variants NI also recognises (BG1+SoD, EET on top of
-/// BG2EE, the BG1 Tutu mod, and the BG2/SoA expansion).
-///
-/// To pick a [`crate::baf`]-style context, group by [`Self::engine`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Game {
-    /// Original Baldur's Gate (and TotSC).
-    Bg,
-    /// Baldur's Gate II (SoA / ToB / BGT).
-    Bg2,
-    /// Baldur's Gate Enhanced Edition.
-    Bgee,
-    /// Baldur's Gate Enhanced Edition + Siege of Dragonspear.
-    BgeeSod,
-    /// Baldur's Gate II Enhanced Edition.
-    Bg2ee,
-    /// Enhanced Edition Trilogy (BGEE+SoD+BG2EE merged install).
-    Eet,
-    /// BG1 Tutu mod (BG1 content running on the BG2 engine).
-    Tutu,
-    /// Icewind Dale (and HoW / TotL expansions).
-    Iwd,
-    /// Icewind Dale Enhanced Edition.
-    Iwdee,
-    /// Icewind Dale 2.
-    Iwd2,
-    /// Planescape: Torment.
-    Pst,
-    /// Planescape: Torment Enhanced Edition.
-    Pstee,
-}
-
-/// The engine family a [`Game`] belongs to.
-///
-/// Several BAF-related lookups (object specifier order, combined-string map,
-/// trigger point / object region presence) only depend on the engine, not on
-/// the specific game release.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Engine {
-    /// Original BG / BG2 (pre-EE) engines.
-    Bg,
-    Bg2,
-    /// Shared Enhanced Edition engine (BGEE / BG2EE / IWDEE / PSTEE / EET).
-    Ee,
-    /// Original Icewind Dale (HoW / TotL).
-    Iwd,
-    /// Icewind Dale 2.
-    Iwd2,
-    /// Original Planescape: Torment.
-    Pst,
-}
-
-impl Game {
-    /// Returns the [`Engine`] family the game runs on.
-    pub fn engine(self) -> Engine {
-        match self {
-            Game::Bg => Engine::Bg,
-            Game::Bg2 | Game::Tutu => Engine::Bg2,
-            Game::Bgee
-            | Game::BgeeSod
-            | Game::Bg2ee
-            | Game::Eet
-            | Game::Iwdee
-            | Game::Pstee => Engine::Ee,
-            Game::Iwd => Engine::Iwd,
-            Game::Iwd2 => Engine::Iwd2,
-            Game::Pst => Engine::Pst,
-        }
-    }
-}
+// `Game` and `Engine` live in `infinitier_common` so importer crates can
+// depend on them without pulling in core. Re-export here for the convenience
+// of callers that already use this module.
+pub use infinitier_common::{Engine, Game};
 
 /// Detects which Infinity Engine game lives at the given root.
 ///
@@ -293,19 +223,5 @@ mod tests {
         let dir = std::env::current_dir().unwrap();
         let fs = CaseInsensitiveFS::new(&dir).unwrap();
         assert_eq!(detect_game(&fs), None);
-    }
-
-    #[test]
-    fn engine_per_game_grouping() {
-        assert_eq!(Game::Bg.engine(), Engine::Bg);
-        assert_eq!(Game::Bg2.engine(), Engine::Bg2);
-        assert_eq!(Game::Bgee.engine(), Engine::Ee);
-        assert_eq!(Game::Bg2ee.engine(), Engine::Ee);
-        assert_eq!(Game::Iwdee.engine(), Engine::Ee);
-        assert_eq!(Game::Pstee.engine(), Engine::Ee);
-        assert_eq!(Game::Eet.engine(), Engine::Ee);
-        assert_eq!(Game::Iwd.engine(), Engine::Iwd);
-        assert_eq!(Game::Iwd2.engine(), Engine::Iwd2);
-        assert_eq!(Game::Pst.engine(), Engine::Pst);
     }
 }

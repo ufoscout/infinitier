@@ -17,6 +17,7 @@
 
 use std::collections::HashMap;
 
+use infinitier_common::{Engine, Game};
 use infinitier_ids_importer::Ids;
 
 use crate::signatures::{Function, ParamKind, Signatures};
@@ -24,16 +25,16 @@ use crate::{Action, Bcs, BcsObject, BcsRegion, Trigger};
 
 /// Object specifier slots (target IDS resources in array order) used by BG
 /// and BG2 (Enhanced Edition included), Icewind Dale and Icewind Dale EE.
-pub const OBJECT_SPECIFIER_IDS_BG: &[&str] =
+pub(crate) const OBJECT_SPECIFIER_IDS_BG: &[&str] =
     &["EA", "GENERAL", "RACE", "CLASS", "SPECIFIC", "GENDER", "ALIGN"];
 
 /// Object specifier slots used by Planescape: Torment (and PSTEE).
-pub const OBJECT_SPECIFIER_IDS_PST: &[&str] = &[
+pub(crate) const OBJECT_SPECIFIER_IDS_PST: &[&str] = &[
     "EA", "FACTION", "TEAM", "GENERAL", "RACE", "CLASS", "SPECIFIC", "GENDER", "ALIGN",
 ];
 
 /// Object specifier slots used by Icewind Dale 2.
-pub const OBJECT_SPECIFIER_IDS_IWD2: &[&str] = &[
+pub(crate) const OBJECT_SPECIFIER_IDS_IWD2: &[&str] = &[
     "EA", "GENERAL", "RACE", "CLASS", "SPECIFIC", "GENDER", "ALIGNMNT", "SUBRACE", "AVCLASS",
     "CLASSMSK",
 ];
@@ -77,69 +78,94 @@ impl ConcatInfo {
     }
 }
 
-/// Inputs for the BAF decompiler.
+/// Inputs for the BAF decompiler / compiler.
 ///
-/// Build one from your parsed TRIGGER.IDS / ACTION.IDS plus the engine's
-/// object-specifier layout. Optional IDS resources can be added with
-/// [`BafContext::with_ids`] to enable symbolic substitutions for object
-/// identifiers, target specifiers and integer parameters that carry an
-/// `*IdsRef`. Anything not supplied falls back to the raw numeric form.
+/// Build one from your parsed TRIGGER.IDS / ACTION.IDS plus the [`Game`] you
+/// are targeting; [`Self::new`] derives every engine-specific knob (object
+/// specifier layout, combined-string map, presence of object regions and
+/// trigger points, IWD2 trailing target slots) from the game's
+/// [`Engine`](infinitier_common::Engine).
+///
+/// All fields are private so callers can't put the context into an
+/// inconsistent state. Optional IDS resources for symbolic resolution
+/// (OBJECT.IDS, EA.IDS, …) can be layered in with [`Self::with_ids`]; the
+/// indentation string used by the decompiler can be tweaked with
+/// [`Self::with_indent`]. Without those, `UnknownObject<n>` and raw numbers
+/// are emitted, matching how NearInfinity behaves with its IDS cache empty.
 pub struct BafContext {
-    /// Trigger function signatures (parsed from TRIGGER.IDS).
-    pub triggers: Signatures,
-    /// Action function signatures (parsed from ACTION.IDS).
-    pub actions: Signatures,
+    triggers: Signatures,
+    actions: Signatures,
     /// Names (without extension, upper-case) of the IDS files mapped onto the
     /// object's `targets` array, in slot order. Slot 0 is always EA.
-    pub object_specifier_ids: Vec<String>,
+    object_specifier_ids: Vec<String>,
     /// IDS files indexed by their upper-cased resource name (without
     /// extension). Used for object identifier nesting (`OBJECT`), target
     /// specifier symbols (`EA`, `GENERAL`, …) and `*IdsRef` integer lookups.
-    pub ids: HashMap<String, Ids>,
+    ids: HashMap<String, Ids>,
     /// Per-id combined-string encoding. Keys are trigger / action ids; the
     /// same id space is shared because the encoding only depends on the
     /// signature's string layout, not on whether the function is a trigger
-    /// or an action. Use [`combined_strings_bg_family`] for the standard
-    /// BG/BG2/IWD/EE Global-style packings; supply your own map for other
-    /// engines.
-    pub combined_strings: HashMap<i32, ConcatInfo>,
+    /// or an action.
+    combined_strings: HashMap<i32, ConcatInfo>,
     /// String prepended once per nesting level. NearInfinity uses `\t` when
     /// running headless, which is what we default to.
-    pub indent: String,
+    indent: String,
     /// Whether the engine's object bytecode includes the `[x.y.w.h]`
-    /// rectangle slot (PST / IWD / IWD2). The BG family (BG, BG2, EE
-    /// derivatives — including PSTEE — and IWDEE) leaves this `false`.
-    /// Used by the BAF compiler to know whether to write the empty
-    /// `[-1.-1.-1.-1]` sentinel into the recompiled bytecode when the BAF
-    /// has no region; the decompiler doesn't read this directly because
-    /// it derives the answer from each `BcsObject`'s `region` field.
-    pub object_has_region: bool,
+    /// rectangle slot (PST / IWD / IWD2). Used by the BAF compiler to know
+    /// whether to write the empty `[-1.-1.-1.-1]` sentinel into the
+    /// recompiled bytecode when the BAF has no region.
+    object_has_region: bool,
     /// Whether the engine's trigger bytecode includes the `[x,y]` point slot
-    /// (PST only). When `true`, `Trigger::t7_x` / `t7_y` round-trip back to
-    /// the bytecode even when the BAF doesn't include the point.
-    pub trigger_has_point: bool,
+    /// (PST only).
+    trigger_has_point: bool,
     /// Number of object-target slots that the engine emits *after* the name
-    /// in OB blocks (IWD2's `T10` / `T11`). On every other engine this is `0`.
-    /// Used by the BAF compiler so recompiled IWD2 bytecode matches NI's
-    /// `PARSE_CODE_IWD2` layout.
-    pub object_trailing_targets: usize,
+    /// in OB blocks (IWD2's `T10` / `T11`).
+    object_trailing_targets: usize,
 }
 
 impl BafContext {
-    /// Creates a context for BG/BG2/EE/IWD/IWDEE games (BG-style object
-    /// specifiers, tab indent, BG-family combined-string map, no IDS lookups
-    /// beyond TRIGGER/ACTION).
-    pub fn new_bg(triggers: Signatures, actions: Signatures) -> Self {
+    /// Creates a context for `game`, using its parsed TRIGGER.IDS / ACTION.IDS
+    /// signatures. All engine-specific knobs (object specifier layout,
+    /// combined-string map, region / point / trailing-target presence) are
+    /// derived from `game.engine()`.
+    pub fn new(triggers: Signatures, actions: Signatures, game: Game) -> Self {
+        let engine = game.engine();
+        let object_specifier_ids: Vec<String> = match engine {
+            Engine::Iwd2 => OBJECT_SPECIFIER_IDS_IWD2.iter().map(|s| s.to_string()).collect(),
+            Engine::Pst => OBJECT_SPECIFIER_IDS_PST.iter().map(|s| s.to_string()).collect(),
+            // BG, BG2, EE (BGEE / BG2EE / IWDEE / PSTEE / EET) and IWD all
+            // use the BG-style 7-slot specifier layout. PSTEE descends from
+            // PST but the EE engine reuses the BG bytecode shape, so it
+            // belongs here rather than with PST.
+            Engine::Bg | Engine::Bg2 | Engine::Ee | Engine::Iwd => OBJECT_SPECIFIER_IDS_BG
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        };
+        let combined_strings = match engine {
+            Engine::Bg | Engine::Bg2 | Engine::Ee => combined_strings_bg_family(),
+            Engine::Iwd => combined_strings_iwd(),
+            Engine::Iwd2 => combined_strings_iwd2(),
+            Engine::Pst => combined_strings_pst(),
+        };
+        // PST, IWD and IWD2 reserve a `[x.y.w.h]` slot in OB blocks; the
+        // BG family and EE engines (including PSTEE) don't.
+        let object_has_region = matches!(engine, Engine::Pst | Engine::Iwd | Engine::Iwd2);
+        // Only original PST puts an `[x,y]` point inside trigger blocks.
+        let trigger_has_point = matches!(engine, Engine::Pst);
+        // IWD2's PARSE_CODE writes two extra target slots after the name.
+        let object_trailing_targets = if matches!(engine, Engine::Iwd2) { 2 } else { 0 };
+
         Self {
             triggers,
             actions,
-            object_specifier_ids: OBJECT_SPECIFIER_IDS_BG.iter().map(|s| s.to_string()).collect(),
+            object_specifier_ids,
             ids: HashMap::new(),
-            combined_strings: combined_strings_bg_family(),
+            combined_strings,
             indent: "\t".to_string(),
-            object_has_region: false,
-            trigger_has_point: false,
-            object_trailing_targets: 0,
+            object_has_region,
+            trigger_has_point,
+            object_trailing_targets,
         }
     }
 
@@ -156,18 +182,42 @@ impl BafContext {
         self
     }
 
-    /// Replaces the combined-string map. Pass an empty map to disable
-    /// combined-string handling entirely.
-    pub fn with_combined_strings(mut self, map: HashMap<i32, ConcatInfo>) -> Self {
-        self.combined_strings = map;
-        self
+    // Accessors for the sibling `baf_compile` module. Read-only by design —
+    // the constructor is the only way to set engine-specific state, so a
+    // context can never end up in an inconsistent shape.
+    pub(crate) fn triggers(&self) -> &Signatures {
+        &self.triggers
     }
 
-    fn ids_lookup(&self, name: &str) -> Option<&Ids> {
+    pub(crate) fn actions(&self) -> &Signatures {
+        &self.actions
+    }
+
+    pub(crate) fn object_specifier_ids(&self) -> &[String] {
+        &self.object_specifier_ids
+    }
+
+    pub(crate) fn indent(&self) -> &str {
+        &self.indent
+    }
+
+    pub(crate) fn object_has_region(&self) -> bool {
+        self.object_has_region
+    }
+
+    pub(crate) fn trigger_has_point(&self) -> bool {
+        self.trigger_has_point
+    }
+
+    pub(crate) fn object_trailing_targets(&self) -> usize {
+        self.object_trailing_targets
+    }
+
+    pub(crate) fn ids_lookup(&self, name: &str) -> Option<&Ids> {
         self.ids.get(&name.to_ascii_uppercase())
     }
 
-    fn concat_info(&self, id: i32, num_params: usize) -> Option<ConcatInfo> {
+    pub(crate) fn concat_info(&self, id: i32, num_params: usize) -> Option<ConcatInfo> {
         self.combined_strings.get(&id).copied().filter(|c| {
             c.num_params == 0 || num_params == 0 || c.num_params as usize == num_params
         })
@@ -180,7 +230,7 @@ impl BafContext {
 /// IWD's separate engine reassigns several of these ids to BitGlobal /
 /// GlobalBitGlobal — use [`combined_strings_iwd`] there. PST and IWD2 use
 /// their own maps.
-pub fn combined_strings_bg_family() -> HashMap<i32, ConcatInfo> {
+pub(crate) fn combined_strings_bg_family() -> HashMap<i32, ConcatInfo> {
     let entries: &[(i32, u32)] = &[
         // Triggers (stable across BG1/BG2/EE)
         (0x400F, 0x0001), // Global
@@ -212,7 +262,7 @@ pub fn combined_strings_bg_family() -> HashMap<i32, ConcatInfo> {
 /// `247` / `248` are `BitGlobal` / `GlobalBitGlobal` actions (not BG's
 /// `SetToken` / `SetTokenObject`) — so it needs its own map. Pair with
 /// [`OBJECT_SPECIFIER_IDS_BG`].
-pub fn combined_strings_iwd() -> HashMap<i32, ConcatInfo> {
+pub(crate) fn combined_strings_iwd() -> HashMap<i32, ConcatInfo> {
     let entries: &[(i32, u32)] = &[
         // Triggers
         (0x400F, 0x0001), // Global
@@ -239,7 +289,7 @@ pub fn combined_strings_iwd() -> HashMap<i32, ConcatInfo> {
 /// Mostly the BG-family layout plus IWD2-specific additions (SpellCastEffect,
 /// SetGlobalRandom, SetGlobalTimerOnce, …). Pair with
 /// [`OBJECT_SPECIFIER_IDS_IWD2`].
-pub fn combined_strings_iwd2() -> HashMap<i32, ConcatInfo> {
+pub(crate) fn combined_strings_iwd2() -> HashMap<i32, ConcatInfo> {
     let entries: &[(i32, u32)] = &[
         (0x400F, 0x0001), // Global
         (0x4034, 0x0001), // GlobalGT
@@ -270,7 +320,7 @@ pub fn combined_strings_iwd2() -> HashMap<i32, ConcatInfo> {
 /// family on top. The PSTEE-only entries are harmless on PST because the
 /// same numeric ids aren't assigned to any function in PST's IDS files.
 /// Pair with [`OBJECT_SPECIFIER_IDS_PST`].
-pub fn combined_strings_pst() -> HashMap<i32, ConcatInfo> {
+pub(crate) fn combined_strings_pst() -> HashMap<i32, ConcatInfo> {
     let entries: &[(i32, u32)] = &[
         // Triggers shared with BG and PST-specific bitwise
         (0x400F, 0x0001), // Global
@@ -342,11 +392,11 @@ impl Bcs {
             decompile_condition(&mut out, &cr.condition.triggers, ctx);
             out.push_str("THEN\n");
             for response in &cr.response_set.responses {
-                out.push_str(&ctx.indent);
+                out.push_str(&ctx.indent());
                 out.push_str(&format!("RESPONSE #{}\n", response.weight));
                 for action in &response.actions {
-                    out.push_str(&ctx.indent);
-                    out.push_str(&ctx.indent);
+                    out.push_str(&ctx.indent());
+                    out.push_str(&ctx.indent());
                     out.push_str(&decompile_action(action, ctx));
                     out.push('\n');
                 }
@@ -369,7 +419,7 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
         }
 
         if or_count > 0 {
-            out.push_str(&ctx.indent);
+            out.push_str(&ctx.indent());
             // NextTriggerObject markers don't consume an OR slot; only the
             // wrapped triggers count.
             if !is_next_trigger_object(trigger, ctx) {
@@ -379,7 +429,7 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
             or_count = n as i64;
         }
 
-        out.push_str(&ctx.indent);
+        out.push_str(&ctx.indent());
         let text = if let Some(over) = override_pending.take() {
             // The negation belongs to the OUTER TriggerOverride, not to the
             // wrapped inner trigger — mirror NI's `! TriggerOverride(obj, fn(...))`
@@ -402,9 +452,9 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
     // raw rather than dropping it, to preserve information.
     if let Some(over) = override_pending {
         if or_count > 0 {
-            out.push_str(&ctx.indent);
+            out.push_str(&ctx.indent());
         }
-        out.push_str(&ctx.indent);
+        out.push_str(&ctx.indent());
         out.push_str(&decompile_trigger(over, ctx));
         out.push('\n');
     }
@@ -413,7 +463,7 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
 fn is_next_trigger_object(trigger: &Trigger, ctx: &BafContext) -> bool {
     // Mirrors NI's logic: any signature for this id named `NextTriggerObject`
     // with a single Object parameter qualifies.
-    if let Some(funcs) = ctx.triggers.get(trigger.id) {
+    if let Some(funcs) = ctx.triggers().get(trigger.id) {
         funcs.iter().any(|f| {
             f.name.eq_ignore_ascii_case("NextTriggerObject")
                 && f.params.len() == 1
@@ -426,7 +476,7 @@ fn is_next_trigger_object(trigger: &Trigger, ctx: &BafContext) -> bool {
 
 fn trigger_or_count(trigger: &Trigger, ctx: &BafContext) -> Option<i32> {
     // OR(N) is detected by name + single-integer signature; the count is t1.
-    let funcs = ctx.triggers.get(trigger.id)?;
+    let funcs = ctx.triggers().get(trigger.id)?;
     let is_or = funcs.iter().any(|f| {
         f.name.eq_ignore_ascii_case("OR")
             && f.params.len() == 1
@@ -452,12 +502,12 @@ fn decompile_trigger(trigger: &Trigger, ctx: &BafContext) -> String {
 /// for `TriggerOverride(obj, ...)` wrapping it goes on the outer call.
 fn decompile_trigger_body(trigger: &Trigger, ctx: &BafContext) -> String {
     let mut effective_id = trigger.id;
-    let funcs = match ctx.triggers.get(effective_id) {
+    let funcs = match ctx.triggers().get(effective_id) {
         Some(f) => f,
         None => {
             // NI also tries the id with bit 0x4000 toggled before giving up.
             effective_id ^= 0x4000;
-            ctx.triggers.get(effective_id).unwrap_or(&[])
+            ctx.triggers().get(effective_id).unwrap_or(&[])
         }
     };
     if funcs.is_empty() {
@@ -520,7 +570,7 @@ fn decompile_trigger_body(trigger: &Trigger, ctx: &BafContext) -> String {
 }
 
 fn decompile_action(action: &Action, ctx: &BafContext) -> String {
-    let funcs = ctx.actions.get(action.id).unwrap_or(&[]);
+    let funcs = ctx.actions().get(action.id).unwrap_or(&[]);
     if funcs.is_empty() {
         return format!("// Error - Could not find action {}", action.id);
     }
@@ -815,7 +865,7 @@ fn decompile_object_target(
         let symbol = if v == 0 {
             None
         } else {
-            ctx.object_specifier_ids
+            ctx.object_specifier_ids()
                 .get(i)
                 .and_then(|name| ctx.ids_lookup(name))
                 .and_then(|map| map.of_value(v))
@@ -1066,7 +1116,7 @@ mod tests {
             (0x4089, "OR(I:OrCount*)"),
         ]));
         let actions = Signatures::from_ids(&ids_from(&[(0, "NoAction()")]));
-        BafContext::new_bg(triggers, actions)
+        BafContext::new(triggers, actions, Game::Bg)
     }
 
     #[test]
@@ -1142,7 +1192,7 @@ mod tests {
             (0x4036, "True()"),
         ]));
         let actions = Signatures::from_ids(&ids_from(&[(0, "NoAction()")]));
-        let ctx = BafContext::new_bg(triggers, actions);
+        let ctx = BafContext::new(triggers, actions, Game::Bg);
 
         let bcs = Bcs {
             condition_responses: vec![ConditionResponse {
@@ -1344,125 +1394,75 @@ mod corpus_tests {
         PathBuf::from(raw)
     }
 
-    /// Builder enum picks the right object-specifier order and combined-string
-    /// map per engine family.
-    enum GameKind {
-        /// BG, BGEE, BG2, BG2EE, IWDEE — same EE-derived combined-string map
-        /// and 7-slot object specifier.
-        Bg,
-        /// Original Icewind Dale — has its own BitGlobal / GlobalBitGlobal.
-        Iwd,
-        /// Icewind Dale 2.
-        Iwd2,
-        /// Planescape: Torment (the original).
-        Pst,
-        /// Planescape: Torment Enhanced Edition. Re-implemented on the EE
-        /// engine, so its combined-string map matches the BG family even
-        /// though it keeps PST's 9-slot object specifier layout.
-        Pstee,
-    }
-
-    fn build_context(kind: GameKind, ids_dir: &Path) -> BafContext {
+    fn build_context(game: Game, ids_dir: &Path) -> BafContext {
         let mut triggers = load_signatures(ids_dir, "TRIGGER");
         let actions = load_signatures(ids_dir, "ACTION");
         // NI hardcodes `Clicked` (0x4070) for PST because it's missing from
         // PST's TRIGGER.IDS even though scripts reference it. Patch it in so
         // the corpus output matches.
-        if matches!(kind, GameKind::Pst) {
+        if matches!(game, Game::Pst) {
             triggers.add_function(0x4070, "Clicked(O:Object*)");
         }
-        let mut ctx = BafContext::new_bg(triggers, actions);
-        match kind {
-            GameKind::Bg => {} // already configured by new_bg
-            GameKind::Iwd => {
-                ctx.combined_strings = combined_strings_iwd();
-                ctx.object_has_region = true;
-            }
-            GameKind::Iwd2 => {
-                ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_IWD2
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect();
-                ctx.combined_strings = combined_strings_iwd2();
-                ctx.object_has_region = true;
-                ctx.object_trailing_targets = 2;
-            }
-            GameKind::Pst => {
-                ctx.object_specifier_ids = OBJECT_SPECIFIER_IDS_PST
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect();
-                ctx.combined_strings = combined_strings_pst();
-                ctx.object_has_region = true;
-                ctx.trigger_has_point = true;
-            }
-            GameKind::Pstee => {
-                // PSTEE runs on the EE engine — same 7-slot object-specifier
-                // layout and combined-string map as the BG family. Despite
-                // descending from PST, its compiled BCS uses the BG bytecode
-                // layout (7 target slots, no rectangle) rather than PST's.
-            }
-        }
-        ctx
+        BafContext::new(triggers, actions, game)
     }
 
-    /// Runs the corpus test for `<root>/<game>/bcs/` against
-    /// `<root>/<game>/ids/`. Skips silently when the game folder is absent.
-    fn run_game(game: &str, kind: GameKind) {
+    /// Runs the corpus test for `<root>/<dir>/bcs/` against
+    /// `<root>/<dir>/ids/`. Skips silently when the game folder is absent.
+    fn run_game(dir: &str, game: Game) {
         let root = extracted_root();
-        let game_dir = root.join(game);
+        let game_dir = root.join(dir);
         let corpus = game_dir.join("bcs");
         let ids_dir = game_dir.join("ids");
         if !corpus.is_dir() || !ids_dir.is_dir() {
-            eprintln!("skip baf corpus test for {}: missing {}", game, game_dir.display());
+            eprintln!("skip baf corpus test for {}: missing {}", dir, game_dir.display());
             return;
         }
-        let ctx = build_context(kind, &ids_dir);
+        let ctx = build_context(game, &ids_dir);
         assert_corpus_matches(&corpus, &ctx);
     }
 
     #[test]
     fn baf_corpus_bg() {
-        run_game("bg", GameKind::Bg);
+        run_game("bg", Game::Bg);
     }
 
     #[test]
     fn baf_corpus_bgee() {
-        run_game("bgee", GameKind::Bg);
+        run_game("bgee", Game::Bgee);
     }
 
     #[test]
     fn baf_corpus_bg2() {
-        run_game("bg2", GameKind::Bg);
+        run_game("bg2", Game::Bg2);
     }
 
     #[test]
     fn baf_corpus_bg2ee() {
-        run_game("bg2ee", GameKind::Bg);
+        run_game("bg2ee", Game::Bg2ee);
     }
 
     #[test]
     fn baf_corpus_iwd() {
-        run_game("iwd", GameKind::Iwd);
+        run_game("iwd", Game::Iwd);
     }
 
     #[test]
     fn baf_corpus_iwdee() {
-        run_game("iwdee", GameKind::Bg);
+        run_game("iwdee", Game::Iwdee);
     }
 
     #[test]
     fn baf_corpus_iwd2() {
-        run_game("iwd2", GameKind::Iwd2);
+        run_game("iwd2", Game::Iwd2);
     }
 
     #[test]
     fn baf_corpus_pst() {
-        run_game("pst", GameKind::Pst);
+        run_game("pst", Game::Pst);
     }
 
     #[test]
     fn baf_corpus_pstee() {
-        run_game("pstee", GameKind::Pstee);
+        run_game("pstee", Game::Pstee);
     }
 }

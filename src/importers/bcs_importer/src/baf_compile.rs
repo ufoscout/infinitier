@@ -515,7 +515,7 @@ impl<'a> BafParser<'a> {
         let t7 = point
             .map(|(x, y)| BcsPoint { x, y })
             .or_else(|| {
-                if self.ctx.trigger_has_point {
+                if self.ctx.trigger_has_point() {
                     Some(BcsPoint::default())
                 } else {
                     None
@@ -546,11 +546,11 @@ impl<'a> BafParser<'a> {
         // Find the engine's NextTriggerObject signature (single Object param).
         let func = self
             .ctx
-            .triggers
+            .triggers()
             .get_by_name("NextTriggerObject")
             .ok_or_else(|| io_err("TriggerOverride used but NextTriggerObject is not defined"))?;
         let target = obj.into_object(self.ctx)?;
-        let t7 = if self.ctx.trigger_has_point {
+        let t7 = if self.ctx.trigger_has_point() {
             Some(BcsPoint::default())
         } else {
             None
@@ -577,7 +577,7 @@ impl<'a> BafParser<'a> {
 
         let action_override_name = self
             .ctx
-            .actions
+            .actions()
             .get(1)
             .and_then(|fs| {
                 fs.iter().find(|f| {
@@ -692,13 +692,7 @@ impl<'a> BafParser<'a> {
     }
 
     fn concat_for(&self, function: &Function) -> Option<ConcatInfo> {
-        self.ctx
-            .combined_strings
-            .get(&function.id)
-            .copied()
-            .filter(|c| {
-                c.num_params == 0 || c.num_params as usize == function.params.len()
-            })
+        self.ctx.concat_info(function.id, function.params.len())
     }
 
     /// Parses a comma-separated argument list using the function's signature
@@ -951,7 +945,7 @@ impl<'a> BafParser<'a> {
         // Resolve each slot through the matching target IDS. For numeric
         // strings we keep them as numbers; for symbols we look up via the
         // engine's slot order (EA, GENERAL, ...).
-        let names = &self.ctx.object_specifier_ids;
+        let names = self.ctx.object_specifier_ids();
         let mut targets: Vec<i32> = Vec::with_capacity(slot_strs.len());
         for (i, raw) in slot_strs.iter().enumerate() {
             let v = if let Ok(n) = raw.parse::<i64>() {
@@ -1053,14 +1047,14 @@ impl<'a> BafParser<'a> {
 
     fn resolve_trigger(&self, name: &str) -> std::io::Result<&Function> {
         self.ctx
-            .triggers
+            .triggers()
             .get_by_name(name)
             .ok_or_else(|| io_err(format!("unknown trigger function `{}`", name)))
     }
 
     fn resolve_action(&self, name: &str) -> std::io::Result<&Function> {
         self.ctx
-            .actions
+            .actions()
             .get_by_name(name)
             .ok_or_else(|| io_err(format!("unknown action function `{}`", name)))
     }
@@ -1087,7 +1081,7 @@ impl<'a> BafParser<'a> {
             return Ok(n as i32);
         }
         if !ids_name.is_empty()
-            && let Some(map) = self.ctx.ids.get(&ids_name.to_ascii_uppercase())
+            && let Some(map) = self.ctx.ids_lookup(ids_name)
             && let Some(v) = map.of_value_str_ci(sym)
         {
             return Ok(v);
@@ -1108,7 +1102,7 @@ impl<'a> BafParser<'a> {
             return Ok(n as i32);
         }
         if !ids_name.is_empty()
-            && let Some(map) = self.ctx.ids.get(&ids_name.to_ascii_uppercase())
+            && let Some(map) = self.ctx.ids_lookup(ids_name)
             && let Some(v) = map.of_value_str_ci(s)
         {
             return Ok(v);
@@ -1155,7 +1149,7 @@ impl ObjectAccum {
         // Reverse identifier order so the BAF outermost wrap (read left to
         // right) ends up at the highest non-zero `identifiers` slot — the
         // exact inverse of what the decompiler does on the way out.
-        let object_ids = ctx.ids.get("OBJECT");
+        let object_ids = ctx.ids_lookup("OBJECT");
         let mut idents = [0i32; 5];
         for (slot, sym) in self.identifiers.iter().rev().enumerate() {
             if slot >= idents.len() {
@@ -1174,7 +1168,7 @@ impl ObjectAccum {
         // shape (see the `pst_legacy_7slot_objects` failures); those won't
         // round-trip byte-perfectly because the BAF doesn't carry the slot
         // count separately.
-        let want = ctx.object_specifier_ids.len().max(targets.len()).max(7);
+        let want = ctx.object_specifier_ids().len().max(targets.len()).max(7);
         if targets.len() < want {
             targets.resize(want, 0);
         }
@@ -1183,7 +1177,7 @@ impl ObjectAccum {
         // bracketed marker even when the BAF didn't include one (NI's
         // headless decompiler drops the empty rect from BAF output).
         let region = self.region.or_else(|| {
-            if ctx.object_has_region {
+            if ctx.object_has_region() {
                 Some(BcsRegion::default())
             } else {
                 None
@@ -1194,7 +1188,7 @@ impl ObjectAccum {
             identifiers: idents,
             name: self.name.unwrap_or_default(),
             region,
-            trailing_targets: ctx.object_trailing_targets,
+            trailing_targets: ctx.object_trailing_targets(),
         })
     }
 }
@@ -1320,12 +1314,10 @@ impl IdsCaseInsensitive for infinitier_ids_importer::Ids {
 
 #[cfg(test)]
 mod roundtrip_tests {
-    use crate::baf::{
-        BafContext, OBJECT_SPECIFIER_IDS_IWD2, OBJECT_SPECIFIER_IDS_PST,
-        combined_strings_iwd, combined_strings_iwd2, combined_strings_pst,
-    };
+    use crate::baf::BafContext;
     use crate::signatures::Signatures;
     use crate::{Bcs, BcsImporter};
+    use infinitier_common::Game;
     use infinitier_datasource::{DataSource, Importer};
     use infinitier_ids_importer::IdsImporter;
     use std::path::{Path, PathBuf};
@@ -1360,50 +1352,16 @@ mod roundtrip_tests {
         Signatures::from_ids(&ids)
     }
 
-    enum GameKind {
-        Bg,
-        Iwd,
-        Iwd2,
-        Pst,
-        Pstee,
-    }
-
-    fn build_context(kind: GameKind, ids_dir: &Path) -> BafContext {
+    fn build_context(game: Game, ids_dir: &Path) -> BafContext {
         let mut triggers = load_signatures(ids_dir, "TRIGGER");
         let actions = load_signatures(ids_dir, "ACTION");
-        if matches!(kind, GameKind::Pst) {
+        if matches!(game, Game::Pst) {
             // PST is missing `0x4070 Clicked(O:Object*)` from its TRIGGER.IDS;
             // patch it in so the compiled bytecode references the same
             // function NI does.
             triggers.add_function(0x4070, "Clicked(O:Object*)");
         }
-        let mut ctx = BafContext::new_bg(triggers, actions);
-        match kind {
-            GameKind::Bg => {}
-            GameKind::Iwd => {
-                ctx.combined_strings = combined_strings_iwd();
-                ctx.object_has_region = true;
-            }
-            GameKind::Iwd2 => {
-                ctx.object_specifier_ids =
-                    OBJECT_SPECIFIER_IDS_IWD2.iter().map(|s| s.to_string()).collect();
-                ctx.combined_strings = combined_strings_iwd2();
-                ctx.object_has_region = true;
-                ctx.object_trailing_targets = 2;
-            }
-            GameKind::Pst => {
-                ctx.object_specifier_ids =
-                    OBJECT_SPECIFIER_IDS_PST.iter().map(|s| s.to_string()).collect();
-                ctx.combined_strings = combined_strings_pst();
-                ctx.object_has_region = true;
-                ctx.trigger_has_point = true;
-            }
-            GameKind::Pstee => {
-                // PSTEE uses the BG-family bytecode layout — see the matching
-                // comment in `baf::corpus_tests::build_context`.
-            }
-        }
-        ctx
+        BafContext::new(triggers, actions, game)
     }
 
     /// Round-trips every `*.bcs` / `*.bs` file under `<corpus_dir>/original`
@@ -1551,65 +1509,65 @@ mod roundtrip_tests {
         }
     }
 
-    fn run_game(game: &str, kind: GameKind) {
+    fn run_game(dir: &str, game: Game) {
         let root = extracted_root();
-        let game_dir = root.join(game);
+        let game_dir = root.join(dir);
         let corpus = game_dir.join("bcs");
         let ids_dir = game_dir.join("ids");
         if !corpus.is_dir() || !ids_dir.is_dir() {
             eprintln!(
                 "skip roundtrip test for {}: missing {}",
-                game,
+                dir,
                 game_dir.display()
             );
             return;
         }
-        let ctx = build_context(kind, &ids_dir);
+        let ctx = build_context(game, &ids_dir);
         assert_roundtrip(&corpus, &ctx);
     }
 
     #[test]
     fn roundtrip_bg() {
-        run_game("bg", GameKind::Bg);
+        run_game("bg", Game::Bg);
     }
 
     #[test]
     fn roundtrip_bgee() {
-        run_game("bgee", GameKind::Bg);
+        run_game("bgee", Game::Bgee);
     }
 
     #[test]
     fn roundtrip_bg2() {
-        run_game("bg2", GameKind::Bg);
+        run_game("bg2", Game::Bg2);
     }
 
     #[test]
     fn roundtrip_bg2ee() {
-        run_game("bg2ee", GameKind::Bg);
+        run_game("bg2ee", Game::Bg2ee);
     }
 
     #[test]
     fn roundtrip_iwd() {
-        run_game("iwd", GameKind::Iwd);
+        run_game("iwd", Game::Iwd);
     }
 
     #[test]
     fn roundtrip_iwdee() {
-        run_game("iwdee", GameKind::Bg);
+        run_game("iwdee", Game::Iwdee);
     }
 
     #[test]
     fn roundtrip_iwd2() {
-        run_game("iwd2", GameKind::Iwd2);
+        run_game("iwd2", Game::Iwd2);
     }
 
     #[test]
     fn roundtrip_pst() {
-        run_game("pst", GameKind::Pst);
+        run_game("pst", Game::Pst);
     }
 
     #[test]
     fn roundtrip_pstee() {
-        run_game("pstee", GameKind::Pstee);
+        run_game("pstee", Game::Pstee);
     }
 }

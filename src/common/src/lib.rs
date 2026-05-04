@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+mod game;
+pub use game::{Engine, Game};
+
 /// A Resource file type
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceType {
