@@ -1888,6 +1888,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_bcs_importer"
+version = "0.0.2"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "infinitier_bif_importer"
 version = "0.0.2"
 dependencies = [

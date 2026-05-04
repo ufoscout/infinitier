@@ -1,0 +1,60 @@
+{
+  "condition_responses": [
+    {
+      "condition": {
+        "triggers": [
+          {
+            "id": 16399,
+            "flags": 1,
+            "t1": 1,
+            "t2": 0,
+            "t3": 0,
+            "t4": "GLOBALSeenBlockade",
+            "t5": "",
+            "target": {
+              "targets": [0, 0, 0, 0, 0, 0, 0],
+              "identifiers": [0, 0, 0, 0, 0],
+              "name": ""
+            }
+          },
+          {
+            "id": 16412,
+            "flags": 0,
+            "t1": 0,
+            "t2": 0,
+            "t3": 0,
+            "t4": "",
+            "t5": "",
+            "target": {
+              "targets": [0, 0, 0, 0, 0, 0, 0],
+              "identifiers": [0, 0, 0, 0, 0],
+              "name": "Caveentrance"
+            }
+          }
+        ]
+      },
+      "response_set": {
+        "responses": [
+          {
+            "weight": 100,
+            "actions": [
+              {
+                "id": 30,
+                "a1": {"targets": [0, 0, 0, 0, 0, 0, 0], "identifiers": [0, 0, 0, 0, 0], "name": ""},
+                "a2": {"targets": [0, 0, 0, 0, 0, 0, 0], "identifiers": [0, 0, 0, 0, 0], "name": ""},
+                "a3": {"targets": [0, 0, 0, 0, 0, 0, 0], "identifiers": [0, 0, 0, 0, 0], "name": ""},
+                "a4": 1,
+                "a5_x": 0,
+                "a5_y": 0,
+                "a6": 0,
+                "a7": 0,
+                "a8": "GLOBALSeenBlockade",
+                "a9": ""
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
