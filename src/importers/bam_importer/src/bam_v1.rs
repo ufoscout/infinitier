@@ -311,4 +311,44 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_parse_bam_v1_03() {
+        let data = DataSource::new(
+            get_assets_path().join("resources/BAM_V1/03/SPWI524D_decompressed.BAM"),
+        );
+
+        let mut reader = data.reader().unwrap();
+        let bam = BamV1Parser::import(&mut reader).unwrap();
+
+        assert_eq!(bam.r#type, Type::BamV1);
+
+        assert_eq!(bam.rle_compressed_color_index, 0);
+
+        assert_eq!(bam.cycles.len(), 1);
+        assert_eq!(
+            bam.cycles[0],
+            BamV1Cycle {
+                frame_indices: vec![0, 0]
+            }
+        );
+
+        assert_eq!(bam.frames.len(), 1);
+        assert_eq!(bam.frames[0].width, 13);
+        assert_eq!(bam.frames[0].height, 13);
+        assert_eq!(bam.frames[0].center_x, 7);
+        assert_eq!(bam.frames[0].center_y, 7);
+        assert_eq!(bam.frames[0].pixel_palette_indexes.len(), 13 * 13);
+
+        // Assert that the image is the same as the reference
+        {
+            let image = bam.frames[0].to_image(&bam.palette).unwrap();
+
+            assert_images_are_equal(
+                &image::open(get_assets_path().join("resources/BAM_V1/03/SPWI524D00000.PNG"))
+                    .unwrap(),
+                &image.into(),
+            );
+        }
+    }
 }
