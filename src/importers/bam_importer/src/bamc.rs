@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(Bam::V1(bam_from_decompressed), bam_from_compressed);
     }
 
-        #[test]
+    #[test]
     fn test_parse_bam_v1_compressed_03() {
         let bam_from_decompressed = {
             let data = DataSource::new(

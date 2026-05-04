@@ -37,7 +37,13 @@ fn decode_bmp(bytes: &[u8]) -> std::io::Result<Bmp> {
                 let image = image::load_from_memory_with_format(&patched, image::ImageFormat::Bmp)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
                     .to_rgba8();
-                debug!("Loaded BMP (patched palette {} -> {}): {}x{}", clr_used, max_colors, image.width(), image.height());
+                debug!(
+                    "Loaded BMP (patched palette {} -> {}): {}x{}",
+                    clr_used,
+                    max_colors,
+                    image.width(),
+                    image.height()
+                );
                 return Ok(Bmp { image });
             }
         }

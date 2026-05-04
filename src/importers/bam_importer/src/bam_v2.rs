@@ -212,16 +212,26 @@ impl BamV2 {
             if block.source_x_coordinate + w > source_header.width {
                 log::warn!(
                     "PVRZ {} texture width out of bounds: src_x={} w={} texture_w={}",
-                    block.pvrz_name(), block.source_x_coordinate, w, source_header.width
+                    block.pvrz_name(),
+                    block.source_x_coordinate,
+                    w,
+                    source_header.width
                 );
-                w = source_header.width.saturating_sub(block.source_x_coordinate);
+                w = source_header
+                    .width
+                    .saturating_sub(block.source_x_coordinate);
             }
             if block.source_y_coordinate + h > source_header.height {
                 log::warn!(
                     "PVRZ {} texture height out of bounds: src_y={} h={} texture_h={}",
-                    block.pvrz_name(), block.source_y_coordinate, h, source_header.height
+                    block.pvrz_name(),
+                    block.source_y_coordinate,
+                    h,
+                    source_header.height
                 );
-                h = source_header.height.saturating_sub(block.source_y_coordinate);
+                h = source_header
+                    .height
+                    .saturating_sub(block.source_y_coordinate);
             }
             if w == 0 || h == 0 {
                 continue;
