@@ -183,6 +183,14 @@ pub struct AcmDecoder {
     wavc_file: bool,
     stream_pos: u32,
     block_pos: usize,
+
+    // ── reset state ──
+    /// Cloned source held so [`reset`](Self::reset) can reopen the stream
+    /// without the caller having to thread the `DataSource` back in.
+    /// `DataSource::clone` is cheap: file/generator paths just clone a
+    /// `PathBuf`/`Arc`, in-memory sources clone an `Arc<Vec<u8>>`.
+    datasource: DataSource,
+    output_channels: OutputChannels,
 }
 
 impl std::fmt::Debug for AcmDecoder {
@@ -194,6 +202,7 @@ impl std::fmt::Debug for AcmDecoder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AcmDecoder")
             .field("info", &self.info)
+            .field("output_channels", &self.output_channels)
             .field("stream_pos", &self.stream_pos)
             .field("total_values", &self.info.total_values)
             .field("block_len", &self.block_len)
@@ -211,8 +220,8 @@ impl AcmDecoder {
     /// lazily — block by block, like GemRB's ACMReader plugin — so memory
     /// use stays bounded regardless of the file size.
     pub fn open(datasource: &DataSource, output_channels: OutputChannels) -> Result<Self> {
-        let reader = open_streaming_reader(datasource)?;
-
+        // Construct with placeholder buffers; `init` opens the reader, parses
+        // the header, and sizes everything correctly.
         let mut dec = AcmDecoder {
             info: AcmInfo {
                 channels: 0,
@@ -225,7 +234,7 @@ impl AcmDecoder {
                 acm_rows: 0,
                 total_values: 0,
             },
-            reader,
+            reader: open_streaming_reader(datasource)?,
             eof_padding_given: false,
             bit_data: 0,
             bit_avail: 0,
@@ -237,30 +246,86 @@ impl AcmDecoder {
             wavc_file: false,
             stream_pos: 0,
             block_pos: 0,
+            datasource: datasource.clone(),
+            output_channels,
         };
 
-        dec.read_header()?;
+        dec.init()?;
+        Ok(dec)
+    }
 
-        match output_channels {
-            OutputChannels::Mono => dec.info.channels = 1,
-            OutputChannels::Stereo => dec.info.channels = 2,
+    /// Rewind the decoder to the start of the stream.
+    ///
+    /// Reopens the original [`DataSource`], re-reads the ACM header, and
+    /// clears all bitstream / block state. After calling this, the next
+    /// [`read_samples`](Self::read_samples) / [`decode_all`](Self::decode_all)
+    /// / [`decode_to_file`](Self::decode_to_file) call produces the same
+    /// output as the very first one — useful for looping playback or for
+    /// retrying a partial decode.
+    ///
+    /// The previously chosen [`OutputChannels`] override is preserved.
+    pub fn reset(&mut self) -> Result<()> {
+        self.init()
+    }
+
+    /// Open the reader, read the header, and (re)allocate scratch buffers.
+    /// Shared by [`open`](Self::open) and [`reset`](Self::reset).
+    fn init(&mut self) -> Result<()> {
+        self.reader = open_streaming_reader(&self.datasource)?;
+
+        // Bitstream state — must start empty so the first `get_bits` reads
+        // a fresh word from the reopened reader.
+        self.bit_data = 0;
+        self.bit_avail = 0;
+        self.eof_padding_given = false;
+
+        // Decode position and per-block flags.
+        self.block_ready = false;
+        self.wavc_file = false;
+        self.stream_pos = 0;
+        self.block_pos = 0;
+        self.block_len = 0;
+
+        // Header is fully overwritten by `read_header`, but re-zero so a
+        // partially populated `info` from a failed reset can't be observed.
+        self.info = AcmInfo {
+            channels: 0,
+            rate: 0,
+            acm_id: 0,
+            acm_version: 0,
+            acm_channels: 0,
+            acm_level: 0,
+            acm_cols: 0,
+            acm_rows: 0,
+            total_values: 0,
+        };
+
+        self.read_header()?;
+
+        match self.output_channels {
+            OutputChannels::Mono => self.info.channels = 1,
+            OutputChannels::Stereo => self.info.channels = 2,
             OutputChannels::Original => (),
         }
 
         // Compute derived dimensions.
-        dec.info.acm_cols = 1 << dec.info.acm_level;
-        let wrapbuf_len = (2 * dec.info.acm_cols as usize).saturating_sub(2);
-        dec.block_len = dec.info.acm_rows as usize * dec.info.acm_cols as usize;
+        self.info.acm_cols = 1 << self.info.acm_level;
+        let wrapbuf_len = (2 * self.info.acm_cols as usize).saturating_sub(2);
+        self.block_len = self.info.acm_rows as usize * self.info.acm_cols as usize;
 
-        dec.block = vec![0i32; dec.block_len];
-        // Allocate at least 1 element so the Vec is never empty.
-        dec.wrapbuf = vec![0i32; wrapbuf_len.max(1)];
+        // Resize and zero — `wrapbuf` is stateful across blocks (juggle's
+        // edge samples), so leftover values from a previous run would
+        // contaminate the first few output samples on a reset.
+        self.block.clear();
+        self.block.resize(self.block_len, 0);
+        self.wrapbuf.clear();
+        self.wrapbuf.resize(wrapbuf_len.max(1), 0);
 
         debug!(
             "Opened ACM: channels={}, rate={}, total_values={}",
-            dec.info.channels, dec.info.rate, dec.info.total_values
+            self.info.channels, self.info.rate, self.info.total_values
         );
-        Ok(dec)
+        Ok(())
     }
 
     // ── bitstream helpers ────────────────────────────────────────────────────

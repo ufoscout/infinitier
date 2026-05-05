@@ -187,3 +187,137 @@ fn test_pst_bt2zc1() {
         "WAV hash mismatch for pst/bt2zc1.acm",
     );
 }
+
+// ── reset() ─────────────────────────────────────────────────────────────────
+
+/// Decodes the named fixture from scratch and returns the full PCM buffer.
+fn fresh_decode_all(acm_rel: &str) -> Vec<i16> {
+    let acm_path = get_assets_path().join("resources/ACM").join(acm_rel);
+    let data = DataSource::new(acm_path);
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    dec.decode_all().unwrap()
+}
+
+/// `reset()` after a complete decode produces bit-identical samples on the
+/// second run — the canonical "play it again" use case.
+#[test]
+fn test_reset_after_full_decode_matches_fresh_decode() {
+    let acm_path = get_assets_path()
+        .join("resources/ACM")
+        .join("bg/Bf1d1.ACM");
+    let data = DataSource::new(acm_path);
+
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let info_before = dec.info.clone();
+    let first = dec.decode_all().unwrap();
+    assert_eq!(dec.samples_decoded(), info_before.total_values);
+
+    dec.reset().unwrap();
+    // Header must come back identical and the position counter must be zeroed.
+    assert_eq!(dec.info.channels, info_before.channels);
+    assert_eq!(dec.info.rate, info_before.rate);
+    assert_eq!(dec.info.total_values, info_before.total_values);
+    assert_eq!(dec.samples_decoded(), 0);
+
+    let second = dec.decode_all().unwrap();
+    assert_eq!(first.len(), second.len(), "sample count mismatch after reset");
+    assert!(
+        first == second,
+        "samples differ after reset: first run produced different bytes than second"
+    );
+}
+
+/// `reset()` mid-stream — partway through a decode — must wipe leftover
+/// block/wrapbuf state. If `wrapbuf` (juggle's stateful edge buffer) leaked
+/// across the reset, the first samples after the reset would diverge from a
+/// cold-start decode.
+#[test]
+fn test_reset_midstream_recovers_clean_state() {
+    let acm_rel = "bg2/BC1A1.acm";
+    let acm_path = get_assets_path().join("resources/ACM").join(acm_rel);
+    let data = DataSource::new(acm_path);
+
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    // Drain the first ~1000 frames to force several blocks + a partial one.
+    let mut throwaway = vec![0i16; 1000 * dec.info.channels as usize];
+    let drained = dec.read_samples(&mut throwaway).unwrap();
+    assert!(drained > 0, "expected some samples before reset");
+
+    dec.reset().unwrap();
+    let after_reset = dec.decode_all().unwrap();
+
+    let fresh = fresh_decode_all(acm_rel);
+    assert_eq!(after_reset, fresh, "reset+decode_all must match fresh decode");
+}
+
+/// Resetting twice in a row is a no-op vs resetting once — guarantees the
+/// reset path is itself idempotent (matters for callers that call it
+/// defensively, e.g. on track-load).
+#[test]
+fn test_reset_is_idempotent() {
+    let acm_rel = "iwd/B1d2.acm";
+    let acm_path = get_assets_path().join("resources/ACM").join(acm_rel);
+    let data = DataSource::new(acm_path);
+
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let _ = dec.decode_all().unwrap();
+
+    dec.reset().unwrap();
+    dec.reset().unwrap();
+    let twice = dec.decode_all().unwrap();
+
+    let fresh = fresh_decode_all(acm_rel);
+    assert_eq!(twice, fresh, "double reset must match fresh decode");
+}
+
+/// Reset interacts correctly with [`AcmDecoder::decode_to_file`] — after a
+/// reset, writing the WAV produces the same SHA-256 as the first write.
+#[test]
+fn test_reset_then_decode_to_file_matches_first_write() {
+    use sha2::{Digest, Sha256};
+    use std::fs;
+
+    let acm_rel = "iwd/B6F3.acm";
+    let acm_path = get_assets_path().join("resources/ACM").join(acm_rel);
+    let data = DataSource::new(acm_path);
+
+    let out_dir = get_target_path().join("acm_test_output").join("reset");
+    fs::create_dir_all(&out_dir).unwrap();
+    let first_path = out_dir.join("first.wav");
+    let second_path = out_dir.join("second.wav");
+
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    dec.decode_to_file(&first_path).unwrap();
+    dec.reset().unwrap();
+    dec.decode_to_file(&second_path).unwrap();
+
+    let h1 = Sha256::digest(fs::read(&first_path).unwrap());
+    let h2 = Sha256::digest(fs::read(&second_path).unwrap());
+    assert_eq!(
+        h1, h2,
+        "WAV hash differs between the original write and the post-reset write"
+    );
+}
+
+/// A reset preserves the [`OutputChannels`] override picked at `open` time.
+#[test]
+fn test_reset_preserves_output_channels_override() {
+    // bg/Bf1j4.ACM is natively stereo; force mono and confirm the override
+    // survives a reset.
+    let acm_path = get_assets_path()
+        .join("resources/ACM")
+        .join("bg/Bf1j4.ACM");
+    let data = DataSource::new(acm_path);
+
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Mono).unwrap();
+    assert_eq!(dec.info.channels, 1);
+    assert_eq!(dec.info.acm_channels, 2, "header says native stereo");
+
+    let _ = dec.decode_all().unwrap();
+    dec.reset().unwrap();
+    assert_eq!(
+        dec.info.channels, 1,
+        "OutputChannels::Mono must survive reset"
+    );
+    assert_eq!(dec.info.acm_channels, 2);
+}
