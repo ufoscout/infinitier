@@ -93,6 +93,7 @@ mod tests {
                 .map(|(name, r#type, data_origin)| {
                     let ext = r#type.get_extension().unwrap_or("unknown");
                     GameResource {
+                        game_type: Game::Bg2,
                         filename: format!("{}.{}", name, ext),
                         name: name.to_string(),
                         r#type,

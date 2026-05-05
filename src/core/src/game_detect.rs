@@ -18,73 +18,57 @@
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 
 pub use infinitier_common::{Engine, Game};
+use log::info;
 
 /// Detects which Infinity Engine game lives at the given root.
 ///
 /// Returns `None` when no `chitin.key` is present, or when the game is not recognised.
 pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
     
-    if !exists(fs, "chitin.key") {
-        return None;
-    }
-
-    if exists(fs, "movies/howseer.wbm") {
-        return Some(Game::Iwdee);
-    }
-
-    if exists(fs, "data/MrtGhost.bif")
+    let game = if !exists(fs, "chitin.key") {
+        None
+    } else if exists(fs, "movies/howseer.wbm") {
+        Some(Game::Iwdee)
+    } else if exists(fs, "data/MrtGhost.bif")
         && exists(fs, "data/shaders.bif")
         && engine_lua_mode(fs).as_deref() == Some("3")
     {
-        return Some(Game::Pstee);
-    }
-
-    if exists(fs, "movies/pocketzz.wbm") {
+        Some(Game::Pstee)
+    } else if exists(fs, "movies/pocketzz.wbm") {
         // BG2EE base install — promote to EET if its DLC markers are present.
         if exists(fs, "override/EET.flag") || exists(fs, "data/eetTU00.bif") {
-            return Some(Game::Eet);
+            Some(Game::Eet)
+        } else {
+            Some(Game::Bg2ee)
         }
-        return Some(Game::Bg2ee);
-    }
-
-    if exists(fs, "movies/sodcin01.wbm") {
-        return Some(Game::BgeeSod);
-    }
-
-    if exists(fs, "movies/bgenter.wbm") {
-        return Some(Game::Bgee);
-    }
-
-    if exists(fs, "torment.exe") && !exists(fs, "movies/sigil.wbm") {
-        return Some(Game::Pst);
-    }
-
-    if exists(fs, "idmain.exe") && !exists(fs, "movies/howseer.wbm") {
-        return Some(Game::Iwd);
-    }
-
-    if (exists(fs, "iwd2.exe") || exists(fs, "iwd2ee.exe"))
+    } else if exists(fs, "movies/sodcin01.wbm") {
+        Some(Game::BgeeSod)
+    } else if exists(fs, "movies/bgenter.wbm") {
+        Some(Game::Bgee)
+    } else if exists(fs, "torment.exe") && !exists(fs, "movies/sigil.wbm") {
+        Some(Game::Pst)
+    } else if exists(fs, "idmain.exe") && !exists(fs, "movies/howseer.wbm") {
+        Some(Game::Iwd)
+    } else if (exists(fs, "iwd2.exe") || exists(fs, "iwd2ee.exe"))
         && exists(fs, "data/Credits.mve")
     {
-        return Some(Game::Iwd2);
-    }
-
-    if exists(fs, "bg1tutu.exe") || exists(fs, "bg1mov/MovieCD1.bif") {
-        return Some(Game::Tutu);
-    }
-
-    if exists(fs, "baldur.exe") && exists(fs, "BGConfig.exe") {
-        return Some(Game::Bg2);
-    }
-
-    // BG1: classic exe layout, or the Mac-build-only graphsim marker.
-    if exists(fs, "movies/graphsim.mov")
+        Some(Game::Iwd2)
+    } else if exists(fs, "bg1tutu.exe") || exists(fs, "bg1mov/MovieCD1.bif") {
+        Some(Game::Tutu)
+    } else if exists(fs, "baldur.exe") && exists(fs, "BGConfig.exe") {
+        Some(Game::Bg2)
+    } else if exists(fs, "movies/graphsim.mov") 
         || (exists(fs, "baldur.exe") && exists(fs, "Config.exe"))
     {
-        return Some(Game::Bg);
-    }
+        // BG1: classic exe layout, or the Mac-build-only graphsim marker.
+        Some(Game::Bg)
+    } else {
+        None
+    };
 
-    None
+    info!("Detected game: {game:?}");
+
+    game
 }
 
 fn exists(fs: &CaseInsensitiveFS, path: &str) -> bool {

@@ -89,6 +89,8 @@ impl GameData {
 /// A game resource
 #[derive(Debug)]
 pub struct GameResource {
+    /// Game type
+    pub game_type: Game,
     /// Resource name without extension.
     pub name: String,
     /// Resource type.
@@ -287,6 +289,7 @@ impl GameDataBuilder {
                 let file_size = Some(r#override.metadata()?.len());
                 let datasource = Some(DataSource::new(r#override.as_path()));
                 game_data.add_resource(GameResource {
+                    game_type: self.game_type,
                     name,
                     r#type,
                     filename,
@@ -339,6 +342,7 @@ impl GameDataBuilder {
                         };
 
                         game_data.add_resource(GameResource {
+                            game_type: self.game_type,
                             name,
                             r#type,
                             filename,
@@ -351,6 +355,7 @@ impl GameDataBuilder {
                     } else {
                         warn!("Resource {} not found in bif {:?}", filename, bif_ds);
                         game_data.add_resource(GameResource {
+                            game_type: self.game_type,
                             name,
                             r#type,
                             filename,
@@ -362,6 +367,7 @@ impl GameDataBuilder {
                 } else {
                     warn!("Resource {} not found", filename);
                     game_data.add_resource(GameResource {
+                        game_type: self.game_type,
                         name,
                         r#type,
                         filename,
