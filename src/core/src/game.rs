@@ -6,7 +6,7 @@ use std::{
 };
 
 use infinitier_bif_importer::{BifEmbeddedResource, BifImporter};
-use infinitier_common::ResourceType;
+use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 use infinitier_key_importer::KeyImporter;
@@ -17,6 +17,8 @@ pub type ResourceId = usize;
 /// The Data of a game.
 #[derive(Debug)]
 pub struct GameData {
+    /// Game Type
+    game_type: Game,
     /// All resources
     resources: Vec<GameResource>,
     /// A map from filename to resource id
@@ -61,8 +63,9 @@ impl GameData {
     }
 
     /// Creates a GameData from a list of resources
-    pub fn new(resources: Vec<GameResource>) -> Self {
+    pub fn new(resources: Vec<GameResource>, game_type: Game) -> Self {
         let mut game_data = GameData {
+            game_type,
             resources: Vec::new(),
             filename_index: HashMap::new(),
             name_type_index: HashMap::new(),
@@ -185,13 +188,16 @@ pub struct GameDataBuilder {
     key_file: String,
     /// Resource overrides folders
     overrides: Vec<String>,
+    /// Game Type
+    game_type: Game,
 }
 
 impl GameDataBuilder {
     /// Create a new game data builder
-    pub fn new<P: AsRef<Path>>(game_root: P) -> io::Result<GameDataBuilder> {
+    pub fn new<P: AsRef<Path>>(game_root: P, game_type: Game) -> io::Result<GameDataBuilder> {
         Ok(GameDataBuilder {
             root: game_root.as_ref().to_path_buf(),
+            game_type,
             fs: CaseInsensitiveFS::new_with_fallback(
                 game_root,
                 vec![
@@ -235,6 +241,7 @@ impl GameDataBuilder {
     /// Build the game data
     pub fn build(&self) -> io::Result<GameData> {
         let mut game_data = GameData {
+            game_type: self.game_type,
             resources: vec![],
             filename_index: HashMap::new(),
             name_type_index: HashMap::new(),
@@ -393,8 +400,8 @@ mod tests {
     use super::*;
 
     fn build_bg2() -> GameData {
-        let bg_root = get_assets_path().join(BG2_RESOURCES_DIR);
-        GameDataBuilder::new(bg_root).unwrap().build().unwrap()
+        let bg_root = get_assets_path().join(BG2_RESOURCES_DIR.0);
+        GameDataBuilder::new(bg_root, Game::Bg2).unwrap().build().unwrap()
     }
 
     #[test]
@@ -402,7 +409,7 @@ mod tests {
         let game_data = build_bg2();
         let key = KeyImporter {}
             .import(&DataSource::new(
-                get_assets_path().join(BG2_RESOURCES_DIR).join("CHITIN.KEY"),
+                get_assets_path().join(BG2_RESOURCES_DIR.0).join("CHITIN.KEY"),
             ))
             .unwrap();
         assert_eq!(game_data.resources.len(), key.resource_entries.len());
@@ -459,7 +466,7 @@ mod tests {
             .get_by_name_and_type("ABCLASRQ", ResourceType::TwoDA)
             .unwrap();
         let path = get_assets_path()
-            .join(BG2_RESOURCES_DIR)
+            .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);
 
@@ -478,7 +485,7 @@ mod tests {
         assert_eq!(resource.filename, "abclasrq.2da");
 
         let path = get_assets_path()
-            .join(BG2_RESOURCES_DIR)
+            .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);
     }

@@ -1,4 +1,6 @@
-use infinitier_core::game::{DataOrigin, GameDataBuilder};
+use infinitier_common::Game;
+use infinitier_core::{game::{DataOrigin, GameDataBuilder}, game_detect::detect_game};
+use infinitier_fs::CaseInsensitiveFS;
 use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
 
 /// Returns the list of game directories to test.
@@ -8,11 +10,11 @@ use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
 /// environment variable as a colon-separated list of absolute paths, e.g.:
 ///
 ///   INFINITIER_GAME_DIRS=/games/bg2:/games/bgee cargo test -p infinitier_core
-fn game_dirs() -> Vec<std::path::PathBuf> {
-    let mut dirs: Vec<std::path::PathBuf> = ALL_RESOURCES_DIRS
+fn game_dirs() -> Vec<(std::path::PathBuf, Option<Game>)> {
+    let mut dirs: Vec<_> = ALL_RESOURCES_DIRS
         .iter()
-        .map(|d| get_assets_path().join(d))
-        .filter(|p| p.is_dir())
+        .map(|d| (get_assets_path().join(d.0), Some(d.1)))
+        .filter(|p| p.0.is_dir())
         .collect();
 
     if let Ok(env) = std::env::var("INFINITIER_GAME_DIRS") {
@@ -20,7 +22,7 @@ fn game_dirs() -> Vec<std::path::PathBuf> {
         for raw in env.split(':') {
             let p = std::path::PathBuf::from(raw.trim());
             if p.is_dir() {
-                dirs.push(p);
+                dirs.push((p, None));
             }
         }
     }
@@ -37,8 +39,9 @@ fn test_import_all_resources() {
 
     let mut all_failures: Vec<String> = vec![];
 
-    for dir in &dirs {
-        let game_data = match GameDataBuilder::new(dir).and_then(|b| b.build()) {
+    for (dir, game) in &dirs {
+        let game = game.unwrap_or_else(|| detect_game(&CaseInsensitiveFS::new(dir).unwrap()).expect("Cannot detect game type"));
+        let game_data = match GameDataBuilder::new(dir, game).and_then(|b| b.build()) {
             Ok(gd) => gd,
             Err(e) => {
                 all_failures.push(format!("[{}] failed to build GameData: {e}", dir.display()));

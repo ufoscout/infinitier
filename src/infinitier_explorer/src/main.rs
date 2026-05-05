@@ -5,7 +5,7 @@ mod ui;
 
 use clap::Parser;
 use eframe::egui;
-use infinitier_core::game::GameDataBuilder;
+use infinitier_core::{fs::CaseInsensitiveFS, game::GameDataBuilder, game_detect::detect_game};
 use std::path::PathBuf;
 
 /// Infinitier Explorer — browse resources from Infinity Engine games.
@@ -25,7 +25,9 @@ fn main() {
 
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    let key = GameDataBuilder::new(&args.game_path)
+    let game = detect_game(&CaseInsensitiveFS::new(&args.game_path).unwrap()).expect("Cannot detect game type");
+
+    let key = GameDataBuilder::new(&args.game_path, game)
         .and_then(|b| b.build())
         .unwrap_or_else(|e| {
             eprintln!(

@@ -1,14 +1,16 @@
-pub const BG_RESOURCES_DIR: &str = "bg";
-pub const BG_EE_RESOURCES_DIR: &str = "bg_ee";
-pub const BG2_RESOURCES_DIR: &str = "bg2";
-pub const BG2_EE_RESOURCES_DIR: &str = "bg2_ee";
-pub const IWD_RESOURCES_DIR: &str = "iwd";
-pub const IWD_EE_RESOURCES_DIR: &str = "iwd_ee";
-pub const IWD2_RESOURCES_DIR: &str = "iwd2";
-pub const PST_RESOURCES_DIR: &str = "pst";
-pub const PST_EE_RESOURCES_DIR: &str = "pst_ee";
+use infinitier_common::Game;
 
-pub const ALL_RESOURCES_DIRS: &[&str] = &[
+pub const BG_RESOURCES_DIR: (&str, Game) = ("bg", Game::Bg);
+pub const BG_EE_RESOURCES_DIR: (&str, Game) = ("bg_ee", Game::Bgee);
+pub const BG2_RESOURCES_DIR: (&str, Game) = ("bg2", Game::Bg2);
+pub const BG2_EE_RESOURCES_DIR: (&str, Game) = ("bg2_ee", Game::Bg2ee);
+pub const IWD_RESOURCES_DIR: (&str, Game) = ("iwd", Game::Iwd);
+pub const IWD_EE_RESOURCES_DIR: (&str, Game) = ("iwd_ee", Game::Iwdee);
+pub const IWD2_RESOURCES_DIR: (&str, Game) = ("iwd2", Game::Iwd2);
+pub const PST_RESOURCES_DIR: (&str, Game) = ("pst", Game::Pst);
+pub const PST_EE_RESOURCES_DIR: (&str, Game) = ("pst_ee", Game::Pstee);
+
+pub const ALL_RESOURCES_DIRS: &[(&str, Game)] = &[
     BG_RESOURCES_DIR,
     BG_EE_RESOURCES_DIR,
     BG2_RESOURCES_DIR,

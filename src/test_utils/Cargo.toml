@@ -5,6 +5,8 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+infinitier_common = { workspace = true }
+
 env_logger = { workspace = true }
 image = { workspace = true }
 serde = { workspace = true }
