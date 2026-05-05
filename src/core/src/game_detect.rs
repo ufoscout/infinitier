@@ -1,16 +1,11 @@
 //! Game detection from a game's root folder.
 //!
-//! Mirrors NearInfinity's `Profile.openGame` / `initGame` logic
-//! (`org.infinity.resource.Profile`): given a [`CaseInsensitiveFS`] rooted at
-//! a game install (the directory containing `chitin.key`), [`detect_game`]
-//! probes for distinctive marker files and returns which Infinity Engine
-//! game lives there.
+//! Mirrors NearInfinity's `Profile.openGame` / `initGame` logic.
 //!
-//! The probe order matches NI's: the most specific markers (EE / EET / SoD)
+//! The most specific markers (EE / EET / SoD)
 //! come first so an enhanced edition isn't misidentified as its classic
-//! ancestor. Use [`Game::engine`] to get the broader engine bucket
-//! (`BG / BG2 / EE / IWD / IWD2 / PST`) the BAF compiler / decompiler
-//! contexts care about.
+//! ancestor. Use [`Game::engine`] to get the engine 
+//! (`BG / BG2 / EE / IWD / IWD2 / PST`) that the game runs on.
 //!
 //! ```no_run
 //! use infinitier_core::fs::CaseInsensitiveFS;
@@ -22,26 +17,17 @@
 
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 
-// `Game` and `Engine` live in `infinitier_common` so importer crates can
-// depend on them without pulling in core. Re-export here for the convenience
-// of callers that already use this module.
 pub use infinitier_common::{Engine, Game};
 
 /// Detects which Infinity Engine game lives at the given root.
 ///
-/// Returns `None` when no `chitin.key` is present, or when no recognised
-/// marker file matches (e.g. an unknown / heavily-modded install). The
-/// probe order mirrors NI's `Profile.initGame` so the most specific
-/// release wins — for instance an EET install is recognised as `Eet`
-/// rather than as `Bg2ee`.
+/// Returns `None` when no `chitin.key` is present, or when the game is not recognised.
 pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
-    // Every IE game has a chitin.key in the root. If it's missing, this
-    // isn't a recognisable install.
+    
     if !exists(fs, "chitin.key") {
         return None;
     }
 
-    // The order below reproduces NI's `initGame` — most specific first.
     if exists(fs, "movies/howseer.wbm") {
         return Some(Game::Iwdee);
     }
@@ -101,7 +87,6 @@ pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
     None
 }
 
-/// Helper: case-insensitive existence check on the FS.
 fn exists(fs: &CaseInsensitiveFS, path: &str) -> bool {
     fs.get_path_opt(&CaseInsensitivePath::new(path)).is_some()
 }
