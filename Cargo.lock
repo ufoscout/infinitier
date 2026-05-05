@@ -1971,6 +1971,7 @@ dependencies = [
  "env_logger",
  "infinitier_core",
  "log",
+ "rodio",
 ]
 
 [[package]]
