@@ -125,81 +125,85 @@ pub fn engine_lua_mode(fs: &CaseInsensitiveFS) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use infinitier_test_utils::get_assets_path;
 
-    fn games_root() -> PathBuf {
-        std::env::var("INFINITY_GAMES_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("/home/ufo/Temp/Games"))
-    }
-
-    /// Builds a [`CaseInsensitiveFS`] for `<games_root>/<name>` and runs
-    /// `detect_game`. Returns `Ok(None)` when the directory isn't present
-    /// so the test can skip cleanly on machines without the corpus.
-    fn detect(name: &str) -> std::io::Result<Option<Game>> {
-        let path = games_root().join(name);
-        if !path.is_dir() {
-            return Ok(None);
-        }
-        let fs = CaseInsensitiveFS::new(&path)?;
-        Ok(detect_game(&fs))
-    }
-
-    fn assert_detected(name: &str, expected: Game) {
-        match detect(name) {
-            Ok(Some(actual)) => assert_eq!(
-                actual, expected,
-                "detected wrong game for `{}`: expected {:?}, got {:?}",
-                name, expected, actual
-            ),
-            Ok(None) => eprintln!("skip detect_game test for `{}`: not present", name),
-            Err(e) => panic!("error opening `{}`: {}", name, e),
-        }
+    /// Each fixture under `assets/detect_game/<dir>/` carries the minimal set
+    /// of empty marker files that `detect_game` looks for — no real
+    /// `chitin.key` content, hence the dedicated subtree separate from the
+    /// importer fixtures.
+    fn assert_detected(dir: &str, expected: Game) {
+        let path = get_assets_path().join("detect_game").join(dir);
+        let fs = CaseInsensitiveFS::new(&path)
+            .unwrap_or_else(|e| panic!("error opening `{}`: {}", path.display(), e));
+        let actual = detect_game(&fs);
+        assert_eq!(
+            actual,
+            Some(expected),
+            "detected wrong game for `{}`: expected {:?}, got {:?}",
+            dir,
+            expected,
+            actual
+        );
     }
 
     #[test]
     fn detect_bg() {
-        assert_detected("Baldur's Gate", Game::Bg);
+        assert_detected("bg", Game::Bg);
     }
 
     #[test]
     fn detect_bg2() {
-        assert_detected("Baldur's Gate 2", Game::Bg2);
+        assert_detected("bg2", Game::Bg2);
     }
 
     #[test]
     fn detect_bgee() {
-        assert_detected("Baldur's Gate - Enhanced Edition", Game::Bgee);
+        assert_detected("bg_ee", Game::Bgee);
     }
 
     #[test]
     fn detect_bg2ee() {
-        assert_detected("Baldur's Gate 2 - Enhanced Edition", Game::Bg2ee);
+        assert_detected("bg2_ee", Game::Bg2ee);
+    }
+
+    #[test]
+    fn detect_bgee_sod() {
+        assert_detected("bg_ee_sod", Game::BgeeSod);
+    }
+
+    #[test]
+    fn detect_eet() {
+        assert_detected("eet", Game::Eet);
+    }
+
+    #[test]
+    fn detect_tutu() {
+        assert_detected("tutu", Game::Tutu);
     }
 
     #[test]
     fn detect_iwd() {
-        assert_detected("Icewind Dale", Game::Iwd);
+        assert_detected("iwd", Game::Iwd);
     }
 
     #[test]
     fn detect_iwdee() {
-        assert_detected("Icewind Dale - Enhanced Edition", Game::Iwdee);
+        assert_detected("iwd_ee", Game::Iwdee);
     }
 
     #[test]
     fn detect_iwd2() {
-        assert_detected("Icewind Dale 2", Game::Iwd2);
+        assert_detected("iwd2", Game::Iwd2);
     }
 
     #[test]
     fn detect_pst() {
-        assert_detected("Planescape Torment", Game::Pst);
+        assert_detected("pst", Game::Pst);
     }
 
     #[test]
     fn detect_pstee() {
-        assert_detected("Planescape Torment - Enhanced Edition", Game::Pstee);
+        assert_detected("pst_ee", Game::Pstee);
     }
 
     #[test]
