@@ -156,7 +156,7 @@ impl ResourceViewer {
                                 ImportedResource::Pvrz(prvz) => Box::new(PvrzViewer::new(prvz)),
                                 ImportedResource::TwoDA(twoda) => Box::new(TwoDAViewer::new(twoda)),
                                 ImportedResource::Wed(wed) => Box::new(WedViewer::new(wed)),
-                                ImportedResource::Acm => Box::new(AcmViewer::new()),
+                                ImportedResource::Acm(acm) => Box::new(AcmViewer::new(acm)),
                                 ImportedResource::Are => Box::new(AreViewer::new()),
                                 ImportedResource::Bah => Box::new(BahViewer::new()),
                                 ImportedResource::Bcs => Box::new(BcsViewer::new()),

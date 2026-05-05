@@ -1,12 +1,14 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
-use infinitier_core::game::{GameResource, ResourceId};
+use infinitier_core::{game::{GameResource, ResourceId}, resource::acm::AcmDecoder};
 
-pub struct AcmViewer;
+pub struct AcmViewer{
+    acm: AcmDecoder
+}
 
 impl AcmViewer {
-    pub fn new() -> Self {
-        Self
+    pub fn new(acm: AcmDecoder) -> Self {
+        Self { acm }
     }
 }
 

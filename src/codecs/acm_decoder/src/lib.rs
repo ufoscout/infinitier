@@ -105,6 +105,19 @@ pub enum AcmError {
     WavCodecError(#[from] hound::Error),
 }
 
+impl From<AcmError> for std::io::Error {
+    /// Lets callers use `?` on `AcmError`-returning helpers from inside
+    /// `io::Result`-returning functions (e.g. an `Importer::import` impl).
+    /// `IoError` is unwrapped to preserve the original `ErrorKind`; the rest
+    /// are surfaced as `ErrorKind::Other` carrying the `AcmError` source.
+    fn from(err: AcmError) -> Self {
+        match err {
+            AcmError::IoError(e) => e,
+            other => std::io::Error::other(other),
+        }
+    }
+}
+
 // ─── Public info struct ───────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -170,6 +183,27 @@ pub struct AcmDecoder {
     wavc_file: bool,
     stream_pos: u32,
     block_pos: usize,
+}
+
+impl std::fmt::Debug for AcmDecoder {
+    /// Hand-written so the giant scratch buffers (`ampbuf` is 64 K entries,
+    /// `block` and `wrapbuf` scale with `acm_level`) and the un-`Debug`
+    /// `Box<dyn BufRead>` reader stay out of the output. We surface the
+    /// header, decode position, and bitstream state, which is what actually
+    /// matters when logging or panicking.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AcmDecoder")
+            .field("info", &self.info)
+            .field("stream_pos", &self.stream_pos)
+            .field("total_values", &self.info.total_values)
+            .field("block_len", &self.block_len)
+            .field("block_pos", &self.block_pos)
+            .field("block_ready", &self.block_ready)
+            .field("bit_avail", &self.bit_avail)
+            .field("eof_padding_given", &self.eof_padding_given)
+            .field("wavc_file", &self.wavc_file)
+            .finish_non_exhaustive()
+    }
 }
 
 impl AcmDecoder {

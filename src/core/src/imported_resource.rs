@@ -1,3 +1,4 @@
+use infinitier_acm_decoder::AcmDecoder;
 use infinitier_bam_importer::Bam;
 use infinitier_bmp_importer::Bmp;
 use infinitier_ids_importer::Ids;
@@ -9,6 +10,7 @@ use infinitier_wed_importer::Wed;
 #[derive(Debug)]
 pub enum ImportedResource {
     // Types with importers
+    Acm(AcmDecoder),
     Bam(Bam),
     Bmp(Bmp),
     Ids(Ids),
@@ -17,7 +19,6 @@ pub enum ImportedResource {
     TwoDA(TwoDA),
     Wed(Wed),
     // Types without importers
-    Acm,
     Are,
     Bah,
     Bcs,
