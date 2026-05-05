@@ -703,58 +703,107 @@ impl AcmDecoder {
 
     // ── public decode API ────────────────────────────────────────────────────
 
-    /// Decode the entire ACM stream and return all PCM samples as signed 16-bit
-    /// values in interleaved channel order (same as s16le WAV data).
-    pub fn decode_all(&mut self) -> Result<Vec<i16>> {
-        let mut samples: Vec<i16> = Vec::with_capacity(self.info.total_values as usize);
+    /// Decode the next chunk of PCM samples into `out`, returning the number
+    /// of `i16` samples written. Returns `Ok(0)` only on natural end of stream.
+    ///
+    /// This is the GemRB-style streaming hook: an audio player calls it
+    /// repeatedly, refilling its mixer buffer one block at a time, without
+    /// ever holding the entire decoded waveform in memory.
+    ///
+    /// Samples are interleaved (frame-major) for stereo streams; on stereo,
+    /// `out.len()` should be at least `info.channels` (i.e. ≥ 2) so a frame
+    /// boundary can be honoured — otherwise the call returns 0 to avoid
+    /// splitting a stereo pair across two reads.
+    pub fn read_samples(&mut self, out: &mut [i16]) -> Result<usize> {
+        if out.is_empty() {
+            return Ok(0);
+        }
         let shift = self.info.acm_level;
         let channels = self.info.channels as usize;
+        let mut written = 0usize;
 
-        while self.stream_pos < self.info.total_values {
+        while written < out.len() && self.stream_pos < self.info.total_values {
             if !self.block_ready && !self.decode_block()? {
                 break; // natural EOF
             }
 
             let avail = self.block_len - self.block_pos;
             let remaining = (self.info.total_values - self.stream_pos) as usize;
-            let mut n = avail.min(remaining);
+            let buf_remaining = out.len() - written;
+            let mut n = avail.min(remaining).min(buf_remaining);
 
-            // Keep stereo pairs aligned.
+            // Keep stereo pairs aligned both in the output buffer and across
+            // block boundaries, matching GemRB's read_samples behaviour.
             if channels > 1 {
                 n -= n % channels;
             }
 
             if n == 0 {
-                // Can't make progress (channel alignment edge case); skip block.
+                // Either the block ran out on an odd boundary, or the
+                // caller's remaining buffer can't fit a full frame. If
+                // there's no room left in the buffer, stop; otherwise
+                // discard the trailing odd sample and try the next block.
+                if buf_remaining < channels.max(1) {
+                    break;
+                }
                 self.block_ready = false;
                 continue;
             }
 
             for i in 0..n {
                 let v = self.block[self.block_pos + i] >> shift;
-                samples.push(v.clamp(i16::MIN as i32, i16::MAX as i32) as i16);
+                out[written + i] = v.clamp(i16::MIN as i32, i16::MAX as i32) as i16;
             }
 
             self.stream_pos += n as u32;
             self.block_pos += n;
+            written += n;
             if self.block_pos == self.block_len {
                 self.block_ready = false;
             }
         }
 
-        // Pad with zeros to reach the declared total_values count, mirroring
-        // the C tool's behaviour (it writes the expected byte count in the WAV
-        // header and zero-fills any gap at the end).
-        samples.resize(self.info.total_values as usize, 0i16);
+        Ok(written)
+    }
 
+    /// Number of PCM samples already produced by [`read_samples`] /
+    /// [`decode_all`] since the decoder was opened. Useful for an audio
+    /// player that wants to compute current playback position without
+    /// tracking it externally.
+    pub fn samples_decoded(&self) -> u32 {
+        self.stream_pos
+    }
+
+    /// Decode the entire ACM stream and return all PCM samples as signed 16-bit
+    /// values in interleaved channel order (same as s16le WAV data).
+    ///
+    /// Equivalent to repeatedly calling [`read_samples`] into a
+    /// `info.total_values`-sized buffer; trailing samples that the stream
+    /// doesn't actually produce are left as zeros (matching the libacm WAV
+    /// tool's behaviour of zero-filling to the declared sample count).
+    pub fn decode_all(&mut self) -> Result<Vec<i16>> {
+        let total = self.info.total_values as usize;
+        let mut samples = vec![0i16; total];
+        let mut written = 0usize;
+        while written < total {
+            let n = self.read_samples(&mut samples[written..])?;
+            if n == 0 {
+                break;
+            }
+            written += n;
+        }
         Ok(samples)
     }
 
-    /// Decode the entire ACM stream into a WAV file with the decoded PCM samples as signed 16-bit
-    /// values in interleaved channel order (same as s16le WAV data).
+    /// Decode the ACM stream into a WAV file with signed 16-bit PCM samples
+    /// in interleaved channel order (s16le).
+    ///
+    /// Streams block-by-block through [`read_samples`] straight into the WAV
+    /// writer, so peak memory stays at the size of one decoded block plus the
+    /// scratch buffer regardless of file size. Trailing samples that the
+    /// stream doesn't actually produce are zero-padded to `info.total_values`,
+    /// matching the libacm tool's WAV output.
     pub fn decode_to_file<P: AsRef<std::path::Path>>(&mut self, filename: P) -> Result<()> {
-        let samples = self.decode_all()?;
-
         let spec = hound::WavSpec {
             channels: self.info.channels as u16,
             sample_rate: self.info.rate,
@@ -763,9 +812,28 @@ impl AcmDecoder {
         };
 
         let mut writer = WavWriter::create(filename, spec)?;
-        for &s in &samples {
-            writer.write_sample(s)?;
+        let total = self.info.total_values as usize;
+        let mut buf = [0i16; 4096];
+        let mut written = 0usize;
+
+        while written < total {
+            // Cap the buffer so we never request more than the declared total.
+            let want = (total - written).min(buf.len());
+            let n = self.read_samples(&mut buf[..want])?;
+            if n == 0 {
+                break; // natural EOF before total_values — fall through to padding
+            }
+            for &s in &buf[..n] {
+                writer.write_sample(s)?;
+            }
+            written += n;
         }
+
+        // Zero-pad up to the declared total, matching libacm's tool.
+        for _ in written..total {
+            writer.write_sample(0i16)?;
+        }
+
         writer.finalize()?;
         Ok(())
     }
