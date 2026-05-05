@@ -14,8 +14,7 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("sound.acm");
-    let reader = source.reader()?;
-    let mut decoder = AcmDecoder::open(reader, OutputChannels::Original)?;
+    let mut decoder = AcmDecoder::open(&source, OutputChannels::Original)?;
     decoder.decode_to_file("sound.wav")?;
     Ok(())
 }
@@ -29,7 +28,7 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("sound.acm");
-    let mut decoder = AcmDecoder::open(source.reader()?, OutputChannels::Original)?;
+    let mut decoder = AcmDecoder::open(&source, OutputChannels::Original)?;
 
     let info = &decoder.info;
     println!("channels: {}, sample rate: {} Hz", info.channels, info.rate);
@@ -53,7 +52,7 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("stereo_stored_as_mono.acm");
-    let mut decoder = AcmDecoder::open(source.reader()?, OutputChannels::Stereo)?;
+    let mut decoder = AcmDecoder::open(&source, OutputChannels::Stereo)?;
     decoder.decode_to_file("output.wav")?;
     Ok(())
 }

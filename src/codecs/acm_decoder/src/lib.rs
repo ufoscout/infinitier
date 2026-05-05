@@ -2,10 +2,13 @@
 #![doc = include_str!("../readme.md")]
 
 use log::{debug, error};
-use std::io::BufRead;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
+use std::sync::Arc;
 use thiserror::Error as ThisError;
 
 use hound::WavWriter;
+use infinitier_datasource::{Data, DataSource, Reader};
 
 const ACM_ID: u32 = 0x032897;
 const WAVC_ID: u32 = 0x564157; // 'WAV' little-endian
@@ -19,6 +22,67 @@ const MAP_1BIT: [i32; 2] = [-1, 1];
 const MAP_2BIT_NEAR: [i32; 4] = [-2, -1, 1, 2];
 const MAP_2BIT_FAR: [i32; 4] = [-3, -2, 2, 3];
 const MAP_3BIT: [i32; 8] = [-4, -3, -2, -1, 1, 2, 3, 4];
+
+// ─── Streaming reader construction ───────────────────────────────────────────
+
+/// Newtype around `Arc<Vec<u8>>` that exposes the underlying bytes via
+/// `AsRef<[u8]>`, letting us build a `Cursor` that owns the share without
+/// copying the payload (`Arc<Vec<u8>>` itself doesn't impl `AsRef<[u8]>`).
+struct SharedBytes(Arc<Vec<u8>>);
+
+impl AsRef<[u8]> for SharedBytes {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+/// Opens a `Box<dyn BufRead>` over a [`DataSource`] without borrowing from it.
+///
+/// `Path` / `Generator` sources open a fresh `BufReader<File>`; `MemorySource`
+/// clones its `Arc<Vec<u8>>` and wraps it in a `Cursor`. The returned reader
+/// is `'static`, so callers (e.g. [`AcmDecoder`]) can store it in a
+/// non-lifetime-parameterised struct and still stream bytes lazily — the
+/// whole file is never resident.
+fn open_streaming_reader(ds: &DataSource) -> std::io::Result<Reader<Box<dyn BufRead>>> {
+    let (data, offset, limit) = match ds {
+        DataSource::Full { data, .. } => (data, 0u64, None),
+        DataSource::Embedded {
+            data, offset, limit, ..
+        } => (data, *offset, *limit),
+    };
+
+    let inner: Box<dyn BufRead> = match data {
+        Data::Path(path) => {
+            let mut file = BufReader::new(File::open(path)?);
+            file.seek(SeekFrom::Start(offset))?;
+            match limit {
+                Some(l) => Box::new(file.take(l)),
+                None => Box::new(file),
+            }
+        }
+        Data::Generator(generator) => {
+            let mut file = BufReader::new(File::open(generator.path()?)?);
+            file.seek(SeekFrom::Start(offset))?;
+            match limit {
+                Some(l) => Box::new(file.take(l)),
+                None => Box::new(file),
+            }
+        }
+        Data::MemorySource(arc) => {
+            let mut cursor = Cursor::new(SharedBytes(Arc::clone(arc)));
+            cursor.seek(SeekFrom::Start(offset))?;
+            match limit {
+                Some(l) => Box::new(cursor.take(l)),
+                None => Box::new(cursor),
+            }
+        }
+    };
+
+    Ok(Reader {
+        data: inner,
+        charset: ds.encoding(),
+    })
+}
 
 // ─── Error type ──────────────────────────────────────────────────────────────
 
@@ -76,11 +140,16 @@ pub enum OutputChannels {
     Original,
 }
 
-pub struct AcmDecoder<R: BufRead> {
+pub struct AcmDecoder {
     pub info: AcmInfo,
 
     // ── bitstream state ──
-    reader: infinitier_datasource::Reader<R>,
+    /// Reader that pulls bytes from the source on demand, mirroring GemRB's
+    /// ACMReader plugin: only the small bitstream window is held in memory
+    /// at any time. The boxed `dyn BufRead` is fully owned (file handle for
+    /// path/generator sources, cloned `Arc<Vec<u8>>` cursor for in-memory
+    /// sources) so the decoder doesn't borrow from the original `DataSource`.
+    reader: Reader<Box<dyn BufRead>>,
     /// True once we have already returned the one padding word at EOF (matching
     /// the C libacm behaviour of appending 4 zero bytes to the raw data).
     eof_padding_given: bool,
@@ -100,12 +169,13 @@ pub struct AcmDecoder<R: BufRead> {
     block_pos: usize,
 }
 
-impl<R: BufRead> AcmDecoder<R> {
-    /// Open an ACM stream from an `infinitier_datasource::Reader`.
-    pub fn open(
-        reader: infinitier_datasource::Reader<R>,
-        output_channels: OutputChannels,
-    ) -> Result<Self> {
+impl AcmDecoder {
+    /// Open an ACM stream from a [`DataSource`]. The decoder pulls bytes
+    /// lazily — block by block, like GemRB's ACMReader plugin — so memory
+    /// use stays bounded regardless of the file size.
+    pub fn open(datasource: &DataSource, output_channels: OutputChannels) -> Result<Self> {
+        let reader = open_streaming_reader(datasource)?;
+
         let mut dec = AcmDecoder {
             info: AcmInfo {
                 channels: 0,
