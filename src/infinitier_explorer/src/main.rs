@@ -37,9 +37,15 @@ fn main() {
             std::process::exit(1);
         });
 
+    let title = format!(
+        "Infinitier Explorer — {:?} — {}",
+        game,
+        args.game_path.display()
+    );
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("Infinitier Explorer")
+            .with_title(&title)
             .with_clamp_size_to_monitor_size(true)
             .with_maximized(true),
         renderer: eframe::Renderer::Wgpu,
@@ -47,7 +53,7 @@ fn main() {
     };
 
     if let Err(e) = eframe::run_native(
-        "Infinitier Explorer",
+        &title,
         options,
         Box::new(move |cc| {
             cc.egui_ctx.set_visuals(egui::Visuals::light());
