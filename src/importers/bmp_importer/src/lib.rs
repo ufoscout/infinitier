@@ -4,11 +4,11 @@ use log::debug;
 use infinitier_datasource::{DataSource, Importer};
 
 /// A BMP file importer
-pub struct BmpImporter {
-    pub name: String,
+pub struct BmpImporter<'a> {
+    pub name: &'a str,
 }
 
-impl Importer for BmpImporter {
+impl <'a> Importer for BmpImporter<'a> {
     type T = Bmp;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Bmp> {
@@ -138,7 +138,7 @@ mod tests {
 
         let original = image::open(get_assets_path().join("resources/BMP/CCHAN05.BMP")).unwrap();
 
-        let bmp = BmpImporter{name: "bmp_name".to_owned()}.import(&data).unwrap();
+        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
 
         assert_images_are_equal(&bmp.image.clone().into(), &original);
     }
@@ -149,7 +149,7 @@ mod tests {
 
         let original = image::open(get_assets_path().join("resources/BMP/MINSCM.BMP")).unwrap();
 
-        let bmp = BmpImporter{name: "bmp_name".to_owned()}.import(&data).unwrap();
+        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
 
         assert_images_are_equal(&bmp.image.clone().into(), &original);
     }
@@ -157,14 +157,14 @@ mod tests {
     #[test]
     fn metadata_for_32bpp_bmp() {
         let data = DataSource::new(get_assets_path().join("resources/BMP/CCHAN05.BMP"));
-        let bmp = BmpImporter{name: "bmp_name".to_owned()}.import(&data).unwrap();
+        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
         assert_eq!(bmp.bit_count, 32);
     }
 
     #[test]
     fn metadata_for_24bpp_bmp() {
         let data = DataSource::new(get_assets_path().join("resources/BMP/MINSCM.BMP"));
-        let bmp = BmpImporter{name: "bmp_name".to_owned()}.import(&data).unwrap();
+        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
         assert_eq!(bmp.bit_count, 24);
         assert_eq!(bmp.compression, BmpCompression::Rgb);
     }

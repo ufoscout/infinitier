@@ -6,9 +6,11 @@ use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
 /// A Wed file importer
-pub struct WedImporter;
+pub struct WedImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for WedImporter {
+impl<'a> Importer for WedImporter<'a> {
     type T = Wed;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Wed> {
@@ -17,7 +19,10 @@ impl Importer for WedImporter {
         let signature = reader.read_string(8)?;
 
         if signature != "WED V1.3" {
-            error!("Not a WED V1.3 file: signature={:?}", signature);
+            error!(
+                "Not a WED V1.3 file ({}): signature={:?}",
+                self.name, signature
+            );
             return Err(std::io::Error::other("Wrong file type"));
         }
 
@@ -165,7 +170,8 @@ impl Importer for WedImporter {
         }
 
         debug!(
-            "Loaded WED: {} overlays, {} doors, {} polygons",
+            "Loaded {} [WED]: {} overlays, {} doors, {} polygons",
+            self.name,
             overlays.len(),
             doors.len(),
             polygons.len()
@@ -319,7 +325,7 @@ mod tests {
 
         let expected: Wed = parse_json_file(&json_path);
 
-        let actual = WedImporter
+        let actual = WedImporter { name: "wed_test" }
             .import(&DataSource::new(web_path.as_path()))
             .unwrap();
 

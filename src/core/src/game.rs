@@ -133,13 +133,27 @@ impl GameResource {
             .as_ref()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no datasource available"))?;
         match self.r#type {
-            ResourceType::Bam => BamImporter {}.import(ds).map(ImportedResource::Bam),
-            ResourceType::Bmp => BmpImporter{name: self.name.clone()}.import(ds).map(ImportedResource::Bmp),
-            ResourceType::Ids => IdsImporter.import(ds).map(ImportedResource::Ids),
-            ResourceType::Ini => IniImporter.import(ds).map(ImportedResource::Ini),
-            ResourceType::Pvrz => PvrzImporter.import(ds).map(ImportedResource::Pvrz),
-            ResourceType::TwoDA => TwoDAImporter.import(ds).map(ImportedResource::TwoDA),
-            ResourceType::Wed => WedImporter.import(ds).map(ImportedResource::Wed),
+            ResourceType::Bam => BamImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Bam),
+            ResourceType::Bmp => BmpImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Bmp),
+            ResourceType::Ids => IdsImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Ids),
+            ResourceType::Ini => IniImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Ini),
+            ResourceType::Pvrz => PvrzImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Pvrz),
+            ResourceType::TwoDA => TwoDAImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::TwoDA),
+            ResourceType::Wed => WedImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Wed),
             ResourceType::Acm => Ok(ImportedResource::Acm),
             ResourceType::Are => Ok(ImportedResource::Are),
             ResourceType::Bah => Ok(ImportedResource::Bah),
@@ -257,7 +271,10 @@ impl GameDataBuilder {
         let key_path = self
             .fs
             .get_path(&CaseInsensitivePath::new(&self.key_file))?;
-        let key = KeyImporter {}.import(&DataSource::new(key_path.as_path()))?;
+        let key = KeyImporter {
+            name: &self.key_file,
+        }
+        .import(&DataSource::new(key_path.as_path()))?;
 
         // preload all bif files
         let mut bif_all = vec![];
@@ -267,7 +284,7 @@ impl GameDataBuilder {
                 .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name))
             {
                 let bif = BifImporter {
-                    name: bif_entry.file_name,
+                    name: &bif_entry.file_name,
                 }
                 .import(&DataSource::new(bif_path.as_path()))
                 .unwrap();
@@ -418,7 +435,7 @@ mod tests {
     #[test]
     fn test_game_data_builder() {
         let game_data = build_bg2();
-        let key = KeyImporter {}
+        let key = KeyImporter { name: "chitin.key" }
             .import(&DataSource::new(
                 get_assets_path().join(BG2_RESOURCES_DIR.0).join("CHITIN.KEY"),
             ))
@@ -443,7 +460,7 @@ mod tests {
         assert!(resource.datasource.is_some());
 
         // Test that the data can be read
-        WedImporter
+        WedImporter { name: "AR0714" }
             .import(resource.datasource.as_ref().unwrap())
             .unwrap();
     }
@@ -482,7 +499,7 @@ mod tests {
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);
 
         // Test that the override datasource can be read
-        TwoDAImporter
+        TwoDAImporter { name: "ABCLASRQ" }
             .import(resource.datasource.as_ref().unwrap())
             .unwrap();
     }

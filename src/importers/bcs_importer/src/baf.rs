@@ -1292,7 +1292,7 @@ mod corpus_tests {
     fn load_signatures(ids_dir: &Path, file_stem: &str) -> Signatures {
         let path = find_ids(ids_dir, file_stem)
             .unwrap_or_else(|| panic!("missing IDS {}.IDS in {}", file_stem, ids_dir.display()));
-        let ids = IdsImporter
+        let ids = IdsImporter { name: file_stem }
             .import(&DataSource::new(path.as_path()))
             .unwrap_or_else(|e| panic!("cannot parse {}: {e}", path.display()));
         Signatures::from_ids(&ids)
@@ -1350,7 +1350,9 @@ mod corpus_tests {
         const MAX_REPORTED: usize = 5;
 
         for src_path in &paths {
-            let bcs = match BcsImporter.import(&DataSource::new(src_path.as_path())) {
+            let bcs = match (BcsImporter { name: "baf_test" })
+                .import(&DataSource::new(src_path.as_path()))
+            {
                 Ok(b) => b,
                 Err(e) => {
                     failures.push(format!("parse error in {}: {}", src_path.display(), e));

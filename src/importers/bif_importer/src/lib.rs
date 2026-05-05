@@ -10,20 +10,20 @@ use std::io::Read;
 use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
 
 /// A BIF file importer
-pub struct BifImporter {
-    pub name: String,
+pub struct BifImporter<'a> {
+    pub name: &'a str,
 }
 
-impl Importer for BifImporter {
+impl<'a> Importer for BifImporter<'a> {
     type T = Bif;
 
     fn import(&self, source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
 
         match detect_biff_type(reader)? {
-            Type::Biff => BiffParser::import(source, &self.name),
-            Type::Bif => BifParser::import(source, &self.name),
-            Type::Bifc => BifcParser::import(source, &self.name),
+            Type::Biff => BiffParser::import(source, self.name),
+            Type::Bif => BifParser::import(source, self.name),
+            Type::Bifc => BifcParser::import(source, self.name),
         }
     }
 }

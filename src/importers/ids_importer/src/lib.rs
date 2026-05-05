@@ -3,9 +3,11 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 
 /// An IDS file importer.
-pub struct IdsImporter;
+pub struct IdsImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for IdsImporter {
+impl<'a> Importer for IdsImporter<'a> {
     type T = Ids;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Ids> {
@@ -22,7 +24,7 @@ impl Importer for IdsImporter {
             }
         }
 
-        debug!("Loaded IDS file: {} entries", entries.len());
+        debug!("Loaded {} [IDS]: {} entries", self.name, entries.len());
         Ok(Ids { entries })
     }
 }
@@ -262,7 +264,7 @@ mod tests {
         for ids_path in paths {
             let json_path = ids_path.with_extension("json");
             let expected: Ids = parse_json_file(&json_path);
-            let actual = IdsImporter
+            let actual = IdsImporter { name: "ids_test" }
                 .import(&DataSource::new(ids_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ids_path.display()));
             assert_eq!(actual, expected, "IDS mismatch for {}", ids_path.display());

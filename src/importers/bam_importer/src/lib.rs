@@ -1,7 +1,7 @@
 use std::io::{BufRead, Read, Seek};
 
 use infinitier_datasource::{Importer, Reader};
-use log::error;
+use log::{debug, error};
 
 use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
 
@@ -14,18 +14,22 @@ mod bamc;
 pub mod common;
 
 /// A BAM file importer
-pub struct BamImporter {}
+pub struct BamImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for BamImporter {
+impl<'a> Importer for BamImporter<'a> {
     type T = Bam;
 
     fn import(&self, source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
-        Self::from_reader(reader)
+        let bam = BamImporter::from_reader(reader)?;
+        debug!("Loaded {} [BAM]", self.name);
+        Ok(bam)
     }
 }
 
-impl BamImporter {
+impl BamImporter<'_> {
     /// Imports a BAM file
     pub fn from_reader<R: BufRead + Seek>(reader: &mut Reader<R>) -> std::io::Result<Bam> {
         let position = reader.position()?;

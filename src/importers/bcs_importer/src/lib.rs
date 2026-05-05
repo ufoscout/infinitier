@@ -7,9 +7,11 @@ pub mod baf_compile;
 pub mod signatures;
 
 /// A BCS script file importer.
-pub struct BcsImporter;
+pub struct BcsImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for BcsImporter {
+impl<'a> Importer for BcsImporter<'a> {
     type T = Bcs;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Bcs> {
@@ -20,7 +22,8 @@ impl Importer for BcsImporter {
         let mut stream = BcsStream::new(&text);
         let bcs = parse_bcs(&mut stream)?;
         debug!(
-            "Loaded BCS: {} condition-response blocks",
+            "Loaded {} [BCS]: {} condition-response blocks",
+            self.name,
             bcs.condition_responses.len()
         );
         Ok(bcs)
@@ -842,7 +845,7 @@ mod tests {
 
         for bcs_path in paths {
 
-            let actual = BcsImporter
+            let actual = BcsImporter { name: "bcs_test" }
                 .import(&DataSource::new(bcs_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", bcs_path.display()));
 
@@ -856,7 +859,7 @@ mod tests {
             // Test that BCS `to_byte_code` reproduces the original BCS file
             {
                 let bcs_bytes_generated = actual.to_byte_code();
-                let bcs_from_bytes = BcsImporter
+                let bcs_from_bytes = BcsImporter { name: "bcs_test" }
                     .import(&DataSource::new(bcs_bytes_generated.as_bytes()))
                     .unwrap_or_else(|e| panic!("cannot import {}: {e}", bcs_path.display()));
                 assert_eq!(bcs_from_bytes, actual, "BCS mismatch for {}", bcs_path.display());

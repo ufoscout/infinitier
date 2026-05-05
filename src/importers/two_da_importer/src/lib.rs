@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 
 use itertools::{Itertools, chain};
-use log::warn;
+use log::{debug, warn};
 
 use infinitier_datasource::{DataSource, Importer};
 
 /// A 2DA file importer
-pub struct TwoDAImporter;
+pub struct TwoDAImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for TwoDAImporter {
+impl<'a> Importer for TwoDAImporter<'a> {
     type T = TwoDA;
 
     fn import(&self, source: &DataSource) -> std::io::Result<TwoDA> {
@@ -18,8 +20,8 @@ impl Importer for TwoDAImporter {
 
         if signature != "2DA V1.0" {
             warn!(
-                "TwoDAImporter - DataSource [{:?}] has a bad signature [{signature}]! Complaining, but ignoring...",
-                source
+                "Loaded {} [2DA] - DataSource [{:?}] has a bad signature [{signature}]! Complaining, but ignoring...",
+                self.name, source
             );
         }
 
@@ -41,6 +43,7 @@ impl Importer for TwoDAImporter {
             rows.insert(key, value);
         }
 
+        debug!("Loaded {} [2DA]: {} rows", self.name, rows.len());
         Ok(TwoDA {
             headers,
             columns,
@@ -283,7 +286,9 @@ mod tests {
             .unwrap()
             .get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA"))
             .unwrap();
-        let two_da = TwoDAImporter.import(&DataSource::new(path)).unwrap();
+        let two_da = TwoDAImporter { name: "2da_test" }
+            .import(&DataSource::new(path))
+            .unwrap();
 
         assert_eq!(
             two_da.headers,

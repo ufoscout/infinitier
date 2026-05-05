@@ -8,13 +8,15 @@ use log::{debug, error};
 pub use infinitier_common::ResourceType;
 
 /// A KEY file importer
-pub struct KeyImporter {}
+pub struct KeyImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for KeyImporter {
+impl<'a> Importer for KeyImporter<'a> {
     type T = Key;
 
     fn import(&self, data: &DataSource) -> std::io::Result<Key> {
-        debug!("Importing KEY file from datasource {:?}", data);
+        debug!("Importing {} [KEY] from datasource {:?}", self.name, data);
 
         let mut reader = data.reader()?;
         let signature = reader.read_string(4)?.trim().to_string();
@@ -22,8 +24,8 @@ impl Importer for KeyImporter {
 
         if !(signature.eq("KEY") && version.eq("V1")) {
             error!(
-                "Not a KEY V1 file: signature={:?} version={:?}",
-                signature, version
+                "Not a KEY V1 file ({}): signature={:?} version={:?}",
+                self.name, signature, version
             );
             return Err(io::Error::other("Wrong file type"));
         }
@@ -55,7 +57,8 @@ impl Importer for KeyImporter {
         }
 
         debug!(
-            "Loaded KEY file: {} bif entries, {} resource entries",
+            "Loaded {} [KEY]: {} bif entries, {} resource entries",
+            self.name,
             bif_entries.len(),
             resource_entries.len()
         );
@@ -261,7 +264,7 @@ mod tests {
 
             let expected: Key = parse_json_file(&json_path);
 
-            let actual = KeyImporter {}
+            let actual = KeyImporter { name: "key_test" }
                 .import(&DataSource::new(key_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", key_path.display()));
 

@@ -203,7 +203,10 @@ impl BamV2 {
             let datasource = DataSource::new(pvrz_path);
 
             // TODO: Suboptimal: PVRZ images should be cached
-            let source_header = PvrzImporter.import(&datasource)?;
+            let source_header = PvrzImporter {
+                name: &block.pvrz_name(),
+            }
+            .import(&datasource)?;
             let source_image = PvrzImporter::to_image(&source_header, &datasource)?;
             let source_image_buffer = source_image.as_raw();
 

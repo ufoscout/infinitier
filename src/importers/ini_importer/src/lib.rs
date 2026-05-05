@@ -10,9 +10,11 @@ use serde::{Deserialize, Serialize};
 /// - Key and value are each trimmed of leading/trailing whitespace.
 /// - Empty-value entries (`key=`) are stored with an empty string value.
 /// - Section and key lookups are case-insensitive.
-pub struct IniImporter;
+pub struct IniImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for IniImporter {
+impl<'a> Importer for IniImporter<'a> {
     type T = Ini;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Ini> {
@@ -61,7 +63,7 @@ impl Importer for IniImporter {
             }
         }
 
-        debug!("Loaded INI file: {} sections", sections.len());
+        debug!("Loaded {} [INI]: {} sections", self.name, sections.len());
         Ok(Ini { sections })
     }
 }
@@ -122,7 +124,7 @@ mod tests {
     }
 
     fn parse(src: &str) -> Ini {
-        IniImporter
+        IniImporter { name: "ini_test" }
             .import(&DataSource::new(src.as_bytes()))
             .unwrap()
     }
@@ -236,7 +238,7 @@ mod tests {
         for ini_path in paths {
             let json_path = ini_path.with_extension("json");
             let expected: Ini = parse_json_file(&json_path);
-            let actual = IniImporter
+            let actual = IniImporter { name: "ini_test" }
                 .import(&DataSource::new(ini_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ini_path.display()));
             assert_eq!(actual, expected, "INI mismatch for {}", ini_path.display());

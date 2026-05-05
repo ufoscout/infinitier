@@ -5,9 +5,11 @@ use infinitier_datasource::{DataSource, Importer};
 use log::{debug, error};
 
 /// A PVRZ file importer
-pub struct PvrzImporter;
+pub struct PvrzImporter<'a> {
+    pub name: &'a str,
+}
 
-impl Importer for PvrzImporter {
+impl<'a> Importer for PvrzImporter<'a> {
     type T = PvrzHeader;
 
     /// Imports a PVRZ file which is a PVR file with Zlib compression.
@@ -49,14 +51,14 @@ impl Importer for PvrzImporter {
             metadata_size: reader.read_u32()?,
         };
         debug!(
-            "Loaded PVRZ: {}x{} {:?}",
-            header.width, header.height, header.pixel_format
+            "Loaded {} [PVRZ]: {}x{} {:?}",
+            self.name, header.width, header.height, header.pixel_format
         );
         Ok(header)
     }
 }
 
-impl PvrzImporter {
+impl PvrzImporter<'_> {
     /// Converts a PVRZ file to an image
     pub fn to_image(
         header: &PvrzHeader,
@@ -173,7 +175,7 @@ mod tests {
     fn test_parse_pvrz_dxt1() {
         let data = DataSource::new(get_assets_path().join("resources/PVR_DXT1/A004602.PVRZ"));
 
-        let pvrz_header = PvrzImporter.import(&data).unwrap();
+        let pvrz_header = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         assert_eq!(
             pvrz_header,
@@ -208,7 +210,7 @@ mod tests {
     fn test_parse_pvrz_dxt5() {
         let data = DataSource::new(get_assets_path().join("resources/PVR_DXT5/MOS0000.PVRZ"));
 
-        let pvrz_header = PvrzImporter.import(&data).unwrap();
+        let pvrz_header = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         assert_eq!(
             pvrz_header,
