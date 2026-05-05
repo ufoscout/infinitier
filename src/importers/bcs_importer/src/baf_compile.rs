@@ -136,9 +136,7 @@ impl<'a> Lexer<'a> {
                 // permits unary `-` / `+` only in numeric contexts, which we
                 // collapse into the numeric token directly so the parser
                 // doesn't need to look ahead.
-                if self.pos + 1 < self.bytes.len()
-                    && (self.bytes[self.pos + 1].is_ascii_digit())
-                {
+                if self.pos + 1 < self.bytes.len() && (self.bytes[self.pos + 1].is_ascii_digit()) {
                     self.read_number()
                 } else if b == b'-' {
                     // bare `-` is a connector inside identifiers; if it
@@ -359,8 +357,7 @@ impl<'a> BafParser<'a> {
             loop {
                 match self.peek()? {
                     Tok::Ident(s)
-                        if s.eq_ignore_ascii_case("RESPONSE")
-                            || s.eq_ignore_ascii_case("END") =>
+                        if s.eq_ignore_ascii_case("RESPONSE") || s.eq_ignore_ascii_case("END") =>
                     {
                         break;
                     }
@@ -502,9 +499,7 @@ impl<'a> BafParser<'a> {
         // Even an absent object goes through `ObjectAccum::into_object` so the
         // engine-specific region default (PST / IWD / IWD2) is applied —
         // `BcsObject::empty()` directly would lose the empty-rect sentinel.
-        let target = object
-            .unwrap_or_default()
-            .into_object(self.ctx)?;
+        let target = object.unwrap_or_default().into_object(self.ctx)?;
 
         let (t4, t5) = pack_strings(function, &strings, self.concat_for(function));
 
@@ -512,15 +507,13 @@ impl<'a> BafParser<'a> {
         // the function declares one; default it to (0, 0) so round-trips
         // re-emit the `[0,0]` literal even when the BAF dropped the explicit
         // point parameter.
-        let t7 = point
-            .map(|(x, y)| BcsPoint { x, y })
-            .or_else(|| {
-                if self.ctx.trigger_has_point() {
-                    Some(BcsPoint::default())
-                } else {
-                    None
-                }
-            });
+        let t7 = point.map(|(x, y)| BcsPoint { x, y }).or_else(|| {
+            if self.ctx.trigger_has_point() {
+                Some(BcsPoint::default())
+            } else {
+                None
+            }
+        });
         // NI's BcsTrigger exposes 3 logical numeric params via
         // setNumericParam(0..2) → t1/t2/t3. The bytecode `flags` slot is
         // separate and only carries the negation bit.
@@ -607,11 +600,7 @@ impl<'a> BafParser<'a> {
         self.build_action(&function, raw_args)
     }
 
-    fn build_action(
-        &self,
-        function: &Function,
-        raw_args: Vec<RawArg>,
-    ) -> std::io::Result<Action> {
+    fn build_action(&self, function: &Function, raw_args: Vec<RawArg>) -> std::io::Result<Action> {
         let mut numbers: Vec<i32> = Vec::new();
         let mut strings: Vec<String> = Vec::new();
         let mut objects: Vec<ObjectAccum> = Vec::new();
@@ -652,9 +641,8 @@ impl<'a> BafParser<'a> {
             }
         }
 
-        let make_default = || -> std::io::Result<BcsObject> {
-            ObjectAccum::default().into_object(self.ctx)
-        };
+        let make_default =
+            || -> std::io::Result<BcsObject> { ObjectAccum::default().into_object(self.ctx) };
         let mut object_slots: [BcsObject; 3] = [make_default()?, make_default()?, make_default()?];
         // a1 is reserved for ActionOverride; the function's own object
         // arguments fill a2 then a3.
@@ -704,10 +692,7 @@ impl<'a> BafParser<'a> {
             return Ok(args);
         }
         loop {
-            let kind_hint = function
-                .params
-                .get(args.len())
-                .map(|p| p.kind);
+            let kind_hint = function.params.get(args.len()).map(|p| p.kind);
             args.push(self.parse_arg(kind_hint)?);
             match self.peek()? {
                 Tok::Comma => {
@@ -854,10 +839,7 @@ impl<'a> BafParser<'a> {
                 }
             }
             other => {
-                return Err(io_err(format!(
-                    "expected object argument, got {:?}",
-                    other
-                )));
+                return Err(io_err(format!("expected object argument, got {:?}", other)));
             }
         }
         // Optional region suffix after the object.
@@ -1021,10 +1003,7 @@ impl<'a> BafParser<'a> {
             match self.next()? {
                 Tok::Number(n) => nums.push(n as i32),
                 other => {
-                    return Err(io_err(format!(
-                        "expected number in `[…]`, got {:?}",
-                        other
-                    )));
+                    return Err(io_err(format!("expected number in `[…]`, got {:?}", other)));
                 }
             }
             match self.peek()? {
@@ -1036,10 +1015,7 @@ impl<'a> BafParser<'a> {
                     return Ok(nums);
                 }
                 other => {
-                    return Err(io_err(format!(
-                        "expected '.' or ']', got {:?}",
-                        other
-                    )));
+                    return Err(io_err(format!("expected '.' or ']', got {:?}", other)));
                 }
             }
         }
@@ -1198,9 +1174,12 @@ fn resolve_object_identifier(
     object_ids: Option<&infinitier_ids_importer::Ids>,
 ) -> std::io::Result<i32> {
     if let Some(rest) = sym.strip_prefix("UnknownObject") {
-        return rest
-            .parse::<i32>()
-            .map_err(|e| io_err(format!("malformed UnknownObject identifier: {} ({})", sym, e)));
+        return rest.parse::<i32>().map_err(|e| {
+            io_err(format!(
+                "malformed UnknownObject identifier: {} ({})",
+                sym, e
+            ))
+        });
     }
     if let Some(map) = object_ids
         && let Some(v) = map.of_value_str_ci(sym)
@@ -1371,11 +1350,7 @@ mod roundtrip_tests {
     /// internally consistent even when the original bytes are lossy.
     fn assert_roundtrip(corpus_dir: &Path, ctx: &BafContext) {
         let original_dir = corpus_dir.join("original");
-        assert!(
-            original_dir.is_dir(),
-            "missing {}",
-            original_dir.display()
-        );
+        assert!(original_dir.is_dir(), "missing {}", original_dir.display());
         let mut paths: Vec<PathBuf> = std::fs::read_dir(&original_dir)
             .expect("read original")
             .filter_map(|e| e.ok())
@@ -1419,8 +1394,10 @@ mod roundtrip_tests {
                     continue;
                 }
             };
-            let bcs = match (BcsImporter { name: "baf_compile_test" })
-                .import(&DataSource::new(src_path.as_path()))
+            let bcs = match (BcsImporter {
+                name: "baf_compile_test",
+            })
+            .import(&DataSource::new(src_path.as_path()))
             {
                 Ok(b) => b,
                 Err(e) => {
@@ -1443,12 +1420,14 @@ mod roundtrip_tests {
                 // **idempotent**: re-compiling the regenerated bytecode
                 // produces the same regenerated bytecode, proving the BAF
                 // compiler / decompiler pair is internally consistent.
-                let stable = match (BcsImporter { name: "baf_compile_test" })
-                    .import(&DataSource::new(regenerated.as_bytes()))
-                    .and_then(|b| {
-                        let baf2 = b.to_baf(ctx);
-                        Bcs::from_baf(&baf2, ctx)
-                    }) {
+                let stable = match (BcsImporter {
+                    name: "baf_compile_test",
+                })
+                .import(&DataSource::new(regenerated.as_bytes()))
+                .and_then(|b| {
+                    let baf2 = b.to_baf(ctx);
+                    Bcs::from_baf(&baf2, ctx)
+                }) {
                     Ok(b) => b.to_byte_code() == regenerated,
                     Err(_) => false,
                 };
@@ -1459,11 +1438,7 @@ mod roundtrip_tests {
                 // Surface first per-line difference plus a length summary so
                 // both layout and content drifts are easy to spot.
                 let mut diffs: Vec<String> = Vec::new();
-                for (i, (a, b)) in original_text
-                    .lines()
-                    .zip(regenerated.lines())
-                    .enumerate()
-                {
+                for (i, (a, b)) in original_text.lines().zip(regenerated.lines()).enumerate() {
                     if a != b {
                         diffs.push(format!(
                             "  line {}: original {:?}\n            recompiled {:?}",

@@ -429,7 +429,10 @@ mod tests {
 
     fn build_bg2() -> GameData {
         let bg_root = get_assets_path().join(BG2_RESOURCES_DIR.0);
-        GameDataBuilder::new(bg_root, Game::Bg2).unwrap().build().unwrap()
+        GameDataBuilder::new(bg_root, Game::Bg2)
+            .unwrap()
+            .build()
+            .unwrap()
     }
 
     #[test]
@@ -437,7 +440,9 @@ mod tests {
         let game_data = build_bg2();
         let key = KeyImporter { name: "chitin.key" }
             .import(&DataSource::new(
-                get_assets_path().join(BG2_RESOURCES_DIR.0).join("CHITIN.KEY"),
+                get_assets_path()
+                    .join(BG2_RESOURCES_DIR.0)
+                    .join("CHITIN.KEY"),
             ))
             .unwrap();
         assert_eq!(game_data.resources.len(), key.resource_entries.len());

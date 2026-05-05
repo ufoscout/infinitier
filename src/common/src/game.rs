@@ -90,12 +90,9 @@ impl Game {
         match self {
             Game::Bg => Engine::Bg,
             Game::Bg2 | Game::Tutu => Engine::Bg2,
-            Game::Bgee
-            | Game::BgeeSod
-            | Game::Bg2ee
-            | Game::Eet
-            | Game::Iwdee
-            | Game::Pstee => Engine::Ee,
+            Game::Bgee | Game::BgeeSod | Game::Bg2ee | Game::Eet | Game::Iwdee | Game::Pstee => {
+                Engine::Ee
+            }
             Game::Iwd => Engine::Iwd,
             Game::Iwd2 => Engine::Iwd2,
             Game::Pst => Engine::Pst,

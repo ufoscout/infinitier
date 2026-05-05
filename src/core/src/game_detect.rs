@@ -4,7 +4,7 @@
 //!
 //! The most specific markers (EE / EET / SoD)
 //! come first so an enhanced edition isn't misidentified as its classic
-//! ancestor. Use [`Game::engine`] to get the engine 
+//! ancestor. Use [`Game::engine`] to get the engine
 //! (`BG / BG2 / EE / IWD / IWD2 / PST`) that the game runs on.
 //!
 //! ```no_run
@@ -24,7 +24,6 @@ use log::info;
 ///
 /// Returns `None` when no `chitin.key` is present, or when the game is not recognised.
 pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
-    
     let game = if !exists(fs, "chitin.key") {
         None
     } else if exists(fs, "movies/howseer.wbm") {
@@ -49,15 +48,14 @@ pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
         Some(Game::Pst)
     } else if exists(fs, "idmain.exe") && !exists(fs, "movies/howseer.wbm") {
         Some(Game::Iwd)
-    } else if (exists(fs, "iwd2.exe") || exists(fs, "iwd2ee.exe"))
-        && exists(fs, "data/Credits.mve")
+    } else if (exists(fs, "iwd2.exe") || exists(fs, "iwd2ee.exe")) && exists(fs, "data/Credits.mve")
     {
         Some(Game::Iwd2)
     } else if exists(fs, "bg1tutu.exe") || exists(fs, "bg1mov/MovieCD1.bif") {
         Some(Game::Tutu)
     } else if exists(fs, "baldur.exe") && exists(fs, "BGConfig.exe") {
         Some(Game::Bg2)
-    } else if exists(fs, "movies/graphsim.mov") 
+    } else if exists(fs, "movies/graphsim.mov")
         || (exists(fs, "baldur.exe") && exists(fs, "Config.exe"))
     {
         // BG1: classic exe layout, or the Mac-build-only graphsim marker.

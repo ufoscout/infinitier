@@ -47,7 +47,10 @@ fn open_streaming_reader(ds: &DataSource) -> std::io::Result<Reader<Box<dyn BufR
     let (data, offset, limit) = match ds {
         DataSource::Full { data, .. } => (data, 0u64, None),
         DataSource::Embedded {
-            data, offset, limit, ..
+            data,
+            offset,
+            limit,
+            ..
         } => (data, *offset, *limit),
     };
 

@@ -91,7 +91,6 @@ pub struct BcsPoint {
     pub y: i32,
 }
 
-
 /// An action (`AC … AC`).
 ///
 /// Parameters follow the BG/BG2 byte-code order:
@@ -333,7 +332,9 @@ fn parse_bcs(s: &mut BcsStream<'_>) -> std::io::Result<Bcs> {
     while !s.is_eos() && !s.try_skip("SC") {
         condition_responses.push(parse_condition_response(s)?);
     }
-    Ok(Bcs { condition_responses })
+    Ok(Bcs {
+        condition_responses,
+    })
 }
 
 fn parse_condition_response(s: &mut BcsStream<'_>) -> std::io::Result<ConditionResponse> {
@@ -618,7 +619,6 @@ fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
     })
 }
 
-
 impl Bcs {
     /// Serializes this script to the BCS byte-code text format (the SC/CR/CO/TR/… encoding
     /// stored in game files). Parsing the returned string produces an equal `Bcs`.
@@ -792,8 +792,7 @@ mod tests {
 
     #[test]
     fn test_parse_trigger_with_string_param() {
-        let src =
-            "TR\n16399 1 0 0 0 \"GLOBALReturnedOutside\" \"\" OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\nTR\n";
+        let src = "TR\n16399 1 0 0 0 \"GLOBALReturnedOutside\" \"\" OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\nTR\n";
         let mut s = BcsStream::new(src);
         let t = parse_trigger(&mut s).unwrap();
         assert_eq!(t.t4, "GLOBALReturnedOutside");
@@ -844,7 +843,6 @@ mod tests {
         assert!(!paths.is_empty(), "no BCS files found");
 
         for bcs_path in paths {
-
             let actual = BcsImporter { name: "bcs_test" }
                 .import(&DataSource::new(bcs_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", bcs_path.display()));
@@ -862,12 +860,16 @@ mod tests {
                 let bcs_from_bytes = BcsImporter { name: "bcs_test" }
                     .import(&DataSource::new(bcs_bytes_generated.as_bytes()))
                     .unwrap_or_else(|e| panic!("cannot import {}: {e}", bcs_path.display()));
-                assert_eq!(bcs_from_bytes, actual, "BCS mismatch for {}", bcs_path.display());
+                assert_eq!(
+                    bcs_from_bytes,
+                    actual,
+                    "BCS mismatch for {}",
+                    bcs_path.display()
+                );
 
                 let bcs_from_file: String = std::fs::read_to_string(bcs_path).unwrap();
                 assert_eq!(bcs_from_file, bcs_bytes_generated);
             }
         }
     }
-
 }

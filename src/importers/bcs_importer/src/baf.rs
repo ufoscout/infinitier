@@ -21,12 +21,13 @@ use infinitier_common::{Engine, Game};
 use infinitier_ids_importer::Ids;
 
 use crate::signatures::{Function, ParamKind, Signatures};
-use crate::{Action, Bcs, BcsObject, BcsRegion, Trigger};
+use crate::{Action, Bcs, BcsObject, Trigger};
 
 /// Object specifier slots (target IDS resources in array order) used by BG
 /// and BG2 (Enhanced Edition included), Icewind Dale and Icewind Dale EE.
-pub(crate) const OBJECT_SPECIFIER_IDS_BG: &[&str] =
-    &["EA", "GENERAL", "RACE", "CLASS", "SPECIFIC", "GENDER", "ALIGN"];
+pub(crate) const OBJECT_SPECIFIER_IDS_BG: &[&str] = &[
+    "EA", "GENERAL", "RACE", "CLASS", "SPECIFIC", "GENDER", "ALIGN",
+];
 
 /// Object specifier slots used by Planescape: Torment (and PSTEE).
 pub(crate) const OBJECT_SPECIFIER_IDS_PST: &[&str] = &[
@@ -139,8 +140,14 @@ impl BafContext {
         let engine = game.engine();
         Self::apply_signature_patches(&mut triggers, game);
         let object_specifier_ids: Vec<String> = match engine {
-            Engine::Iwd2 => OBJECT_SPECIFIER_IDS_IWD2.iter().map(|s| s.to_string()).collect(),
-            Engine::Pst => OBJECT_SPECIFIER_IDS_PST.iter().map(|s| s.to_string()).collect(),
+            Engine::Iwd2 => OBJECT_SPECIFIER_IDS_IWD2
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            Engine::Pst => OBJECT_SPECIFIER_IDS_PST
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             // BG, BG2, EE (BGEE / BG2EE / IWDEE / PSTEE / EET) and IWD all
             // use the BG-style 7-slot specifier layout. PSTEE descends from
             // PST but the EE engine reuses the BG bytecode shape, so it
@@ -240,9 +247,10 @@ impl BafContext {
     }
 
     pub(crate) fn concat_info(&self, id: i32, num_params: usize) -> Option<ConcatInfo> {
-        self.combined_strings.get(&id).copied().filter(|c| {
-            c.num_params == 0 || num_params == 0 || c.num_params as usize == num_params
-        })
+        self.combined_strings
+            .get(&id)
+            .copied()
+            .filter(|c| c.num_params == 0 || num_params == 0 || c.num_params as usize == num_params)
     }
 }
 
@@ -414,11 +422,11 @@ impl Bcs {
             decompile_condition(&mut out, &cr.condition.triggers, ctx);
             out.push_str("THEN\n");
             for response in &cr.response_set.responses {
-                out.push_str(&ctx.indent());
+                out.push_str(ctx.indent());
                 out.push_str(&format!("RESPONSE #{}\n", response.weight));
                 for action in &response.actions {
-                    out.push_str(&ctx.indent());
-                    out.push_str(&ctx.indent());
+                    out.push_str(ctx.indent());
+                    out.push_str(ctx.indent());
                     out.push_str(&decompile_action(action, ctx));
                     out.push('\n');
                 }
@@ -441,7 +449,7 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
         }
 
         if or_count > 0 {
-            out.push_str(&ctx.indent());
+            out.push_str(ctx.indent());
             // NextTriggerObject markers don't consume an OR slot; only the
             // wrapped triggers count.
             if !is_next_trigger_object(trigger, ctx) {
@@ -451,7 +459,7 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
             or_count = n as i64;
         }
 
-        out.push_str(&ctx.indent());
+        out.push_str(ctx.indent());
         let text = if let Some(over) = override_pending.take() {
             // The negation belongs to the OUTER TriggerOverride, not to the
             // wrapped inner trigger — mirror NI's `! TriggerOverride(obj, fn(...))`
@@ -474,9 +482,9 @@ fn decompile_condition(out: &mut String, triggers: &[Trigger], ctx: &BafContext)
     // raw rather than dropping it, to preserve information.
     if let Some(over) = override_pending {
         if or_count > 0 {
-            out.push_str(&ctx.indent());
+            out.push_str(ctx.indent());
         }
-        out.push_str(&ctx.indent());
+        out.push_str(ctx.indent());
         out.push_str(&decompile_trigger(over, ctx));
         out.push('\n');
     }
@@ -683,7 +691,7 @@ fn trigger_numeric(t: &Trigger, idx: usize) -> i32 {
     }
 }
 
-fn trigger_string<'a>(t: &'a Trigger, idx: usize) -> &'a str {
+fn trigger_string(t: &Trigger, idx: usize) -> &str {
     match idx {
         0 => &t.t4,
         1 => &t.t5,
@@ -700,7 +708,7 @@ fn action_numeric(a: &Action, idx: usize) -> i32 {
     }
 }
 
-fn action_string<'a>(a: &'a Action, idx: usize) -> &'a str {
+fn action_string(a: &Action, idx: usize) -> &str {
     match idx {
         0 => &a.a8,
         1 => &a.a9,
@@ -756,7 +764,9 @@ fn split_combined(s: &str, even: bool, colon: bool) -> &str {
 /// `position` (zero-based among string params). Mirrors NI's
 /// `ScriptInfo.isCombinedString` / `isColonSeparatedString`.
 fn combined_flags_at(concat: Option<ConcatInfo>, position: usize) -> (bool, bool) {
-    let Some(c) = concat else { return (false, false); };
+    let Some(c) = concat else {
+        return (false, false);
+    };
     let mut mask: u32 = (c.first_combined as u32) | ((c.second_combined as u32) << 4);
     let mut mask2: u32 = (c.first_colon as u32) | ((c.second_colon as u32) << 4);
     let mut pos = 0usize;
@@ -772,7 +782,7 @@ fn combined_flags_at(concat: Option<ConcatInfo>, position: usize) -> (bool, bool
     ((mask & 1) != 0, (mask2 & 1) != 0)
 }
 
-fn action_object<'a>(a: &'a Action, idx: usize) -> &'a BcsObject {
+fn action_object(a: &Action, idx: usize) -> &BcsObject {
     match idx {
         0 => &a.a1,
         1 => &a.a2,
@@ -930,8 +940,7 @@ fn is_valid_symbol(s: &str) -> bool {
     if bytes.is_empty() {
         return false;
     }
-    let alt1 = is_alpha_under(bytes[0])
-        && bytes[1..].iter().all(|&b| is_id_char(b));
+    let alt1 = is_alpha_under(bytes[0]) && bytes[1..].iter().all(|&b| is_id_char(b));
     if alt1 {
         return true;
     }
@@ -1010,7 +1019,11 @@ fn best_trigger_match<'a>(trigger: &Trigger, funcs: &'a [Function]) -> Option<&'
                 score_str += 1;
             }
         }
-        let score_obj = if !is_object_empty(&trigger.target) { 1 } else { 0 };
+        let score_obj = if !is_object_empty(&trigger.target) {
+            1
+        } else {
+            0
+        };
         // Triggers in BG/EE/IWD have no point payload, so this is always 0.
         let score_pt = 0;
 
@@ -1116,7 +1129,9 @@ fn best_action_match<'a>(action: &Action, funcs: &'a [Function]) -> Option<&'a F
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Bcs, BcsObject, Condition, ConditionResponse, Response, ResponseSet, Trigger};
+    use crate::{
+        Bcs, BcsObject, BcsRegion, Condition, ConditionResponse, Response, ResponseSet, Trigger,
+    };
     use infinitier_ids_importer::{Ids, IdsEntry};
 
     fn ids_from(entries: &[(i32, &str)]) -> Ids {
@@ -1133,10 +1148,8 @@ mod tests {
     }
 
     fn ctx_minimal() -> BafContext {
-        let triggers = Signatures::from_ids(&ids_from(&[
-            (0x4036, "True()"),
-            (0x4089, "OR(I:OrCount*)"),
-        ]));
+        let triggers =
+            Signatures::from_ids(&ids_from(&[(0x4036, "True()"), (0x4089, "OR(I:OrCount*)")]));
         let actions = Signatures::from_ids(&ids_from(&[(0, "NoAction()")]));
         BafContext::new(triggers, actions, Game::Bg)
     }
@@ -1209,10 +1222,8 @@ mod tests {
     #[test]
     fn or_block_indents_inner_triggers() {
         // Verify OR(2) wraps the next two triggers with one extra indent.
-        let triggers = Signatures::from_ids(&ids_from(&[
-            (0x4089, "OR(I:OrCount*)"),
-            (0x4036, "True()"),
-        ]));
+        let triggers =
+            Signatures::from_ids(&ids_from(&[(0x4089, "OR(I:OrCount*)"), (0x4036, "True()")]));
         let actions = Signatures::from_ids(&ids_from(&[(0, "NoAction()")]));
         let ctx = BafContext::new(triggers, actions, Game::Bg);
 
@@ -1321,11 +1332,7 @@ mod corpus_tests {
     fn assert_corpus_matches(corpus_dir: &Path, ctx: &BafContext) {
         let original_dir = corpus_dir.join("original");
         let source_dir = corpus_dir.join("source");
-        assert!(
-            original_dir.is_dir(),
-            "missing {}",
-            original_dir.display()
-        );
+        assert!(original_dir.is_dir(), "missing {}", original_dir.display());
         assert!(source_dir.is_dir(), "missing {}", source_dir.display());
 
         let mut paths: Vec<PathBuf> = std::fs::read_dir(&original_dir)
@@ -1368,11 +1375,7 @@ mod corpus_tests {
             let expected = match std::fs::read_to_string(&baf_path) {
                 Ok(s) => s,
                 Err(e) => {
-                    failures.push(format!(
-                        "missing reference {}: {}",
-                        baf_path.display(),
-                        e
-                    ));
+                    failures.push(format!("missing reference {}: {}", baf_path.display(), e));
                     continue;
                 }
             };
@@ -1394,7 +1397,11 @@ mod corpus_tests {
                             actual.len(),
                         )
                     });
-                failures.push(format!("BAF mismatch {}\n{}", baf_path.display(), first_diff));
+                failures.push(format!(
+                    "BAF mismatch {}\n{}",
+                    baf_path.display(),
+                    first_diff
+                ));
             }
         }
 
@@ -1432,7 +1439,11 @@ mod corpus_tests {
         let corpus = game_dir.join("bcs");
         let ids_dir = game_dir.join("ids");
         if !corpus.is_dir() || !ids_dir.is_dir() {
-            eprintln!("skip baf corpus test for {}: missing {}", dir, game_dir.display());
+            eprintln!(
+                "skip baf corpus test for {}: missing {}",
+                dir,
+                game_dir.display()
+            );
             return;
         }
         let ctx = build_context(game, &ids_dir);

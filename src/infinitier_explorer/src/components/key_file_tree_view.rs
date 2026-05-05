@@ -103,7 +103,7 @@ mod tests {
                     }
                 })
                 .collect(),
-                Game::Bg2,
+            Game::Bg2,
         )
     }
 

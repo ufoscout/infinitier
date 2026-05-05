@@ -25,7 +25,8 @@ fn main() {
 
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    let game = detect_game(&CaseInsensitiveFS::new(&args.game_path).unwrap()).expect("Cannot detect game type");
+    let game = detect_game(&CaseInsensitiveFS::new(&args.game_path).unwrap())
+        .expect("Cannot detect game type");
 
     let key = GameDataBuilder::new(&args.game_path, game)
         .and_then(|b| b.build())

@@ -1,5 +1,8 @@
 use infinitier_common::Game;
-use infinitier_core::{game::{DataOrigin, GameDataBuilder}, game_detect::detect_game};
+use infinitier_core::{
+    game::{DataOrigin, GameDataBuilder},
+    game_detect::detect_game,
+};
 use infinitier_fs::CaseInsensitiveFS;
 use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
 
@@ -40,7 +43,9 @@ fn test_import_all_resources() {
     let mut all_failures: Vec<String> = vec![];
 
     for (dir, game) in &dirs {
-        let game = game.unwrap_or_else(|| detect_game(&CaseInsensitiveFS::new(dir).unwrap()).expect("Cannot detect game type"));
+        let game = game.unwrap_or_else(|| {
+            detect_game(&CaseInsensitiveFS::new(dir).unwrap()).expect("Cannot detect game type")
+        });
         let game_data = match GameDataBuilder::new(dir, game).and_then(|b| b.build()) {
             Ok(gd) => gd,
             Err(e) => {

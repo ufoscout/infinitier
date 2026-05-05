@@ -8,14 +8,14 @@ pub struct BmpImporter<'a> {
     pub name: &'a str,
 }
 
-impl <'a> Importer for BmpImporter<'a> {
+impl<'a> Importer for BmpImporter<'a> {
     type T = Bmp;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Bmp> {
         let mut reader = source.reader()?;
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes)?;
-        decode_bmp(&bytes, &self.name)
+        decode_bmp(&bytes, self.name)
     }
 }
 
@@ -138,7 +138,7 @@ mod tests {
 
         let original = image::open(get_assets_path().join("resources/BMP/CCHAN05.BMP")).unwrap();
 
-        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
+        let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
 
         assert_images_are_equal(&bmp.image.clone().into(), &original);
     }
@@ -149,7 +149,7 @@ mod tests {
 
         let original = image::open(get_assets_path().join("resources/BMP/MINSCM.BMP")).unwrap();
 
-        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
+        let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
 
         assert_images_are_equal(&bmp.image.clone().into(), &original);
     }
@@ -157,14 +157,14 @@ mod tests {
     #[test]
     fn metadata_for_32bpp_bmp() {
         let data = DataSource::new(get_assets_path().join("resources/BMP/CCHAN05.BMP"));
-        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
+        let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
         assert_eq!(bmp.bit_count, 32);
     }
 
     #[test]
     fn metadata_for_24bpp_bmp() {
         let data = DataSource::new(get_assets_path().join("resources/BMP/MINSCM.BMP"));
-        let bmp = BmpImporter{name: "bmp_name"}.import(&data).unwrap();
+        let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
         assert_eq!(bmp.bit_count, 24);
         assert_eq!(bmp.compression, BmpCompression::Rgb);
     }
