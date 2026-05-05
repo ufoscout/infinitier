@@ -3,11 +3,13 @@ use bytesize::ByteSize;
 use eframe::egui::{self, TextureHandle};
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
-    resource::bmp::Bmp,
+    resource::bmp::{Bmp, BmpCompression},
 };
 
 pub struct BmpViewer {
     cached: TextureHandle,
+    bit_count: u16,
+    compression: BmpCompression,
 }
 
 impl BmpViewer {
@@ -21,7 +23,11 @@ impl BmpViewer {
             egui::TextureOptions::default(),
         );
 
-        Self { cached: handle }
+        Self {
+            cached: handle,
+            bit_count: bmp.bit_count,
+            compression: bmp.compression,
+        }
     }
 }
 
@@ -43,7 +49,9 @@ impl ResourceViewerTrait for BmpViewer {
                     }
                 }
                 ui.separator();
-                ui.label("RGBA8");
+                ui.label(format!("{} bpp", self.bit_count));
+                ui.separator();
+                ui.label(self.compression.to_string());
                 ui.separator();
                 match &resource.data_origin {
                     DataOrigin::Bif { name } => {

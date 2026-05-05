@@ -16,7 +16,7 @@ impl BiffParser {
     pub fn import(source: &DataSource, name: &str) -> std::io::Result<Bif> {
         let reader = &mut source.reader()?;
         let resources = Self::parse_resources(reader)?;
-        debug!("Loaded BIFF V1: {} resources", resources.len());
+        debug!("Loaded {name} [BIFF V1]: {} resources", resources.len());
         Ok(Bif {
             name: name.to_string(),
             r#type: Type::Biff,

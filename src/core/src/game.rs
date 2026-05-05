@@ -38,6 +38,11 @@ impl GameData {
         self.resources.is_empty()
     }
 
+    /// Return the game type
+    pub fn game(&self) -> Game {
+        self.game_type
+    }
+
     /// Return all resources
     pub fn resources(&self) -> &[GameResource] {
         &self.resources
@@ -129,7 +134,7 @@ impl GameResource {
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no datasource available"))?;
         match self.r#type {
             ResourceType::Bam => BamImporter {}.import(ds).map(ImportedResource::Bam),
-            ResourceType::Bmp => BmpImporter.import(ds).map(ImportedResource::Bmp),
+            ResourceType::Bmp => BmpImporter{name: self.name.clone()}.import(ds).map(ImportedResource::Bmp),
             ResourceType::Ids => IdsImporter.import(ds).map(ImportedResource::Ids),
             ResourceType::Ini => IniImporter.import(ds).map(ImportedResource::Ini),
             ResourceType::Pvrz => PvrzImporter.import(ds).map(ImportedResource::Pvrz),

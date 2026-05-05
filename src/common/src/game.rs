@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// To pick the engine-level configuration most code needs (object specifier
 /// layout, combined-string map, …), group by [`Self::engine`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Game {
     /// Original Baldur's Gate (and TotSC).
     Bg,
@@ -42,6 +42,25 @@ pub enum Game {
     Pst,
     /// Planescape: Torment Enhanced Edition.
     Pstee,
+}
+
+impl std::fmt::Debug for Game {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bg => write!(f, "Baldur's Gate"),
+            Self::Bg2 => write!(f, "Baldur's Gate II"),
+            Self::Bgee => write!(f, "Baldur's Gate Enhanced Edition"),
+            Self::BgeeSod => write!(f, "Baldur's Gate Enhanced Edition + Siege of Dragonspear"),
+            Self::Bg2ee => write!(f, "Baldur's Gate II Enhanced Edition"),
+            Self::Eet => write!(f, "Enhanced Edition Trilogy"),
+            Self::Tutu => write!(f, "Tutu"),
+            Self::Iwd => write!(f, "Icewind"),
+            Self::Iwdee => write!(f, "Icewind Dale Enhanced Edition"),
+            Self::Iwd2 => write!(f, "Icewind Dale 2"),
+            Self::Pst => write!(f, "Planescape: Torment"),
+            Self::Pstee => write!(f, "Planescape: Torment Enhanced Edition"),
+        }
+    }
 }
 
 /// The engine family a [`Game`] belongs to.

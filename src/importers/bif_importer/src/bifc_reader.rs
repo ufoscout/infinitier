@@ -54,7 +54,7 @@ impl BifcParser {
 
         let resources = BiffParser::parse_resources(&mut lazy_datasource.reader()?)?;
 
-        debug!("Loaded BIFC V1.0: {} resources", resources.len());
+        debug!("Loaded {name} [BIFC V1.0]: {} resources", resources.len());
         Ok(Bif {
             name: name.to_string(),
             r#type: Type::Bifc,

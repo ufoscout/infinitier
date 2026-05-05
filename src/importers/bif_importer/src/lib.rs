@@ -4,7 +4,7 @@ mod biff_reader;
 
 use infinitier_common::ResourceType;
 use infinitier_datasource::{DataSource, Importer, Reader};
-use log::{debug, error};
+use log::{error, trace};
 use std::io::Read;
 
 use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
@@ -83,15 +83,15 @@ pub fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type
 
     match value.as_str() {
         BIFFV1_SIGNATURE => {
-            debug!("Detected BIF type: BIFF V1");
+            trace!("Detected BIF type: BIFF V1");
             Ok(Type::Biff)
         }
         BIF_V1_0_SIGNATURE => {
-            debug!("Detected BIF type: BIF V1.0");
+            trace!("Detected BIF type: BIF V1.0");
             Ok(Type::Bif)
         }
         BIFCV1_0_SIGNATURE => {
-            debug!("Detected BIF type: BIFC V1.0");
+            trace!("Detected BIF type: BIFC V1.0");
             Ok(Type::Bifc)
         }
         val => {
