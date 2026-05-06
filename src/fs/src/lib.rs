@@ -92,27 +92,33 @@ impl CaseInsensitiveFS {
     }
 
     /// Returns a list of all files in a folder with a specific extension.
-    /// The path is matched case insensitively
+    /// The path is matched case insensitively. When `recursive` is
+    /// false, only direct children of `path` are returned; otherwise
+    /// the whole subtree under `path` is walked.
     pub fn search_files_by_extension(&self, path: &CaseInsensitivePath, extension: &str, recursive: bool) -> Vec<PathBuf> {
+        let needle = path.path.to_lowercase();
         let mut results = vec![];
-        if recursive {
-            for (key, value) in self.paths.iter() {
-                if key.starts_with(&path.path) {
-                    if let Some(ext) = value.extension() {
-                        if ext.eq_ignore_ascii_case(extension) {
-                            results.push(value.to_owned());
-                        }
-                    }
-                }
+        for (key, value) in self.paths.iter() {
+            let in_scope = if needle.is_empty() {
+                // Empty needle = root: whole tree (recursive) or
+                // root-level entries only (non-recursive).
+                recursive || !key.contains('/')
+            } else if recursive {
+                // Under `needle` directory: equal to it, or starting
+                // with `{needle}/` so we don't match `needleX/...`.
+                key == needle.as_str() || key.starts_with(&format!("{needle}/"))
+            } else {
+                // Non-recursive: direct children only — key must be
+                // `{needle}/{name}` with no further `/` in `{name}`.
+                key.strip_prefix(&format!("{needle}/"))
+                    .is_some_and(|rest| !rest.contains('/'))
+            };
+            if !in_scope {
+                continue;
             }
-        } else {
-            for (key, value) in self.paths.iter() {
-                if key == path.as_str() {
-                    if let Some(ext) = value.extension() {
-                        if ext.eq_ignore_ascii_case(extension) {
-                            results.push(value.to_owned());
-                        }
-                    }
+            if let Some(ext) = value.extension() {
+                if ext.eq_ignore_ascii_case(extension) {
+                    results.push(value.to_owned());
                 }
             }
         }
@@ -366,9 +372,7 @@ use infinitier_test_utils::{
         // Act - recursive - 1
         {
             let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "".to_owned() }, "json", true);
-    
-            println!("files: {:#?}", files);
-    
+        
             // Assert
             assert_eq!(files.len(), 4);
             assert!(files.contains(&root.join("file1.json")));
@@ -380,9 +384,7 @@ use infinitier_test_utils::{
         // Act - recursive - 2
         {
             let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "INNER".to_owned() }, "json", true);
-    
-            println!("files: {:#?}", files);
-    
+        
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("INNER/file1.json")));
@@ -391,9 +393,7 @@ use infinitier_test_utils::{
                 // Act - recursive - 3
         {
             let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "INNER".to_owned() }, "ini", true);
-    
-            println!("files: {:#?}", files);
-    
+        
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("INNER/inner/file1.ini")));
@@ -402,9 +402,7 @@ use infinitier_test_utils::{
                         // Act - recursive - 4
         {
             let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "INNER/inner".to_owned() }, "ini", true);
-    
-            println!("files: {:#?}", files);
-    
+        
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("INNER/inner/file1.ini")));
@@ -413,9 +411,7 @@ use infinitier_test_utils::{
         // Act - not recursive - 1
         {
             let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "".to_owned() }, "json", false);
-    
-            println!("files: {:#?}", files);
-    
+        
             // Assert
             assert_eq!(files.len(), 2);
             assert!(files.contains(&root.join("file1.json")));
@@ -425,12 +421,10 @@ use infinitier_test_utils::{
                 // Act - not recursive - 2
         {
             let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "ini".to_owned() }, "json", false);
-    
-            println!("files: {:#?}", files);
-    
+
             // Assert
             assert_eq!(files.len(), 1);
-            assert!(files.contains(&root.join("ini/file1.ini")));
+            assert!(files.contains(&root.join("ini/file1.Json")));
         }
 
     }
