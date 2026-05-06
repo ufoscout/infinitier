@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 fn test_decode_wavc() {
     let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAVC");
     let data = DataSource::new(wavc_path);
-    let mut dec = WavDecoder::open(&data).unwrap();
+    let mut dec = WavDecoder::open(&data, "1GROMG09").unwrap();
 
     assert_eq!(dec.format(), WavFormat::Wavc);
     assert_eq!(dec.info(), &WavInfo {
@@ -34,7 +34,7 @@ fn test_decode_wavc() {
 fn test_decode_wav() {
     let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAV");
     let data = DataSource::new(wavc_path);
-    let mut dec = WavDecoder::open(&data).unwrap();
+    let mut dec = WavDecoder::open(&data, "1GROMG09").unwrap();
 
     assert_eq!(dec.format(), WavFormat::Wav);
     assert_eq!(dec.info(), &WavInfo {
@@ -58,7 +58,7 @@ fn test_decoded_infos_match() {
     let mut wavc = {
         let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAVC");
         let data = DataSource::new(wavc_path);
-        let dec = WavDecoder::open(&data).unwrap();
+        let dec = WavDecoder::open(&data, "1GROMG09.WAVC").unwrap();
         assert_eq!(dec.format(), WavFormat::Wavc);
         dec
     };
@@ -66,7 +66,7 @@ fn test_decoded_infos_match() {
     let mut wav = {
         let wav_path = get_assets_path().join("resources/WAV/1GROMG09.WAV");
         let data = DataSource::new(wav_path);
-        let dec = WavDecoder::open(&data).unwrap();
+        let dec = WavDecoder::open(&data, "1GROMG09.WAV").unwrap();
         assert_eq!(dec.format(), WavFormat::Wav);
         dec
     };

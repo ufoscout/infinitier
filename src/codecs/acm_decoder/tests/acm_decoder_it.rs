@@ -16,7 +16,7 @@ fn decode_and_hash(acm_rel: &str) -> (String, AcmInfo) {
 
     let data = DataSource::new(acm_path.clone());
 
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Original)
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original, acm_rel)
         .unwrap_or_else(|e| panic!("cannot decode {}: {e}", acm_path.display()));
 
     println!(
@@ -193,7 +193,7 @@ fn test_pst_bt2zc1() {
 fn test_decode_wavc() {
     let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAVC");
     let data = DataSource::new(wavc_path);
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original, "1GROMG09.WAVC").unwrap();
     let temp = tempfile::NamedTempFile::new().unwrap();
     dec.decode_to_file(temp.path()).unwrap();
 
@@ -210,7 +210,7 @@ fn test_decode_wavc() {
 fn fresh_decode_all(acm_rel: &str) -> Vec<i16> {
     let acm_path = get_assets_path().join("resources/ACM").join(acm_rel);
     let data = DataSource::new(acm_path);
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original, acm_rel).unwrap();
     dec.decode_all().unwrap()
 }
 
@@ -223,7 +223,7 @@ fn test_reset_after_full_decode_matches_fresh_decode() {
         .join("bg/Bf1d1.ACM");
     let data = DataSource::new(acm_path);
 
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original, "bg/Bf1d1.ACM").unwrap();
     let info_before = dec.info.clone();
     let first = dec.decode_all().unwrap();
     assert_eq!(dec.samples_decoded(), info_before.total_values);
@@ -253,7 +253,7 @@ fn test_reset_midstream_recovers_clean_state() {
     let acm_path = get_assets_path().join("resources/ACM").join(acm_rel);
     let data = DataSource::new(acm_path);
 
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original, acm_rel).unwrap();
     // Drain the first ~1000 frames to force several blocks + a partial one.
     let mut throwaway = vec![0i16; 1000 * dec.info.channels as usize];
     let drained = dec.read_samples(&mut throwaway).unwrap();
@@ -275,7 +275,7 @@ fn test_reset_is_idempotent() {
     let acm_path = get_assets_path().join("resources/ACM").join(acm_rel);
     let data = DataSource::new(acm_path);
 
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original, acm_rel).unwrap();
     let _ = dec.decode_all().unwrap();
 
     dec.reset().unwrap();
@@ -302,7 +302,7 @@ fn test_reset_then_decode_to_file_matches_first_write() {
     let first_path = out_dir.join("first.wav");
     let second_path = out_dir.join("second.wav");
 
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original, acm_rel).unwrap();
     dec.decode_to_file(&first_path).unwrap();
     dec.reset().unwrap();
     dec.decode_to_file(&second_path).unwrap();
@@ -325,7 +325,7 @@ fn test_reset_preserves_output_channels_override() {
         .join("bg/Bf1j4.ACM");
     let data = DataSource::new(acm_path);
 
-    let mut dec = AcmDecoder::open(&data, OutputChannels::Mono).unwrap();
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Mono, "bg/Bf1j4.ACM").unwrap();
     assert_eq!(dec.info.channels, 1);
     assert_eq!(dec.info.acm_channels, 2, "header says native stereo");
 

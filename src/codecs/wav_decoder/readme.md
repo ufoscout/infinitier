@@ -11,7 +11,10 @@ Streaming decoder for the two `*.WAV` flavours shipped by Infinity Engine games:
 
 `WavDecoder::open` autodetects the flavour from the first four bytes of a
 [`DataSource`] and delegates the actual decoding either to a `hound`
-`WavReader` (RIFF) or to [`infinitier_acm_decoder`] (WAVC).
+`WavReader` (RIFF) or to [`infinitier_acm_decoder`] (WAVC). The second
+argument is a label (resource id, file path, …) that the decoder
+prefixes to every log record it emits, so consumers decoding many
+streams concurrently can tell entries apart.
 
 The decoder mirrors `AcmDecoder`'s streaming API: bytes are pulled from
 the source on demand, so memory use stays bounded regardless of file
@@ -26,7 +29,7 @@ use infinitier_wav_decoder::WavDecoder;
 use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut dec = WavDecoder::open(&DataSource::new("sound.wav"))?;
+    let mut dec = WavDecoder::open(&DataSource::new("sound.wav"), "sound.wav")?;
     let info = dec.info();
     println!("{} ch, {} Hz, {} samples", info.channels, info.sample_rate, info.total_values);
 
@@ -48,7 +51,7 @@ use infinitier_wav_decoder::WavDecoder;
 use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut dec = WavDecoder::open(&DataSource::new("sound.wav"))?;
+    let mut dec = WavDecoder::open(&DataSource::new("sound.wav"), "sound.wav")?;
     let pcm: Vec<i16> = dec.decode_all()?;          // interleaved s16 PCM
 
     dec.reset()?;                                   // rewind to the start

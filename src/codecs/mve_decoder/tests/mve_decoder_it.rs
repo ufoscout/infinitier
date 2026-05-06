@@ -91,7 +91,7 @@ fn assert_matches_json(mve_rel: &str, json_rel: &str) {
     // ---- Open decoder and check static metadata ----
     let data = DataSource::new(mve_path.clone());
     let reader = data.reader().unwrap();
-    let mut dec = MveDecoder::new(reader)
+    let mut dec = MveDecoder::new(reader, mve_rel)
         .unwrap_or_else(|e| panic!("cannot open {}: {e}", mve_path.display()));
 
     assert_eq!(dec.width(), exp_width, "video.width");

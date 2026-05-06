@@ -158,9 +158,10 @@ impl MvePlayer {
 /// Decode all audio from the file in a single fast pass.
 /// Returns (channels, sample_rate, all_chunks).
 fn pre_buffer_audio(path: &std::path::Path) -> (u16, u32, Vec<Vec<f32>>) {
+    let name = path.display().to_string();
     let data = DataSource::new(path);
     let reader = data.reader().unwrap();
-    let mut dec = match MveDecoder::new(reader) {
+    let mut dec = match MveDecoder::new(reader, name) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("pre_buffer_audio: failed to open: {e}");
@@ -223,9 +224,10 @@ fn decode_thread(
     drop(audio_tx);
 
     // Phase 2 — decode and send video frames (paced by the sync channel).
+    let name = path.display().to_string();
     let data = DataSource::new(path.as_path());
     let reader = data.reader().unwrap();
-    let mut dec = match MveDecoder::new(reader) {
+    let mut dec = match MveDecoder::new(reader, name) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("Failed to open {:?}: {e}", path);

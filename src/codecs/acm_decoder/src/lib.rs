@@ -166,6 +166,10 @@ pub enum OutputChannels {
 pub struct AcmDecoder {
     pub info: AcmInfo,
 
+    /// Caller-supplied label (resource name, file path, …) prefixed to log
+    /// records so consumers decoding many streams can tell entries apart.
+    name: String,
+
     // ── bitstream state ──
     /// Reader that pulls bytes from the source on demand, mirroring GemRB's
     /// ACMReader plugin: only the small bitstream window is held in memory
@@ -208,6 +212,7 @@ impl std::fmt::Debug for AcmDecoder {
     /// matters when logging or panicking.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AcmDecoder")
+            .field("name", &self.name)
             .field("info", &self.info)
             .field("output_channels", &self.output_channels)
             .field("stream_pos", &self.stream_pos)
@@ -226,7 +231,15 @@ impl AcmDecoder {
     /// Open an ACM stream from a [`DataSource`]. The decoder pulls bytes
     /// lazily — block by block, like GemRB's ACMReader plugin — so memory
     /// use stays bounded regardless of the file size.
-    pub fn open(datasource: &DataSource, output_channels: OutputChannels) -> Result<Self> {
+    ///
+    /// `name` is a caller-supplied label (resource id, file path, …) that
+    /// gets prefixed to every log record this decoder emits, so callers
+    /// decoding many streams concurrently can tell entries apart.
+    pub fn open(
+        datasource: &DataSource,
+        output_channels: OutputChannels,
+        name: impl Into<String>,
+    ) -> Result<Self> {
         // Construct with placeholder buffers; `init` opens the reader, parses
         // the header, and sizes everything correctly.
         let mut dec = AcmDecoder {
@@ -241,6 +254,7 @@ impl AcmDecoder {
                 acm_rows: 0,
                 total_values: 0,
             },
+            name: name.into(),
             reader: open_streaming_reader(datasource)?,
             eof_padding_given: false,
             bit_data: 0,
@@ -329,8 +343,8 @@ impl AcmDecoder {
         self.wrapbuf.resize(wrapbuf_len.max(1), 0);
 
         debug!(
-            "Opened ACM: channels={}, rate={}, total_values={}",
-            self.info.channels, self.info.rate, self.info.total_values
+            "[{}] Opened ACM: channels={}, rate={}, total_values={}",
+            self.name, self.info.channels, self.info.rate, self.info.total_values
         );
         Ok(())
     }
@@ -427,7 +441,10 @@ impl AcmDecoder {
         }
 
         if tmp != ACM_ID {
-            error!("Not an ACM file: expected ID {ACM_ID:#x}, got {tmp:#x}");
+            error!(
+                "[{}] Not an ACM file: expected ID {ACM_ID:#x}, got {tmp:#x}",
+                self.name
+            );
             return Err(AcmError::NotAcmError);
         }
         self.info.acm_id = tmp;
@@ -552,7 +569,7 @@ impl AcmDecoder {
 
             // ── f_bad ───────────────────────────────────────────────────────
             1 | 2 | 25 | 28 | 30 | 31 => {
-                error!("ACM corrupt: invalid filler index {}", ind);
+                error!("[{}] ACM corrupt: invalid filler index {}", self.name, ind);
                 return Err(AcmError::CorruptError);
             }
 

@@ -68,6 +68,10 @@ struct AudioInfo {
 pub struct MveDecoder<R: BufRead + Seek> {
     reader: Reader<R>,
 
+    /// Caller-supplied label (resource name, file path, …) prefixed to log
+    /// records so consumers decoding many streams can tell entries apart.
+    name: String,
+
     // Video state
     width: u16,
     height: u16,
@@ -100,15 +104,20 @@ impl<R: BufRead + Seek> MveDecoder<R> {
 
     /// Create a decoder from an `infinitier_datasource::Reader`.
     /// Validates the signature and pre-processes the initialisation chunks.
-    pub fn new(mut reader: Reader<R>) -> Result<Self, Error> {
+    ///
+    /// `name` is a caller-supplied label (resource id, file path, …) that
+    /// gets prefixed to every log record this decoder emits.
+    pub fn new(mut reader: Reader<R>, name: impl Into<String>) -> Result<Self, Error> {
+        let name = name.into();
         let sig = reader.read_exact::<26>()?;
         if &sig[..24] != MVE_SIGNATURE_PREFIX {
-            log::error!("Invalid MVE signature");
+            log::error!("[{name}] Invalid MVE signature");
             return Err(Error::InvalidSignature);
         }
 
         let mut dec = MveDecoder {
             reader,
+            name,
             width: 0,
             height: 0,
             format: VideoFormat::Palette8,
@@ -126,8 +135,8 @@ impl<R: BufRead + Seek> MveDecoder<R> {
         dec.process_chunk()?;
 
         debug!(
-            "MVE decoder ready: {}x{}, {:?}, frame_duration={}µs",
-            dec.width, dec.height, dec.format, dec.frame_duration_us
+            "[{}] MVE decoder ready: {}x{}, {:?}, frame_duration={}µs",
+            dec.name, dec.width, dec.height, dec.format, dec.frame_duration_us
         );
         Ok(dec)
     }
@@ -284,8 +293,8 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             }
             _ => {
                 warn!(
-                    "Unknown MVE segment type {:#04x}, skipping {} bytes",
-                    seg_type, size
+                    "[{}] Unknown MVE segment type {:#04x}, skipping {} bytes",
+                    self.name, seg_type, size
                 );
                 self.skip(size as u64)?;
                 return Ok(StepResult::Ok);

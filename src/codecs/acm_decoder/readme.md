@@ -23,11 +23,15 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("sound.acm");
-    let mut decoder = AcmDecoder::open(&source, OutputChannels::Original)?;
+    let mut decoder = AcmDecoder::open(&source, OutputChannels::Original, "sound.acm")?;
     decoder.decode_to_file("sound.wav")?;
     Ok(())
 }
 ```
+
+The third argument is a label (resource id, file path, …) that the decoder
+prefixes to every log record it emits, so consumers decoding many streams
+can tell entries apart.
 
 ### Decode to raw PCM samples
 
@@ -37,7 +41,7 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("sound.acm");
-    let mut decoder = AcmDecoder::open(&source, OutputChannels::Original)?;
+    let mut decoder = AcmDecoder::open(&source, OutputChannels::Original, "sound.acm")?;
 
     let info = &decoder.info;
     println!("channels: {}, sample rate: {} Hz", info.channels, info.rate);
@@ -61,7 +65,7 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("stereo_stored_as_mono.acm");
-    let mut decoder = AcmDecoder::open(&source, OutputChannels::Stereo)?;
+    let mut decoder = AcmDecoder::open(&source, OutputChannels::Stereo, "sound.acm")?;
     decoder.decode_to_file("output.wav")?;
     Ok(())
 }

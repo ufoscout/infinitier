@@ -10,9 +10,6 @@ use thiserror::Error as ThisError;
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
 use infinitier_datasource::{DataSource, DataTrait, Reader};
 
-const RIFF_MAGIC: &[u8; 4] = b"RIFF";
-const WAVC_MAGIC: &[u8; 4] = b"WAVC";
-
 pub type Result<T> = std::result::Result<T, WavError>;
 
 #[derive(Debug, ThisError)]
@@ -75,6 +72,10 @@ pub enum WavFormat {
 /// [`AcmDecoder`]'s API.
 pub struct WavDecoder {
     info: WavInfo,
+    /// Caller-supplied label (resource name, file path, …) prefixed to log
+    /// records and forwarded to the inner [`AcmDecoder`] for WAVC sources,
+    /// so consumers decoding many streams can tell entries apart.
+    name: String,
     datasource: DataSource,
     inner: WavInner,
 }
@@ -94,6 +95,7 @@ enum WavInner {
 impl std::fmt::Debug for WavDecoder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WavDecoder")
+            .field("name", &self.name)
             .field("format", &self.format())
             .field("info", &self.info)
             .finish_non_exhaustive()
@@ -107,16 +109,20 @@ impl WavDecoder {
     /// - `RIFF` → standard PCM, decoded via [`hound`];
     /// - `WAVC` → Interplay's ACM-wrapping header, delegated to
     ///   [`AcmDecoder`] (which skips the 28-byte WAVC header itself).
-    pub fn open(datasource: &DataSource) -> Result<Self> {
-        let magic = peek_magic(datasource)?;
-        match &magic {
-            RIFF_MAGIC => Self::open_riff(datasource),
-            WAVC_MAGIC => Self::open_wavc(datasource),
-            _ => Err(WavError::UnknownFormat(magic)),
+    ///
+    /// `name` is a caller-supplied label (resource id, file path, …) that
+    /// gets prefixed to every log record this decoder emits and is
+    /// forwarded to the inner [`AcmDecoder`] for WAVC sources.
+    pub fn open(datasource: &DataSource, name: impl Into<String>) -> Result<Self> {
+        let name = name.into();
+                match datasource.reader()?.read_string(4)?.as_str() {
+            "RIFF" => Self::open_riff(datasource, name),
+            "WAVC" => Self::open_wavc(datasource, name),
+            _ => Err(WavError::UnknownFormat([0; 4])),
         }
     }
 
-    fn open_riff(datasource: &DataSource) -> Result<Self> {
+    fn open_riff(datasource: &DataSource, name: String) -> Result<Self> {
         let reader_box = datasource.reader()?;
         let reader = WavReader::new(reader_box)?;
         let spec = reader.spec();
@@ -140,12 +146,13 @@ impl WavDecoder {
         };
 
         debug!(
-            "Opened WAV: channels={}, rate={}, bits={}, total_values={}",
-            info.channels, info.sample_rate, info.bits_per_sample, info.total_values,
+            "[{}] Opened WAV: channels={}, rate={}, bits={}, total_values={}",
+            name, info.channels, info.sample_rate, info.bits_per_sample, info.total_values,
         );
 
         Ok(Self {
             info,
+            name,
             datasource: datasource.clone(),
             inner: WavInner::Wav {
                 reader,
@@ -154,11 +161,11 @@ impl WavDecoder {
         })
     }
 
-    fn open_wavc(datasource: &DataSource) -> Result<Self> {
+    fn open_wavc(datasource: &DataSource, name: String) -> Result<Self> {
         // AcmDecoder already validates the WAVC header (`'WAVC'`, `'V1.0'`,
         // 28-byte length) before reading the ACM body, so we don't re-parse
-        // it here. 
-        let decoder = AcmDecoder::open(datasource, OutputChannels::Original)?;
+        // it here.
+        let decoder = AcmDecoder::open(datasource, OutputChannels::Original, name.clone())?;
         let acm_info = decoder.info.clone();
 
         let info = WavInfo {
@@ -169,12 +176,13 @@ impl WavDecoder {
         };
 
         debug!(
-            "Opened WAVC: channels={}, rate={}, bits={}, total_values={}",
-            info.channels, info.sample_rate, info.bits_per_sample, info.total_values,
+            "[{}] Opened WAVC: channels={}, rate={}, bits={}, total_values={}",
+            name, info.channels, info.sample_rate, info.bits_per_sample, info.total_values,
         );
 
         Ok(Self {
             info,
+            name,
             datasource: datasource.clone(),
             inner: WavInner::Wavc(decoder),
         })
@@ -267,36 +275,12 @@ impl WavDecoder {
     }
 
     /// Rewind the decoder to the start of the stream by reopening the
-    /// underlying [`DataSource`].
+    /// underlying [`DataSource`]. The original `name` is preserved.
     pub fn reset(&mut self) -> Result<()> {
-        let fresh = Self::open(&self.datasource)?;
+        let fresh = Self::open(&self.datasource, self.name.clone())?;
         *self = fresh;
         Ok(())
     }
-}
-
-/// Read the first up-to-`n` bytes of a [`DataSource`] for header sniffing.
-fn read_header(ds: &DataSource, n: usize) -> io::Result<Vec<u8>> {
-    let mut reader = ds.reader()?;
-    let mut buf = vec![0u8; n];
-    let mut filled = 0;
-    while filled < n {
-        match reader.read(&mut buf[filled..])? {
-            0 => break,
-            got => filled += got,
-        }
-    }
-    buf.truncate(filled);
-    Ok(buf)
-}
-
-/// Read the 4-byte magic at the start of a [`DataSource`].
-fn peek_magic(ds: &DataSource) -> io::Result<[u8; 4]> {
-    let header = read_header(ds, 4)?;
-    if header.len() < 4 {
-        return Ok([0; 4]);
-    }
-    Ok([header[0], header[1], header[2], header[3]])
 }
 
 #[cfg(test)]
@@ -306,14 +290,14 @@ mod tests {
     #[test]
     fn unknown_magic_is_rejected() {
         let bytes = b"XYZW....".to_vec();
-        let err = WavDecoder::open(&DataSource::new(bytes)).unwrap_err();
+        let err = WavDecoder::open(&DataSource::new(bytes), "test").unwrap_err();
         assert!(matches!(err, WavError::UnknownFormat(_)));
     }
 
     #[test]
     fn truncated_input_is_rejected() {
         let bytes = b"WA".to_vec();
-        let err = WavDecoder::open(&DataSource::new(bytes)).unwrap_err();
+        let err = WavDecoder::open(&DataSource::new(bytes), "test").unwrap_err();
         // Two bytes pad to `[W, A, 0, 0]` and miss both magics.
         assert!(matches!(err, WavError::UnknownFormat(_)));
     }

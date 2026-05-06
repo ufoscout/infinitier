@@ -14,7 +14,7 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("intro.mve");
-    let mut decoder = MveDecoder::new(source.reader()?)?;
+    let mut decoder = MveDecoder::new(source.reader()?, "intro.mve")?;
 
     println!("{}x{} @ {} µs/frame", decoder.width(), decoder.height(), decoder.frame_duration_us());
 
@@ -36,7 +36,7 @@ use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("intro.mve");
-    let decoder = MveDecoder::new(source.reader()?)?;
+    let decoder = MveDecoder::new(source.reader()?, "intro.mve")?;
     decoder.extract_audio_to_wav("intro_audio.wav")?;
     Ok(())
 }
