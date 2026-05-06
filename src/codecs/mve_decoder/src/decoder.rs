@@ -65,6 +65,29 @@ struct AudioInfo {
 // ---------------------------------------------------------------------------
 // MveDecoder
 // ---------------------------------------------------------------------------
+/// Per-block coding-mode counters, accumulated as the decoder walks
+/// every video frame. Useful for reverse-engineering an encoder's
+/// behaviour: which of the 16 8×8 block opcodes does it emit, and how
+/// often, on what kind of input?
+///
+/// Indexed by opcode (0..=15). Opcode meanings (8-bit Palette8):
+/// `0x0`/`0x1` skip, `0x2` current-frame motion (low range),
+/// `0x3` current-frame motion (full range), `0x4`/`0x5` previous-frame
+/// motion, `0x7` "delta" pattern, `0x8`–`0xb` quad-of-quads modes,
+/// `0xc`/`0xd` 4×4 / 8×4 colour fills, `0xe` solid colour,
+/// `0xf` raw pixel block.  Opcode `0x6` is reserved/unused.
+#[derive(Debug, Default, Clone)]
+pub struct BlockModeStats {
+    /// Opcode counts for the 8-bit (paletted) path.
+    pub video8: [u64; 16],
+    /// Opcode counts for the 16-bit (RGB555) path.
+    pub video16: [u64; 16],
+    /// Number of video frames seen.
+    pub frames: u64,
+    /// Total blocks counted across all frames.
+    pub blocks: u64,
+}
+
 pub struct MveDecoder<R: BufRead + Seek> {
     reader: Reader<R>,
 
@@ -89,6 +112,10 @@ pub struct MveDecoder<R: BufRead + Seek> {
 
     // Accumulated audio for the next video frame
     pending_audio: Vec<AudioChunk>,
+
+    // Per-block mode statistics — written by the inner video decoders
+    // every frame, exposed via `block_mode_stats()`.
+    block_mode_stats: BlockModeStats,
 }
 
 impl<R: BufRead + Seek> MveDecoder<R> {
@@ -128,6 +155,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             audio: AudioInfo::default(),
             frame_duration_us: 0,
             pending_audio: Vec::new(),
+            block_mode_stats: BlockModeStats::default(),
         };
 
         // First two chunks contain all initialisation (audio/video setup)
@@ -154,6 +182,14 @@ impl<R: BufRead + Seek> MveDecoder<R> {
     pub fn format(&self) -> VideoFormat {
         self.format
     }
+    /// Per-block coding-mode counters accumulated as frames are
+    /// decoded. Use this to map the encoder's behaviour: which
+    /// opcodes a given input causes the encoder to emit, and how
+    /// often.
+    pub fn block_mode_stats(&self) -> &BlockModeStats {
+        &self.block_mode_stats
+    }
+
     pub fn frame_duration_us(&self) -> u32 {
         self.frame_duration_us
     }
@@ -439,6 +475,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
                 &raw,
                 self.width,
                 self.height,
+                &mut self.block_mode_stats,
             )?;
         } else {
             decode_frame8(
@@ -448,6 +485,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
                 &raw,
                 self.width,
                 self.height,
+                &mut self.block_mode_stats,
             )?;
         }
         Ok(())

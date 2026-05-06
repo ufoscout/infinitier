@@ -1998,6 +1998,7 @@ version = "0.0.3"
 dependencies = [
  "infinitier_test_utils",
  "serde",
+ "tempfile",
 ]
 
 [[package]]
@@ -2045,6 +2046,16 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "infinitier_mve_encoder"
+version = "0.0.3"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_mve_decoder",
+ "log",
  "thiserror 2.0.18",
 ]
 

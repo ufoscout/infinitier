@@ -533,6 +533,7 @@ pub fn decode_frame8(
     data: &[u8],
     width: u16,
     height: u16,
+    stats: &mut crate::decoder::BlockModeStats,
 ) -> Result<(), Error> {
     let w = width as usize;
     let h = height as usize;
@@ -542,6 +543,10 @@ pub fn decode_frame8(
     let bx_count = w >> 3;
     let by_count = h >> 3;
 
+    stats.frames += 1;
+    let blocks_this_frame = (bx_count * by_count) as u64;
+    stats.blocks += blocks_this_frame;
+
     for by in 0..by_count {
         for bx in 0..bx_count {
             let opcode = if code_idx & 1 == 0 {
@@ -550,6 +555,8 @@ pub fn decode_frame8(
                 code_map[code_idx >> 1] >> 4
             };
             code_idx += 1;
+
+            stats.video8[opcode as usize] += 1;
 
             let dst = by * 8 * w + bx * 8;
 
@@ -1151,6 +1158,7 @@ pub fn decode_frame16(
     data: &[u8],
     width: u16,
     height: u16,
+    stats: &mut crate::decoder::BlockModeStats,
 ) -> Result<(), Error> {
     let w = width as usize;
     let h = height as usize;
@@ -1176,6 +1184,9 @@ pub fn decode_frame16(
     let bx_count = w >> 3;
     let by_count = h >> 3;
 
+    stats.frames += 1;
+    stats.blocks += (bx_count * by_count) as u64;
+
     for by in 0..by_count {
         for bx in 0..bx_count {
             let opcode = if code_idx & 1 == 0 {
@@ -1184,6 +1195,8 @@ pub fn decode_frame16(
                 code_map[code_idx >> 1] >> 4
             };
             code_idx += 1;
+
+            stats.video16[opcode as usize] += 1;
 
             let dst_px = by * 8 * w + bx * 8;
 

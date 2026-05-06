@@ -5,7 +5,7 @@ mod decoder;
 mod error;
 mod video;
 
-pub use decoder::MveDecoder;
+pub use decoder::{BlockModeStats, MveDecoder};
 pub use error::Error;
 
 /// Pixel format of a decoded video frame.

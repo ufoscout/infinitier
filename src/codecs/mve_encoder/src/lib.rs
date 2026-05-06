@@ -1,0 +1,682 @@
+#![doc = include_str!("../readme.md")]
+
+use std::io::{self, Write};
+
+use log::debug;
+use thiserror::Error as ThisError;
+
+// ─── format constants ────────────────────────────────────────────────────────
+
+/// Fixed 24-byte signature (matches `MVE_SIGNATURE_PREFIX` in the
+/// decoder); bytes 24-25 are an arbitrary encoder-version pair that
+/// the decoder ignores.
+const SIGNATURE_24: &[u8] = b"Interplay MVE File\x1a\x00\x1a\x00\x00\x01";
+/// Two padding bytes after the 24-byte prefix. Real avi2mve writes
+/// `0x33 0x11` here; any value works.
+const SIGNATURE_TAIL: [u8; 2] = [0x33, 0x11];
+
+// Chunk type IDs — purely conventional; our decoder doesn't validate
+// them. We pick the same numbers `avi2mve` writes for compatibility
+// with stricter readers (gemrb's MVEPlayer checks them).
+const CHUNK_INIT_VIDEO: u16 = 0x0002;
+const CHUNK_INIT_AUDIO: u16 = 0x0000;
+const CHUNK_FRAME: u16 = 0x0001;
+const CHUNK_END: u16 = 0x0004;
+
+// Segment opcodes (a.k.a. seg_type), kept in sync with the decoder.
+const OC_END_OF_STREAM: u8 = 0x00;
+const OC_END_OF_CHUNK: u8 = 0x01;
+const OC_CREATE_TIMER: u8 = 0x02;
+const OC_VIDEO_BUFFERS: u8 = 0x05;
+const OC_PLAY_VIDEO: u8 = 0x07;
+const OC_VIDEO_MODE: u8 = 0x0a;
+const OC_PALETTE: u8 = 0x0c;
+const OC_CODE_MAP: u8 = 0x0f;
+const OC_VIDEO_DATA: u8 = 0x11;
+
+const VIDEO_FLAG_DELTA: u16 = 0x0001;
+
+/// Block coding opcodes used by the Phase-4 encoder. See the readme
+/// for what each means and how the chooser picks between them.
+const BLOCK_COPY_PREV: u8 = 0x0;
+const BLOCK_MOTION_PREV: u8 = 0x4;
+const BLOCK_DELTA: u8 = 0x7;
+const BLOCK_RAW: u8 = 0xb;
+const BLOCK_4X4_FILL: u8 = 0xc;
+const BLOCK_QUADRANTS: u8 = 0xd;
+const BLOCK_SOLID: u8 = 0xe;
+
+// ─── error type ──────────────────────────────────────────────────────────────
+
+pub type Result<T> = std::result::Result<T, MveEncodeError>;
+
+#[derive(Debug, ThisError)]
+pub enum MveEncodeError {
+    #[error("io error: {0}")]
+    Io(#[from] io::Error),
+    #[error("dimensions {width}x{height} are invalid: must be non-zero, multiples of 8, ≤ 65535")]
+    InvalidDimensions { width: u16, height: u16 },
+    #[error("pixel buffer is the wrong size: got {got}, expected {expected}")]
+    PixelBufferSize { got: usize, expected: usize },
+    #[error("frame_duration_us must be ≥ 1, got {0}")]
+    InvalidFrameDuration(u32),
+    #[error("frames slice is empty — at least one frame is required")]
+    NoFrames,
+    #[error("a chunk's segment payload exceeds 65535 bytes")]
+    ChunkTooBig,
+}
+
+// ─── public API ──────────────────────────────────────────────────────────────
+
+/// 8-bit paletted still image to encode as a static MVE.
+pub struct StaticImage {
+    /// Width in pixels. Must be > 0 and a multiple of 8.
+    pub width: u16,
+    /// Height in pixels. Must be > 0 and a multiple of 8.
+    pub height: u16,
+    /// Palette indices, row-major, length `width * height`.
+    pub pixels: Vec<u8>,
+    /// 256 RGB triples, 8-bit per channel. The encoder quantises to
+    /// 6-bit during write (MVE stores `value >> 2` per channel).
+    pub palette: Box<[[u8; 3]; 256]>,
+}
+
+/// Multi-frame encode options shared between every frame.
+pub struct VideoOptions {
+    pub width: u16,
+    pub height: u16,
+    pub frame_duration_us: u32,
+    pub palette: Box<[[u8; 3]; 256]>,
+}
+
+/// Encode a uniform-colour rectangle as `frame_count` frames of MVE.
+/// First frame uses `0xe` for every block; subsequent frames use
+/// `0x0` (skip with the `VIDEO_FLAG_DELTA` swap trick).
+pub fn encode_solid_colour_video<W: Write>(
+    width: u16,
+    height: u16,
+    rgb: [u8; 3],
+    frame_count: u32,
+    frame_duration_us: u32,
+    name: impl Into<String>,
+    out: &mut W,
+) -> Result<()> {
+    validate_dims(width, height)?;
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[1] = rgb; // index 0 stays black so palette[0] != rgb if rgb != black
+    let pixels = vec![1u8; width as usize * height as usize];
+    let img = StaticImage {
+        width,
+        height,
+        pixels,
+        palette,
+    };
+    encode_static_palette8(&img, frame_count, frame_duration_us, name, out)
+}
+
+/// Encode an 8-bit paletted still image as `frame_count` frames of
+/// static MVE — every frame shows the same image. Internally calls
+/// [`encode_video`] with the image replicated `frame_count` times,
+/// so it accepts any input where each 8×8 block is encodable by
+/// Phase-2 modes (≤ 2 distinct colours, *or* 3–4 distinct colours
+/// arranged as uniform 4×4 quadrants).
+pub fn encode_static_palette8<W: Write>(
+    image: &StaticImage,
+    frame_count: u32,
+    frame_duration_us: u32,
+    name: impl Into<String>,
+    out: &mut W,
+) -> Result<()> {
+    if image.pixels.len() != image.width as usize * image.height as usize {
+        return Err(MveEncodeError::PixelBufferSize {
+            got: image.pixels.len(),
+            expected: image.width as usize * image.height as usize,
+        });
+    }
+    let opts = VideoOptions {
+        width: image.width,
+        height: image.height,
+        frame_duration_us,
+        palette: image.palette.clone(),
+    };
+    let frames: Vec<&[u8]> = std::iter::repeat(image.pixels.as_slice())
+        .take(frame_count.max(1) as usize)
+        .collect();
+    encode_video(&opts, &frames, name, out)
+}
+
+/// Encode an arbitrary multi-frame video. Each entry in `frames` is a
+/// `width * height`-byte palette-index buffer, row-major. Frames are
+/// independently analysed; unchanged blocks emit `0x0` (skip), and
+/// changed blocks emit the cheapest Phase-2 mode that fits.
+pub fn encode_video<W: Write>(
+    options: &VideoOptions,
+    frames: &[&[u8]],
+    name: impl Into<String>,
+    out: &mut W,
+) -> Result<()> {
+    let name = name.into();
+    validate_dims(options.width, options.height)?;
+    if options.frame_duration_us == 0 {
+        return Err(MveEncodeError::InvalidFrameDuration(options.frame_duration_us));
+    }
+    if frames.is_empty() {
+        return Err(MveEncodeError::NoFrames);
+    }
+    let expected = options.width as usize * options.height as usize;
+    for (i, f) in frames.iter().enumerate() {
+        if f.len() != expected {
+            return Err(MveEncodeError::PixelBufferSize {
+                got: f.len(),
+                expected,
+            });
+        }
+        let _ = i;
+    }
+
+    let bw = (options.width as usize) >> 3;
+    let bh = (options.height as usize) >> 3;
+    let n_blocks = bw * bh;
+    let stride = options.width as usize;
+
+    // ── 1. signature ──────────────────────────────────────────────────────
+    out.write_all(SIGNATURE_24)?;
+    out.write_all(&SIGNATURE_TAIL)?;
+
+    // ── 2. init video chunk ───────────────────────────────────────────────
+    let init_video = build_init_video_chunk(
+        options.width,
+        options.height,
+        options.frame_duration_us,
+        options.palette.as_ref(),
+    )?;
+    write_chunk(out, CHUNK_INIT_VIDEO, &init_video)?;
+
+    // ── 3. init audio chunk (empty — Phase-2 still produces silent video)
+    write_chunk(out, CHUNK_INIT_AUDIO, &[])?;
+
+    // ── 4. per-frame chunks ──────────────────────────────────────────────
+    for (frame_idx, frame_pixels) in frames.iter().enumerate() {
+        let prev = if frame_idx == 0 {
+            None
+        } else {
+            Some(frames[frame_idx - 1])
+        };
+        let body = build_frame_chunk(
+            frame_pixels,
+            prev,
+            stride,
+            bw,
+            bh,
+            n_blocks,
+            frame_idx > 0,
+        )?;
+        write_chunk(out, CHUNK_FRAME, &body)?;
+    }
+
+    // ── 5. end-of-stream chunk ────────────────────────────────────────────
+    let mut end = Vec::with_capacity(4);
+    write_segment(&mut end, OC_END_OF_STREAM, 0, &[]);
+    write_chunk(out, CHUNK_END, &end)?;
+
+    debug!(
+        "[{}] encoded MVE: {}×{}, {} frames, {} blocks/frame, frame_dur={}µs",
+        name,
+        options.width,
+        options.height,
+        frames.len(),
+        n_blocks,
+        options.frame_duration_us
+    );
+    Ok(())
+}
+
+// ─── chunk builders ──────────────────────────────────────────────────────────
+
+fn validate_dims(width: u16, height: u16) -> Result<()> {
+    if width == 0 || height == 0 || width % 8 != 0 || height % 8 != 0 {
+        return Err(MveEncodeError::InvalidDimensions { width, height });
+    }
+    Ok(())
+}
+
+fn build_init_video_chunk(
+    width: u16,
+    height: u16,
+    frame_duration_us: u32,
+    palette: &[[u8; 3]; 256],
+) -> Result<Vec<u8>> {
+    let mut buf = Vec::new();
+
+    // OC_CREATE_TIMER — frame_duration_us = rate × subdiv (subdiv=1).
+    let mut timer = Vec::with_capacity(6);
+    timer.extend_from_slice(&frame_duration_us.to_le_bytes());
+    timer.extend_from_slice(&1u16.to_le_bytes());
+    write_segment(&mut buf, OC_CREATE_TIMER, 0, &timer);
+
+    // OC_VIDEO_MODE — screen mode (matches what avi2mve writes).
+    let mut mode = Vec::with_capacity(6);
+    mode.extend_from_slice(&640u16.to_le_bytes());
+    mode.extend_from_slice(&480u16.to_le_bytes());
+    mode.extend_from_slice(&0u16.to_le_bytes());
+    write_segment(&mut buf, OC_VIDEO_MODE, 0, &mode);
+
+    // OC_VIDEO_BUFFERS v2 — frame size in 8×8 blocks, 8-bit Palette8.
+    let mut buffers = Vec::with_capacity(8);
+    buffers.extend_from_slice(&((width / 8) as u16).to_le_bytes());
+    buffers.extend_from_slice(&((height / 8) as u16).to_le_bytes());
+    buffers.extend_from_slice(&1u16.to_le_bytes());
+    buffers.extend_from_slice(&0u16.to_le_bytes());
+    write_segment(&mut buf, OC_VIDEO_BUFFERS, 2, &buffers);
+
+    // OC_PALETTE — 4-byte header (start=0, count=256) + 768 bytes of
+    // 6-bit RGB triples.
+    let mut pal = Vec::with_capacity(4 + 768);
+    pal.extend_from_slice(&0u16.to_le_bytes());
+    pal.extend_from_slice(&256u16.to_le_bytes());
+    for [r, g, b] in palette.iter() {
+        pal.push(r >> 2);
+        pal.push(g >> 2);
+        pal.push(b >> 2);
+    }
+    write_segment(&mut buf, OC_PALETTE, 0, &pal);
+
+    write_segment(&mut buf, OC_END_OF_CHUNK, 0, &[]);
+
+    if buf.len() > u16::MAX as usize {
+        return Err(MveEncodeError::ChunkTooBig);
+    }
+    Ok(buf)
+}
+
+fn build_frame_chunk(
+    curr: &[u8],
+    prev: Option<&[u8]>,
+    stride: usize,
+    bw: usize,
+    bh: usize,
+    n_blocks: usize,
+    use_delta: bool,
+) -> Result<Vec<u8>> {
+    // Walk every block, decide its mode + payload.
+    let height = bh * 8;
+    let mut opcodes = Vec::with_capacity(n_blocks);
+    let mut payload = Vec::new();
+    for by in 0..bh {
+        for bx in 0..bw {
+            let curr_block = read_block(curr, stride, bx, by);
+            let (opcode, mut bytes) = encode_block(&curr_block, prev, stride, height, bx, by);
+            opcodes.push(opcode);
+            payload.append(&mut bytes);
+        }
+    }
+
+    // Pack opcodes two-per-byte (low nibble first, high nibble
+    // second). For odd counts the trailing nibble is zero (the
+    // decoder only consults bytes for the blocks it iterates over,
+    // matching `bx_count * by_count`, so a trailing zero is benign).
+    let code_map_bytes = n_blocks.div_ceil(2);
+    let mut code_map = vec![0u8; code_map_bytes];
+    for (i, op) in opcodes.iter().enumerate() {
+        if i & 1 == 0 {
+            code_map[i >> 1] |= op & 0x0f;
+        } else {
+            code_map[i >> 1] |= (op & 0x0f) << 4;
+        }
+    }
+
+    let mut buf = Vec::new();
+    write_segment(&mut buf, OC_CODE_MAP, 0, &code_map);
+
+    let mut video = Vec::with_capacity(14 + payload.len());
+    video.extend_from_slice(&[0u8; 12]);
+    let flags: u16 = if use_delta { VIDEO_FLAG_DELTA } else { 0 };
+    video.extend_from_slice(&flags.to_le_bytes());
+    video.extend_from_slice(&payload);
+    write_segment(&mut buf, OC_VIDEO_DATA, 0, &video);
+
+    write_segment(&mut buf, OC_PLAY_VIDEO, 0, &[]);
+    write_segment(&mut buf, OC_END_OF_CHUNK, 0, &[]);
+
+    if buf.len() > u16::MAX as usize {
+        return Err(MveEncodeError::ChunkTooBig);
+    }
+    Ok(buf)
+}
+
+// ─── per-block analysis & encoding ───────────────────────────────────────────
+
+/// 8×8 grid of palette indices, row-major.
+type Block = [[u8; 8]; 8];
+
+fn read_block(image: &[u8], stride: usize, bx: usize, by: usize) -> Block {
+    let mut g = [[0u8; 8]; 8];
+    let top_left = by * 8 * stride + bx * 8;
+    for y in 0..8 {
+        for x in 0..8 {
+            g[y][x] = image[top_left + y * stride + x];
+        }
+    }
+    g
+}
+
+/// Decide which mode (and bitstream payload) to use for one block.
+/// Returns `(opcode, payload_bytes)`. Always succeeds: any block that
+/// doesn't fit the smaller modes falls through to mode `0xb` (raw
+/// 8×8, 64 bytes), which can encode any pixel layout losslessly.
+///
+/// `prev_full` is the previous frame's pixel buffer, needed for both
+/// the same-position skip check (mode `0x0`) and the 16×16 motion
+/// search (mode `0x4`). `stride`/`height` are the frame dimensions.
+fn encode_block(
+    curr: &Block,
+    prev_full: Option<&[u8]>,
+    stride: usize,
+    height: usize,
+    bx: usize,
+    by: usize,
+) -> (u8, Vec<u8>) {
+    // 1. Skip (copy from previous frame) — cheapest at 0 bytes.
+    if let Some(prev) = prev_full {
+        let p = read_block(prev, stride, bx, by);
+        if &p == curr {
+            return (BLOCK_COPY_PREV, Vec::new());
+        }
+    }
+
+    // 2. Solid colour — 1 byte. Detect by scanning for a single
+    //    distinct palette index.
+    let first = curr[0][0];
+    let mut all_same = true;
+    'solid: for row in curr.iter() {
+        for &p in row.iter() {
+            if p != first {
+                all_same = false;
+                break 'solid;
+            }
+        }
+    }
+    if all_same {
+        return (BLOCK_SOLID, vec![first]);
+    }
+
+    // 3. Motion compensation against previous frame (1 byte). Search
+    //    the 16×16 window of offsets `(dx, dy) ∈ [-8, 7]²` for an
+    //    exact match; lossless guarantee preserved.
+    if let Some(prev) = prev_full {
+        if let Some(b) = find_motion_match(curr, prev, stride, height, bx, by) {
+            return (BLOCK_MOTION_PREV, vec![b]);
+        }
+    }
+
+    // 4. 4×4 quadrants — 4 bytes. Each 4×4 corner of the 8×8 block
+    //    must be uniform. (Implies ≤ 4 distinct colours.)
+    let q = [curr[0][0], curr[0][4], curr[4][0], curr[4][4]];
+    let mut quadrants_uniform = true;
+    'quad: for y in 0..8 {
+        for x in 0..8 {
+            let qi = ((y >= 4) as usize) * 2 + ((x >= 4) as usize);
+            if curr[y][x] != q[qi] {
+                quadrants_uniform = false;
+                break 'quad;
+            }
+        }
+    }
+    if quadrants_uniform {
+        return (BLOCK_QUADRANTS, q.to_vec());
+    }
+
+    // Count distinct colours (cap at 3 — we only need to distinguish
+    // "exactly 2" from "more than 2").
+    let mut distinct: Vec<u8> = Vec::with_capacity(3);
+    'colours: for row in curr.iter() {
+        for &p in row.iter() {
+            if !distinct.contains(&p) {
+                distinct.push(p);
+                if distinct.len() > 2 {
+                    break 'colours;
+                }
+            }
+        }
+    }
+
+    // 5. Two-colour delta pattern. Try 2×2-mask compact (4 bytes)
+    //    first; fall back to 8-row full mask (10 bytes).
+    if distinct.len() == 2 {
+        let (a, b) = (distinct[0], distinct[1]);
+        let lo = a.min(b);
+        let hi = a.max(b);
+
+        if let Some(mask16) = build_2x2_mask(curr, lo) {
+            // Compact: decoder branches on `p0 > p1`. Write hi
+            // first (p0), lo second (p1); the mask's '1' bits
+            // mark `p1 = lo`.
+            let mut bytes = Vec::with_capacity(4);
+            bytes.push(hi);
+            bytes.push(lo);
+            bytes.extend_from_slice(&mask16.to_le_bytes());
+            return (BLOCK_DELTA, bytes);
+        }
+
+        // Full per-row mask: decoder branches on `p0 <= p1`. Write
+        // lo first (p0), hi second (p1); each row mask's bit-x is
+        // set for pixels equal to `p1 = hi`.
+        let row_masks = build_row_masks(curr, hi);
+        let mut bytes = Vec::with_capacity(10);
+        bytes.push(lo);
+        bytes.push(hi);
+        bytes.extend_from_slice(&row_masks);
+        return (BLOCK_DELTA, bytes);
+    }
+
+    // 6. 4×4 fill (0xc) — 16 bytes. Every 2×2 sub-block uniform,
+    //    arbitrary colours. Cheaper than 0xb when applicable.
+    if let Some(grid) = build_4x4_fill(curr) {
+        return (BLOCK_4X4_FILL, grid);
+    }
+
+    // 7. Raw 8×8 (0xb) — 64 bytes. Always works.
+    let mut bytes = Vec::with_capacity(64);
+    for row in curr.iter() {
+        bytes.extend_from_slice(row);
+    }
+    (BLOCK_RAW, bytes)
+}
+
+/// Brute-force search the 16×16 motion window for an exact match of
+/// `curr` in `prev`. Offsets `(dx, dy) ∈ [-8, 7]²`; out-of-bounds
+/// candidates are skipped. Returns the encoded byte
+/// `((dy + 8) << 4) | (dx + 8)` of the first match found, or `None`.
+fn find_motion_match(
+    curr: &Block,
+    prev: &[u8],
+    stride: usize,
+    height: usize,
+    bx: usize,
+    by: usize,
+) -> Option<u8> {
+    let bx_pix = bx as isize * 8;
+    let by_pix = by as isize * 8;
+    for dy_field in 0i32..16 {
+        let dy = dy_field - 8;
+        let src_y = by_pix + dy as isize;
+        if src_y < 0 || src_y as usize + 8 > height {
+            continue;
+        }
+        for dx_field in 0i32..16 {
+            let dx = dx_field - 8;
+            let src_x = bx_pix + dx as isize;
+            if src_x < 0 || src_x as usize + 8 > stride {
+                continue;
+            }
+            let mut matches = true;
+            for y in 0..8 {
+                let row_start = (src_y as usize + y) * stride + src_x as usize;
+                if prev[row_start..row_start + 8] != curr[y][..] {
+                    matches = false;
+                    break;
+                }
+            }
+            if matches {
+                return Some(((dy_field as u8) << 4) | (dx_field as u8));
+            }
+        }
+    }
+    None
+}
+
+/// If every 2×2 sub-block of `block` is uniform, return the 16
+/// sub-block colour bytes in the row-major order the decoder reads
+/// them: (0,0), (0,2), (0,4), (0,6), (2,0), …, (6,6).
+fn build_4x4_fill(block: &Block) -> Option<Vec<u8>> {
+    let mut out = Vec::with_capacity(16);
+    let mut y = 0;
+    while y < 8 {
+        let mut x = 0;
+        while x < 8 {
+            let v = block[y][x];
+            if block[y][x + 1] != v
+                || block[y + 1][x] != v
+                || block[y + 1][x + 1] != v
+            {
+                return None;
+            }
+            out.push(v);
+            x += 2;
+        }
+        y += 2;
+    }
+    Some(out)
+}
+
+/// Build a 16-bit "1 = `target_colour`" mask over the 16 2×2 sub-blocks
+/// of `block`, in the iteration order the decoder uses (row-major,
+/// LSB-first). Returns `None` if any 2×2 sub-block is not uniform.
+fn build_2x2_mask(block: &Block, target_colour: u8) -> Option<u16> {
+    let mut mask: u16 = 0;
+    let mut bit: u16 = 1;
+    let mut y = 0;
+    while y < 8 {
+        let mut x = 0;
+        while x < 8 {
+            let v = block[y][x];
+            if block[y][x + 1] != v
+                || block[y + 1][x] != v
+                || block[y + 1][x + 1] != v
+            {
+                return None;
+            }
+            if v == target_colour {
+                mask |= bit;
+            }
+            bit <<= 1;
+            x += 2;
+        }
+        y += 2;
+    }
+    Some(mask)
+}
+
+/// 8 per-row 8-bit masks where bit `x` of row `y` is set if pixel
+/// `(x, y)` equals `target_colour`.
+fn build_row_masks(block: &Block, target_colour: u8) -> [u8; 8] {
+    let mut rows = [0u8; 8];
+    for y in 0..8 {
+        let mut row = 0u8;
+        for x in 0..8 {
+            if block[y][x] == target_colour {
+                row |= 1 << x;
+            }
+        }
+        rows[y] = row;
+    }
+    rows
+}
+
+// ─── low-level emitters ──────────────────────────────────────────────────────
+
+fn write_segment(out: &mut Vec<u8>, seg_type: u8, version: u8, payload: &[u8]) {
+    let size = payload.len() as u16;
+    out.extend_from_slice(&size.to_le_bytes());
+    out.push(seg_type);
+    out.push(version);
+    out.extend_from_slice(payload);
+}
+
+fn write_chunk<W: Write>(out: &mut W, chunk_type: u16, body: &[u8]) -> io::Result<()> {
+    let size = body.len() as u16;
+    out.write_all(&size.to_le_bytes())?;
+    out.write_all(&chunk_type.to_le_bytes())?;
+    out.write_all(body)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_non_multiple_of_8() {
+        let mut out = Vec::new();
+        let err = encode_solid_colour_video(321, 240, [0, 0, 0], 1, 66_667, "", &mut out)
+            .unwrap_err();
+        assert!(matches!(err, MveEncodeError::InvalidDimensions { .. }));
+    }
+
+    #[test]
+    fn rejects_zero_frame_duration() {
+        let img = StaticImage {
+            width: 8,
+            height: 8,
+            pixels: vec![0u8; 64],
+            palette: Box::new([[0u8; 3]; 256]),
+        };
+        let mut out = Vec::new();
+        let err = encode_static_palette8(&img, 1, 0, "", &mut out).unwrap_err();
+        assert!(matches!(err, MveEncodeError::InvalidFrameDuration(0)));
+    }
+
+    #[test]
+    fn five_colour_block_now_succeeds_via_raw() {
+        // 8×8 block with 5 distinct indices: Phase-2 used to reject;
+        // Phase-3 falls through to 0xb (raw).
+        let mut pixels = vec![1u8; 64];
+        pixels[0] = 2;
+        pixels[1] = 3;
+        pixels[2] = 4;
+        pixels[3] = 5;
+        let img = StaticImage {
+            width: 8,
+            height: 8,
+            pixels,
+            palette: Box::new([[0u8; 3]; 256]),
+        };
+        let mut out = Vec::new();
+        encode_static_palette8(&img, 1, 66_667, "", &mut out).unwrap();
+    }
+
+    #[test]
+    fn three_colours_not_quadrants_succeeds_via_4x4_or_raw() {
+        // 3 distinct colours, not arranged as 4×4 quadrants.
+        // Phase-2 used to reject; Phase-3 emits either 0xc or 0xb.
+        let mut pixels = vec![1u8; 64];
+        pixels[0] = 2;
+        pixels[63] = 3;
+        let img = StaticImage {
+            width: 8,
+            height: 8,
+            pixels,
+            palette: Box::new([[0u8; 3]; 256]),
+        };
+        let mut out = Vec::new();
+        encode_static_palette8(&img, 1, 66_667, "", &mut out).unwrap();
+    }
+
+    #[test]
+    fn produced_signature_is_valid() {
+        let mut out = Vec::new();
+        encode_solid_colour_video(8, 8, [0, 0, 0], 1, 66_667, "", &mut out).unwrap();
+        assert_eq!(&out[..18], b"Interplay MVE File");
+        assert_eq!(&out[18..23], b"\x1a\x00\x1a\x00\x00");
+    }
+}

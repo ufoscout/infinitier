@@ -1,0 +1,19 @@
+[package]
+name = "infinitier_mve_encoder"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Pure-Rust encoder for the Interplay MVE video format used in Infinity Engine games (Phase-4: total palette-8 encoder with motion compensation)"
+readme = "readme.md"
+keywords = ["video", "mve", "encoder", "interplay", "infinity-engine"]
+
+[dependencies]
+log = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+infinitier_datasource = { workspace = true }
+infinitier_mve_decoder = { workspace = true }
