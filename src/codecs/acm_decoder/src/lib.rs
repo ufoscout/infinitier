@@ -2,13 +2,10 @@
 #![doc = include_str!("../readme.md")]
 
 use log::{debug, error};
-use std::fs::File;
-use std::io::{BufRead, BufReader, Cursor, Read, Seek, SeekFrom};
-use std::sync::Arc;
 use thiserror::Error as ThisError;
 
 use hound::WavWriter;
-use infinitier_datasource::{Data, DataSource, Reader};
+use infinitier_datasource::{DataSource, DataTrait, Reader};
 
 const ACM_ID: u32 = 0x032897;
 const WAVC_ID: u32 = 0x564157; // 'WAV' little-endian
@@ -22,70 +19,6 @@ const MAP_1BIT: [i32; 2] = [-1, 1];
 const MAP_2BIT_NEAR: [i32; 4] = [-2, -1, 1, 2];
 const MAP_2BIT_FAR: [i32; 4] = [-3, -2, 2, 3];
 const MAP_3BIT: [i32; 8] = [-4, -3, -2, -1, 1, 2, 3, 4];
-
-// ─── Streaming reader construction ───────────────────────────────────────────
-
-/// Newtype around `Arc<Vec<u8>>` that exposes the underlying bytes via
-/// `AsRef<[u8]>`, letting us build a `Cursor` that owns the share without
-/// copying the payload (`Arc<Vec<u8>>` itself doesn't impl `AsRef<[u8]>`).
-struct SharedBytes(Arc<Vec<u8>>);
-
-impl AsRef<[u8]> for SharedBytes {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-}
-
-/// Opens a `Box<dyn BufRead>` over a [`DataSource`] without borrowing from it.
-///
-/// `Path` / `Generator` sources open a fresh `BufReader<File>`; `MemorySource`
-/// clones its `Arc<Vec<u8>>` and wraps it in a `Cursor`. The returned reader
-/// is `'static`, so callers (e.g. [`AcmDecoder`]) can store it in a
-/// non-lifetime-parameterised struct and still stream bytes lazily — the
-/// whole file is never resident.
-fn open_streaming_reader(ds: &DataSource) -> std::io::Result<Reader<Box<dyn BufRead>>> {
-    let (data, offset, limit) = match ds {
-        DataSource::Full { data, .. } => (data, 0u64, None),
-        DataSource::Embedded {
-            data,
-            offset,
-            limit,
-            ..
-        } => (data, *offset, *limit),
-    };
-
-    let inner: Box<dyn BufRead> = match data {
-        Data::Path(path) => {
-            let mut file = BufReader::new(File::open(path)?);
-            file.seek(SeekFrom::Start(offset))?;
-            match limit {
-                Some(l) => Box::new(file.take(l)),
-                None => Box::new(file),
-            }
-        }
-        Data::Generator(generator) => {
-            let mut file = BufReader::new(File::open(generator.path()?)?);
-            file.seek(SeekFrom::Start(offset))?;
-            match limit {
-                Some(l) => Box::new(file.take(l)),
-                None => Box::new(file),
-            }
-        }
-        Data::MemorySource(arc) => {
-            let mut cursor = Cursor::new(SharedBytes(Arc::clone(arc)));
-            cursor.seek(SeekFrom::Start(offset))?;
-            match limit {
-                Some(l) => Box::new(cursor.take(l)),
-                None => Box::new(cursor),
-            }
-        }
-    };
-
-    Ok(Reader {
-        data: inner,
-        charset: ds.encoding(),
-    })
-}
 
 // ─── Error type ──────────────────────────────────────────────────────────────
 
@@ -175,7 +108,7 @@ pub struct AcmDecoder {
     /// at any time. The boxed `dyn BufRead` is fully owned (file handle for
     /// path/generator sources, cloned `Arc<Vec<u8>>` cursor for in-memory
     /// sources) so the decoder doesn't borrow from the original `DataSource`.
-    reader: Reader<Box<dyn BufRead>>,
+    reader: Reader<Box<dyn DataTrait>>,
     /// True once we have already returned the one padding word at EOF (matching
     /// the C libacm behaviour of appending 4 zero bytes to the raw data).
     eof_padding_given: bool,
@@ -206,7 +139,7 @@ pub struct AcmDecoder {
 impl std::fmt::Debug for AcmDecoder {
     /// Hand-written so the giant scratch buffers (`ampbuf` is 64 K entries,
     /// `block` and `wrapbuf` scale with `acm_level`) and the un-`Debug`
-    /// `Box<dyn BufRead>` reader stay out of the output. We surface the
+    /// `Box<dyn BufRead + Send>` reader stay out of the output. We surface the
     /// header, decode position, and bitstream state, which is what actually
     /// matters when logging or panicking.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -254,7 +187,7 @@ impl AcmDecoder {
                 total_values: 0,
             },
             name: name.into(),
-            reader: open_streaming_reader(datasource)?,
+            reader: datasource.reader()?,
             eof_padding_given: false,
             bit_data: 0,
             bit_avail: 0,
@@ -298,7 +231,7 @@ impl AcmDecoder {
     /// Open the reader, read the header, and (re)allocate scratch buffers.
     /// Shared by [`open`](Self::open) and [`reset`](Self::reset).
     fn init(&mut self) -> Result<()> {
-        self.reader = open_streaming_reader(&self.datasource)?;
+        self.reader = self.datasource.reader()?;
 
         // Bitstream state — must start empty so the first `get_bits` reads
         // a fresh word from the reopened reader.
