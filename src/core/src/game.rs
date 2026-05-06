@@ -188,7 +188,10 @@ impl GameResource {
             ResourceType::Menu => Ok(ImportedResource::Menu),
             ResourceType::Mos => Ok(ImportedResource::Mos),
             ResourceType::Mus => Ok(ImportedResource::Mus),
-            ResourceType::Mve => Ok(ImportedResource::Mve),
+            ResourceType::Mve => Ok(ImportedResource::Mve(crate::movie::MovieSource::new(
+                ds.clone(),
+                &self.name,
+            ))),
             ResourceType::Plt => Ok(ImportedResource::Plt),
             ResourceType::Png => Ok(ImportedResource::Png),
             ResourceType::Pro => Ok(ImportedResource::Pro),

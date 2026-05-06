@@ -6,6 +6,7 @@ use infinitier_pvr_importer::PvrzHeader;
 use infinitier_two_da_importer::TwoDA;
 use infinitier_wed_importer::Wed;
 
+use crate::movie::MovieSource;
 use crate::sound::SoundDecoder;
 
 #[derive(Debug)]
@@ -42,7 +43,7 @@ pub enum ImportedResource {
     Menu,
     Mos,
     Mus,
-    Mve,
+    Mve(MovieSource),
     Plt,
     Png,
     Pro,

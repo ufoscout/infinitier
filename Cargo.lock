@@ -1950,6 +1950,7 @@ dependencies = [
  "infinitier_wav_decoder",
  "infinitier_wed_importer",
  "log",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

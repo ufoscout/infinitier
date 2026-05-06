@@ -175,7 +175,7 @@ impl ResourceViewer {
                                 ImportedResource::Menu => Box::new(MenuViewer::new()),
                                 ImportedResource::Mos => Box::new(MosViewer::new()),
                                 ImportedResource::Mus => Box::new(MusViewer::new()),
-                                ImportedResource::Mve => Box::new(MveViewer::new()),
+                                ImportedResource::Mve(src) => Box::new(MveViewer::new(src)),
                                 ImportedResource::Plt => Box::new(PltViewer::new()),
                                 ImportedResource::Png => Box::new(PngViewer::new()),
                                 ImportedResource::Pro => Box::new(ProViewer::new()),
