@@ -1,6 +1,6 @@
 # infinitier_acm_encoder
 
-Pure-Rust encoder for the Interplay ACM audio format used by Baldur's
+Pure-Rust encoder for the Interplay ACM and WAC audio formats used by Baldur's
 Gate I & II, Planescape: Torment, and Icewind Dale I & II.
 
 The format's open-source reference is DLTCEP's `snd2acm` /
@@ -87,3 +87,68 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Only 16-bit signed-integer PCM input is supported (matching the format
 the decoder produces).
+
+## WAVC output
+
+WAVC is the engine's container around an ACM bitstream — a 28-byte
+header (`'WAVC'` · `'V1.0'` · uncompressed size · compressed size ·
+ACM-data pointer · channels · bits-per-sample · sample rate · unused
+magic) followed by a regular ACM stream. The engine plays both `.ACM`
+and `.WAV` resources from BIFs and the override folder; `.WAV`
+resources in the games are typically WAVC, not real RIFF.
+
+Every encoder above has a `_wavc` companion that emits the same ACM
+body wrapped in a WAVC header. WAVC files **must** be 22050 Hz / 16-bit
+per the format spec; the encoder fails with
+`AcmEncodeError::WavcInvalidSampleRate` for any other sample rate.
+
+### Encode raw PCM as WAVC
+
+```rust,no_run
+use infinitier_acm_encoder::{
+    encode_pcm_packed_wavc,
+    encode_pcm_subband_wavc,
+    encode_pcm_wavc,
+};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let samples: Vec<i16> = vec![0; 22050];
+
+    // Lossless v1 wrapped in WAVC.
+    let mut out = std::fs::File::create("silence.wavc")?;
+    encode_pcm_wavc(&samples, 1, 22050, &mut out)?;
+
+    // Lossless packed (per-column books) wrapped in WAVC.
+    let mut out = std::fs::File::create("silence_packed.wavc")?;
+    encode_pcm_packed_wavc(&samples, 1, 22050, &mut out)?;
+
+    // Subband + packer wrapped in WAVC — what the engine actually
+    // ships. acm_level = 7 (128 columns / block), acm_rows = 16
+    // (the DLTCEP defaults).
+    let mut out = std::fs::File::create("silence_subband.wavc")?;
+    encode_pcm_subband_wavc(&samples, 1, 22050, 7, 16, &mut out)?;
+    Ok(())
+}
+```
+
+### Encode an existing 22050 Hz WAV as WAVC
+
+```rust,no_run
+use infinitier_acm_encoder::{encode_wav_subband_wavc, encode_wav_wavc};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let input = std::fs::File::open("input.wav")?;
+    let mut output = std::fs::File::create("output.wav")?; // engine convention: .WAV
+
+    // Lossless v1 path:
+    // encode_wav_wavc(input, &mut output)?;
+
+    // Compressed subband+packer path — recommended for game-ready WAVC.
+    encode_wav_subband_wavc(input, &mut output)?;
+    Ok(())
+}
+```
+
+Note that the engine reads WAVC files from the `.WAV` extension — the
+output filename should usually be `something.WAV` even though the
+contents start with the `WAVC` magic.

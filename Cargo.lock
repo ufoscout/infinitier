@@ -1884,6 +1884,7 @@ dependencies = [
  "infinitier_acm_decoder",
  "infinitier_datasource",
  "infinitier_test_utils",
+ "infinitier_wav_decoder",
  "log",
  "rand 0.9.4",
  "tempfile",

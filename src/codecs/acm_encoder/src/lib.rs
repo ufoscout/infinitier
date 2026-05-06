@@ -35,6 +35,24 @@ const ENC_VAL: u32 = 1;
 /// covers the full i16 range exactly.
 const ENC_IND: u32 = 16;
 
+// ─── WAVC container constants ────────────────────────────────────────────────
+
+/// Total length of the WAVC header in bytes — also written into the
+/// "pointer to ACM data" field at offset 0x10 of the same header.
+const WAVC_HEADER_SIZE: u32 = 28;
+
+/// Bits per sample written into the WAVC header. The decoder always
+/// emits `i16` PCM, so this is always 16.
+const WAVC_BITS_PER_SAMPLE: u16 = 16;
+
+/// WAVC files must use this sample rate per the engine spec.
+const WAVC_REQUIRED_SAMPLE_RATE: u32 = 22050;
+
+/// Magic value that goes in the "unused" word at offset 0x1a of the
+/// WAVC header. Match what the games' WAVC files have so a reader
+/// that strict-checks this field still accepts our output.
+const WAVC_UNUSED_MAGIC: u16 = 0x777e;
+
 // ─── Error type ───────────────────────────────────────────────────────────────
 
 pub type Result<T> = std::result::Result<T, AcmEncodeError>;
@@ -60,6 +78,8 @@ pub enum AcmEncodeError {
     InvalidAcmLevel(u32),
     #[error("invalid f_half {0}: must be ≥ 1")]
     InvalidFHalf(u32),
+    #[error("WAVC requires sample_rate = 22050 Hz (got {0})")]
+    WavcInvalidSampleRate(u32),
     #[error("input is empty")]
     EmptyInput,
     #[error("too many samples: {0} (max 4294967295)")]
@@ -423,6 +443,150 @@ pub fn encode_wav_subband<R: Read, W: Write>(reader: R, writer: &mut W) -> Resul
         .samples::<i16>()
         .collect::<std::result::Result<_, _>>()?;
     encode_pcm_subband(
+        &samples,
+        spec.channels as u32,
+        spec.sample_rate,
+        7,  // acm_level — DLTCEP default
+        16, // acm_rows — DLTCEP default
+        writer,
+    )
+}
+
+// ─── WAVC output ──────────────────────────────────────────────────────────────
+
+/// WAVC is the engine's container for ACM: a 28-byte header followed by
+/// a regular ACM bitstream. The header must declare the PCM size, so we
+/// can't stream-write it — encode the ACM body into an in-memory buffer
+/// first, fill in `compressed_size`, then emit the header + body.
+fn write_wavc<W: Write>(
+    out: &mut W,
+    samples_len: usize,
+    channels: u32,
+    sample_rate: u32,
+    acm_body: &[u8],
+) -> Result<()> {
+    require_wavc_metadata(channels, sample_rate)?;
+
+    // Per the spec each PCM sample is 16-bit, so the uncompressed byte
+    // size is `total_values * 2`. Use a checked multiply — a u32
+    // sample count near the limit overflows otherwise.
+    let uncompressed = (samples_len as u64).saturating_mul(2);
+    let uncompressed = u32::try_from(uncompressed)
+        .map_err(|_| AcmEncodeError::TooManySamples(samples_len))?;
+    let compressed = u32::try_from(acm_body.len())
+        .map_err(|_| AcmEncodeError::TooManySamples(acm_body.len()))?;
+
+    let mut header = [0u8; WAVC_HEADER_SIZE as usize];
+    header[0..4].copy_from_slice(b"WAVC");
+    header[4..8].copy_from_slice(b"V1.0");
+    header[8..12].copy_from_slice(&uncompressed.to_le_bytes());
+    header[12..16].copy_from_slice(&compressed.to_le_bytes());
+    header[16..20].copy_from_slice(&WAVC_HEADER_SIZE.to_le_bytes());
+    header[20..22].copy_from_slice(&(channels as u16).to_le_bytes());
+    header[22..24].copy_from_slice(&WAVC_BITS_PER_SAMPLE.to_le_bytes());
+    header[24..26].copy_from_slice(&(sample_rate as u16).to_le_bytes());
+    header[26..28].copy_from_slice(&WAVC_UNUSED_MAGIC.to_le_bytes());
+
+    out.write_all(&header)?;
+    out.write_all(acm_body)?;
+    Ok(())
+}
+
+fn require_wavc_metadata(channels: u32, sample_rate: u32) -> Result<()> {
+    if !(1..=2).contains(&channels) {
+        return Err(AcmEncodeError::InvalidChannels(channels));
+    }
+    if sample_rate != WAVC_REQUIRED_SAMPLE_RATE {
+        return Err(AcmEncodeError::WavcInvalidSampleRate(sample_rate));
+    }
+    Ok(())
+}
+
+/// Encode interleaved 16-bit PCM as a WAVC file using the lossless v1
+/// path internally. `sample_rate` must equal 22050 Hz — the WAVC
+/// container is hard-pinned to that rate per the engine spec.
+pub fn encode_pcm_wavc<W: Write>(
+    samples: &[i16],
+    channels: u32,
+    sample_rate: u32,
+    out: &mut W,
+) -> Result<()> {
+    require_wavc_metadata(channels, sample_rate)?;
+    let mut acm = Vec::new();
+    encode_pcm(samples, channels, sample_rate, &mut acm)?;
+    write_wavc(out, samples.len(), channels, sample_rate, &acm)
+}
+
+/// Encode interleaved 16-bit PCM as a WAVC file using the per-column
+/// packer (lossless, typically 0.7–0.9× the size of [`encode_pcm_wavc`]).
+/// `sample_rate` must equal 22050 Hz.
+pub fn encode_pcm_packed_wavc<W: Write>(
+    samples: &[i16],
+    channels: u32,
+    sample_rate: u32,
+    out: &mut W,
+) -> Result<()> {
+    require_wavc_metadata(channels, sample_rate)?;
+    let mut acm = Vec::new();
+    encode_pcm_packed(samples, channels, sample_rate, &mut acm)?;
+    write_wavc(out, samples.len(), channels, sample_rate, &acm)
+}
+
+/// Encode interleaved 16-bit PCM as a WAVC file using the full subband
+/// + packer pipeline (typically 0.3–0.5× compression but slightly
+/// lossy). `sample_rate` must equal 22050 Hz.
+pub fn encode_pcm_subband_wavc<W: Write>(
+    samples: &[i16],
+    channels: u32,
+    sample_rate: u32,
+    acm_level: u32,
+    acm_rows: u32,
+    out: &mut W,
+) -> Result<()> {
+    require_wavc_metadata(channels, sample_rate)?;
+    let mut acm = Vec::new();
+    encode_pcm_subband(samples, channels, sample_rate, acm_level, acm_rows, &mut acm)?;
+    write_wavc(out, samples.len(), channels, sample_rate, &acm)
+}
+
+/// Encode the contents of a 16-bit signed-integer PCM RIFF/WAVE stream
+/// as a WAVC file using the lossless v1 path. Fails with
+/// [`AcmEncodeError::WavcInvalidSampleRate`] if the input WAV is not at
+/// 22050 Hz.
+pub fn encode_wav_wavc<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
+    let mut wav = WavReader::new(reader)?;
+    let spec = wav.spec();
+    if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
+        return Err(AcmEncodeError::UnsupportedPcmFormat {
+            bits: spec.bits_per_sample,
+            fmt: spec.sample_format,
+        });
+    }
+    let samples: Vec<i16> = wav
+        .samples::<i16>()
+        .collect::<std::result::Result<_, _>>()?;
+    encode_pcm_wavc(&samples, spec.channels as u32, spec.sample_rate, writer)
+}
+
+/// Encode the contents of a 16-bit signed-integer PCM RIFF/WAVE stream
+/// as a WAVC file using the full subband + packer pipeline. The
+/// resulting file is what the engine actually plays — typical real
+/// game-data compression ratios. Fails with
+/// [`AcmEncodeError::WavcInvalidSampleRate`] if the input WAV is not at
+/// 22050 Hz.
+pub fn encode_wav_subband_wavc<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
+    let mut wav = WavReader::new(reader)?;
+    let spec = wav.spec();
+    if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
+        return Err(AcmEncodeError::UnsupportedPcmFormat {
+            bits: spec.bits_per_sample,
+            fmt: spec.sample_format,
+        });
+    }
+    let samples: Vec<i16> = wav
+        .samples::<i16>()
+        .collect::<std::result::Result<_, _>>()?;
+    encode_pcm_subband_wavc(
         &samples,
         spec.channels as u32,
         spec.sample_rate,
