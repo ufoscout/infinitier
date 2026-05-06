@@ -188,6 +188,22 @@ fn test_pst_bt2zc1() {
     );
 }
 
+/// Test that can decode WAVC files
+#[test]
+fn test_decode_wavc() {
+    let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAVC");
+    let data = DataSource::new(wavc_path);
+    let mut dec = AcmDecoder::open(&data, OutputChannels::Original).unwrap();
+    let temp = tempfile::NamedTempFile::new().unwrap();
+    dec.decode_to_file(temp.path()).unwrap();
+
+    let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
+    let wav_hash = Sha256::digest(fs::read(&get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
+
+    assert_eq!(created_wav_hash, wav_hash);
+}
+
+
 // ── reset() ─────────────────────────────────────────────────────────────────
 
 /// Decodes the named fixture from scratch and returns the full PCM buffer.

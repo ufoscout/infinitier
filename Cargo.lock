@@ -1872,6 +1872,7 @@ dependencies = [
  "infinitier_test_utils",
  "log",
  "sha2",
+ "tempfile",
  "thiserror 2.0.18",
 ]
 
@@ -2061,6 +2062,18 @@ dependencies = [
  "infinitier_test_utils",
  "itertools",
  "log",
+]
+
+[[package]]
+name = "infinitier_wav_decoder"
+version = "0.0.2"
+dependencies = [
+ "hound",
+ "infinitier_acm_decoder",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

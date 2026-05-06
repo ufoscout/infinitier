@@ -1,23 +1,21 @@
 [package]
-name = "infinitier_acm_decoder"
+name = "infinitier_wav_decoder"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Pure-Rust decoder for the Interplay ACM audio format used in Infinity Engine games"
+description = "Decoder for the WAV / WAVC sound file formats used in Infinity Engine games"
 readme = "readme.md"
-keywords = ["audio", "acm", "decoder", "interplay", "infinity-engine"]
+keywords = ["wav", "wavc", "audio", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 hound = { workspace = true }
+infinitier_acm_decoder = { workspace = true }
 infinitier_datasource = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }
-sha2 = { workspace = true }
-tempfile = { workspace = true }
-
