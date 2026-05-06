@@ -18,3 +18,6 @@ thiserror = { workspace = true }
 [dev-dependencies]
 infinitier_acm_decoder = { workspace = true }
 infinitier_datasource = { workspace = true }
+infinitier_test_utils = { workspace = true }
+rand = { workspace = true }
+tempfile = { workspace = true }

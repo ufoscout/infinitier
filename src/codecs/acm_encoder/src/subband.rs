@@ -99,11 +99,6 @@ impl SubbandCoder {
     }
 
     #[cfg(test)]
-    pub(crate) fn levels(&self) -> usize {
-        self.levels
-    }
-
-    #[cfg(test)]
     pub(crate) fn subbands(&self) -> usize {
         self.subbands
     }

@@ -13,7 +13,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-version = "0.0.2"
+version = "0.0.3"
 license = "MIT"
 authors = ["Francesco Cina <ufoscout@gmail.com>"]
 homepage = "https://github.com/ufoscout/infinitier"
@@ -21,29 +21,29 @@ repository = "https://github.com/ufoscout/infinitier"
 
 [workspace.dependencies]
 # Codecs
-infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.2" }
-infinitier_acm_encoder = { path = "src/codecs/acm_encoder", version = "0.0.2"  }
-infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.2"  }
-infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.2"  }
+infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.3" }
+infinitier_acm_encoder = { path = "src/codecs/acm_encoder", version = "0.0.3"  }
+infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.3"  }
+infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.3"  }
 
 # Core
-infinitier_common = { path = "src/common", version = "0.0.2" }
-infinitier_core = { path = "src/core", version = "0.0.2"  }
-infinitier_datasource = { path = "src/datasource", version = "0.0.2"  }
-infinitier_fs = { path = "src/fs", version = "0.0.2"  }
+infinitier_common = { path = "src/common", version = "0.0.3" }
+infinitier_core = { path = "src/core", version = "0.0.3"  }
+infinitier_datasource = { path = "src/datasource", version = "0.0.3"  }
+infinitier_fs = { path = "src/fs", version = "0.0.3"  }
 infinitier_test_utils = { path = "src/test_utils" }
 
 # Importers
-infinitier_bam_importer = { path = "src/importers/bam_importer", version = "0.0.2"  }
-infinitier_bcs_importer = { path = "src/importers/bcs_importer", version = "0.0.2"  }
-infinitier_bif_importer = { path = "src/importers/bif_importer", version = "0.0.2"  }
-infinitier_bmp_importer = { path = "src/importers/bmp_importer", version = "0.0.2"  }
-infinitier_ids_importer = { path = "src/importers/ids_importer", version = "0.0.2"  }
-infinitier_ini_importer = { path = "src/importers/ini_importer", version = "0.0.2"  }
-infinitier_key_importer = { path = "src/importers/key_importer", version = "0.0.2"  }
-infinitier_pvr_importer = { path = "src/importers/pvr_importer", version = "0.0.2"  }
-infinitier_two_da_importer = { path = "src/importers/two_da_importer", version = "0.0.2"  }
-infinitier_wed_importer = { path = "src/importers/wed_importer", version = "0.0.2"  }
+infinitier_bam_importer = { path = "src/importers/bam_importer", version = "0.0.3"  }
+infinitier_bcs_importer = { path = "src/importers/bcs_importer", version = "0.0.3"  }
+infinitier_bif_importer = { path = "src/importers/bif_importer", version = "0.0.3"  }
+infinitier_bmp_importer = { path = "src/importers/bmp_importer", version = "0.0.3"  }
+infinitier_ids_importer = { path = "src/importers/ids_importer", version = "0.0.3"  }
+infinitier_ini_importer = { path = "src/importers/ini_importer", version = "0.0.3"  }
+infinitier_key_importer = { path = "src/importers/key_importer", version = "0.0.3"  }
+infinitier_pvr_importer = { path = "src/importers/pvr_importer", version = "0.0.3"  }
+infinitier_two_da_importer = { path = "src/importers/two_da_importer", version = "0.0.3"  }
+infinitier_wed_importer = { path = "src/importers/wed_importer", version = "0.0.3"  }
 
 bitflags = { version = "2", features = ["serde"] }
 bytesize = "2"
@@ -56,6 +56,7 @@ image = { version = "0.25", default-features = false, features = ["bmp", "png"] 
 itertools = "0.14"
 log = "0.4"
 parking_lot = "0.12"
+rand = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
