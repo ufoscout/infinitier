@@ -75,7 +75,6 @@ pub enum WavFormat {
 /// [`AcmDecoder`]'s API.
 pub struct WavDecoder {
     info: WavInfo,
-    format: WavFormat,
     datasource: DataSource,
     inner: WavInner,
 }
@@ -95,7 +94,7 @@ enum WavInner {
 impl std::fmt::Debug for WavDecoder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WavDecoder")
-            .field("format", &self.format)
+            .field("format", &self.format())
             .field("info", &self.info)
             .finish_non_exhaustive()
     }
@@ -147,7 +146,6 @@ impl WavDecoder {
 
         Ok(Self {
             info,
-            format: WavFormat::Wav,
             datasource: datasource.clone(),
             inner: WavInner::Wav {
                 reader,
@@ -177,7 +175,6 @@ impl WavDecoder {
 
         Ok(Self {
             info,
-            format: WavFormat::Wavc,
             datasource: datasource.clone(),
             inner: WavInner::Wavc(decoder),
         })
@@ -190,7 +187,10 @@ impl WavDecoder {
 
     /// Container flavour the decoder is reading.
     pub fn format(&self) -> WavFormat {
-        self.format
+        match &self.inner {
+            WavInner::Wav { .. } => WavFormat::Wav,
+            WavInner::Wavc { .. } => WavFormat::Wavc,
+        }
     }
 
     /// Decode the next chunk of PCM samples into `out`, returning the number

@@ -54,7 +54,7 @@ fn test_decode_wav() {
 }
 
 #[test]
-fn test_decode_info() {
+fn test_decoded_infos_match() {
     let mut wavc = {
         let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAVC");
         let data = DataSource::new(wavc_path);
