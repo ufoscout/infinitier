@@ -22,6 +22,7 @@ repository = "https://github.com/ufoscout/infinitier"
 [workspace.dependencies]
 # Codecs
 infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.2" }
+infinitier_acm_encoder = { path = "src/codecs/acm_encoder", version = "0.0.2"  }
 infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.2"  }
 infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.2"  }
 

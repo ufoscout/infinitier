@@ -1877,6 +1877,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_acm_encoder"
+version = "0.0.2"
+dependencies = [
+ "hound",
+ "infinitier_acm_decoder",
+ "infinitier_datasource",
+ "log",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "infinitier_bam_importer"
 version = "0.0.2"
 dependencies = [
