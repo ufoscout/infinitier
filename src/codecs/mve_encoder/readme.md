@@ -3,6 +3,37 @@
 Pure-Rust encoder for the Interplay MVE video format (the cutscene
 container used by BG1, BG2, IWD, and PST originals).
 
+## Provenance
+
+This encoder was developed by **observing the bitstream produced by
+existing tools** rather than from any official format specification:
+
+- **Video bitstream (per-block opcodes, chunk + segment framing, palette layout, frame timing):** 
+  reverse-engineered by running `avi2mve.exe` (tool by Abel / TeamX, 2003-04) against
+  a matrix of synthetic AVI inputs and analysing the per-block mode
+  histograms of its output.
+- **Audio path (Interplay DPCM):**
+  cross-referenced against FFmpeg's
+  [`libavcodec/interplay_dpcm.c`](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/interplay_dpcm.c),
+  which contains the canonical lookup table and saturation rules for
+  the format. 
+
+  
+## Disclaimer — research / interoperability use only
+
+The Interplay MVE container and its per-block coding modes are a
+**proprietary format** owned by Interplay Entertainment. This crate
+is published purely as a **research and interoperability project**:
+it exists so that classic Infinity Engine cutscenes can be inspected,
+re-encoded for analysis, and round-tripped through a documented
+codepath. **It is not endorsed by, affiliated with, or licensed from
+Interplay.** Use it to study the format, build modding tools, or
+contribute to open-source preservation efforts; do not use it to
+produce or distribute content that infringes Interplay's
+intellectual-property rights. The crate's GPL-3.0-or-later licence governs the
+Rust source code in this repository — it does not, and cannot,
+grant any rights over the underlying file format.
+
 ## Status: Phase 5 — full quad-pattern coverage
 
 Phase 5 adds mode `0x9` (quad-pattern), which carries 4 palette
