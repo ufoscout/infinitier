@@ -70,7 +70,9 @@ A significant portion of the UI code was written with AI assistance because I do
 These decoders were also translated from C to Rust with AI help:
 
 - **ACM decoder** — translated from [markokr/libacm](https://github.com/markokr/libacm)
+- **ACM encoder** — translated from [DLTCEP](https://sourceforge.net/projects/gemrb/files)
 - **MVE decoder** — translated from [gemrb/gemrb MVEPlayer](https://github.com/gemrb/gemrb/tree/master/gemrb/plugins/MVEPlayer)
+
 
 ## Resources
 

@@ -5,8 +5,9 @@ Gate I & II, Planescape: Torment, and Icewind Dale I & II.
 
 The format's open-source reference is DLTCEP's `snd2acm` /
 `subband.cpp` / `packer.cpp` (Abel Cheung / TeamX, GPL); this crate is
-a faithful Rust port of that pipeline alongside a couple of simpler
-encoders for testing.
+a faithful Rust port of that pipeline (see: https://sourceforge.net/projects/gemrb/files/ )
+alongside a couple of simpler encoders for testing.
+
 
 ## Three encoder paths
 
