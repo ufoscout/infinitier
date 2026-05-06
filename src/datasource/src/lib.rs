@@ -80,11 +80,7 @@ impl<D: DataTrait> DataTrait for Take<D> {}
 
 impl Data {
     /// Returns a reader for the data
-    pub fn reader(
-        &self,
-        offset: u64,
-        limit: Option<u64>,
-    ) -> std::io::Result<Box<dyn DataTrait>> {
+    pub fn reader(&self, offset: u64, limit: Option<u64>) -> std::io::Result<Box<dyn DataTrait>> {
         match self {
             Data::Path(reader) => {
                 let mut data = BufReader::new(File::open(reader)?);

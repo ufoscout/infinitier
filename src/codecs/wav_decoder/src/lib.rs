@@ -115,7 +115,7 @@ impl WavDecoder {
     /// forwarded to the inner [`AcmDecoder`] for WAVC sources.
     pub fn open(datasource: &DataSource, name: impl Into<String>) -> Result<Self> {
         let name = name.into();
-                match datasource.reader()?.read_string(4)?.as_str() {
+        match datasource.reader()?.read_string(4)?.as_str() {
             "RIFF" => Self::open_riff(datasource, name),
             "WAVC" => Self::open_wavc(datasource, name),
             _ => Err(WavError::UnknownFormat([0; 4])),
@@ -301,5 +301,4 @@ mod tests {
         // Two bytes pad to `[W, A, 0, 0]` and miss both magics.
         assert!(matches!(err, WavError::UnknownFormat(_)));
     }
-
 }

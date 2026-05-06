@@ -198,11 +198,11 @@ fn test_decode_wavc() {
     dec.decode_to_file(temp.path()).unwrap();
 
     let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
-    let wav_hash = Sha256::digest(fs::read(&get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
+    let wav_hash =
+        Sha256::digest(fs::read(get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
 
     assert_eq!(created_wav_hash, wav_hash);
 }
-
 
 // ── reset() ─────────────────────────────────────────────────────────────────
 
@@ -218,9 +218,7 @@ fn fresh_decode_all(acm_rel: &str) -> Vec<i16> {
 /// second run — the canonical "play it again" use case.
 #[test]
 fn test_reset_after_full_decode_matches_fresh_decode() {
-    let acm_path = get_assets_path()
-        .join("resources/ACM")
-        .join("bg/Bf1d1.ACM");
+    let acm_path = get_assets_path().join("resources/ACM").join("bg/Bf1d1.ACM");
     let data = DataSource::new(acm_path);
 
     let mut dec = AcmDecoder::open(&data, OutputChannels::Original, "bg/Bf1d1.ACM").unwrap();
@@ -236,7 +234,11 @@ fn test_reset_after_full_decode_matches_fresh_decode() {
     assert_eq!(dec.samples_decoded(), 0);
 
     let second = dec.decode_all().unwrap();
-    assert_eq!(first.len(), second.len(), "sample count mismatch after reset");
+    assert_eq!(
+        first.len(),
+        second.len(),
+        "sample count mismatch after reset"
+    );
     assert!(
         first == second,
         "samples differ after reset: first run produced different bytes than second"
@@ -263,7 +265,10 @@ fn test_reset_midstream_recovers_clean_state() {
     let after_reset = dec.decode_all().unwrap();
 
     let fresh = fresh_decode_all(acm_rel);
-    assert_eq!(after_reset, fresh, "reset+decode_all must match fresh decode");
+    assert_eq!(
+        after_reset, fresh,
+        "reset+decode_all must match fresh decode"
+    );
 }
 
 /// Resetting twice in a row is a no-op vs resetting once — guarantees the
@@ -320,9 +325,7 @@ fn test_reset_then_decode_to_file_matches_first_write() {
 fn test_reset_preserves_output_channels_override() {
     // bg/Bf1j4.ACM is natively stereo; force mono and confirm the override
     // survives a reset.
-    let acm_path = get_assets_path()
-        .join("resources/ACM")
-        .join("bg/Bf1j4.ACM");
+    let acm_path = get_assets_path().join("resources/ACM").join("bg/Bf1j4.ACM");
     let data = DataSource::new(acm_path);
 
     let mut dec = AcmDecoder::open(&data, OutputChannels::Mono, "bg/Bf1j4.ACM").unwrap();

@@ -13,18 +13,22 @@ fn test_decode_wavc() {
     let mut dec = WavDecoder::open(&data, "1GROMG09").unwrap();
 
     assert_eq!(dec.format(), WavFormat::Wavc);
-    assert_eq!(dec.info(), &WavInfo {
-        channels: 1,
-        sample_rate: 22050,
-        bits_per_sample: 16,
-        total_values: 115168,
-    });
+    assert_eq!(
+        dec.info(),
+        &WavInfo {
+            channels: 1,
+            sample_rate: 22050,
+            bits_per_sample: 16,
+            total_values: 115168,
+        }
+    );
 
     let temp = tempfile::NamedTempFile::new().unwrap();
     dec.decode_to_file(temp.path()).unwrap();
 
     let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
-    let wav_hash = Sha256::digest(fs::read(&get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
+    let wav_hash =
+        Sha256::digest(fs::read(get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
 
     assert_eq!(created_wav_hash, wav_hash);
 }
@@ -37,18 +41,22 @@ fn test_decode_wav() {
     let mut dec = WavDecoder::open(&data, "1GROMG09").unwrap();
 
     assert_eq!(dec.format(), WavFormat::Wav);
-    assert_eq!(dec.info(), &WavInfo {
-        channels: 1,
-        sample_rate: 22050,
-        bits_per_sample: 16,
-        total_values: 115168,
-    });
+    assert_eq!(
+        dec.info(),
+        &WavInfo {
+            channels: 1,
+            sample_rate: 22050,
+            bits_per_sample: 16,
+            total_values: 115168,
+        }
+    );
 
     let temp = tempfile::NamedTempFile::new().unwrap();
     dec.decode_to_file(temp.path()).unwrap();
 
     let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
-    let wav_hash = Sha256::digest(fs::read(&get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
+    let wav_hash =
+        Sha256::digest(fs::read(get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
 
     assert_eq!(created_wav_hash, wav_hash);
 }
@@ -73,5 +81,4 @@ fn test_decoded_infos_match() {
 
     assert_eq!(wav.info(), wavc.info());
     assert_eq!(wav.decode_all().unwrap(), wavc.decode_all().unwrap());
-
 }

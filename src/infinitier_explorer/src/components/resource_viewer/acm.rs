@@ -115,11 +115,7 @@ impl Source for PcmSource {
     }
 }
 
-fn make_source(
-    samples: &Arc<Vec<f32>>,
-    info: &AcmInfo,
-    duration: Duration,
-) -> Option<PcmSource> {
+fn make_source(samples: &Arc<Vec<f32>>, info: &AcmInfo, duration: Duration) -> Option<PcmSource> {
     let channels = NonZero::new(info.channels as u16)?;
     let sample_rate = NonZero::new(info.rate)?;
     if samples.is_empty() {
@@ -247,8 +243,7 @@ impl ResourceViewerTrait for AcmViewer {
                     // bar tracks playback in real time without forcing
                     // continuous repaints when paused/stopped.
                     if is_playing {
-                        ui.ctx()
-                            .request_repaint_after(Duration::from_millis(100));
+                        ui.ctx().request_repaint_after(Duration::from_millis(100));
                     }
                 });
             });

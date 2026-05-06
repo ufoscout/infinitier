@@ -134,7 +134,12 @@ impl GameResource {
             .as_ref()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no datasource available"))?;
         match self.r#type {
-            ResourceType::Acm => Ok(AcmDecoder::open(ds, infinitier_acm_decoder::OutputChannels::Original, &self.name).map(ImportedResource::Acm)?),
+            ResourceType::Acm => Ok(AcmDecoder::open(
+                ds,
+                infinitier_acm_decoder::OutputChannels::Original,
+                &self.name,
+            )
+            .map(ImportedResource::Acm)?),
             ResourceType::Bam => BamImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Bam),
