@@ -1,15 +1,16 @@
-//! End-to-end Phase-4 round-trip: synth → encode → decode → check
+//! End-to-end Phase-5 round-trip: synth → encode → decode → check
 //! the reconstructed pixels match the source bit-exactly.
 //!
-//! Phase-4 supports eight block modes:
+//! Phase-5 supports nine block modes:
 //!
-//! - `0x0` — skip (copy from previous frame)
+//! - `0x0` — skip (copy from previous frame, 0 bytes)
 //! - `0xe` — solid colour (1 byte)
 //! - `0x4` — motion compensation against previous frame (1 byte)
 //! - `0xd` — 4×4 quadrants of one colour each (4 bytes)
 //! - `0x7` "compact" — 2 colours, every 2×2 sub-block uniform (4 bytes)
+//! - `0x9` quad-pattern — 3-4 colours, one of four sub-modes (8 / 12 / 20 bytes)
 //! - `0x7` "full"    — 2 colours, arbitrary per-pixel pattern (10 bytes)
-//! - `0xc` — 4×4 fill (every 2×2 sub-block uniform, ≥ 3 colours, 16 bytes)
+//! - `0xc` — 4×4 fill (every 2×2 sub-block uniform, ≥ 5 colours, 16 bytes)
 //! - `0xb` — raw 8×8 (any layout, 64 bytes — fallback)
 //!
 //! The encoder picks the cheapest mode that fits each block in that
@@ -247,6 +248,7 @@ fn multi_frame_with_change_mixes_modes() {
         height: 8,
         frame_duration_us: 66_667,
         palette,
+        lossy_downsample: false,
     };
     let frames: Vec<&[u8]> = vec![&frame0, &frame1, &frame2];
     let mut buf = Vec::new();
@@ -278,6 +280,7 @@ fn skip_blocks_dominate_when_frame_unchanged() {
         height: 64,
         frame_duration_us: 66_667,
         palette: Box::new([[0u8; 3]; 256]),
+        lossy_downsample: false,
     };
     let pixels = vec![0u8; 64 * 64];
     let frames: Vec<&[u8]> = vec![&pixels, &pixels, &pixels];
@@ -325,6 +328,7 @@ fn multi_frame_with_per_block_change_per_frame() {
         height: 16,
         frame_duration_us: 66_667,
         palette,
+        lossy_downsample: false,
     };
     let frames: Vec<&[u8]> = vec![&f0, &f1, &f2];
     let mut buf = Vec::new();
@@ -517,17 +521,19 @@ fn raw_block_round_trip_5_colours() {
 
 #[test]
 fn raw_block_round_trip_dense_pattern() {
-    // 4 colours sprinkled so neither quadrants nor 2×2 sub-blocks
-    // are uniform — must take the 0xb path.
+    // 5 colours sprinkled so neither quadrants nor 2×2 sub-blocks
+    // are uniform, AND the count exceeds 0x9's 4-colour limit —
+    // must take the 0xb path.
     let mut pixels = vec![0u8; 64];
     for i in 0..64 {
-        pixels[i] = (i % 4) as u8 + 1;
+        pixels[i] = (i % 5) as u8 + 1;
     }
     let mut palette = Box::new([[0u8; 3]; 256]);
     palette[1] = [252, 0, 0];
     palette[2] = [0, 252, 0];
     palette[3] = [0, 0, 252];
     palette[4] = [252, 252, 0];
+    palette[5] = [252, 0, 252];
 
     let img = StaticImage {
         width: 8,
@@ -559,6 +565,7 @@ fn empty_frames_rejected() {
         height: 8,
         frame_duration_us: 66_667,
         palette: Box::new([[0u8; 3]; 256]),
+        lossy_downsample: false,
     };
     let frames: Vec<&[u8]> = vec![];
     let mut buf = Vec::new();
@@ -603,6 +610,7 @@ fn motion_compensation_horizontal_shift_8px() {
         height: 8,
         frame_duration_us: 66_667,
         palette,
+        lossy_downsample: false,
     };
     let frames: Vec<&[u8]> = vec![&frame0, &frame1];
     let mut buf = Vec::new();
@@ -629,10 +637,12 @@ fn motion_compensation_horizontal_shift_8px() {
 
     let stats = dec.block_mode_stats();
     assert_eq!(stats.frames, 2);
-    // Frame 0: 2 raw blocks (P0, P1 are 5-colour). Frame 1: block 0 (Q, distinct)
-    // is raw; block 1 (= P0) motion-matches at (-8, 0).
+    // Frame 0: 2 raw blocks (P0, P1 each have 5 distinct colours).
+    // Frame 1: block 0 (Q, 4 distinct colours) → 0x9 quad-pattern;
+    // block 1 (= P0) motion-matches at (-8, 0) → 0x4.
     assert_eq!(stats.video8[0x4], 1, "expected one 0x4 block");
-    assert_eq!(stats.video8[0xb], 3, "expected three 0xb blocks");
+    assert_eq!(stats.video8[0xb], 2, "expected two 0xb blocks (P0, P1 in frame 0)");
+    assert_eq!(stats.video8[0x9], 1, "expected one 0x9 block (Q in frame 1)");
 }
 
 #[test]
@@ -678,6 +688,7 @@ fn motion_comp_panning_video_uses_0x4_widely() {
         height: 8,
         frame_duration_us: 66_667,
         palette,
+        lossy_downsample: false,
     };
     let frames: Vec<&[u8]> = vec![&f0, &f1, &f2];
     let mut buf = Vec::new();
@@ -761,6 +772,7 @@ fn motion_comp_respects_search_window_bounds() {
         height: 8,
         frame_duration_us: 66_667,
         palette,
+        lossy_downsample: false,
     };
     let frames: Vec<&[u8]> = vec![&f0, &f1];
     let mut buf = Vec::new();
@@ -771,4 +783,293 @@ fn motion_comp_respects_search_window_bounds() {
     // Motion can only consider offset (0, 0) for an 8×8 frame, which
     // is the skip case (already handled). So 0x4 must stay zero.
     assert_eq!(stats.video8[0x4], 0);
+}
+
+// ─── Phase-5: mode 0x9 quad-pattern family ───────────────────────────────────
+
+/// Build an 8×8 image, run a single-frame round-trip, and return the
+/// (decoder, decoded RGBA frame) so tests can inspect both the
+/// pixels and the per-block mode histogram.
+fn single_block_round_trip(
+    pixels: [u8; 64],
+    palette: Box<[[u8; 3]; 256]>,
+) -> (
+    MveDecoder<Box<dyn infinitier_datasource::DataTrait>>,
+    Vec<u8>,
+) {
+    let img = StaticImage {
+        width: 8,
+        height: 8,
+        pixels: pixels.to_vec(),
+        palette,
+    };
+    let mut buf = Vec::new();
+    encode_static_palette8(&img, 1, 66_667, "0x9", &mut buf).unwrap();
+    let mut dec = open_decoder(buf);
+    let frame = dec.next_frame().unwrap().unwrap();
+    let pixels = frame.video.pixels;
+    (dec, pixels)
+}
+
+fn assert_pixel(decoded: &[u8], x: usize, y: usize, expected_rgb: [u8; 3]) {
+    let off = (y * 8 + x) * 4;
+    let q = |c: u8| c & 0xfc;
+    let expected = [q(expected_rgb[0]), q(expected_rgb[1]), q(expected_rgb[2]), 255];
+    assert_eq!(&decoded[off..off + 4], &expected, "pixel ({x},{y})");
+}
+
+#[test]
+fn quad_pattern_per_2x2_round_trip_4_colours() {
+    // 4 distinct colours, every 2×2 sub-block is uniform but the
+    // arrangement isn't 4×4-quadrant-uniform — must use 0x9
+    // per-2×2 (8 bytes, vs 0xc's 16 or 0xb's 64).
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[1] = [252, 0, 0];
+    palette[2] = [0, 252, 0];
+    palette[3] = [0, 0, 252];
+    palette[4] = [252, 252, 0];
+
+    // 4×4 grid of 2×2 sub-blocks. Layout chosen so quadrants aren't
+    // uniform: alternating colour pattern.
+    //   row of sub-blocks (sy=0): 1 2 3 4
+    //   row of sub-blocks (sy=1): 2 3 4 1
+    //   row of sub-blocks (sy=2): 3 4 1 2
+    //   row of sub-blocks (sy=3): 4 1 2 3
+    let mut pixels = [0u8; 64];
+    for sy in 0..4 {
+        for sx in 0..4 {
+            let idx = ((sx + sy) % 4) as u8 + 1;
+            for dy in 0..2 {
+                for dx in 0..2 {
+                    pixels[(sy * 2 + dy) * 8 + (sx * 2 + dx)] = idx;
+                }
+            }
+        }
+    }
+    let palette_for_check = palette.clone();
+    let (dec, decoded) = single_block_round_trip(pixels, palette);
+
+    for sy in 0..4 {
+        for sx in 0..4 {
+            let idx = ((sx + sy) % 4) as u8 + 1;
+            for dy in 0..2 {
+                for dx in 0..2 {
+                    assert_pixel(
+                        &decoded,
+                        sx * 2 + dx,
+                        sy * 2 + dy,
+                        palette_for_check[idx as usize],
+                    );
+                }
+            }
+        }
+    }
+    let stats = dec.block_mode_stats();
+    assert_eq!(stats.video8[0x9], 1, "expected one 0x9 block");
+}
+
+#[test]
+fn quad_pattern_per_2x2_round_trip_3_colours() {
+    // 3 distinct colours, 2×2-uniform; tests that the 3-colour
+    // palette duplicate slot is correctly placed (p[1] reused).
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[5] = [252, 0, 0];
+    palette[7] = [0, 252, 0];
+    palette[11] = [0, 0, 252];
+
+    let pattern = [5u8, 7, 11, 5];
+    let mut pixels = [0u8; 64];
+    for sy in 0..4 {
+        for sx in 0..4 {
+            let idx = pattern[(sx + sy * 3) % 3]; // ensures all 3 colours appear
+            for dy in 0..2 {
+                for dx in 0..2 {
+                    pixels[(sy * 2 + dy) * 8 + (sx * 2 + dx)] = idx;
+                }
+            }
+        }
+    }
+    let palette_for_check = palette.clone();
+    let (dec, decoded) = single_block_round_trip(pixels, palette);
+
+    for sy in 0..4 {
+        for sx in 0..4 {
+            let idx = pattern[(sx + sy * 3) % 3];
+            for dy in 0..2 {
+                for dx in 0..2 {
+                    assert_pixel(
+                        &decoded,
+                        sx * 2 + dx,
+                        sy * 2 + dy,
+                        palette_for_check[idx as usize],
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(dec.block_mode_stats().video8[0x9], 1);
+}
+
+#[test]
+fn quad_pattern_per_pixel_round_trip() {
+    // 4 distinct colours, no 2×2 / 2×1 / 1×2 uniformity — encoder
+    // falls through to 0x9 per-pixel (20 bytes, vs 0xb's 64).
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[1] = [252, 0, 0];
+    palette[2] = [0, 252, 0];
+    palette[3] = [0, 0, 252];
+    palette[4] = [252, 252, 0];
+
+    // Each pixel is independently `(x ^ y) % 4 + 1`. With this XOR
+    // interleave, no row is 2-pixel-wide-uniform and no column is
+    // 2-pixel-tall-uniform.
+    let mut pixels = [0u8; 64];
+    for y in 0..8 {
+        for x in 0..8 {
+            pixels[y * 8 + x] = ((x ^ y) % 4) as u8 + 1;
+        }
+    }
+    let palette_for_check = palette.clone();
+    let (dec, decoded) = single_block_round_trip(pixels, palette);
+
+    for y in 0..8 {
+        for x in 0..8 {
+            let idx = ((x ^ y) % 4) + 1;
+            assert_pixel(&decoded, x, y, palette_for_check[idx]);
+        }
+    }
+    assert_eq!(dec.block_mode_stats().video8[0x9], 1);
+}
+
+#[test]
+fn quad_pattern_per_2x1_wide_round_trip() {
+    // 4 distinct colours, every 2-wide × 1-tall sub-block uniform
+    // but not 2×2-uniform. Encoder emits 0x9 per-2×1 wide (12 bytes).
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[1] = [252, 0, 0];
+    palette[2] = [0, 252, 0];
+    palette[3] = [0, 0, 252];
+    palette[4] = [252, 252, 0];
+
+    let mut pixels = [0u8; 64];
+    for y in 0..8 {
+        for sx in 0..4 {
+            // Each row's 4 sub-blocks (each 2 pixels wide) are
+            // assigned colours `1 + ((sx + y) % 4)`. Different rows
+            // within the same y/2 group differ → not 2×2-uniform.
+            let idx = ((sx + y) % 4) as u8 + 1;
+            pixels[y * 8 + sx * 2] = idx;
+            pixels[y * 8 + sx * 2 + 1] = idx;
+        }
+    }
+    let palette_for_check = palette.clone();
+    let (dec, decoded) = single_block_round_trip(pixels, palette);
+
+    for y in 0..8 {
+        for sx in 0..4 {
+            let idx = ((sx + y) % 4) + 1;
+            assert_pixel(&decoded, sx * 2, y, palette_for_check[idx]);
+            assert_pixel(&decoded, sx * 2 + 1, y, palette_for_check[idx]);
+        }
+    }
+    assert_eq!(dec.block_mode_stats().video8[0x9], 1);
+}
+
+#[test]
+fn quad_pattern_per_1x2_tall_round_trip() {
+    // 4 distinct colours, every 1-wide × 2-tall sub-block uniform
+    // but not 2×2-uniform.
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[1] = [252, 0, 0];
+    palette[2] = [0, 252, 0];
+    palette[3] = [0, 0, 252];
+    palette[4] = [252, 252, 0];
+
+    let mut pixels = [0u8; 64];
+    for sy in 0..4 {
+        for x in 0..8 {
+            let idx = ((sy + x) % 4) as u8 + 1;
+            pixels[(sy * 2) * 8 + x] = idx;
+            pixels[(sy * 2 + 1) * 8 + x] = idx;
+        }
+    }
+    let palette_for_check = palette.clone();
+    let (dec, decoded) = single_block_round_trip(pixels, palette);
+
+    for sy in 0..4 {
+        for x in 0..8 {
+            let idx = ((sy + x) % 4) + 1;
+            assert_pixel(&decoded, x, sy * 2, palette_for_check[idx]);
+            assert_pixel(&decoded, x, sy * 2 + 1, palette_for_check[idx]);
+        }
+    }
+    assert_eq!(dec.block_mode_stats().video8[0x9], 1);
+}
+
+#[test]
+fn quad_pattern_used_for_3_colours_arbitrary() {
+    // 3 distinct colours, no sub-block uniformity. Encoder falls
+    // through to 0x9 per-pixel (20 bytes).
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[10] = [252, 0, 0];
+    palette[20] = [0, 252, 0];
+    palette[30] = [0, 0, 252];
+
+    // Use only 3 colours but in an arbitrary layout.
+    let pattern = [10u8, 20, 30];
+    let mut pixels = [0u8; 64];
+    for y in 0..8 {
+        for x in 0..8 {
+            pixels[y * 8 + x] = pattern[(x + y) % 3];
+        }
+    }
+    let palette_for_check = palette.clone();
+    let (dec, decoded) = single_block_round_trip(pixels, palette);
+
+    for y in 0..8 {
+        for x in 0..8 {
+            let idx = pattern[(x + y) % 3] as usize;
+            assert_pixel(&decoded, x, y, palette_for_check[idx]);
+        }
+    }
+    assert_eq!(dec.block_mode_stats().video8[0x9], 1);
+}
+
+#[test]
+fn quad_pattern_does_not_steal_from_quadrants_or_delta() {
+    // Sanity: cheaper modes still preferred for content that fits
+    // them, even when the 0x9 path would also accept the block.
+    //
+    // 4-colour 4×4-quadrant-uniform block must use 0xd, not 0x9.
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[1] = [252, 0, 0];
+    palette[2] = [0, 252, 0];
+    palette[3] = [0, 0, 252];
+    palette[4] = [252, 252, 0];
+    let mut pixels = [0u8; 64];
+    for y in 0..8 {
+        for x in 0..8 {
+            let qi = ((y >= 4) as usize) * 2 + ((x >= 4) as usize);
+            pixels[y * 8 + x] = [1, 2, 3, 4][qi];
+        }
+    }
+    let (dec, _) = single_block_round_trip(pixels, palette);
+    let stats = dec.block_mode_stats();
+    assert_eq!(stats.video8[0xd], 1, "expected one 0xd block");
+    assert_eq!(stats.video8[0x9], 0, "0x9 must not steal from 0xd");
+
+    // 2-colour block must use 0x7 (4 bytes), not 0x9.
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    palette[1] = [252, 0, 0];
+    palette[2] = [0, 252, 0];
+    let mut pixels = [0u8; 64];
+    for y in 0..8 {
+        for x in 0..8 {
+            pixels[y * 8 + x] = if (x + y) % 2 == 0 { 1 } else { 2 };
+        }
+    }
+    let (dec, _) = single_block_round_trip(pixels, palette);
+    let stats = dec.block_mode_stats();
+    assert_eq!(stats.video8[0x7], 1, "expected one 0x7 block");
+    assert_eq!(stats.video8[0x9], 0, "0x9 must not steal from 0x7");
 }

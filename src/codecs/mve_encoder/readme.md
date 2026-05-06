@@ -3,42 +3,49 @@
 Pure-Rust encoder for the Interplay MVE video format (the cutscene
 container used by BG1, BG2, IWD, and PST originals).
 
-## Status: Phase 4 — total palette-8 encoder + motion compensation
+## Status: Phase 5 — full quad-pattern coverage
 
-Phase 4 adds mode `0x4` (1-byte motion compensation against the
-previous frame). Every encoded frame after frame 0 is searched
-against the previous frame for an exact 8×8 block match within a
-16×16 offset window, before falling through to the spatial-only
-modes. This shrinks panning/scrolling content significantly without
-affecting the lossless guarantee — only exact matches are accepted.
+Phase 5 adds mode `0x9` (quad-pattern), which carries 4 palette
+indices and a per-sub-block bit-mask. Four sub-modes are picked by
+the byte ordering of `p[0..4]`:
 
-| opcode | name              | meaning                                                                  | bits/block |
-|--------|-------------------|--------------------------------------------------------------------------|------------|
-| `0x0`  | `copy_prev_block` | with `VIDEO_FLAG_DELTA` set: "stay the same as last frame"               | 0          |
-| `0xe`  | `solid_colour`    | fill the 8×8 block with one palette index                                 | 8          |
-| `0x4`  | `motion_prev`     | copy 8×8 block from previous frame at offset `(dx, dy) ∈ [-8, 7]²`        | 8          |
-| `0xd`  | `quadrants`       | 4 colours, one per 4×4 quadrant of the 8×8 block                          | 32         |
-| `0x7c` | `delta_compact`   | 2 colours; 16-bit per-2×2 mask (when every 2×2 sub-block is uniform)      | 32         |
-| `0x7f` | `delta_full`      | 2 colours; 8 per-row 8-bit masks                                          | 80         |
-| `0xc`  | `4x4_fill`        | every 2×2 sub-block uniform with ≥3 colours; one byte per 2×2 (16 bytes) | 128        |
-| `0xb`  | `raw`             | 64 raw palette indices, one per pixel — always works                      | 512        |
+| sub-mode      | branch                          | mask bits/sub-block | cost     |
+|---------------|---------------------------------|---------------------|----------|
+| per-2×2       | `p0 ≤ p1 && p2 > p3`            | 16 sub-blocks of 2×2 | 8 bytes  |
+| per-2×1 wide  | `p0 > p1 && p2 ≤ p3`            | 32 sub-blocks of 2×1 | 12 bytes |
+| per-1×2 tall  | `p0 > p1 && p2 > p3`            | 32 sub-blocks of 1×2 | 12 bytes |
+| per-pixel     | `p0 ≤ p1 && p2 ≤ p3`            | 64 sub-blocks of 1×1 | 20 bytes |
 
-(`0x7c` / `0x7f` are both opcode `0x7`; the decoder branches on the
-ordering of the two colour bytes.)
+Mode `0x9` covers any 3- or 4-colour 8×8 block; the encoder picks the
+cheapest sub-mode that fits the layout. This replaces `0xc` (16 bytes)
+and `0xb` (64 bytes) for those colour counts.
+
+Full opcode catalogue:
+
+| opcode | name              | meaning                                                                   | bytes/block |
+|--------|-------------------|---------------------------------------------------------------------------|-------------|
+| `0x0`  | `copy_prev_block` | with `VIDEO_FLAG_DELTA` set: "stay the same as last frame"                | 0           |
+| `0xe`  | `solid_colour`    | fill the 8×8 block with one palette index                                 | 1           |
+| `0x4`  | `motion_prev`     | copy 8×8 block from previous frame at offset `(dx, dy) ∈ [-8, 7]²`        | 1           |
+| `0xd`  | `quadrants`       | 4 colours, one per 4×4 quadrant of the 8×8 block                          | 4           |
+| `0x7c` | `delta_compact`   | 2 colours; 16-bit per-2×2 mask (when every 2×2 sub-block is uniform)      | 4           |
+| `0x9 ` | `quad_pattern`    | 3-4 colours, one of four sub-modes; see table above                       | 8 / 12 / 20 |
+| `0x7f` | `delta_full`      | 2 colours; 8 per-row 8-bit masks                                          | 10          |
+| `0xc`  | `4x4_fill`        | every 2×2 sub-block uniform with ≥ 5 colours; one byte per 2×2 (16 bytes) | 16          |
+| `0xb`  | `raw`             | 64 raw palette indices, one per pixel — always works                      | 64          |
 
 The chooser picks the cheapest mode that fits each block, in order:
 **skip → solid → motion_prev → quadrants → delta_compact → delta_full
-→ 4×4_fill → raw**.
+→ quad_pattern → 4×4_fill → raw**.
 
-Modes still missing for size-optimal real-world MVE coverage:
-
-- `0x8`–`0xa` — quad-pattern family (4×4 sub-blocks with 2-, 3-,
-  or 4-colour patterns) — significantly cheaper than `0xb` on
-  natural-image content with multi-colour textures
-- `0x1`, `0x2`, `0x3`, `0x5`, `0xf` — rare/edge cases avi2mve never
-  emits in our test matrix
-
-These would only reduce file size; output remains correct without them.
+Modes still missing (avi2mve never emits them in our test matrix):
+`0x1`, `0x2`, `0x3`, `0x5`, `0x8`, `0xa`, `0xf`. The first four are
+edge-case temporal modes (`0x1` keep-from-2-frames-ago, `0x2`/`0x3`
+self-referential motion within the current frame, `0x5` 16-bit motion
+offset). `0x8` and `0xa` are alternative quad-pattern variants with
+different palette layouts but no clear size advantage over `0x9` in
+practice. None affect correctness — they would only marginally
+reduce file size.
 
 ## Performance note
 
@@ -100,6 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         height: 64,
         frame_duration_us: 66_667,
         palette: Box::new([[0u8; 3]; 256]),
+        lossy_downsample: false,
     };
     let frame_a = vec![0u8; 64 * 64];
     let frame_b = vec![1u8; 64 * 64];

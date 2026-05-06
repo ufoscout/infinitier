@@ -2056,6 +2056,7 @@ dependencies = [
  "infinitier_datasource",
  "infinitier_mve_decoder",
  "log",
+ "tempfile",
  "thiserror 2.0.18",
 ]
 
