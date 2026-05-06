@@ -5,6 +5,9 @@ use std::io::{self, Write};
 use log::debug;
 use thiserror::Error as ThisError;
 
+mod from_assets;
+pub use from_assets::{encode_from_assets, FromAssetsError, FromAssetsOptions};
+
 // ─── format constants ────────────────────────────────────────────────────────
 
 /// Fixed 24-byte signature (matches `MVE_SIGNATURE_PREFIX` in the
@@ -27,14 +30,19 @@ const CHUNK_END: u16 = 0x0004;
 const OC_END_OF_STREAM: u8 = 0x00;
 const OC_END_OF_CHUNK: u8 = 0x01;
 const OC_CREATE_TIMER: u8 = 0x02;
+const OC_AUDIO_BUFFERS: u8 = 0x03;
 const OC_VIDEO_BUFFERS: u8 = 0x05;
 const OC_PLAY_VIDEO: u8 = 0x07;
+const OC_AUDIO_DATA: u8 = 0x08;
 const OC_VIDEO_MODE: u8 = 0x0a;
 const OC_PALETTE: u8 = 0x0c;
 const OC_CODE_MAP: u8 = 0x0f;
 const OC_VIDEO_DATA: u8 = 0x11;
 
 const VIDEO_FLAG_DELTA: u16 = 0x0001;
+const AUDIO_FLAG_STEREO: u16 = 0x0001;
+const AUDIO_FLAG_16BIT: u16 = 0x0002;
+const DEFAULT_AUDIO_STREAM: u16 = 0x0001;
 
 /// Block coding opcodes used by the Phase-5 encoder. See the readme
 /// for what each means and how the chooser picks between them.
@@ -65,6 +73,14 @@ pub enum MveEncodeError {
     NoFrames,
     #[error("a chunk's segment payload exceeds 65535 bytes")]
     ChunkTooBig,
+    #[error("audio sample rate {0} exceeds the format's u16 limit of 65535 Hz")]
+    AudioSampleRateTooHigh(u32),
+    #[error("audio channels must be 1 (mono) or 2 (stereo), got {0}")]
+    AudioChannelsInvalid(u16),
+    #[error(
+        "audio_samples_per_frame length {got} does not match video frame count {expected}"
+    )]
+    AudioFramesMismatch { got: usize, expected: usize },
 }
 
 // ─── public API ──────────────────────────────────────────────────────────────
@@ -80,6 +96,16 @@ pub struct StaticImage {
     /// 256 RGB triples, 8-bit per channel. The encoder quantises to
     /// 6-bit during write (MVE stores `value >> 2` per channel).
     pub palette: Box<[[u8; 3]; 256]>,
+}
+
+/// 16-bit-PCM audio configuration. The encoder always emits raw
+/// (uncompressed) signed 16-bit little-endian samples.
+#[derive(Clone, Copy)]
+pub struct AudioOptions {
+    /// Samples per second. Must be ≤ 65535 (format stores it as u16).
+    pub sample_rate: u32,
+    /// 1 for mono, 2 for stereo. Stereo samples are interleaved L,R,L,R,…
+    pub channels: u16,
 }
 
 /// Multi-frame encode options shared between every frame.
@@ -160,10 +186,26 @@ pub fn encode_static_palette8<W: Write>(
 /// Encode an arbitrary multi-frame video. Each entry in `frames` is a
 /// `width * height`-byte palette-index buffer, row-major. Frames are
 /// independently analysed; unchanged blocks emit `0x0` (skip), and
-/// changed blocks emit the cheapest Phase-2 mode that fits.
+/// changed blocks emit the cheapest mode that fits.
 pub fn encode_video<W: Write>(
     options: &VideoOptions,
     frames: &[&[u8]],
+    name: impl Into<String>,
+    out: &mut W,
+) -> Result<()> {
+    encode_av(options, frames, None, name, out)
+}
+
+/// Encode a multi-frame video with optional 16-bit-PCM audio.
+///
+/// `audio` is `Some((opts, samples_per_frame))` where
+/// `samples_per_frame[i]` are the audio samples bundled into the
+/// chunk for video frame `i`. For stereo, samples are interleaved
+/// L, R, L, R… Length of `samples_per_frame` must equal `frames.len()`.
+pub fn encode_av<W: Write>(
+    options: &VideoOptions,
+    frames: &[&[u8]],
+    audio: Option<(&AudioOptions, &[Vec<i16>])>,
     name: impl Into<String>,
     out: &mut W,
 ) -> Result<()> {
@@ -176,14 +218,22 @@ pub fn encode_video<W: Write>(
         return Err(MveEncodeError::NoFrames);
     }
     let expected = options.width as usize * options.height as usize;
-    for (i, f) in frames.iter().enumerate() {
+    for f in frames.iter() {
         if f.len() != expected {
             return Err(MveEncodeError::PixelBufferSize {
                 got: f.len(),
                 expected,
             });
         }
-        let _ = i;
+    }
+    if let Some((aopts, per_frame)) = audio {
+        validate_audio(aopts)?;
+        if per_frame.len() != frames.len() {
+            return Err(MveEncodeError::AudioFramesMismatch {
+                got: per_frame.len(),
+                expected: frames.len(),
+            });
+        }
     }
 
     let bw = (options.width as usize) >> 3;
@@ -204,8 +254,12 @@ pub fn encode_video<W: Write>(
     )?;
     write_chunk(out, CHUNK_INIT_VIDEO, &init_video)?;
 
-    // ── 3. init audio chunk (empty — Phase-2 still produces silent video)
-    write_chunk(out, CHUNK_INIT_AUDIO, &[])?;
+    // ── 3. init audio chunk (empty if no audio) ──────────────────────────
+    let init_audio = match audio {
+        Some((aopts, _)) => build_init_audio_chunk(aopts)?,
+        None => Vec::new(),
+    };
+    write_chunk(out, CHUNK_INIT_AUDIO, &init_audio)?;
 
     // ── 4. per-frame chunks ──────────────────────────────────────────────
     for (frame_idx, frame_pixels) in frames.iter().enumerate() {
@@ -214,6 +268,7 @@ pub fn encode_video<W: Write>(
         } else {
             Some(frames[frame_idx - 1])
         };
+        let frame_audio = audio.map(|(_, per_frame)| per_frame[frame_idx].as_slice());
         let body = build_frame_chunk(
             frame_pixels,
             prev,
@@ -223,6 +278,8 @@ pub fn encode_video<W: Write>(
             n_blocks,
             frame_idx > 0,
             options.lossy_downsample,
+            frame_audio,
+            frame_idx as u16,
         )?;
         write_chunk(out, CHUNK_FRAME, &body)?;
     }
@@ -251,6 +308,42 @@ fn validate_dims(width: u16, height: u16) -> Result<()> {
         return Err(MveEncodeError::InvalidDimensions { width, height });
     }
     Ok(())
+}
+
+fn validate_audio(audio: &AudioOptions) -> Result<()> {
+    if audio.sample_rate > u16::MAX as u32 {
+        return Err(MveEncodeError::AudioSampleRateTooHigh(audio.sample_rate));
+    }
+    if audio.channels != 1 && audio.channels != 2 {
+        return Err(MveEncodeError::AudioChannelsInvalid(audio.channels));
+    }
+    Ok(())
+}
+
+fn build_init_audio_chunk(audio: &AudioOptions) -> Result<Vec<u8>> {
+    let mut buf = Vec::new();
+
+    // OC_AUDIO_BUFFERS v1 — 10-byte payload:
+    //   u16 reserved, u16 flags, u16 sample_rate, u32 min_buf
+    let mut payload = Vec::with_capacity(10);
+    payload.extend_from_slice(&0u16.to_le_bytes());
+    let mut flags: u16 = AUDIO_FLAG_16BIT;
+    if audio.channels == 2 {
+        flags |= AUDIO_FLAG_STEREO;
+    }
+    payload.extend_from_slice(&flags.to_le_bytes());
+    payload.extend_from_slice(&(audio.sample_rate as u16).to_le_bytes());
+    // Conventional min-buffer hint (mirrors what avi2mve writes); the
+    // decoder reads but ignores the value.
+    payload.extend_from_slice(&0x0001_0000u32.to_le_bytes());
+    write_segment(&mut buf, OC_AUDIO_BUFFERS, 1, &payload);
+
+    write_segment(&mut buf, OC_END_OF_CHUNK, 0, &[]);
+
+    if buf.len() > u16::MAX as usize {
+        return Err(MveEncodeError::ChunkTooBig);
+    }
+    Ok(buf)
 }
 
 fn build_init_video_chunk(
@@ -311,6 +404,8 @@ fn build_frame_chunk(
     n_blocks: usize,
     use_delta: bool,
     lossy_downsample: bool,
+    audio_samples: Option<&[i16]>,
+    seq: u16,
 ) -> Result<Vec<u8>> {
     // Walk every block, decide its mode + payload.
     let height = bh * 8;
@@ -349,6 +444,23 @@ fn build_frame_chunk(
 
     let mut buf = Vec::new();
     write_segment(&mut buf, OC_CODE_MAP, 0, &code_map);
+
+    // OC_AUDIO_DATA (before the video, matching avi2mve's ordering):
+    // 6-byte header + raw i16 LE samples.
+    if let Some(samples) = audio_samples {
+        let audio_bytes = samples.len() * 2;
+        if audio_bytes > u16::MAX as usize - 6 {
+            return Err(MveEncodeError::ChunkTooBig);
+        }
+        let mut audio_payload = Vec::with_capacity(6 + audio_bytes);
+        audio_payload.extend_from_slice(&seq.to_le_bytes());
+        audio_payload.extend_from_slice(&DEFAULT_AUDIO_STREAM.to_le_bytes());
+        audio_payload.extend_from_slice(&(audio_bytes as u16).to_le_bytes());
+        for &s in samples {
+            audio_payload.extend_from_slice(&s.to_le_bytes());
+        }
+        write_segment(&mut buf, OC_AUDIO_DATA, 0, &audio_payload);
+    }
 
     let mut video = Vec::with_capacity(14 + payload.len());
     video.extend_from_slice(&[0u8; 12]);

@@ -2053,6 +2053,8 @@ dependencies = [
 name = "infinitier_mve_encoder"
 version = "0.0.3"
 dependencies = [
+ "hound",
+ "image",
  "infinitier_datasource",
  "infinitier_mve_decoder",
  "log",
