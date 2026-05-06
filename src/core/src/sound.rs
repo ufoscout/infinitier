@@ -35,6 +35,9 @@ pub enum SoundFormat {
     Wav,
     /// Interplay's WAVC: a 28-byte header wrapping an ACM stream.
     Wavc,
+    /// Ogg-encapsulated Vorbis (Enhanced Editions ship these under
+    /// the `.WAV` extension).
+    Ogg,
 }
 
 impl fmt::Display for SoundFormat {
@@ -43,6 +46,7 @@ impl fmt::Display for SoundFormat {
             SoundFormat::Acm => f.write_str("ACM"),
             SoundFormat::Wav => f.write_str("WAV"),
             SoundFormat::Wavc => f.write_str("WAVC"),
+            SoundFormat::Ogg => f.write_str("OGG"),
         }
     }
 }
@@ -72,6 +76,7 @@ impl SoundDecoder {
             SoundDecoder::Wav(d) => match d.format() {
                 WavFormat::Wav => SoundFormat::Wav,
                 WavFormat::Wavc => SoundFormat::Wavc,
+                WavFormat::Ogg => SoundFormat::Ogg,
             },
         }
     }

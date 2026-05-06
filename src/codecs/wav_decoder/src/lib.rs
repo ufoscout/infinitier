@@ -1,10 +1,18 @@
 #![doc = include_str!("../readme.md")]
 
+use std::collections::VecDeque;
 use std::io;
 use std::path::Path;
 
 use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use log::debug;
+use symphonia::core::audio::SampleBuffer;
+use symphonia::core::codecs::{Decoder, DecoderOptions};
+use symphonia::core::errors::Error as SymphoniaError;
+use symphonia::core::formats::{FormatOptions, FormatReader};
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::probe::Hint;
 use thiserror::Error as ThisError;
 
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
@@ -14,7 +22,7 @@ pub type Result<T> = std::result::Result<T, WavError>;
 
 #[derive(Debug, ThisError)]
 pub enum WavError {
-    #[error("not a WAV or WAVC file: unknown magic {0:?}")]
+    #[error("not a WAV / WAVC / OGG file: unknown magic {0:?}")]
     UnknownFormat([u8; 4]),
     #[error(
         "unsupported PCM format: bits_per_sample={bits}, sample_format={fmt:?} (only 16-bit \
@@ -27,6 +35,12 @@ pub enum WavError {
     Wav(#[from] hound::Error),
     #[error("acm decoder error: {0}")]
     Acm(#[from] infinitier_acm_decoder::AcmError),
+    #[error("symphonia error: {0}")]
+    Symphonia(#[from] SymphoniaError),
+    #[error("ogg metadata: {0}")]
+    OggMetadata(&'static str),
+    #[error("ogg stream produced too many samples to fit in u32: {0}")]
+    OggTooLong(u64),
 }
 
 impl From<WavError> for io::Error {
@@ -57,13 +71,19 @@ impl WavInfo {
     }
 }
 
-/// The two `*.WAV` flavours used by Infinity Engine games.
+/// The flavours of `*.WAV` resource shipped by Infinity Engine games.
+///
+/// Note that Enhanced Editions also bundle Ogg/Vorbis streams under the
+/// `.WAV` extension; this variant covers them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WavFormat {
     /// Standard `RIFF`/`WAVE` PCM.
     Wav,
     /// Interplay's WAVC: a 28-byte header wrapping an ACM stream.
     Wavc,
+    /// Ogg-encapsulated Vorbis audio (Enhanced Editions ship these
+    /// under the `.WAV` extension).
+    Ogg,
 }
 
 /// Streaming decoder for the two `*.WAV` flavours used by Infinity Engine
@@ -90,6 +110,79 @@ enum WavInner {
         produced: u32,
     },
     Wavc(AcmDecoder),
+    /// Streaming Ogg/Vorbis decoder via Symphonia. The format reader's
+    /// initial probe seeks to the file's tail and reads the last Ogg
+    /// page's granule_position, so `WavInfo::total_values` is exact
+    /// without decoding the whole stream up-front. Samples are decoded
+    /// packet-by-packet as `read_samples` requests them.
+    Ogg(OggState),
+}
+
+struct OggState {
+    format: Box<dyn FormatReader>,
+    decoder: Box<dyn Decoder>,
+    track_id: u32,
+    /// Decoded samples not yet handed out via `read_samples`.
+    pending: VecDeque<i16>,
+    /// Set once `next_packet` returned a clean end-of-stream so we
+    /// stop polling the format reader on subsequent calls.
+    eos: bool,
+}
+
+impl OggState {
+    fn read_samples(&mut self, out: &mut [i16]) -> Result<usize> {
+        let mut written = 0usize;
+        while written < out.len() {
+            // Fast path: hand out from the pending buffer first.
+            if let Some(s) = self.pending.pop_front() {
+                out[written] = s;
+                written += 1;
+                continue;
+            }
+            if self.eos {
+                break;
+            }
+
+            // Refill the buffer from the next packet.
+            let packet = match self.format.next_packet() {
+                Ok(p) => p,
+                Err(SymphoniaError::IoError(e))
+                    if e.kind() == io::ErrorKind::UnexpectedEof =>
+                {
+                    self.eos = true;
+                    break;
+                }
+                Err(SymphoniaError::ResetRequired) => {
+                    // Chained Vorbis bitstream — not common in BG data.
+                    // Treat as natural EOS for now.
+                    self.eos = true;
+                    break;
+                }
+                Err(e) => return Err(e.into()),
+            };
+            if packet.track_id() != self.track_id {
+                continue;
+            }
+            match self.decoder.decode(&packet) {
+                Ok(decoded) => {
+                    let spec = *decoded.spec();
+                    let cap = decoded.capacity() as u64;
+                    let mut sb = SampleBuffer::<i16>::new(cap, spec);
+                    sb.copy_interleaved_ref(decoded);
+                    for &s in sb.samples() {
+                        self.pending.push_back(s);
+                    }
+                }
+                Err(SymphoniaError::DecodeError(_)) => {
+                    // Bad packet — Symphonia recommends skipping and
+                    // continuing.
+                    continue;
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Ok(written)
+    }
 }
 
 impl std::fmt::Debug for WavDecoder {
@@ -103,12 +196,15 @@ impl std::fmt::Debug for WavDecoder {
 }
 
 impl WavDecoder {
-    /// Open a WAV / WAVC stream from a [`DataSource`]. The first four bytes
-    /// determine the flavour:
+    /// Open a WAV / WAVC / Ogg-Vorbis stream from a [`DataSource`].
+    /// The first four bytes determine the flavour:
     ///
     /// - `RIFF` → standard PCM, decoded via [`hound`];
     /// - `WAVC` → Interplay's ACM-wrapping header, delegated to
-    ///   [`AcmDecoder`] (which skips the 28-byte WAVC header itself).
+    ///   [`AcmDecoder`] (which skips the 28-byte WAVC header itself);
+    /// - `OggS` → Ogg-encapsulated Vorbis, decoded via [`lewton`].
+    ///   Enhanced Edition titles ship Vorbis audio under the `.WAV`
+    ///   extension — we transparently accept that.
     ///
     /// `name` is a caller-supplied label (resource id, file path, …) that
     /// gets prefixed to every log record this decoder emits and is
@@ -118,6 +214,7 @@ impl WavDecoder {
         match datasource.reader()?.read_string(4)?.as_str() {
             "RIFF" => Self::open_riff(datasource, name),
             "WAVC" => Self::open_wavc(datasource, name),
+            "OggS" => Self::open_ogg(datasource, name),
             _ => Err(WavError::UnknownFormat([0; 4])),
         }
     }
@@ -188,6 +285,80 @@ impl WavDecoder {
         })
     }
 
+    fn open_ogg(datasource: &DataSource, name: String) -> Result<Self> {
+        // Symphonia's `MediaSource` requires `Read + Seek + Send +
+        // Sync`. Our `DataTrait` is `Send`-only, so the simplest path
+        // is to read the OGG into memory and feed Symphonia a
+        // `Cursor<Vec<u8>>` (which it has a built-in `MediaSource`
+        // impl for). Game OGGs are typically a few KB to a few MB —
+        // negligible — and Symphonia's Ogg demuxer can still seek
+        // within that buffer to scan the last page on probe, so
+        // `total_values` lands exact without decoding any audio.
+        let mut bytes = Vec::new();
+        datasource.reader()?.read_to_end(&mut bytes)?;
+        let mss = MediaSourceStream::new(
+            Box::new(std::io::Cursor::new(bytes)),
+            Default::default(),
+        );
+
+        let mut hint = Hint::new();
+        hint.with_extension("ogg");
+
+        let probed = symphonia::default::get_probe().format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )?;
+        let format = probed.format;
+
+        let track = format
+            .default_track()
+            .ok_or(WavError::OggMetadata("no default track"))?;
+        let track_id = track.id;
+        let codec_params = track.codec_params.clone();
+
+        let channels = codec_params
+            .channels
+            .map(|c| c.count() as u16)
+            .ok_or(WavError::OggMetadata("missing channel count"))?;
+        let sample_rate = codec_params
+            .sample_rate
+            .ok_or(WavError::OggMetadata("missing sample rate"))?;
+        let frames_per_channel = codec_params.n_frames.unwrap_or(0);
+        let total_values_u64 = frames_per_channel.saturating_mul(channels as u64);
+        let total_values = u32::try_from(total_values_u64)
+            .map_err(|_| WavError::OggTooLong(total_values_u64))?;
+
+        let decoder = symphonia::default::get_codecs()
+            .make(&codec_params, &DecoderOptions::default())?;
+
+        let info = WavInfo {
+            channels,
+            sample_rate,
+            bits_per_sample: 16,
+            total_values,
+        };
+
+        debug!(
+            "[{}] Opened OGG: channels={}, rate={}, bits=16, total_values={}",
+            name, info.channels, info.sample_rate, info.total_values,
+        );
+
+        Ok(Self {
+            info,
+            name,
+            datasource: datasource.clone(),
+            inner: WavInner::Ogg(OggState {
+                format,
+                decoder,
+                track_id,
+                pending: VecDeque::new(),
+                eos: false,
+            }),
+        })
+    }
+
     /// Stream metadata.
     pub fn info(&self) -> &WavInfo {
         &self.info
@@ -204,6 +375,7 @@ impl WavDecoder {
         match &self.inner {
             WavInner::Wav { .. } => WavFormat::Wav,
             WavInner::Wavc { .. } => WavFormat::Wavc,
+            WavInner::Ogg { .. } => WavFormat::Ogg,
         }
     }
 
@@ -238,6 +410,7 @@ impl WavDecoder {
                 Ok(written)
             }
             WavInner::Wavc(dec) => Ok(dec.read_samples(out)?),
+            WavInner::Ogg(state) => Ok(state.read_samples(out)?),
         }
     }
 

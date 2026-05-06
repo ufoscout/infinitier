@@ -15,6 +15,7 @@ hound = { workspace = true }
 infinitier_acm_decoder = { workspace = true }
 infinitier_datasource = { workspace = true }
 log = { workspace = true }
+symphonia = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
