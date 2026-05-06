@@ -71,7 +71,7 @@ impl<const N: usize> From<&[u8; N]> for Data {
     }
 }
 
-pub trait DataTrait: Read + BufRead + Seek + Send {}
+pub trait DataTrait: Read + BufRead + Seek + Send + Sync {}
 
 impl DataTrait for BufReader<File> {}
 impl DataTrait for Cursor<&[u8]> {}

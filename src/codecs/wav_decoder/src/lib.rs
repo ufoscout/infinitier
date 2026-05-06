@@ -1,7 +1,7 @@
 #![doc = include_str!("../readme.md")]
 
 use std::collections::VecDeque;
-use std::io;
+use std::io::{self, Seek, SeekFrom};
 use std::path::Path;
 
 use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
@@ -10,7 +10,7 @@ use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::{Decoder, DecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
 use symphonia::core::formats::{FormatOptions, FormatReader};
-use symphonia::core::io::MediaSourceStream;
+use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use thiserror::Error as ThisError;
@@ -286,20 +286,9 @@ impl WavDecoder {
     }
 
     fn open_ogg(datasource: &DataSource, name: String) -> Result<Self> {
-        // Symphonia's `MediaSource` requires `Read + Seek + Send +
-        // Sync`. Our `DataTrait` is `Send`-only, so the simplest path
-        // is to read the OGG into memory and feed Symphonia a
-        // `Cursor<Vec<u8>>` (which it has a built-in `MediaSource`
-        // impl for). Game OGGs are typically a few KB to a few MB —
-        // negligible — and Symphonia's Ogg demuxer can still seek
-        // within that buffer to scan the last page on probe, so
-        // `total_values` lands exact without decoding any audio.
-        let mut bytes = Vec::new();
-        datasource.reader()?.read_to_end(&mut bytes)?;
-        let mss = MediaSourceStream::new(
-            Box::new(std::io::Cursor::new(bytes)),
-            Default::default(),
-        );
+
+        let media_source = DataTraitMediaSource::new(datasource.reader()?.data)?;
+        let mss = MediaSourceStream::new(Box::new(media_source), Default::default());
 
         let mut hint = Hint::new();
         hint.with_extension("ogg");
@@ -459,6 +448,59 @@ impl WavDecoder {
         let fresh = Self::open(&self.datasource, self.name.clone())?;
         *self = fresh;
         Ok(())
+    }
+}
+
+/// Adaptor that lets a [`Box<dyn DataTrait>`] (the streaming reader our
+/// [`DataSource`] hands out) flow directly into Symphonia's
+/// [`MediaSourceStream`].
+///
+/// `MediaSource` is just `Read + Seek + Send + Sync` plus two
+/// metadata methods. `DataTrait` already promises all four
+/// supertraits, so the [`Read`] / [`Seek`] impls just delegate. The
+/// only tricky bit is `byte_len`, which symphonia uses to seek
+/// directly to the file tail on probe (so the Ogg demuxer can read
+/// the last page's `granule_position` cheaply); `MediaSource::byte_len`
+/// takes `&self`, so we measure it once at construction time and
+/// cache it.
+struct DataTraitMediaSource {
+    inner: Box<dyn DataTrait>,
+    byte_len: Option<u64>,
+}
+
+impl DataTraitMediaSource {
+    fn new(mut inner: Box<dyn DataTrait>) -> io::Result<Self> {
+        // Stash the cursor, seek to end to measure, restore. For a
+        // file this is two `lseek`s; for an in-memory cursor it's
+        // arithmetic on the slice length.
+        let pos = inner.stream_position()?;
+        let len = inner.seek(SeekFrom::End(0))?;
+        inner.seek(SeekFrom::Start(pos))?;
+        Ok(Self {
+            inner,
+            byte_len: Some(len),
+        })
+    }
+}
+
+impl io::Read for DataTraitMediaSource {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.inner.read(buf)
+    }
+}
+
+impl Seek for DataTraitMediaSource {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+        self.inner.seek(pos)
+    }
+}
+
+impl MediaSource for DataTraitMediaSource {
+    fn is_seekable(&self) -> bool {
+        true
+    }
+    fn byte_len(&self) -> Option<u64> {
+        self.byte_len
     }
 }
 
