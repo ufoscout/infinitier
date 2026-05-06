@@ -6,6 +6,9 @@ pub mod acm {
 pub mod mve {
     pub use infinitier_mve_decoder::*;
 }
+pub mod wav {
+    pub use infinitier_wav_decoder::*;
+}
 
 // Common
 pub use infinitier_common::*;

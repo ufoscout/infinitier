@@ -193,6 +193,12 @@ impl WavDecoder {
         &self.info
     }
 
+    /// Caller-supplied label passed at [`open`](Self::open) time — useful
+    /// for logging or surfacing in a UI.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Container flavour the decoder is reading.
     pub fn format(&self) -> WavFormat {
         match &self.inner {

@@ -7,7 +7,6 @@ use log::*;
 
 use crate::state::AppState;
 
-mod acm;
 mod are;
 mod bah;
 mod bam;
@@ -39,6 +38,7 @@ mod png;
 mod pro;
 mod pvrz;
 mod spl;
+mod sound;
 mod sql;
 mod src;
 mod sto;
@@ -51,13 +51,11 @@ mod two_da;
 mod unknown;
 mod vef;
 mod vvc;
-mod wav;
 mod wbm;
 mod wed;
 mod wfx;
 mod wmp;
 
-use acm::AcmViewer;
 use are::AreViewer;
 use bah::BahViewer;
 use bam::BamViewer;
@@ -89,6 +87,7 @@ use png::PngViewer;
 use pro::ProViewer;
 use pvrz::PvrzViewer;
 use spl::SplViewer;
+use sound::SoundViewer;
 use sql::SqlViewer;
 use src::SrcViewer;
 use sto::StoViewer;
@@ -101,7 +100,6 @@ use two_da::TwoDAViewer;
 use unknown::UnknownViewer;
 use vef::VefViewer;
 use vvc::VvcViewer;
-use wav::WavViewer;
 use wbm::WbmViewer;
 use wed::WedViewer;
 use wfx::WfxViewer;
@@ -156,7 +154,7 @@ impl ResourceViewer {
                                 ImportedResource::Pvrz(prvz) => Box::new(PvrzViewer::new(prvz)),
                                 ImportedResource::TwoDA(twoda) => Box::new(TwoDAViewer::new(twoda)),
                                 ImportedResource::Wed(wed) => Box::new(WedViewer::new(wed)),
-                                ImportedResource::Acm(acm) => Box::new(AcmViewer::new(acm)),
+                                ImportedResource::Sound(sd) => Box::new(SoundViewer::new(sd)),
                                 ImportedResource::Are => Box::new(AreViewer::new()),
                                 ImportedResource::Bah => Box::new(BahViewer::new()),
                                 ImportedResource::Bcs => Box::new(BcsViewer::new()),
@@ -192,7 +190,6 @@ impl ResourceViewer {
                                 ImportedResource::Ttf => Box::new(TtfViewer::new()),
                                 ImportedResource::Vef => Box::new(VefViewer::new()),
                                 ImportedResource::Vvc => Box::new(VvcViewer::new()),
-                                ImportedResource::Wav => Box::new(WavViewer::new()),
                                 ImportedResource::Wbm => Box::new(WbmViewer::new()),
                                 ImportedResource::Wfx => Box::new(WfxViewer::new()),
                                 ImportedResource::Wmp => Box::new(WmpViewer::new()),

@@ -274,6 +274,12 @@ impl AcmDecoder {
         Ok(dec)
     }
 
+    /// Caller-supplied label passed at [`open`](Self::open) time — useful
+    /// for logging or surfacing in a UI.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Rewind the decoder to the start of the stream.
     ///
     /// Reopens the original [`DataSource`], re-reads the ACM header, and
@@ -283,7 +289,8 @@ impl AcmDecoder {
     /// output as the very first one — useful for looping playback or for
     /// retrying a partial decode.
     ///
-    /// The previously chosen [`OutputChannels`] override is preserved.
+    /// The previously chosen [`OutputChannels`] override and `name` are
+    /// preserved.
     pub fn reset(&mut self) -> Result<()> {
         self.init()
     }

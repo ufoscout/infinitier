@@ -11,7 +11,10 @@ use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
 use infinitier_key_importer::KeyImporter;
+use infinitier_wav_decoder::WavDecoder;
 use log::{debug, warn};
+
+use crate::sound::SoundDecoder;
 
 pub type ResourceId = usize;
 
@@ -139,7 +142,11 @@ impl GameResource {
                 infinitier_acm_decoder::OutputChannels::Original,
                 &self.name,
             )
-            .map(ImportedResource::Acm)?),
+            .map(SoundDecoder::Acm)
+            .map(ImportedResource::Sound)?),
+            ResourceType::Wav => Ok(WavDecoder::open(ds, &self.name)
+                .map(SoundDecoder::Wav)
+                .map(ImportedResource::Sound)?),
             ResourceType::Bam => BamImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Bam),
@@ -196,7 +203,6 @@ impl GameResource {
             ResourceType::Ttf => Ok(ImportedResource::Ttf),
             ResourceType::Vef => Ok(ImportedResource::Vef),
             ResourceType::Vvc => Ok(ImportedResource::Vvc),
-            ResourceType::Wav => Ok(ImportedResource::Wav),
             ResourceType::Wbm => Ok(ImportedResource::Wbm),
             ResourceType::Wfx => Ok(ImportedResource::Wfx),
             ResourceType::Wmp => Ok(ImportedResource::Wmp),

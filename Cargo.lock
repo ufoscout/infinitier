@@ -1947,6 +1947,7 @@ dependencies = [
  "infinitier_pvr_importer",
  "infinitier_test_utils",
  "infinitier_two_da_importer",
+ "infinitier_wav_decoder",
  "infinitier_wed_importer",
  "log",
 ]

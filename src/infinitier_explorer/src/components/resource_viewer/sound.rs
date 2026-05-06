@@ -2,26 +2,33 @@ use super::ResourceViewerTrait;
 use eframe::egui;
 use infinitier_core::{
     game::{GameResource, ResourceId},
-    resource::acm::{AcmDecoder, AcmInfo},
+    sound::{SoundDecoder, SoundFormat, SoundInfo},
 };
 use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
 use std::num::NonZero;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub struct AcmViewer {
-    info: AcmInfo,
-    /// Decoded interleaved PCM in `f32` (rodio's native sample type), shared
-    /// behind an `Arc` so each Play press can hand the queue a fresh
-    /// position-zero source without re-cloning the entire buffer.
+/// Player for any [`SoundDecoder`] — i.e. ACM, RIFF/WAVE, or WAVC.
+///
+/// The decoder is fully consumed at construction (the entire clip is
+/// pulled through `decode_all` and converted to `f32` PCM), then handed
+/// to a rodio sink behind an `Arc` so that Stop / Play can re-emit a
+/// fresh source from sample 0 without redecoding.
+pub struct SoundViewer {
+    info: SoundInfo,
+    name: String,
+    format: SoundFormat,
+    /// Decoded interleaved PCM in `f32` (rodio's native sample type),
+    /// shared behind an `Arc` so each Play press hands the queue a fresh
+    /// position-zero source without re-cloning the whole buffer.
     samples: Arc<Vec<f32>>,
     duration: Duration,
     /// Audio output, kept on the viewer so playback persists across UI
-    /// frames. `None` if the system has no usable audio device or if
-    /// decoding failed — the player UI degrades gracefully in that case.
+    /// frames. `None` if the system has no usable audio device.
     audio: Option<Audio>,
-    /// Set when decoding the ACM payload failed. Surfaced in the player
-    /// area in lieu of the controls.
+    /// Set when decoding the source failed. Surfaced in the player area
+    /// in lieu of the controls.
     decode_error: Option<String>,
 }
 
@@ -31,10 +38,13 @@ struct Audio {
     sink: Player,
 }
 
-impl AcmViewer {
-    pub fn new(mut acm: AcmDecoder) -> Self {
-        let info = acm.info.clone();
-        let (samples, decode_error) = match acm.decode_all() {
+impl SoundViewer {
+    pub fn new(mut decoder: SoundDecoder) -> Self {
+        let info = decoder.info();
+        let name = decoder.name().to_string();
+        let format = decoder.format();
+
+        let (samples, decode_error) = match decoder.decode_all() {
             Ok(pcm) => {
                 let f32s: Vec<f32> = pcm.into_iter().map(i16_to_f32).collect();
                 (Arc::new(f32s), None)
@@ -47,6 +57,8 @@ impl AcmViewer {
 
         Self {
             info,
+            name,
+            format,
             samples,
             duration,
             audio,
@@ -60,17 +72,17 @@ fn i16_to_f32(s: i16) -> f32 {
     s as f32 / 32768.0
 }
 
-fn compute_duration(info: &AcmInfo) -> Duration {
-    if info.rate == 0 || info.channels == 0 {
+fn compute_duration(info: &SoundInfo) -> Duration {
+    if info.sample_rate == 0 || info.channels == 0 {
         return Duration::ZERO;
     }
-    Duration::from_secs_f64(info.samples() as f64 / info.rate as f64)
+    Duration::from_secs_f64(info.frames() as f64 / info.sample_rate as f64)
 }
 
 fn init_audio() -> Option<Audio> {
     let mut device = DeviceSinkBuilder::open_default_sink().ok()?;
     // Avoid a noisy "device dropped while still streaming" log when the
-    // viewer is replaced — explorer flips between viewers regularly.
+    // viewer is replaced — the explorer flips between viewers regularly.
     device.log_on_drop(false);
     let sink = Player::connect_new(device.mixer());
     sink.pause(); // start paused; user presses Play to begin
@@ -115,9 +127,9 @@ impl Source for PcmSource {
     }
 }
 
-fn make_source(samples: &Arc<Vec<f32>>, info: &AcmInfo, duration: Duration) -> Option<PcmSource> {
-    let channels = NonZero::new(info.channels as u16)?;
-    let sample_rate = NonZero::new(info.rate)?;
+fn make_source(samples: &Arc<Vec<f32>>, info: &SoundInfo, duration: Duration) -> Option<PcmSource> {
+    let channels = NonZero::new(info.channels)?;
+    let sample_rate = NonZero::new(info.sample_rate)?;
     if samples.is_empty() {
         return None;
     }
@@ -130,25 +142,24 @@ fn make_source(samples: &Arc<Vec<f32>>, info: &AcmInfo, duration: Duration) -> O
     })
 }
 
-impl ResourceViewerTrait for AcmViewer {
+impl ResourceViewerTrait for SoundViewer {
     fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
         // ── Bottom info bar ────────────────────────────────────────────────
-        egui::Panel::bottom("acm_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("sound_info_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label(format!("{} Hz", self.info.rate));
+                ui.label(&self.name);
                 ui.separator();
-                ui.label(channels_label(self.info.channels, self.info.acm_channels));
+                ui.label(self.format.to_string());
                 ui.separator();
-                ui.label(format!("{} samples", self.info.samples()));
+                ui.label(format!("{} Hz", self.info.sample_rate));
+                ui.separator();
+                ui.label(format!("{} ch", self.info.channels));
+                ui.separator();
+                ui.label(format!("{}-bit", self.info.bits_per_sample));
+                ui.separator();
+                ui.label(format!("{} samples", self.info.frames()));
                 ui.separator();
                 ui.label(format_duration(self.duration));
-                ui.separator();
-                ui.label(format!("ACM v{}", self.info.acm_version));
-                ui.separator();
-                ui.label(format!(
-                    "{}×{} block",
-                    self.info.acm_rows, self.info.acm_cols
-                ));
             });
         });
 
@@ -166,7 +177,7 @@ impl ResourceViewerTrait for AcmViewer {
             .show_inside(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                     ui.add_space(24.0);
-                    ui.heading("ACM Player");
+                    ui.heading("Sound Player");
                     ui.add_space(16.0);
 
                     if let Some(err) = decode_error {
@@ -202,31 +213,31 @@ impl ResourceViewerTrait for AcmViewer {
                     );
                     ui.add_space(14.0);
 
-                    // ── Transport buttons ──
+                    // ── Transport buttons (single Play/Pause toggle + Stop) ──
                     let is_playing = !audio.sink.is_paused() && !audio.sink.empty();
                     let has_audio = !samples.is_empty();
 
                     ui.horizontal(|ui| {
+                        let label = if is_playing { "⏸  Pause" } else { "▶  Play" };
                         if ui
-                            .add_enabled(has_audio, egui::Button::new("▶  Play"))
+                            .add_enabled(has_audio, egui::Button::new(label))
                             .clicked()
                         {
-                            // The queue empties either at first show or after
-                            // Stop; in both cases re-attach a fresh source so
-                            // playback always resumes (or restarts) from the
-                            // beginning of the clip.
-                            if audio.sink.empty()
-                                && let Some(src) = make_source(samples, info, duration)
-                            {
-                                audio.sink.append(src);
+                            if is_playing {
+                                audio.sink.pause();
+                            } else {
+                                // The queue empties either at first show or
+                                // after Stop; in both cases re-attach a
+                                // fresh source so playback always resumes
+                                // (or restarts) from the beginning of the
+                                // clip.
+                                if audio.sink.empty()
+                                    && let Some(src) = make_source(samples, info, duration)
+                                {
+                                    audio.sink.append(src);
+                                }
+                                audio.sink.play();
                             }
-                            audio.sink.play();
-                        }
-                        if ui
-                            .add_enabled(is_playing, egui::Button::new("⏸  Pause"))
-                            .clicked()
-                        {
-                            audio.sink.pause();
                         }
                         if ui
                             .add_enabled(has_audio, egui::Button::new("⏹  Stop"))
@@ -234,7 +245,7 @@ impl ResourceViewerTrait for AcmViewer {
                         {
                             // Drop the queued source — the next Play will
                             // append a fresh one starting at sample 0,
-                            // matching the AcmDecoder::reset semantics.
+                            // matching SoundDecoder::reset semantics.
                             audio.sink.stop();
                         }
                     });
@@ -255,15 +266,6 @@ fn current_position(audio: &Audio) -> Duration {
         Duration::ZERO
     } else {
         audio.sink.get_pos()
-    }
-}
-
-fn channels_label(channels: u32, native: u32) -> String {
-    if channels == native {
-        format!("{channels} ch")
-    } else {
-        // `OutputChannels` override applied — surface the original count.
-        format!("{channels} ch (native {native})")
     }
 }
 

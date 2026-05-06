@@ -18,6 +18,7 @@ infinitier_fs = { workspace = true }
 # Codecs
 infinitier_acm_decoder = { workspace = true }
 infinitier_mve_decoder = { workspace = true }
+infinitier_wav_decoder = { workspace = true }
 
 # Importers
 infinitier_bam_importer = { workspace = true }
