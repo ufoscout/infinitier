@@ -61,20 +61,48 @@ fn test_decode_wav() {
     assert_eq!(created_wav_hash, wav_hash);
 }
 
+/// Test that can decode OGG files
+#[test]
+fn test_decode_ogg() {
+    let wavc_path = get_assets_path().join("resources/WAV/FIREE05.OGG");
+    let data = DataSource::new(wavc_path);
+    let mut dec = WavDecoder::open(&data, "FIREE05").unwrap();
+
+    assert_eq!(dec.format(), WavFormat::Wav);
+    assert_eq!(
+        dec.info(),
+        &WavInfo {
+            channels: 1,
+            sample_rate: 22050,
+            bits_per_sample: 16,
+            total_values: 115168,
+        }
+    );
+
+    let temp = tempfile::NamedTempFile::new().unwrap();
+    dec.decode_to_file(temp.path()).unwrap();
+
+    let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
+    let wav_hash =
+        Sha256::digest(fs::read(get_assets_path().join("resources/WAV/FIREE05.WAV")).unwrap());
+
+    assert_eq!(created_wav_hash, wav_hash);
+}
+
 #[test]
 fn test_decoded_infos_match() {
     let mut wavc = {
-        let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAVC");
+        let wavc_path = get_assets_path().join("resources/WAV/POQU_22.WAVC");
         let data = DataSource::new(wavc_path);
-        let dec = WavDecoder::open(&data, "1GROMG09.WAVC").unwrap();
+        let dec = WavDecoder::open(&data, "POQU_22.WAVC").unwrap();
         assert_eq!(dec.format(), WavFormat::Wavc);
         dec
     };
 
     let mut wav = {
-        let wav_path = get_assets_path().join("resources/WAV/1GROMG09.WAV");
+        let wav_path = get_assets_path().join("resources/WAV/POQU_22.WAV");
         let data = DataSource::new(wav_path);
-        let dec = WavDecoder::open(&data, "1GROMG09.WAV").unwrap();
+        let dec = WavDecoder::open(&data, "POQU_22.WAV").unwrap();
         assert_eq!(dec.format(), WavFormat::Wav);
         dec
     };
