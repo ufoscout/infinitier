@@ -19,8 +19,6 @@ pub type Result<T> = std::result::Result<T, WavError>;
 pub enum WavError {
     #[error("not a WAV or WAVC file: unknown magic {0:?}")]
     UnknownFormat([u8; 4]),
-    #[error("WAVC header is truncated or malformed")]
-    InvalidWavcHeader,
     #[error(
         "unsupported PCM format: bits_per_sample={bits}, sample_format={fmt:?} (only 16-bit \
          integer PCM is supported)"
@@ -159,33 +157,16 @@ impl WavDecoder {
     }
 
     fn open_wavc(datasource: &DataSource) -> Result<Self> {
-        // Pull the 28-byte WAVC header purely for metadata. AcmDecoder will
-        // reopen the source itself and re-skip the same header — that's fine,
-        // it's 28 bytes.
-        let header = read_header(datasource, 28)?;
-        if header.len() < 28 || &header[..4] != WAVC_MAGIC || &header[4..8] != b"V1.0" {
-            return Err(WavError::InvalidWavcHeader);
-        }
-        let channels = u16::from_le_bytes([header[0x14], header[0x15]]);
-        let bits_per_sample = u16::from_le_bytes([header[0x16], header[0x17]]);
-        let sample_rate = u16::from_le_bytes([header[0x18], header[0x19]]) as u32;
-
+        // AcmDecoder already validates the WAVC header (`'WAVC'`, `'V1.0'`,
+        // 28-byte length) before reading the ACM body, so we don't re-parse
+        // it here. 
         let decoder = AcmDecoder::open(datasource, OutputChannels::Original)?;
         let acm_info = decoder.info.clone();
-
-        // Prefer the ACM-derived rate/channels for actual decoding (the WAVC
-        // header is metadata only), but warn if they disagree.
-        if acm_info.channels as u16 != channels || acm_info.rate != sample_rate {
-            debug!(
-                "WAVC header ({} ch, {} Hz) disagrees with ACM body ({} ch, {} Hz); using ACM body",
-                channels, sample_rate, acm_info.channels, acm_info.rate,
-            );
-        }
 
         let info = WavInfo {
             channels: acm_info.channels as u16,
             sample_rate: acm_info.rate,
-            bits_per_sample,
+            bits_per_sample: acm_info.bits_per_sample(),
             total_values: acm_info.total_values,
         };
 

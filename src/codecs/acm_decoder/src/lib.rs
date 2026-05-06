@@ -141,6 +141,13 @@ impl AcmInfo {
     pub fn samples(&self) -> u32 {
         self.total_values / self.channels
     }
+
+    /// Returns the number of bits per PCM sample.
+    /// This is always 16.
+    pub fn bits_per_sample(&self) -> u16 {
+        16
+    }
+
 }
 
 // ─── Decoder ─────────────────────────────────────────────────────────────────
