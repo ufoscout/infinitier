@@ -1,16 +1,14 @@
 #![doc = include_str!("../readme.md")]
 
-use std::fs::File;
-use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom};
+use std::io;
 use std::path::Path;
-use std::sync::Arc;
 
 use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use log::debug;
 use thiserror::Error as ThisError;
 
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
-use infinitier_datasource::{Data, DataSource};
+use infinitier_datasource::{DataSource, DataTrait, Reader};
 
 const RIFF_MAGIC: &[u8; 4] = b"RIFF";
 const WAVC_MAGIC: &[u8; 4] = b"WAVC";
@@ -47,7 +45,7 @@ impl From<WavError> for io::Error {
 
 /// Stream metadata, mirroring [`infinitier_acm_decoder::AcmInfo`] so callers
 /// can treat both decoders uniformly.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WavInfo {
     pub channels: u16,
     pub sample_rate: u32,
@@ -88,7 +86,7 @@ enum WavInner {
     /// hound-driven RIFF/WAVE reader that owns its underlying file handle
     /// (or in-memory cursor) so the decoder is `'static`.
     Wav {
-        reader: WavReader<Box<dyn Read>>,
+        reader: WavReader<Reader<Box<dyn DataTrait>>>,
         /// Total samples already produced; used to clamp output to the
         /// declared `total_values` if hound reports more.
         produced: u32,
@@ -122,7 +120,7 @@ impl WavDecoder {
     }
 
     fn open_riff(datasource: &DataSource) -> Result<Self> {
-        let reader_box = open_owned_reader(datasource)?;
+        let reader_box = datasource.reader()?;
         let reader = WavReader::new(reader_box)?;
         let spec = reader.spec();
 
@@ -296,63 +294,9 @@ impl WavDecoder {
     }
 }
 
-// ─── DataSource → owned `Read` helpers ────────────────────────────────────────
-
-/// `Arc<Vec<u8>>` doesn't impl `AsRef<[u8]>`, so wrap it for `Cursor`.
-struct SharedBytes(Arc<Vec<u8>>);
-
-impl AsRef<[u8]> for SharedBytes {
-    fn as_ref(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-}
-
-/// Open a `'static` `Box<dyn Read>` over a [`DataSource`] without borrowing
-/// from it — the returned reader either owns a `BufReader<File>` or an
-/// `Arc<Vec<u8>>`-backed `Cursor`.
-fn open_owned_reader(ds: &DataSource) -> io::Result<Box<dyn Read>> {
-    let (data, offset, limit) = match ds {
-        DataSource::Full { data, .. } => (data, 0u64, None),
-        DataSource::Embedded {
-            data,
-            offset,
-            limit,
-            ..
-        } => (data, *offset, *limit),
-    };
-
-    let reader: Box<dyn Read> = match data {
-        Data::Path(path) => {
-            let mut file = BufReader::new(File::open(path)?);
-            file.seek(SeekFrom::Start(offset))?;
-            match limit {
-                Some(l) => Box::new(file.take(l)),
-                None => Box::new(file),
-            }
-        }
-        Data::Generator(generator) => {
-            let mut file = BufReader::new(File::open(generator.path()?)?);
-            file.seek(SeekFrom::Start(offset))?;
-            match limit {
-                Some(l) => Box::new(file.take(l)),
-                None => Box::new(file),
-            }
-        }
-        Data::MemorySource(arc) => {
-            let mut cursor = Cursor::new(SharedBytes(Arc::clone(arc)));
-            cursor.seek(SeekFrom::Start(offset))?;
-            match limit {
-                Some(l) => Box::new(cursor.take(l)),
-                None => Box::new(cursor),
-            }
-        }
-    };
-    Ok(reader)
-}
-
 /// Read the first up-to-`n` bytes of a [`DataSource`] for header sniffing.
 fn read_header(ds: &DataSource, n: usize) -> io::Result<Vec<u8>> {
-    let mut reader = open_owned_reader(ds)?;
+    let mut reader = ds.reader()?;
     let mut buf = vec![0u8; n];
     let mut filled = 0;
     while filled < n {
@@ -392,4 +336,5 @@ mod tests {
         // Two bytes pad to `[W, A, 0, 0]` and miss both magics.
         assert!(matches!(err, WavError::UnknownFormat(_)));
     }
+
 }

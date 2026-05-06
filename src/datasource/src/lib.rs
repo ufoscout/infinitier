@@ -75,15 +75,16 @@ pub trait DataTrait: Read + BufRead + Seek {}
 
 impl DataTrait for BufReader<File> {}
 impl DataTrait for Cursor<&[u8]> {}
+impl DataTrait for Cursor<SharedBytes> {}
 impl<D: DataTrait> DataTrait for Take<D> {}
 
 impl Data {
     /// Returns a reader for the data
-    pub fn data(
+    pub fn reader(
         &self,
         offset: u64,
         limit: Option<u64>,
-    ) -> std::io::Result<Box<dyn DataTrait + '_>> {
+    ) -> std::io::Result<Box<dyn DataTrait>> {
         match self {
             Data::Path(reader) => {
                 let mut data = BufReader::new(File::open(reader)?);
@@ -104,7 +105,7 @@ impl Data {
                 }
             }
             Data::MemorySource(reader) => {
-                let mut data = Cursor::new(reader.as_slice());
+                let mut data = Cursor::new(SharedBytes(reader.clone()));
                 data.seek(std::io::SeekFrom::Start(offset))?;
                 if let Some(limit) = limit {
                     Ok(Box::new(data.take(limit)))
@@ -113,6 +114,15 @@ impl Data {
                 }
             }
         }
+    }
+}
+
+/// `Arc<Vec<u8>>` doesn't impl `AsRef<[u8]>`, so wrap it for `Cursor`.
+struct SharedBytes(Arc<Vec<u8>>);
+
+impl AsRef<[u8]> for SharedBytes {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_slice()
     }
 }
 
@@ -201,10 +211,10 @@ impl DataSource {
     }
 
     /// Creates a data reader
-    pub fn reader(&self) -> std::io::Result<Reader<Box<dyn DataTrait + '_>>> {
+    pub fn reader(&self) -> std::io::Result<Reader<Box<dyn DataTrait>>> {
         match self {
             DataSource::Full { encoding, data } => Ok(Reader {
-                data: data.data(0, None)?,
+                data: data.reader(0, None)?,
                 charset: encoding,
             }),
             DataSource::Embedded {
@@ -213,7 +223,7 @@ impl DataSource {
                 offset,
                 limit,
             } => Ok(Reader {
-                data: data.data(*offset, *limit)?,
+                data: data.reader(*offset, *limit)?,
                 charset: encoding,
             }),
         }
@@ -418,6 +428,12 @@ impl<R: BufRead> Reader<ZlibDecoder<R>> {
             data: std::io::Cursor::new(data),
             charset: self.charset,
         })
+    }
+}
+
+impl<T: Read> Read for Reader<T> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.data.read(buf)
     }
 }
 
