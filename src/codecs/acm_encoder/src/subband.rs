@@ -16,10 +16,6 @@
 //! the `i64` coefficients this filter produces.
 
 #![allow(clippy::needless_range_loop)]
-// The subband filter is exercised only by its unit tests until the
-// encoder pipeline wires it into `encode_pcm_packed`; dead-code
-// analysis would otherwise flag every internal helper.
-#![allow(dead_code)]
 
 /// One per-subband circular FIR queue. Each queue holds `f_len` partial
 /// accumulators (`f64` cells) into which `add_value` smears one input
@@ -102,18 +98,22 @@ impl SubbandCoder {
         self.f_half * self.subbands
     }
 
+    #[cfg(test)]
     pub(crate) fn levels(&self) -> usize {
         self.levels
     }
 
+    #[cfg(test)]
     pub(crate) fn subbands(&self) -> usize {
         self.subbands
     }
 
+    #[cfg(test)]
     pub(crate) fn lp_filter(&self) -> &[f64] {
         &self.lp_filter
     }
 
+    #[cfg(test)]
     pub(crate) fn hp_filter(&self) -> &[f64] {
         &self.hp_filter
     }

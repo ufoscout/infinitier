@@ -56,6 +56,10 @@ pub enum AcmEncodeError {
     SampleRateTooLow(u32),
     #[error("invalid block size {0}: must be in 1..4096 (and even when channels = 2)")]
     InvalidBlockSize(u32),
+    #[error("invalid acm_level {0}: must be in 0..=15")]
+    InvalidAcmLevel(u32),
+    #[error("invalid f_half {0}: must be ≥ 1")]
+    InvalidFHalf(u32),
     #[error("input is empty")]
     EmptyInput,
     #[error("too many samples: {0} (max 4294967295)")]
@@ -265,6 +269,167 @@ pub fn encode_pcm_packed_with_block_size<W: Write>(
 
     bw.finish()?;
     Ok(())
+}
+
+/// Default subband filter half-length used by [`encode_pcm_subband`].
+/// `snd2acm.cpp` uses 11; the resulting filter has `f_len = 21`.
+pub const DEFAULT_F_HALF: u32 = 11;
+
+/// Encode interleaved 16-bit PCM via the **full ACM pipeline** —
+/// forward subband transform (`SubbandCoder`) + per-block quantization
+/// and per-column filler-book packing (`ValuePacker`).
+///
+/// `acm_level` is the pyramid depth (the `levels` field of the C++
+/// header — `1 << acm_level` columns per block, ≤ 15). `acm_rows` is
+/// the row count per block. Together they define a block size of
+/// `acm_rows × (1 << acm_level)` coefficients.
+///
+/// The forward subband transform uses double-precision floats, then
+/// truncates to `i16`. Combined with the lossless GCD quantizer and the
+/// integer inverse transform on the decoder side, the round-trip
+/// preserves the signal up to small filter-rounding noise — typically
+/// a few percent of the i16 range.
+pub fn encode_pcm_subband<W: Write>(
+    samples: &[i16],
+    channels: u32,
+    sample_rate: u32,
+    acm_level: u32,
+    acm_rows: u32,
+    out: &mut W,
+) -> Result<()> {
+    encode_pcm_subband_with_f_half(
+        samples,
+        channels,
+        sample_rate,
+        DEFAULT_F_HALF,
+        acm_level,
+        acm_rows,
+        out,
+    )
+}
+
+/// As [`encode_pcm_subband`] but lets the caller pick the subband
+/// filter's half-length. `f_half = 11` matches the DLTCEP encoder's
+/// default and gives a 21-tap filter.
+pub fn encode_pcm_subband_with_f_half<W: Write>(
+    samples: &[i16],
+    channels: u32,
+    sample_rate: u32,
+    f_half: u32,
+    acm_level: u32,
+    acm_rows: u32,
+    out: &mut W,
+) -> Result<()> {
+    if !(1..=2).contains(&channels) {
+        return Err(AcmEncodeError::InvalidChannels(channels));
+    }
+    if sample_rate < 4096 {
+        return Err(AcmEncodeError::SampleRateTooLow(sample_rate));
+    }
+    if acm_level >= 16 {
+        return Err(AcmEncodeError::InvalidAcmLevel(acm_level));
+    }
+    if f_half == 0 {
+        return Err(AcmEncodeError::InvalidFHalf(f_half));
+    }
+    if acm_rows == 0 || acm_rows >= 4096 {
+        return Err(AcmEncodeError::InvalidBlockSize(acm_rows));
+    }
+    if samples.is_empty() {
+        return Err(AcmEncodeError::EmptyInput);
+    }
+    if samples.len() > u32::MAX as usize {
+        return Err(AcmEncodeError::TooManySamples(samples.len()));
+    }
+
+    let sb_size = 1usize << acm_level;
+    let block_size = acm_rows as usize * sb_size;
+
+    if channels == 2 && block_size % 2 != 0 {
+        // The decoder will silently drop a stereo frame that straddles
+        // a block boundary — refuse the geometry up-front.
+        return Err(AcmEncodeError::InvalidBlockSize(acm_rows));
+    }
+
+    let total_values = samples.len() as u32;
+    let mut bw = BitWriter::new(out);
+
+    // ── ACM file header (matches `struct ACM_Header` from general.h) ─────
+    bw.put_bits(ACM_ID, 24)?;
+    bw.put_bits(1, 8)?;
+    bw.put_bits(total_values & 0xFFFF, 16)?;
+    bw.put_bits(total_values >> 16, 16)?;
+    bw.put_bits(channels, 16)?;
+    bw.put_bits(sample_rate, 16)?;
+    bw.put_bits(acm_level, 4)?;
+    bw.put_bits(acm_rows, 12)?;
+
+    let mut coder = subband::SubbandCoder::new(f_half as usize, acm_level as usize);
+    let mut packer = packer::ValuePacker::new(acm_rows as usize, sb_size, None);
+
+    // Pad with `init_size` zeros so the filter's pyramid latency is
+    // fully consumed and the returned coefficient count equals the
+    // input sample count exactly. Mirrors snd2acm.cpp's
+    // `left_to_filter = samples + coder->get_init_size()`.
+    let init = coder.init_size();
+    let mut input = Vec::with_capacity(samples.len() + init);
+    input.extend_from_slice(samples);
+    input.resize(samples.len() + init, 0);
+
+    let mut coeffs = Vec::<i64>::new();
+    let n_coeffs = coder.filter_data(&input, &mut coeffs);
+
+    // Stream coefficients into row-major blocks; pack each full block,
+    // pad the trailing partial block with zeros.
+    let mut buf = vec![0i16; block_size];
+    let mut bp = 0usize;
+    for i in 0..n_coeffs {
+        // Clamp to i16 — the C++ does the same and counts clipping
+        // events as warnings. Real-world signals only saturate when
+        // the lifting transform amplifies a transient beyond ±32768.
+        let c = coeffs[i].clamp(i16::MIN as i64, i16::MAX as i64) as i16;
+        buf[bp] = c;
+        bp += 1;
+        if bp == block_size {
+            packer.add_block(&buf, &mut bw)?;
+            bp = 0;
+        }
+    }
+    if bp > 0 {
+        for v in &mut buf[bp..] {
+            *v = 0;
+        }
+        packer.add_block(&buf, &mut bw)?;
+    }
+
+    bw.finish()?;
+    Ok(())
+}
+
+/// Encode a 16-bit signed-integer PCM RIFF/WAVE stream into an ACM
+/// bitstream with the full subband + packer pipeline. Picks reasonable
+/// defaults — `f_half = 11`, `acm_level = 7`, `acm_rows = 16` —
+/// matching `snd2acm.cpp`'s defaults.
+pub fn encode_wav_subband<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
+    let mut wav = WavReader::new(reader)?;
+    let spec = wav.spec();
+    if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
+        return Err(AcmEncodeError::UnsupportedPcmFormat {
+            bits: spec.bits_per_sample,
+            fmt: spec.sample_format,
+        });
+    }
+    let samples: Vec<i16> = wav
+        .samples::<i16>()
+        .collect::<std::result::Result<_, _>>()?;
+    encode_pcm_subband(
+        &samples,
+        spec.channels as u32,
+        spec.sample_rate,
+        7,  // acm_level — DLTCEP default
+        16, // acm_rows — DLTCEP default
+        writer,
+    )
 }
 
 #[cfg(test)]
