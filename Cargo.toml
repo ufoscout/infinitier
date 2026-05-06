@@ -5,7 +5,6 @@ members = [
     "src/core",
     "src/datasource",
     "src/infinitier_explorer",
-    "src/mve_player_poc",
     "src/fs",
     "src/test_utils",
     "src/importers/*",
@@ -46,7 +45,7 @@ infinitier_two_da_importer = { path = "src/importers/two_da_importer", version =
 infinitier_wed_importer = { path = "src/importers/wed_importer", version = "0.0.2"  }
 
 bitflags = { version = "2", features = ["serde"] }
-bytesize = "1"
+bytesize = "2"
 clap = { version = "4", features = ["derive"] }
 encoding_rs = "0.8"
 env_logger = "0.11"
