@@ -1351,3 +1351,53 @@ fn raw_fallback_still_fires_for_dense_blocks() {
     let stats = dec.block_mode_stats();
     assert_eq!(stats.video8[0xb], 1, "expected one 0xb block");
 }
+
+// ─── OC_VIDEO_MODE bytes match the official Interplay tools ─────────────────
+
+/// `mcomp.exe` (the official Interplay encoder, 1997 build shipped in
+/// MVETools) and `avi2mve` both write the same 6-byte `OC_VIDEO_MODE`
+/// payload regardless of picture dimensions: `80 02 E0 01 01 01`,
+/// i.e. `width=640, height=480, flags=0x0101`. Real game cutscenes
+/// (PS:T, BG, …) likewise pin the width/height to 640/480. This is
+/// the only known-portable triple — earlier encoders that wrote
+/// `flags=0x0000` cause some stricter players to refuse the file.
+///
+/// This test scans the encoder output for the OC_VIDEO_MODE segment
+/// (opcode 0x0a) and asserts the canonical bytes are present.
+#[test]
+fn oc_video_mode_matches_official_interplay_tools() {
+    let mut buf = Vec::new();
+    // Picture is 320×240 — note OC_VIDEO_MODE must STILL say 640×480
+    // because that's the *display* mode, not the picture size.
+    encode_solid_colour_video(320, 240, [10, 20, 30], 5, 66_667, "vmode", &mut buf).unwrap();
+
+    // Skip the 26-byte signature, then walk chunks → segments looking
+    // for opcode 0x0a.
+    const SIG_LEN: usize = 26;
+    let mut off = SIG_LEN;
+    let mut found = None;
+    'outer: while off + 4 <= buf.len() {
+        let chunk_size = u16::from_le_bytes([buf[off], buf[off + 1]]) as usize;
+        off += 4;
+        let end = off + chunk_size;
+        let mut p = off;
+        while p + 4 <= end {
+            let seg_size = u16::from_le_bytes([buf[p], buf[p + 1]]) as usize;
+            let opcode = buf[p + 2];
+            if opcode == 0x0a {
+                found = Some(buf[p + 4..p + 4 + seg_size].to_vec());
+                break 'outer;
+            }
+            p += 4 + seg_size;
+        }
+        off = end;
+    }
+
+    let payload = found.expect("OC_VIDEO_MODE segment must be present");
+    assert_eq!(
+        payload,
+        vec![0x80, 0x02, 0xE0, 0x01, 0x01, 0x01],
+        "OC_VIDEO_MODE payload must match what mcomp.exe / avi2mve emit \
+         (w=640, h=480, flags=0x0101); got {payload:02x?}"
+    );
+}

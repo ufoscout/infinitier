@@ -7,44 +7,46 @@ use thiserror::Error as ThisError;
 
 mod dpcm;
 mod from_assets;
+mod rgb555;
 pub use from_assets::{encode_from_assets, FromAssetsError, FromAssetsOptions};
+pub use rgb555::{encode_av_rgb555, encode_video_rgb555, pack_rgb555};
 
 // ─── format constants ────────────────────────────────────────────────────────
 
 /// Fixed 24-byte signature (matches `MVE_SIGNATURE_PREFIX` in the
 /// decoder); bytes 24-25 are an arbitrary encoder-version pair that
 /// the decoder ignores.
-const SIGNATURE_24: &[u8] = b"Interplay MVE File\x1a\x00\x1a\x00\x00\x01";
+pub(crate) const SIGNATURE_24: &[u8] = b"Interplay MVE File\x1a\x00\x1a\x00\x00\x01";
 /// Two padding bytes after the 24-byte prefix. Real avi2mve writes
 /// `0x33 0x11` here; any value works.
-const SIGNATURE_TAIL: [u8; 2] = [0x33, 0x11];
+pub(crate) const SIGNATURE_TAIL: [u8; 2] = [0x33, 0x11];
 
 // Chunk type IDs — purely conventional; our decoder doesn't validate
 // them. We pick the same numbers `avi2mve` writes for compatibility
 // with stricter readers (gemrb's MVEPlayer checks them).
-const CHUNK_INIT_VIDEO: u16 = 0x0002;
-const CHUNK_INIT_AUDIO: u16 = 0x0000;
-const CHUNK_FRAME: u16 = 0x0001;
-const CHUNK_END: u16 = 0x0004;
+pub(crate) const CHUNK_INIT_VIDEO: u16 = 0x0002;
+pub(crate) const CHUNK_INIT_AUDIO: u16 = 0x0000;
+pub(crate) const CHUNK_FRAME: u16 = 0x0001;
+pub(crate) const CHUNK_END: u16 = 0x0004;
 
 // Segment opcodes (a.k.a. seg_type), kept in sync with the decoder.
-const OC_END_OF_STREAM: u8 = 0x00;
-const OC_END_OF_CHUNK: u8 = 0x01;
-const OC_CREATE_TIMER: u8 = 0x02;
-const OC_AUDIO_BUFFERS: u8 = 0x03;
-const OC_VIDEO_BUFFERS: u8 = 0x05;
-const OC_PLAY_VIDEO: u8 = 0x07;
-const OC_AUDIO_DATA: u8 = 0x08;
-const OC_VIDEO_MODE: u8 = 0x0a;
+pub(crate) const OC_END_OF_STREAM: u8 = 0x00;
+pub(crate) const OC_END_OF_CHUNK: u8 = 0x01;
+pub(crate) const OC_CREATE_TIMER: u8 = 0x02;
+pub(crate) const OC_AUDIO_BUFFERS: u8 = 0x03;
+pub(crate) const OC_VIDEO_BUFFERS: u8 = 0x05;
+pub(crate) const OC_PLAY_VIDEO: u8 = 0x07;
+pub(crate) const OC_AUDIO_DATA: u8 = 0x08;
+pub(crate) const OC_VIDEO_MODE: u8 = 0x0a;
 const OC_PALETTE: u8 = 0x0c;
-const OC_CODE_MAP: u8 = 0x0f;
-const OC_VIDEO_DATA: u8 = 0x11;
+pub(crate) const OC_CODE_MAP: u8 = 0x0f;
+pub(crate) const OC_VIDEO_DATA: u8 = 0x11;
 
-const VIDEO_FLAG_DELTA: u16 = 0x0001;
-const AUDIO_FLAG_STEREO: u16 = 0x0001;
-const AUDIO_FLAG_16BIT: u16 = 0x0002;
-const AUDIO_FLAG_COMPRESSED: u16 = 0x0004;
-const DEFAULT_AUDIO_STREAM: u16 = 0x0001;
+pub(crate) const VIDEO_FLAG_DELTA: u16 = 0x0001;
+pub(crate) const AUDIO_FLAG_STEREO: u16 = 0x0001;
+pub(crate) const AUDIO_FLAG_16BIT: u16 = 0x0002;
+pub(crate) const AUDIO_FLAG_COMPRESSED: u16 = 0x0004;
+pub(crate) const DEFAULT_AUDIO_STREAM: u16 = 0x0001;
 
 /// Block coding opcodes used by the encoder. See the readme for what
 /// each means and how the chooser picks between them.
@@ -380,11 +382,15 @@ fn build_init_video_chunk(
     timer.extend_from_slice(&1u16.to_le_bytes());
     write_segment(&mut buf, OC_CREATE_TIMER, 0, &timer);
 
-    // OC_VIDEO_MODE — screen mode (matches what avi2mve writes).
+    // OC_VIDEO_MODE describes the *display* mode the player switches
+    // into, not the picture size — the picture size lives in
+    // OC_VIDEO_BUFFERS below. The 640×480 / flags=0x0101 triple is what
+    // both the official Interplay encoder (`mcomp.exe`) and `avi2mve`
+    // emit for every movie regardless of picture dimensions.
     let mut mode = Vec::with_capacity(6);
     mode.extend_from_slice(&640u16.to_le_bytes());
     mode.extend_from_slice(&480u16.to_le_bytes());
-    mode.extend_from_slice(&0u16.to_le_bytes());
+    mode.extend_from_slice(&0x0101u16.to_le_bytes());
     write_segment(&mut buf, OC_VIDEO_MODE, 0, &mode);
 
     // OC_VIDEO_BUFFERS v2 — frame size in 8×8 blocks, 8-bit Palette8.
@@ -1448,7 +1454,7 @@ fn palette_index_4(p: &[u8], v: u8) -> u8 {
 
 // ─── low-level emitters ──────────────────────────────────────────────────────
 
-fn write_segment(out: &mut Vec<u8>, seg_type: u8, version: u8, payload: &[u8]) {
+pub(crate) fn write_segment(out: &mut Vec<u8>, seg_type: u8, version: u8, payload: &[u8]) {
     let size = payload.len() as u16;
     out.extend_from_slice(&size.to_le_bytes());
     out.push(seg_type);
@@ -1456,7 +1462,7 @@ fn write_segment(out: &mut Vec<u8>, seg_type: u8, version: u8, payload: &[u8]) {
     out.extend_from_slice(payload);
 }
 
-fn write_chunk<W: Write>(out: &mut W, chunk_type: u16, body: &[u8]) -> io::Result<()> {
+pub(crate) fn write_chunk<W: Write>(out: &mut W, chunk_type: u16, body: &[u8]) -> io::Result<()> {
     let size = body.len() as u16;
     out.write_all(&size.to_le_bytes())?;
     out.write_all(&chunk_type.to_le_bytes())?;
