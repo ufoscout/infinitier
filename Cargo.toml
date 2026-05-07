@@ -90,3 +90,21 @@ opt-level = 2
 # Set the settings for build scripts and proc-macros.
 [profile.dev.build-override]
 opt-level = 2
+
+# Workspace-member overrides: the `"*"` glob above does *not* match
+# workspace members, so the codec crates would otherwise build at
+# opt-level 0 in dev/test mode. Encoding/decoding is hot CPU code
+# (per-pixel loops, motion search) and is unusably slow unoptimised,
+# so force opt-level 2 here. List per crate — Cargo has no glob
+# selector for workspace members.
+[profile.dev.package.infinitier_acm_decoder]
+opt-level = 2
+[profile.dev.package.infinitier_acm_encoder]
+opt-level = 2
+[profile.dev.package.infinitier_mve_decoder]
+opt-level = 2
+[profile.dev.package.infinitier_mve_encoder]
+opt-level = 2
+[profile.dev.package.infinitier_wav_decoder]
+opt-level = 2
+
