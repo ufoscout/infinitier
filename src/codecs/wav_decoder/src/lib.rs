@@ -245,18 +245,12 @@ impl WavDecoder {
     /// forwarded to the inner [`AcmDecoder`] for WAVC sources.
     pub fn open(datasource: &DataSource, name: impl Into<String>) -> Result<Self> {
         let name = name.into();
-        // Read 4 bytes of magic so the unknown-format error can carry
-        // the actual prefix instead of an all-zero placeholder.
-        // Truncated inputs (< 4 bytes) get padded with zeros, matching
-        // the previous behaviour.
-        let mut magic = [0u8; 4];
-        let mut reader = datasource.reader()?;
-        let _ = reader.data.read(&mut magic)?;
-        match &magic {
+        let magic: ([u8; 4], _) = datasource.reader()?.read_at_most()?;
+        match &magic.0 {
             b"RIFF" => Self::open_riff(datasource, name),
             b"WAVC" => Self::open_wavc(datasource, name),
             b"OggS" => Self::open_ogg(datasource, name),
-            _ => Err(WavError::UnknownFormat(magic)),
+            _ => Err(WavError::UnknownFormat(magic.0)),
         }
     }
 

@@ -12,6 +12,7 @@
 //! parser is usable on its own (e.g. for the IWD2 corpus tests that just
 //! enumerate frame counts and audio metadata).
 
+pub mod audio;
 pub mod bitreader;
 pub mod bundle;
 pub mod container;
@@ -22,6 +23,7 @@ pub mod tables;
 pub mod vlc;
 pub mod video;
 
+pub use audio::AudioDecoder;
 pub use video::{BlockType, Plane, VideoDecoder, VideoFrame};
 
 pub use container::{AudioFlags, AudioTrack, BikHeader, FrameEntry, parse_header};
