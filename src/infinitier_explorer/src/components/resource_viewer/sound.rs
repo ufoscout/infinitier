@@ -95,8 +95,7 @@ impl SoundViewer {
 
         // 2 seconds of interleaved samples, with a small floor so very
         // low-rate fixtures still get a sensible buffer.
-        let capacity =
-            (2 * self.info.sample_rate as usize * self.info.channels as usize).max(8192);
+        let capacity = (2 * self.info.sample_rate as usize * self.info.channels as usize).max(8192);
         let buffer = Arc::new(AudioBuffer::new(capacity));
 
         let handle = {
@@ -160,11 +159,7 @@ impl SoundViewer {
         let Some(playback) = self.playback.as_mut() else {
             return;
         };
-        let sink_empty = self
-            .audio
-            .as_ref()
-            .map(|a| a.sink.empty())
-            .unwrap_or(true);
+        let sink_empty = self.audio.as_ref().map(|a| a.sink.empty()).unwrap_or(true);
         let thread_done = playback
             .handle
             .as_ref()
@@ -269,9 +264,7 @@ fn decoder_loop(buffer: Arc<AudioBuffer>, mut decoder: SoundDecoder) -> SoundDec
         // Park the thread until the queue has room for another chunk.
         {
             let mut q = buffer.queue.lock().unwrap();
-            while q.len() + chunk.len() > buffer.capacity
-                && !buffer.stop.load(Ordering::Acquire)
-            {
+            while q.len() + chunk.len() > buffer.capacity && !buffer.stop.load(Ordering::Acquire) {
                 q = buffer.cond.wait(q).unwrap();
             }
             if buffer.stop.load(Ordering::Acquire) {
@@ -453,7 +446,11 @@ impl ResourceViewerTrait for SoundViewer {
                         egui::vec2(220.0, 0.0),
                         egui::Layout::left_to_right(egui::Align::Center),
                         |ui| {
-                            let label = if is_playing { "⏸  Pause" } else { "▶  Play" };
+                            let label = if is_playing {
+                                "⏸  Pause"
+                            } else {
+                                "▶  Play"
+                            };
                             if ui
                                 .add_enabled(has_audio, egui::Button::new(label))
                                 .clicked()

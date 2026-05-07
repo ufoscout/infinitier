@@ -16,12 +16,12 @@ use infinitier_mve_decoder::{BlockModeStats, MveDecoder, VideoFormat};
 /// indexing in sync with `video.rs::decode_frame8` if those ever
 /// change.
 const MODE_NAMES_8: [&str; 16] = [
-    "0x0 copy_prev_block",         // direct copy from buf2 at same pos
-    "0x1 keep_2_frames_back",      // skip — pixels already from 2 frames ago
-    "0x2 cur_frame_motion_lo",     // current-frame MV, low range
-    "0x3 cur_frame_motion_hi",     // current-frame MV, full range
-    "0x4 prev_frame_motion_a",     // previous-frame MV (style A)
-    "0x5 prev_frame_motion_b",     // previous-frame MV (style B)
+    "0x0 copy_prev_block",     // direct copy from buf2 at same pos
+    "0x1 keep_2_frames_back",  // skip — pixels already from 2 frames ago
+    "0x2 cur_frame_motion_lo", // current-frame MV, low range
+    "0x3 cur_frame_motion_hi", // current-frame MV, full range
+    "0x4 prev_frame_motion_a", // previous-frame MV (style A)
+    "0x5 prev_frame_motion_b", // previous-frame MV (style B)
     "0x6 (reserved)",
     "0x7 delta_pattern",
     "0x8 quad_a",
@@ -34,9 +34,7 @@ const MODE_NAMES_8: [&str; 16] = [
     "0xf raw_pixels",
 ];
 
-fn open_decoder(
-    path: &Path,
-) -> Result<MveDecoder<Box<dyn DataTrait>>, Box<dyn std::error::Error>> {
+fn open_decoder(path: &Path) -> Result<MveDecoder<Box<dyn DataTrait>>, Box<dyn std::error::Error>> {
     let ds = DataSource::new(PathBuf::from(path));
     let reader = ds.reader()?;
     Ok(MveDecoder::new(reader, path.display().to_string())?)
@@ -57,11 +55,11 @@ fn print_histogram(label: &str, format: VideoFormat, stats: &BlockModeStats) {
     } else {
         &stats.video16
     };
-    println!("\n=== {label} ({format:?}, {} frames, {} blocks) ===", stats.frames, stats.blocks);
     println!(
-        "  {:<28} {:>10} {:>8}",
-        "mode", "count", "share"
+        "\n=== {label} ({format:?}, {} frames, {} blocks) ===",
+        stats.frames, stats.blocks
     );
+    println!("  {:<28} {:>10} {:>8}", "mode", "count", "share");
     for (i, &c) in counts.iter().enumerate() {
         if c == 0 {
             continue;

@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use image::{ImageBuffer, Rgb};
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::{MveDecoder, VideoFormat};
-use infinitier_mve_encoder::{encode_from_assets_rgb555, FromAssetsOptions};
+use infinitier_mve_encoder::{FromAssetsOptions, encode_from_assets_rgb555};
 
 /// Convert an 8-bit channel value to what the encode + decode chain
 /// will reconstruct: drop the low 3 bits, then 5→8 expand.

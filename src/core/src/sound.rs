@@ -60,7 +60,6 @@ pub enum SoundDecoder {
 }
 
 impl SoundDecoder {
-
     /// Resource name.
     pub fn name(&self) -> &str {
         match self {

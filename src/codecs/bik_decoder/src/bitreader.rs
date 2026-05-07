@@ -70,7 +70,11 @@ impl<'a> BitReader<'a> {
             buf[..take].copy_from_slice(&self.data[byte_pos..byte_pos + take]);
         }
         let word = u64::from_le_bytes(buf);
-        let mask = if n == 32 { u32::MAX as u64 } else { (1u64 << n) - 1 };
+        let mask = if n == 32 {
+            u32::MAX as u64
+        } else {
+            (1u64 << n) - 1
+        };
         let v = ((word >> bit_off) & mask) as u32;
         Ok(v)
     }

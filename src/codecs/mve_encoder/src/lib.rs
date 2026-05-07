@@ -10,12 +10,10 @@ mod from_assets;
 mod palette_gen;
 mod rgb555;
 pub use from_assets::{
-    encode_from_assets, encode_from_assets_rgb555, FromAssetsError, FromAssetsOptions,
+    FromAssetsError, FromAssetsOptions, encode_from_assets, encode_from_assets_rgb555,
 };
 pub use palette_gen::quantise_to_palette8;
-pub use rgb555::{
-    encode_av_rgb555, encode_video_rgb555, encode_video_rgb555_lossy, pack_rgb555,
-};
+pub use rgb555::{encode_av_rgb555, encode_video_rgb555, encode_video_rgb555_lossy, pack_rgb555};
 
 // ─── format constants ────────────────────────────────────────────────────────
 
@@ -97,9 +95,7 @@ pub enum MveEncodeError {
     AudioSampleRateTooHigh(u32),
     #[error("audio channels must be 1 (mono) or 2 (stereo), got {0}")]
     AudioChannelsInvalid(u16),
-    #[error(
-        "audio_samples_per_frame length {got} does not match video frame count {expected}"
-    )]
+    #[error("audio_samples_per_frame length {got} does not match video frame count {expected}")]
     AudioFramesMismatch { got: usize, expected: usize },
 }
 
@@ -218,8 +214,8 @@ pub fn encode_static_palette8<W: Write>(
         palette: image.palette.clone(),
         lossy_downsample: false,
     };
-    let frames: Vec<&[u8]> = std::iter::repeat_n(image.pixels.as_slice(), frame_count.max(1) as usize)
-        .collect();
+    let frames: Vec<&[u8]> =
+        std::iter::repeat_n(image.pixels.as_slice(), frame_count.max(1) as usize).collect();
     encode_video(&opts, &frames, name, out)
 }
 
@@ -252,7 +248,9 @@ pub fn encode_av<W: Write>(
     let name = name.into();
     validate_dims(options.width, options.height)?;
     if options.frame_duration_us == 0 {
-        return Err(MveEncodeError::InvalidFrameDuration(options.frame_duration_us));
+        return Err(MveEncodeError::InvalidFrameDuration(
+            options.frame_duration_us,
+        ));
     }
     if frames.is_empty() {
         return Err(MveEncodeError::NoFrames);
@@ -686,8 +684,7 @@ fn encode_block(
     //     window for an exact match. Cost: 2 bytes vs 1, but unlocks
     //     wide camera pans.
     if let Some(prev) = prev_full
-        && let Some((dx, dy)) =
-            find_motion_match_extended(curr, prev, stride, height, bx, by)
+        && let Some((dx, dy)) = find_motion_match_extended(curr, prev, stride, height, bx, by)
     {
         out.extend_from_slice(&[dx as u8, dy as u8]);
         return BLOCK_MOTION_PREV_EXT;
@@ -938,10 +935,7 @@ fn build_4x4_fill(block: &Block, out: &mut Vec<u8>) -> bool {
         let mut x = 0;
         while x < 8 {
             let v = block[y][x];
-            if block[y][x + 1] != v
-                || block[y + 1][x] != v
-                || block[y + 1][x + 1] != v
-            {
+            if block[y][x + 1] != v || block[y + 1][x] != v || block[y + 1][x + 1] != v {
                 out.truncate(start);
                 return false;
             }
@@ -964,10 +958,7 @@ fn build_2x2_mask(block: &Block, target_colour: u8) -> Option<u16> {
         let mut x = 0;
         while x < 8 {
             let v = block[y][x];
-            if block[y][x + 1] != v
-                || block[y + 1][x] != v
-                || block[y + 1][x + 1] != v
-            {
+            if block[y][x + 1] != v || block[y + 1][x] != v || block[y + 1][x + 1] != v {
                 return None;
             }
             if v == target_colour {
@@ -1017,10 +1008,7 @@ fn is_2x2_uniform(block: &Block) -> bool {
         let mut x = 0;
         while x < 8 {
             let v = block[y][x];
-            if block[y][x + 1] != v
-                || block[y + 1][x] != v
-                || block[y + 1][x + 1] != v
-            {
+            if block[y][x + 1] != v || block[y + 1][x] != v || block[y + 1][x + 1] != v {
                 return false;
             }
             x += 2;
@@ -1091,7 +1079,9 @@ fn quad_palette_per_1x2_tall(distinct: &[u8]) -> [u8; 4] {
 
 #[inline]
 fn colour_to_index(p: &[u8; 4], colour: u8) -> u32 {
-    p.iter().position(|&v| v == colour).expect("colour must be in p[]") as u32
+    p.iter()
+        .position(|&v| v == colour)
+        .expect("colour must be in p[]") as u32
 }
 
 fn build_0x9_per_2x2(block: &Block, distinct: &[u8], out: &mut Vec<u8>) {
@@ -1293,13 +1283,7 @@ fn build_0x8_horizontal_halves(block: &Block, out: &mut Vec<u8>) -> bool {
 /// Pack the 16 bits of one 4×4 quadrant into two bytes (low-nibble =
 /// first row of the pair, high-nibble = second row). Bit value is
 /// `1` when the source pixel matches `pp1`, else `0`.
-fn build_quadrant_mask_2col(
-    block: &Block,
-    qy: usize,
-    qx: usize,
-    pp0: u8,
-    pp1: u8,
-) -> (u8, u8) {
+fn build_quadrant_mask_2col(block: &Block, qy: usize, qx: usize, pp0: u8, pp1: u8) -> (u8, u8) {
     let mut lo = 0u8;
     let mut hi = 0u8;
     for dy in 0..4 {
@@ -1327,14 +1311,7 @@ fn build_quadrant_mask_2col(
 /// one half-column block (4 bits each, low/high nibble). Horizontal
 /// halves use a different per-row packing handled inline by the
 /// caller.
-fn write_vertical_halves_mask(
-    block: &Block,
-    b: &mut [u8; 8],
-    p0: u8,
-    p1: u8,
-    p2: u8,
-    p3: u8,
-) {
+fn write_vertical_halves_mask(block: &Block, b: &mut [u8; 8], p0: u8, p1: u8, p2: u8, p3: u8) {
     for (y, row) in block.iter().enumerate() {
         for (x, &v) in row.iter().enumerate() {
             let (pp0, pp1) = if x < 4 { (p0, p1) } else { (p2, p3) };
@@ -1569,12 +1546,7 @@ fn build_0xa_horizontal_halves(block: &Block, out: &mut Vec<u8>) -> bool {
 /// Emit a 24-byte 0xa half-split payload (decoder read order: header
 /// `p[0..4] b[0..4]`, then `b[4..8]`, then `p_other[0..4]`, then
 /// `b[8..16]`) by appending into `out`.
-fn emit_0xa_halves(
-    first_pal: &[u8; 4],
-    second_pal: &[u8; 4],
-    b: &[u8; 16],
-    out: &mut Vec<u8>,
-) {
+fn emit_0xa_halves(first_pal: &[u8; 4], second_pal: &[u8; 4], b: &[u8; 16], out: &mut Vec<u8>) {
     out.extend_from_slice(first_pal);
     out.extend_from_slice(&b[0..4]);
     out.extend_from_slice(&b[4..8]);
@@ -1649,8 +1621,8 @@ mod tests {
     #[test]
     fn rejects_non_multiple_of_8() {
         let mut out = Vec::new();
-        let err = encode_solid_colour_video(321, 240, [0, 0, 0], 1, 66_667, "", &mut out)
-            .unwrap_err();
+        let err =
+            encode_solid_colour_video(321, 240, [0, 0, 0], 1, 66_667, "", &mut out).unwrap_err();
         assert!(matches!(err, MveEncodeError::InvalidDimensions { .. }));
     }
 

@@ -63,7 +63,12 @@ fn run_one(entry: &CorpusEntry) -> Result<FileResult, String> {
     let mut yuv_buf: Vec<u8> = Vec::new();
 
     let has_audio = !header.audio_tracks.is_empty();
-    let n = entry.fixture.video.frame_hashes.len().min(header.frames.len());
+    let n = entry
+        .fixture
+        .video
+        .frame_hashes
+        .len()
+        .min(header.frames.len());
 
     let mut bad: Vec<(usize, String)> = Vec::new();
 
@@ -71,12 +76,9 @@ fn run_one(entry: &CorpusEntry) -> Result<FileResult, String> {
         let fr = header.frames[i];
         read_packet(&mut f, fr.pos, fr.size, &mut packet_buf);
         let video_bytes = if has_audio {
-            let aud_len = u32::from_le_bytes([
-                packet_buf[0],
-                packet_buf[1],
-                packet_buf[2],
-                packet_buf[3],
-            ]) as usize;
+            let aud_len =
+                u32::from_le_bytes([packet_buf[0], packet_buf[1], packet_buf[2], packet_buf[3]])
+                    as usize;
             &packet_buf[4 + aud_len..]
         } else {
             &packet_buf[..]

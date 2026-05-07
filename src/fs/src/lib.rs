@@ -95,7 +95,12 @@ impl CaseInsensitiveFS {
     /// The path is matched case insensitively. When `recursive` is
     /// false, only direct children of `path` are returned; otherwise
     /// the whole subtree under `path` is walked.
-    pub fn search_files_by_extension(&self, path: &CaseInsensitivePath, extension: &str, recursive: bool) -> Vec<PathBuf> {
+    pub fn search_files_by_extension(
+        &self,
+        path: &CaseInsensitivePath,
+        extension: &str,
+        recursive: bool,
+    ) -> Vec<PathBuf> {
         let needle = path.path.to_lowercase();
         let mut results = vec![];
         for (key, value) in self.paths.iter() {
@@ -117,9 +122,10 @@ impl CaseInsensitiveFS {
                 continue;
             }
             if let Some(ext) = value.extension()
-                && ext.eq_ignore_ascii_case(extension) {
-                    results.push(value.to_owned());
-                }
+                && ext.eq_ignore_ascii_case(extension)
+            {
+                results.push(value.to_owned());
+            }
         }
         results
     }
@@ -201,7 +207,7 @@ fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) ->
 mod tests {
     use std::fs::File;
 
-use infinitier_test_utils::{
+    use infinitier_test_utils::{
         constants::{BG_RESOURCES_DIR, IWD_RESOURCES_DIR},
         get_assets_path,
     };
@@ -346,22 +352,22 @@ use infinitier_test_utils::{
             File::create(root.join("file1.json")).unwrap();
             File::create(root.join("file2.json")).unwrap();
             File::create(root.join("file1.INI")).unwrap();
-            
+
             // ini/
             let ini_dir = root.join("ini");
             fs::create_dir(&ini_dir).unwrap();
             File::create(ini_dir.join("file1.ini")).unwrap();
             File::create(ini_dir.join("file1.Json")).unwrap();
-            
+
             // inner/
             let inner_dir = root.join("INNER");
             fs::create_dir(&inner_dir).unwrap();
-            
+
             // inner/inner/
             let inner_inner_dir = inner_dir.join("inner");
             fs::create_dir(&inner_inner_dir).unwrap();
             File::create(inner_inner_dir.join("file1.ini")).unwrap();
-            
+
             // inner/file1.json
             File::create(inner_dir.join("file1.json")).unwrap();
         }
@@ -370,8 +376,14 @@ use infinitier_test_utils::{
 
         // Act - recursive - 1
         {
-            let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "".to_owned() }, "json", true);
-        
+            let files = fs.search_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "".to_owned(),
+                },
+                "json",
+                true,
+            );
+
             // Assert
             assert_eq!(files.len(), 4);
             assert!(files.contains(&root.join("file1.json")));
@@ -382,26 +394,44 @@ use infinitier_test_utils::{
 
         // Act - recursive - 2
         {
-            let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "INNER".to_owned() }, "json", true);
-        
+            let files = fs.search_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "INNER".to_owned(),
+                },
+                "json",
+                true,
+            );
+
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("INNER/file1.json")));
         }
 
-                // Act - recursive - 3
+        // Act - recursive - 3
         {
-            let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "INNER".to_owned() }, "ini", true);
-        
+            let files = fs.search_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "INNER".to_owned(),
+                },
+                "ini",
+                true,
+            );
+
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("INNER/inner/file1.ini")));
         }
 
-                        // Act - recursive - 4
+        // Act - recursive - 4
         {
-            let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "INNER/inner".to_owned() }, "ini", true);
-        
+            let files = fs.search_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "INNER/inner".to_owned(),
+                },
+                "ini",
+                true,
+            );
+
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("INNER/inner/file1.ini")));
@@ -409,24 +439,33 @@ use infinitier_test_utils::{
 
         // Act - not recursive - 1
         {
-            let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "".to_owned() }, "json", false);
-        
+            let files = fs.search_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "".to_owned(),
+                },
+                "json",
+                false,
+            );
+
             // Assert
             assert_eq!(files.len(), 2);
             assert!(files.contains(&root.join("file1.json")));
             assert!(files.contains(&root.join("file2.json")));
         }
 
-                // Act - not recursive - 2
+        // Act - not recursive - 2
         {
-            let files = fs.search_files_by_extension(&CaseInsensitivePath { path: "ini".to_owned() }, "json", false);
+            let files = fs.search_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "ini".to_owned(),
+                },
+                "json",
+                false,
+            );
 
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("ini/file1.Json")));
         }
-
     }
-
-
 }

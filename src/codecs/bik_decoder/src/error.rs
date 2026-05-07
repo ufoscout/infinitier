@@ -19,11 +19,7 @@ pub enum BikError {
     },
 
     #[error("invalid frame index entry {index}: next offset {next} <= current offset {cur}")]
-    InvalidFrameIndex {
-        index: usize,
-        cur: u32,
-        next: u32,
-    },
+    InvalidFrameIndex { index: usize, cur: u32, next: u32 },
 
     #[error("unsupported codec variant: {0}")]
     Unsupported(&'static str),

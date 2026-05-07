@@ -493,12 +493,7 @@ impl ValuePacker {
         }
     }
 
-    fn make_k<W: Write>(
-        &self,
-        which: K,
-        col: usize,
-        bw: &mut BitWriter<W>,
-    ) -> io::Result<()> {
+    fn make_k<W: Write>(&self, which: K, col: usize, bw: &mut BitWriter<W>) -> io::Result<()> {
         let desc = &K_DESC[which as usize];
         bw.put_bits(desc.number as u32, 5)?;
 
@@ -506,10 +501,7 @@ impl ValuePacker {
         let mut row = 0usize;
         let mut idx = col;
         while row < self.subblocks {
-            if desc.double_zero
-                && self.pblock[idx] == 0
-                && self.pblock[idx + stride] == 0
-            {
+            if desc.double_zero && self.pblock[idx] == 0 && self.pblock[idx + stride] == 0 {
                 bw.put_bits(0, 1)?;
                 row += 1;
                 idx += stride;

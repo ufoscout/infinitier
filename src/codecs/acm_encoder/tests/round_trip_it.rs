@@ -8,7 +8,6 @@ use infinitier_datasource::DataSource;
 use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path};
 use rand::seq::IndexedRandom;
 
-
 /// Decode a RIFF/WAVE byte buffer into `(samples, spec)` for sample-level
 /// comparison.
 fn read_wav(bytes: &[u8]) -> (Vec<i16>, hound::WavSpec) {
@@ -19,10 +18,7 @@ fn read_wav(bytes: &[u8]) -> (Vec<i16>, hound::WavSpec) {
         hound::SampleFormat::Int,
         "fixture must be integer PCM"
     );
-    assert_eq!(
-        spec.bits_per_sample, 16,
-        "fixture must be 16-bit PCM"
-    );
+    assert_eq!(spec.bits_per_sample, 16, "fixture must be 16-bit PCM");
     let samples: Vec<i16> = reader
         .samples::<i16>()
         .collect::<Result<_, _>>()
@@ -95,16 +91,19 @@ fn check_round_trip(wav_path: &Path, out_root: &Path) {
         );
 
         let rt_path = out_root.join(format!("{stem}.v1.wav"));
-        dec.decode_to_file(&rt_path)
-            .expect("decode round-trip wav");
+        dec.decode_to_file(&rt_path).expect("decode round-trip wav");
 
         let (rt_samples, _) = read_wav(&fs::read(&rt_path).unwrap());
         assert_eq!(
-            rt_samples, orig_samples,
+            rt_samples,
+            orig_samples,
             "encode_wav (v1) must round-trip every sample exactly for {}",
             wav_path.display()
         );
-        eprintln!("    encode_wav: bit-exact round-trip ({} samples)", rt_samples.len());
+        eprintln!(
+            "    encode_wav: bit-exact round-trip ({} samples)",
+            rt_samples.len()
+        );
     }
 
     // ── 2. encode_wav_subband (subband + packer) ───────────────────────
@@ -135,8 +134,7 @@ fn check_round_trip(wav_path: &Path, out_root: &Path) {
         );
 
         let rt_path = out_root.join(format!("{stem}.subband.wav"));
-        dec.decode_to_file(&rt_path)
-            .expect("decode round-trip wav");
+        dec.decode_to_file(&rt_path).expect("decode round-trip wav");
 
         let (rt_samples, _) = read_wav(&fs::read(&rt_path).unwrap());
         let (max_abs, rms) = diff_stats(&orig_samples, &rt_samples);
@@ -145,9 +143,7 @@ fn check_round_trip(wav_path: &Path, out_root: &Path) {
             .map(|s| s.unsigned_abs() as i32)
             .max()
             .unwrap_or(1);
-        eprintln!(
-            "    encode_wav_subband: max_abs={max_abs} rms={rms:.2} peak_orig={peak_orig}",
-        );
+        eprintln!("    encode_wav_subband: max_abs={max_abs} rms={rms:.2} peak_orig={peak_orig}",);
 
         // Subband is lossy by construction. Verify the round-trip
         // didn't produce nonsense — we just rule out total
@@ -174,7 +170,7 @@ fn round_trip_random_wavs_via_encoders() {
 
     let mut rng = rand::rng();
     let picks: Vec<&PathBuf> = all_wavs.choose_multiple(&mut rng, 3).collect();
-    
+
     assert!(!picks.is_empty());
 
     for wav_path in picks {

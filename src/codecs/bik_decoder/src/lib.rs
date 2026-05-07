@@ -11,8 +11,8 @@ pub mod error;
 pub mod fft;
 pub mod rdft;
 pub mod tables;
-pub mod vlc;
 pub mod video;
+pub mod vlc;
 
 pub use audio::AudioDecoder;
 pub use video::{BlockType, Plane, VideoDecoder, VideoFrame};

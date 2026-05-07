@@ -189,7 +189,11 @@ fn non_uniform_pan_uses_motion() {
     let blue = pack_rgb555(0, 0, 0xff);
     let mut pattern = [0u16; 64];
     for (i, slot) in pattern.iter_mut().enumerate() {
-        *slot = pack_rgb555((i * 4) as u8, ((i * 7) & 0xff) as u8, ((i * 3) & 0xff) as u8);
+        *slot = pack_rgb555(
+            (i * 4) as u8,
+            ((i * 7) & 0xff) as u8,
+            ((i * 3) & 0xff) as u8,
+        );
     }
     let mut f0 = vec![blue; 16 * 8];
     let mut f1 = vec![blue; 16 * 8];
@@ -277,10 +281,7 @@ fn init_chunk_emits_hicolor_signals() {
     let format_flag = u16::from_le_bytes([vb[6], vb[7]]);
     assert_eq!(format_flag, 1, "format_flag must be 1 to select RGB555");
 
-    assert!(
-        !palette_seen,
-        "OC_PALETTE must be absent in HiColor output"
-    );
+    assert!(!palette_seen, "OC_PALETTE must be absent in HiColor output");
 }
 
 // ─── helpers for mode-specific tests ────────────────────────────────────────

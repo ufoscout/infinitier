@@ -113,11 +113,7 @@ impl Bundles {
 /// * Otherwise read the 13-bit count. `t == 0` flips the bundle to
 ///   exhausted (caller's later rows are no-ops) and returns.
 /// * Otherwise drain `t` values from the stream into the data buffer.
-pub fn read_bundle(
-    r: &mut BitReader<'_>,
-    bundle: &mut Bundle,
-    kind: BinkbSource,
-) -> BikResult<()> {
+pub fn read_bundle(r: &mut BitReader<'_>, bundle: &mut Bundle, kind: BinkbSource) -> BikResult<()> {
     let kind_idx = kind as usize;
     let bits = BUNDLE_SIZES[kind_idx] as u32;
     let signed = BUNDLE_SIGNED[kind_idx];
@@ -313,9 +309,7 @@ pub fn decode_plane(
                     )?;
                 }
                 4 => {
-                    decode_inter_block(
-                        r, plane, dst_off, stride, bundles, ybias, bx, by, bw, bh,
-                    )?;
+                    decode_inter_block(r, plane, dst_off, stride, bundles, ybias, bx, by, bw, bh)?;
                 }
                 5 => {
                     let v = read_u8(&mut bundles.b[BinkbSource::Colors as usize]);
@@ -361,12 +355,7 @@ fn fill_block_8(plane: &mut Plane, dst_off: usize, stride: usize, v: u8) {
     }
 }
 
-fn decode_pattern_block(
-    plane: &mut Plane,
-    dst_off: usize,
-    stride: usize,
-    bundles: &mut Bundles,
-) {
+fn decode_pattern_block(plane: &mut Plane, dst_off: usize, stride: usize, bundles: &mut Bundles) {
     let c0 = read_u8(&mut bundles.b[BinkbSource::Colors as usize]);
     let c1 = read_u8(&mut bundles.b[BinkbSource::Colors as usize]);
     let cols = [c0, c1];
@@ -546,8 +535,7 @@ fn motion_compensate(
     // proceed to add their residue / DCT coeffs on top.
     let ref_off = src_y as i64 * stride as i64 + src_x as i64;
     let ref_start: i64 = 0;
-    let ref_end: i64 =
-        ((bh - 1) as i64 * stride as i64 + bw as i64 - 1) * 8;
+    let ref_end: i64 = ((bh - 1) as i64 * stride as i64 + bw as i64 - 1) * 8;
     if ref_off < ref_start || ref_off > ref_end {
         // Mirrors FFmpeg's `av_log(... AV_LOG_WARNING ...)` path: no copy,
         // dst untouched, no error.

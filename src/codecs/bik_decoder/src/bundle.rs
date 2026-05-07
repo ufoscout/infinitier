@@ -290,12 +290,7 @@ pub fn read_tree(r: &mut BitReader<'_>) -> BikResult<Tree> {
 
 /// Merge two consecutive lists of equal size based on bits read.
 /// Mirrors `merge` in bink.c — used by the recursive-merge tree decoder.
-fn merge(
-    r: &mut BitReader<'_>,
-    src: &[u8],
-    dst: &mut [u8],
-    size: usize,
-) -> BikResult<()> {
+fn merge(r: &mut BitReader<'_>, src: &[u8], dst: &mut [u8], size: usize) -> BikResult<()> {
     let mut i = 0usize; // src index in [0..size)
     let mut j = size; // src index in [size..2*size)
     let mut k = 0usize; // dst index
@@ -408,11 +403,7 @@ pub fn read_motion_values(r: &mut BitReader<'_>, b: &mut Bundle) -> BikResult<()
 /// repeats of the last "real" symbol with run lengths from `RLE_LENS`.
 const RLE_LENS: [u8; 4] = [4, 8, 12, 32];
 
-pub fn read_block_types(
-    r: &mut BitReader<'_>,
-    b: &mut Bundle,
-    count_xor: u32,
-) -> BikResult<()> {
+pub fn read_block_types(r: &mut BitReader<'_>, b: &mut Bundle, count_xor: u32) -> BikResult<()> {
     let Some(mut t) = check_read_val(r, b)? else {
         return Ok(());
     };
@@ -537,7 +528,10 @@ pub fn read_dcs(
         return Ok(());
     };
     let cur_dec = b.cur_dec.unwrap();
-    debug_assert!(cur_dec.is_multiple_of(2), "DC bundle cursor must be i16-aligned");
+    debug_assert!(
+        cur_dec.is_multiple_of(2),
+        "DC bundle cursor must be i16-aligned"
+    );
 
     let bits_first = start_bits - if has_sign { 1 } else { 0 };
     if r.bits_left() < bits_first as isize {
@@ -628,7 +622,10 @@ mod tests {
         let mut r = BitReader::new(&buf);
         let t = read_tree(&mut r).unwrap();
         assert_eq!(t.vlc_num, 0);
-        assert_eq!(t.syms, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+        assert_eq!(
+            t.syms,
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        );
     }
 
     #[test]
@@ -636,12 +633,12 @@ mod tests {
         // vlc_num=1, mode-bit=1, len=2 (3 distinct entries: 5, 9, 2),
         // then auto-fill the rest in order.
         let buf = pack(&[
-            (1, 4),  // vlc_num
-            (1, 1),  // mode = distinct list
-            (2, 3),  // len = 2 -> entries [0..=2]
-            (5, 4),  // syms[0] = 5
-            (9, 4),  // syms[1] = 9
-            (2, 4),  // syms[2] = 2
+            (1, 4), // vlc_num
+            (1, 1), // mode = distinct list
+            (2, 3), // len = 2 -> entries [0..=2]
+            (5, 4), // syms[0] = 5
+            (9, 4), // syms[1] = 9
+            (2, 4), // syms[2] = 2
         ]);
         let mut r = BitReader::new(&buf);
         let t = read_tree(&mut r).unwrap();
@@ -660,9 +657,9 @@ mod tests {
         // Set tree to identity.
         b.tree = Tree::default();
         let buf = pack(&[
-            (5, 4),  // count
-            (1, 1),  // RLE flag
-            (7, 4),  // value
+            (5, 4), // count
+            (1, 1), // RLE flag
+            (7, 4), // value
         ]);
         let mut r = BitReader::new(&buf);
         read_runs(&mut r, &mut b).unwrap();
@@ -678,8 +675,8 @@ mod tests {
         b.len = 4;
         b.tree = Tree::default();
         let buf = pack(&[
-            (4, 4),   // count
-            (0, 1),   // huff path
+            (4, 4), // count
+            (0, 1), // huff path
             (1, 4),
             (2, 4),
             (3, 4),
@@ -701,13 +698,13 @@ mod tests {
         b.len = 4;
         b.tree = Tree::default();
         let buf = pack(&[
-            (8, 4),   // count
-            (0, 1),   // huff path
-            (3, 4),   // sym=3 (literal)
-            (12, 4),  // sym=12 (run of 4 of last=3)
-            (5, 4),   // sym=5
-            (7, 4),   // sym=7
-            (9, 4),   // sym=9
+            (8, 4),  // count
+            (0, 1),  // huff path
+            (3, 4),  // sym=3 (literal)
+            (12, 4), // sym=12 (run of 4 of last=3)
+            (5, 4),  // sym=5
+            (7, 4),  // sym=7
+            (9, 4),  // sym=9
         ]);
         let mut r = BitReader::new(&buf);
         read_block_types(&mut r, &mut b, 0).unwrap();

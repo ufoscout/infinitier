@@ -16,7 +16,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use infinitier_mve_encoder::{encode_video, VideoOptions};
+use infinitier_mve_encoder::{VideoOptions, encode_video};
 
 /// Per-frame palette header in `-f rawvideo -pix_fmt pal8` output:
 /// 256 RGBA entries = 1024 bytes prepended before each frame's indices.
@@ -165,7 +165,11 @@ fn encode_one(input: &Path, output: &Path) -> Result<(), Box<dyn Error>> {
         output.display(),
         in_size,
         out_size,
-        if lossy { ", lossy 2x2 downsample fallback" } else { "" },
+        if lossy {
+            ", lossy 2x2 downsample fallback"
+        } else {
+            ""
+        },
     );
     Ok(())
 }

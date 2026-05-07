@@ -18,11 +18,9 @@ use crate::common::corpus;
 fn corpus_headers_match_fixtures() {
     let entries = corpus();
     for entry in &entries {
-        let mut f = File::open(&entry.bik_path).unwrap_or_else(|e| {
-            panic!("open {}: {}", entry.bik_path.display(), e)
-        });
-        let h = parse_header(&mut f)
-            .unwrap_or_else(|e| panic!("parse {}: {}", entry.label(), e));
+        let mut f = File::open(&entry.bik_path)
+            .unwrap_or_else(|e| panic!("open {}: {}", entry.bik_path.display(), e));
+        let h = parse_header(&mut f).unwrap_or_else(|e| panic!("parse {}: {}", entry.label(), e));
 
         let expected = &entry.fixture.video;
         assert_eq!(h.width, expected.width, "{}: width", entry.label());

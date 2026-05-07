@@ -45,11 +45,11 @@
 use std::io::Write;
 
 use crate::{
-    AudioOptions, MveEncodeError, Result, write_chunk, write_segment,
-    AUDIO_FLAG_16BIT, AUDIO_FLAG_COMPRESSED, AUDIO_FLAG_STEREO, CHUNK_END, CHUNK_FRAME,
-    CHUNK_INIT_AUDIO, CHUNK_INIT_VIDEO, DEFAULT_AUDIO_STREAM, OC_AUDIO_BUFFERS, OC_AUDIO_DATA,
-    OC_CODE_MAP, OC_END_OF_CHUNK, OC_END_OF_STREAM, OC_PLAY_VIDEO, OC_VIDEO_DATA,
-    SIGNATURE_24, SIGNATURE_TAIL, VIDEO_FLAG_DELTA, dpcm,
+    AUDIO_FLAG_16BIT, AUDIO_FLAG_COMPRESSED, AUDIO_FLAG_STEREO, AudioOptions, CHUNK_END,
+    CHUNK_FRAME, CHUNK_INIT_AUDIO, CHUNK_INIT_VIDEO, DEFAULT_AUDIO_STREAM, MveEncodeError,
+    OC_AUDIO_BUFFERS, OC_AUDIO_DATA, OC_CODE_MAP, OC_END_OF_CHUNK, OC_END_OF_STREAM, OC_PLAY_VIDEO,
+    OC_VIDEO_DATA, Result, SIGNATURE_24, SIGNATURE_TAIL, VIDEO_FLAG_DELTA, dpcm, write_chunk,
+    write_segment,
 };
 
 // ─── public API ──────────────────────────────────────────────────────────────
@@ -189,8 +189,7 @@ pub fn encode_av_rgb555<W: Write>(
         } else {
             Some(frames[frame_idx - 1])
         };
-        let frame_audio =
-            audio.map(|(aopts, per_frame)| (*aopts, per_frame[frame_idx].as_slice()));
+        let frame_audio = audio.map(|(aopts, per_frame)| (*aopts, per_frame[frame_idx].as_slice()));
         let body = build_frame_chunk_rgb555(
             frame_pixels,
             prev,
@@ -440,9 +439,7 @@ fn encode_block_rgb555(
     }
 
     // 6/7. 2-colour per-row, 3-4 colour per-2×2.
-    if bit15_safe
-        && let Some(d) = distinct.as_deref()
-    {
+    if bit15_safe && let Some(d) = distinct.as_deref() {
         if d.len() <= 2 && build_0x7_per_row(curr, color_out) {
             return OPC_2COLOR;
         }
@@ -847,7 +844,9 @@ fn pad_to_4(distinct: &[u16]) -> [u16; 4] {
 
 #[inline]
 fn idx_in(p: &[u16; 4], v: u16) -> u32 {
-    p.iter().position(|&c| c == v).expect("colour must be in palette") as u32
+    p.iter()
+        .position(|&c| c == v)
+        .expect("colour must be in palette") as u32
 }
 
 fn build_0x9_per_2x2(curr: &Block16, distinct: &[u16], out: &mut Vec<u8>) {
@@ -954,9 +953,9 @@ fn build_0x8_per_quadrant(curr: &Block16, out: &mut Vec<u8>) -> bool {
     // Each 4×4 quadrant must have ≤ 2 distinct colours.
     let quads = [
         ((0usize, 0usize), 0usize), // TL → slots 0,1
-        ((4, 0), 2),                 // BL → slots 2,3
-        ((0, 4), 4),                 // TR → slots 4,5
-        ((4, 4), 6),                 // BR → slots 6,7
+        ((4, 0), 2),                // BL → slots 2,3
+        ((0, 4), 4),                // TR → slots 4,5
+        ((4, 4), 6),                // BR → slots 6,7
     ];
     let mut p = [0u16; 8];
     let mut b = [0u8; 8];
@@ -1078,14 +1077,7 @@ fn build_0x8_horizontal_halves(curr: &Block16, out: &mut Vec<u8>) -> bool {
 /// decoder reuses the `pack_flags_8` packing so each byte carries two
 /// 4-pixel half-rows in low/high nibble; bytes 0-3 cover the left
 /// half (x<4), bytes 4-7 cover the right half (x≥4).
-fn write_vertical_halves_mask(
-    curr: &Block16,
-    b: &mut [u8; 8],
-    p0: u16,
-    p1: u16,
-    p2: u16,
-    p3: u16,
-) {
+fn write_vertical_halves_mask(curr: &Block16, b: &mut [u8; 8], p0: u16, p1: u16, p2: u16, p3: u16) {
     for (y, row) in curr.iter().enumerate() {
         for (x, &v) in row.iter().enumerate() {
             let (pp0, pp1) = if x < 4 { (p0, p1) } else { (p2, p3) };
@@ -1117,10 +1109,10 @@ fn write_vertical_halves_mask(
 
 fn build_0xa_per_quadrant(curr: &Block16, out: &mut Vec<u8>) -> bool {
     let quads = [
-        ((0usize, 0usize), 0usize),  // TL → palette slots 0..4, mask bytes 0..4
-        ((4, 0), 4),                  // BL → 4..8, 4..8
-        ((0, 4), 8),                  // TR → 8..12, 8..12
-        ((4, 4), 12),                 // BR → 12..16, 12..16
+        ((0usize, 0usize), 0usize), // TL → palette slots 0..4, mask bytes 0..4
+        ((4, 0), 4),                // BL → 4..8, 4..8
+        ((0, 4), 8),                // TR → 8..12, 8..12
+        ((4, 4), 12),               // BR → 12..16, 12..16
     ];
     let mut p = [0u16; 16];
     let mut b = [0u8; 16];

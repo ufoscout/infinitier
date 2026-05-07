@@ -20,7 +20,7 @@ use hound::WavReader;
 use image::ImageReader;
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::MveDecoder;
-use infinitier_mve_encoder::{encode_from_assets, FromAssetsOptions};
+use infinitier_mve_encoder::{FromAssetsOptions, encode_from_assets};
 use infinitier_test_utils::{get_assets_path, get_target_path};
 
 #[test]
@@ -65,7 +65,10 @@ fn round_trip_every_asset_folder() {
 
         verify_video(&png_paths, &mve_path, lossy);
         verify_audio(&wav_path, &mve_path);
-        eprintln!("OK {name} ({} bytes)", fs::metadata(&mve_path).unwrap().len());
+        eprintln!(
+            "OK {name} ({} bytes)",
+            fs::metadata(&mve_path).unwrap().len()
+        );
     }
 }
 
@@ -108,7 +111,8 @@ fn verify_video(png_paths: &[PathBuf], mve_path: &Path, lossy: bool) {
             .next_frame()
             .unwrap()
             .unwrap_or_else(|| panic!("decoder ran out at frame {i}"));
-        let expected_rgb = ImageReader::open(png).map(|r| r.with_guessed_format().unwrap())
+        let expected_rgb = ImageReader::open(png)
+            .map(|r| r.with_guessed_format().unwrap())
             .unwrap()
             .decode()
             .unwrap()
@@ -195,11 +199,13 @@ fn verify_audio(wav_path: &Path, mve_path: &Path) {
             decoded_sample_rate.get_or_insert(chunk.sample_rate);
             decoded_channels.get_or_insert(chunk.channels);
             assert_eq!(
-                decoded_sample_rate, Some(chunk.sample_rate),
+                decoded_sample_rate,
+                Some(chunk.sample_rate),
                 "audio chunk sample-rate changed mid-stream"
             );
             assert_eq!(
-                decoded_channels, Some(chunk.channels),
+                decoded_channels,
+                Some(chunk.channels),
                 "audio chunk channels changed mid-stream"
             );
             decoded.extend_from_slice(&chunk.samples);

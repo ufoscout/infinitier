@@ -68,7 +68,11 @@ impl SubbandCoder {
         let f_len = (f_half << 1) - 1;
         // The original code's `(1 << levels) - 1`. For `levels = 0` we
         // skip the transform entirely (filter_data is a passthrough).
-        let subbands = if levels == 0 { 0 } else { (1usize << levels) - 1 };
+        let subbands = if levels == 0 {
+            0
+        } else {
+            (1usize << levels) - 1
+        };
 
         let mut sc = Self {
             f_half,
@@ -455,11 +459,7 @@ mod tests {
         // the coarsest (low-pass) subband.
         let coarse = n / 16;
         let coarse_max: i64 = out[..coarse].iter().map(|v| v.abs()).max().unwrap_or(0);
-        let detail_max: i64 = out[coarse..n]
-            .iter()
-            .map(|v| v.abs())
-            .max()
-            .unwrap_or(0);
+        let detail_max: i64 = out[coarse..n].iter().map(|v| v.abs()).max().unwrap_or(0);
 
         // The coarsest subband should hold the bulk of the DC energy.
         assert!(

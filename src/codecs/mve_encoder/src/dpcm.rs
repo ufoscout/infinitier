@@ -103,15 +103,19 @@ mod tests {
                 break;
             }
             let raw = u16::from_le_bytes([data[pos], data[pos + 1]]) as i32;
-            let signed = if raw & 0x8000 != 0 { raw - 0x10000 } else { raw };
+            let signed = if raw & 0x8000 != 0 {
+                raw - 0x10000
+            } else {
+                raw
+            };
             *slot = signed;
             out.push(signed as i16);
             pos += 2;
         }
         let mut ch = 0usize;
         while pos < data.len() {
-            predictor[ch] = (predictor[ch] + DELTA_TABLE[data[pos] as usize] as i32)
-                .clamp(-32768, 32767);
+            predictor[ch] =
+                (predictor[ch] + DELTA_TABLE[data[pos] as usize] as i32).clamp(-32768, 32767);
             out.push(predictor[ch] as i16);
             pos += 1;
             if channels > 1 {
@@ -132,7 +136,10 @@ mod tests {
                 max = e;
             }
         }
-        (((sum + src.len() as u64 / 2) / src.len() as u64) as u32, max)
+        (
+            ((sum + src.len() as u64 / 2) / src.len() as u64) as u32,
+            max,
+        )
     }
 
     #[test]

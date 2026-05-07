@@ -24,8 +24,8 @@ use image::ImageReader;
 use thiserror::Error;
 
 use crate::{
-    encode_av, encode_av_rgb555, pack_rgb555, palette_gen::quantise_to_palette8, AudioOptions,
-    MveEncodeError, VideoOptions,
+    AudioOptions, MveEncodeError, VideoOptions, encode_av, encode_av_rgb555, pack_rgb555,
+    palette_gen::quantise_to_palette8,
 };
 
 #[derive(Debug, Error)]
@@ -55,9 +55,7 @@ pub enum FromAssetsError {
         exp_w: u32,
         exp_h: u32,
     },
-    #[error(
-        "wav has {bits}-bit samples; encoder requires 16-bit PCM"
-    )]
+    #[error("wav has {bits}-bit samples; encoder requires 16-bit PCM")]
     UnsupportedWavBitDepth { bits: u16 },
     #[error(
         "the frames contain more than 256 unique RGB colours \

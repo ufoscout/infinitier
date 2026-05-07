@@ -51,7 +51,10 @@ impl Vlc {
             table.iter().all(|&(_, l)| l > 0),
             "Bink VLC table is not complete after build"
         );
-        Self { table, bits: maxbits }
+        Self {
+            table,
+            bits: maxbits,
+        }
     }
 
     /// Read one symbol from `r` using this tree.

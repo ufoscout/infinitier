@@ -117,7 +117,13 @@ fn wavc_stereo_round_trips() {
     // Stereo input — verify the WAVC header records `channels = 2` and
     // the decoder gives back interleaved samples.
     let pcm: Vec<i16> = (0..2048)
-        .map(|i| if i % 2 == 0 { (i as i16) * 5 } else { -(i as i16) * 3 })
+        .map(|i| {
+            if i % 2 == 0 {
+                (i as i16) * 5
+            } else {
+                -(i as i16) * 3
+            }
+        })
         .collect();
     let mut bytes = Vec::new();
     encode_pcm_packed_wavc(&pcm, 2, 22050, &mut bytes).unwrap();
@@ -219,15 +225,16 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
         let decoded = dec.decode_all().unwrap();
         assert_eq!(decoded.len(), orig_samples.len());
 
-        let (max_abs, sum_sq) = orig_samples.iter().zip(decoded.iter()).fold(
-            (0i32, 0u128),
-            |(m, s), (a, b)| {
-                let d = (*a as i32 - *b as i32).abs();
-                let m = m.max(d);
-                let s = s + (d as u128) * (d as u128);
-                (m, s)
-            },
-        );
+        let (max_abs, sum_sq) =
+            orig_samples
+                .iter()
+                .zip(decoded.iter())
+                .fold((0i32, 0u128), |(m, s), (a, b)| {
+                    let d = (*a as i32 - *b as i32).abs();
+                    let m = m.max(d);
+                    let s = s + (d as u128) * (d as u128);
+                    (m, s)
+                });
         let rms = (sum_sq as f64 / orig_samples.len() as f64).sqrt();
         eprintln!(
             "  {}: subband WAVC round-trip max_abs={max_abs} rms={rms:.2}",

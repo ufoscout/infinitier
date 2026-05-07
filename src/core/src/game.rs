@@ -293,7 +293,6 @@ impl GameDataBuilder {
 
         // Additional resources are loaded from hardcoded paths (i.e. Scripts, Musics, etc.)
 
-
         // preload all bif files
         let mut bif_all = vec![];
         for bif_entry in key.bif_entries {
@@ -438,7 +437,6 @@ impl GameDataBuilder {
 
     /// Search for resources in a folder
     fn search_resource(&self, cs_path: &CaseInsensitivePath) -> Option<PathBuf> {
-
         // characters/ *.bio
         //             *.chr
         // music/      *.mus
@@ -450,7 +448,6 @@ impl GameDataBuilder {
 
         self.fs.search_path_opt(cs_path)
     }
-    
 }
 
 #[cfg(test)]

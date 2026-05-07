@@ -172,9 +172,7 @@ impl OggState {
             // Refill the buffer from the next packet.
             let packet = match self.format.next_packet() {
                 Ok(p) => p,
-                Err(SymphoniaError::IoError(e))
-                    if e.kind() == io::ErrorKind::UnexpectedEof =>
-                {
+                Err(SymphoniaError::IoError(e)) if e.kind() == io::ErrorKind::UnexpectedEof => {
                     self.eos = true;
                     break;
                 }
@@ -321,7 +319,6 @@ impl WavDecoder {
     }
 
     fn open_ogg(datasource: &DataSource, name: String) -> Result<Self> {
-
         let media_source = DataTraitMediaSource::new(datasource.reader()?.data)?;
         let mss = MediaSourceStream::new(Box::new(media_source), Default::default());
 
@@ -351,11 +348,11 @@ impl WavDecoder {
             .ok_or(WavError::OggMetadata("missing sample rate"))?;
         let frames_per_channel = codec_params.n_frames.unwrap_or(0);
         let total_values_u64 = frames_per_channel.saturating_mul(channels as u64);
-        let total_values = u32::try_from(total_values_u64)
-            .map_err(|_| WavError::OggTooLong(total_values_u64))?;
+        let total_values =
+            u32::try_from(total_values_u64).map_err(|_| WavError::OggTooLong(total_values_u64))?;
 
-        let decoder = symphonia::default::get_codecs()
-            .make(&codec_params, &DecoderOptions::default())?;
+        let decoder =
+            symphonia::default::get_codecs().make(&codec_params, &DecoderOptions::default())?;
 
         let info = WavInfo {
             channels,

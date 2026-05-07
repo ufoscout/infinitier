@@ -128,9 +128,8 @@ impl MveViewer {
         // doesn't (no audio in the first frames, or stop arrived early),
         // fall through and play silent video.
         if let Some(audio) = self.audio.as_ref()
-            && let Some((channels, sample_rate)) = state.wait_for_audio_fmt(
-                Duration::from_millis(AUDIO_FMT_TIMEOUT_MS),
-            )
+            && let Some((channels, sample_rate)) =
+                state.wait_for_audio_fmt(Duration::from_millis(AUDIO_FMT_TIMEOUT_MS))
         {
             audio.sink.pause();
             audio.sink.append(MveStreamSource {
@@ -285,11 +284,7 @@ impl MveViewer {
             return;
         }
         let video_drained = playback.state.video_queue.lock().unwrap().is_empty();
-        let audio_drained = self
-            .audio
-            .as_ref()
-            .map(|a| a.sink.empty())
-            .unwrap_or(true);
+        let audio_drained = self.audio.as_ref().map(|a| a.sink.empty()).unwrap_or(true);
         if video_drained && audio_drained {
             self.stop_playback();
         }
@@ -383,10 +378,7 @@ impl PlaybackState {
 
     /// Wait up to `timeout` for the producer to emit an audio format.
     /// Returns `None` on timeout / EOS-without-audio / stop.
-    fn wait_for_audio_fmt(
-        &self,
-        timeout: Duration,
-    ) -> Option<(NonZero<u16>, NonZero<u32>)> {
+    fn wait_for_audio_fmt(&self, timeout: Duration) -> Option<(NonZero<u16>, NonZero<u32>)> {
         let q = self.audio_fmt.lock().unwrap();
         let (q, _) = self
             .audio_fmt_cond
@@ -567,7 +559,11 @@ impl ResourceViewerTrait for MveViewer {
                     egui::vec2(220.0, 0.0),
                     egui::Layout::left_to_right(egui::Align::Center),
                     |ui| {
-                        let label = if is_playing { "⏸  Pause" } else { "▶  Play" };
+                        let label = if is_playing {
+                            "⏸  Pause"
+                        } else {
+                            "▶  Play"
+                        };
                         if ui
                             .add_enabled(has_movie, egui::Button::new(label))
                             .clicked()
@@ -620,10 +616,7 @@ impl ResourceViewerTrait for MveViewer {
                         let scale = (avail.x / width.max(1) as f32)
                             .min(avail.y / height.max(1) as f32)
                             .max(0.0);
-                        let display_size = egui::vec2(
-                            width as f32 * scale,
-                            height as f32 * scale,
-                        );
+                        let display_size = egui::vec2(width as f32 * scale, height as f32 * scale);
                         ui.add(egui::Image::new(tex).fit_to_exact_size(display_size));
                     } else {
                         ui.heading("Movie Player");

@@ -552,10 +552,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
                 }
             }
             VideoFormat::Rgb555 => {
-                for (dst, src) in rgba
-                    .chunks_exact_mut(4)
-                    .zip(self.buf1.chunks_exact(2))
-                {
+                for (dst, src) in rgba.chunks_exact_mut(4).zip(self.buf1.chunks_exact(2)) {
                     let px = u16::from_le_bytes([src[0], src[1]]);
                     let r = ((px >> 10) & 0x1f) as u8;
                     let g = ((px >> 5) & 0x1f) as u8;

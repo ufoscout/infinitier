@@ -16,7 +16,7 @@ use crate::container::BikHeader;
 use crate::dct::{read_dct_coeffs, read_residue};
 use crate::dsp::{add_pixels8, idct_add, idct_put, scale_block, unquantize_dct_coeffs};
 use crate::error::{BikError, BikResult};
-use crate::tables::{BINK_INTRA_QUANT, BINK_INTER_QUANT, BINK_PATTERNS, BINK_SCAN};
+use crate::tables::{BINK_INTER_QUANT, BINK_INTRA_QUANT, BINK_PATTERNS, BINK_SCAN};
 
 /// Block-type IDs (decoded from the `BlockTypes` / `SubBlockTypes` bundles).
 /// Order matches FFmpeg's `enum BlockTypes`.
@@ -97,7 +97,11 @@ impl VideoFrame {
             y: Plane::new(width, height),
             u: Plane::new(cw, ch),
             v: Plane::new(cw, ch),
-            alpha: if has_alpha { Some(Plane::new(width, height)) } else { None },
+            alpha: if has_alpha {
+                Some(Plane::new(width, height))
+            } else {
+                None
+            },
         }
     }
 }
@@ -127,12 +131,12 @@ impl VideoDecoder {
     pub fn new(header: &BikHeader) -> BikResult<Self> {
         let version = header.signature[3];
         if !matches!(version, b'b' | b'f' | b'g' | b'h' | b'i' | b'k') {
-            return Err(BikError::Unsupported(
-                "only BIKb/f/g/h/i/k are supported",
-            ));
+            return Err(BikError::Unsupported("only BIKb/f/g/h/i/k are supported"));
         }
         if header.is_gray() {
-            return Err(BikError::Unsupported("greyscale (BINK_FLAG_GRAY) not implemented"));
+            return Err(BikError::Unsupported(
+                "greyscale (BINK_FLAG_GRAY) not implemented",
+            ));
         }
         let has_alpha = header.has_alpha();
 
@@ -220,8 +224,16 @@ impl VideoDecoder {
             };
             let is_chroma = plane_index != 0;
             let (cur_plane, prev_plane) = pick_plane_pair(&mut current, &self.last, logical_idx);
-            let plane_w = if is_chroma { self.width / 2 } else { self.width };
-            let plane_h = if is_chroma { self.height / 2 } else { self.height };
+            let plane_w = if is_chroma {
+                self.width / 2
+            } else {
+                self.width
+            };
+            let plane_h = if is_chroma {
+                self.height / 2
+            } else {
+                self.height
+            };
             decode_one_plane(
                 &mut r,
                 cur_plane,
@@ -272,17 +284,17 @@ impl VideoDecoder {
                 2 => &mut current.v,
                 _ => unreachable!(),
             };
-            let plane_w = if is_chroma { self.width / 2 } else { self.width };
-            let plane_h = if is_chroma { self.height / 2 } else { self.height };
-            crate::binkb::decode_plane(
-                r,
-                cur_plane,
-                bundles,
-                &state,
-                plane_w,
-                plane_h,
-                is_chroma,
-            )?;
+            let plane_w = if is_chroma {
+                self.width / 2
+            } else {
+                self.width
+            };
+            let plane_h = if is_chroma {
+                self.height / 2
+            } else {
+                self.height
+            };
+            crate::binkb::decode_plane(r, cur_plane, bundles, &state, plane_w, plane_h, is_chroma)?;
             if r.bit_pos() >= r.bit_len() {
                 break;
             }
@@ -367,7 +379,11 @@ fn decode_one_plane(
 
     for by in 0..bh {
         // Per-row bundle fills.
-        read_block_types(r, &mut bundles.b[SourceKind::BlockTypes as usize], count_xor)?;
+        read_block_types(
+            r,
+            &mut bundles.b[SourceKind::BlockTypes as usize],
+            count_xor,
+        )?;
         read_block_types(
             r,
             &mut bundles.b[SourceKind::SubBlockTypes as usize],
@@ -405,8 +421,7 @@ fn decode_one_plane(
 
         let mut bx = 0u32;
         while bx < bw {
-            let blk_raw =
-                bundles.b[SourceKind::BlockTypes as usize].read_u8();
+            let blk_raw = bundles.b[SourceKind::BlockTypes as usize].read_u8();
             let blk = BlockType::from_u8(blk_raw)?;
             let dst_off = row_top + (bx as usize) * 8;
 
@@ -425,13 +440,45 @@ fn decode_one_plane(
                     copy_block_8(plane, dst_off, prev, dst_off, stride);
                 }
                 BlockType::Motion => {
-                    motion_compensate_8(plane, dst_off, prev, bx as i32, by as i32, bundles, BUNDLE_XOFF, BUNDLE_YOFF, stride, bw, bh)?;
+                    motion_compensate_8(
+                        plane,
+                        dst_off,
+                        prev,
+                        bx as i32,
+                        by as i32,
+                        bundles,
+                        BUNDLE_XOFF,
+                        BUNDLE_YOFF,
+                        stride,
+                        bw,
+                        bh,
+                    )?;
                 }
                 BlockType::Run => {
-                    decode_run_block_8(r, plane, dst_off, stride, bundles, /*scaled=*/ false, /*ublock=*/ &mut [0u8; 64])?;
+                    decode_run_block_8(
+                        r,
+                        plane,
+                        dst_off,
+                        stride,
+                        bundles,
+                        /*scaled=*/ false,
+                        /*ublock=*/ &mut [0u8; 64],
+                    )?;
                 }
                 BlockType::Residue => {
-                    motion_compensate_8(plane, dst_off, prev, bx as i32, by as i32, bundles, BUNDLE_XOFF, BUNDLE_YOFF, stride, bw, bh)?;
+                    motion_compensate_8(
+                        plane,
+                        dst_off,
+                        prev,
+                        bx as i32,
+                        by as i32,
+                        bundles,
+                        BUNDLE_XOFF,
+                        BUNDLE_YOFF,
+                        stride,
+                        bw,
+                        bh,
+                    )?;
                     let mut block = [0i16; 64];
                     let masks_count = r.read_bits(7)? as i32;
                     read_residue(r, &mut block, masks_count)?;
@@ -442,14 +489,28 @@ fn decode_one_plane(
                     );
                 }
                 BlockType::Intra => {
-                    decode_intra_block_dct(r, plane, dst_off, stride, bundles, /*scaled=*/ false)?;
+                    decode_intra_block_dct(
+                        r, plane, dst_off, stride, bundles, /*scaled=*/ false,
+                    )?;
                 }
                 BlockType::Fill => {
                     let v = bundles.b[SourceKind::Colors as usize].read_u8();
                     fill_block_8(plane, dst_off, stride, v);
                 }
                 BlockType::Inter => {
-                    motion_compensate_8(plane, dst_off, prev, bx as i32, by as i32, bundles, BUNDLE_XOFF, BUNDLE_YOFF, stride, bw, bh)?;
+                    motion_compensate_8(
+                        plane,
+                        dst_off,
+                        prev,
+                        bx as i32,
+                        by as i32,
+                        bundles,
+                        BUNDLE_XOFF,
+                        BUNDLE_YOFF,
+                        stride,
+                        bw,
+                        bh,
+                    )?;
                     decode_inter_block_dct(r, plane, dst_off, stride, bundles)?;
                 }
                 BlockType::Pattern => {
@@ -483,7 +544,13 @@ const BUNDLE_YOFF: SourceKind = SourceKind::YOff;
 /// 8x8 block copy from `prev` (or `plane` itself when `prev == None`,
 /// matching FFmpeg's first-frame behaviour). Always goes through a 64-byte
 /// scratch so source / destination overlap is harmless.
-fn copy_block_8(plane: &mut Plane, dst_off: usize, prev: Option<&Plane>, src_off: usize, stride: usize) {
+fn copy_block_8(
+    plane: &mut Plane,
+    dst_off: usize,
+    prev: Option<&Plane>,
+    src_off: usize,
+    stride: usize,
+) {
     let mut tmp = [0u8; 64];
     match prev {
         Some(p) => {
@@ -526,11 +593,7 @@ fn motion_compensate_8(
     let yoff = bundles.b[yb as usize].read_i8() as i32;
     let src_x = bx * 8 + xoff;
     let src_y = by * 8 + yoff;
-    if src_x < 0
-        || src_y < 0
-        || src_x as u32 + 8 > bw * 8
-        || src_y as u32 + 8 > bh * 8
-    {
+    if src_x < 0 || src_y < 0 || src_x as u32 + 8 > bw * 8 || src_y as u32 + 8 > bh * 8 {
         return Err(BikError::Malformed("motion vector out of bounds"));
     }
     let src_off = (src_y as usize) * stride + (src_x as usize);
@@ -626,7 +689,11 @@ fn decode_intra_block_dct(
         // passes that to scale_block.
         unreachable!("scaled IDCT path is handled by decode_scaled_block");
     } else {
-        idct_put(&mut plane.data[dst_off..dst_off + 7 * stride + 8], stride, &block);
+        idct_put(
+            &mut plane.data[dst_off..dst_off + 7 * stride + 8],
+            stride,
+            &block,
+        );
     }
     Ok(())
 }
@@ -675,12 +742,7 @@ fn fill_block_16(plane: &mut Plane, dst_off: usize, stride: usize, v: u8) {
 
 /// `PATTERN_BLOCK` (8x8): two pixel values selected per-bit across 8 bytes
 /// of pattern data.
-fn decode_pattern_block_8(
-    plane: &mut Plane,
-    dst_off: usize,
-    stride: usize,
-    bundles: &mut Bundles,
-) {
+fn decode_pattern_block_8(plane: &mut Plane, dst_off: usize, stride: usize, bundles: &mut Bundles) {
     let c0 = bundles.b[SourceKind::Colors as usize].read_u8();
     let c1 = bundles.b[SourceKind::Colors as usize].read_u8();
     let cols = [c0, c1];
@@ -695,12 +757,7 @@ fn decode_pattern_block_8(
 }
 
 /// `RAW_BLOCK` (8x8): drain 64 raw bytes from the `Colors` bundle.
-fn decode_raw_block_8(
-    plane: &mut Plane,
-    dst_off: usize,
-    stride: usize,
-    bundles: &mut Bundles,
-) {
+fn decode_raw_block_8(plane: &mut Plane, dst_off: usize, stride: usize, bundles: &mut Bundles) {
     // FFmpeg reads from `cur_ptr` directly; we do the same to skip 64
     // individual `read_u8` calls.
     let b = &mut bundles.b[SourceKind::Colors as usize];
@@ -722,9 +779,7 @@ fn decode_scaled_block(
     stride: usize,
     bundles: &mut Bundles,
 ) -> BikResult<()> {
-    let sub = BlockType::from_u8(
-        bundles.b[SourceKind::SubBlockTypes as usize].read_u8(),
-    )?;
+    let sub = BlockType::from_u8(bundles.b[SourceKind::SubBlockTypes as usize].read_u8())?;
     if sub == BlockType::Fill {
         // Fill is the only sub-type that writes the 16x16 destination
         // directly without going through scale_block.
@@ -737,7 +792,15 @@ fn decode_scaled_block(
         BlockType::Run => {
             // The RUN sub-block writes to ublock; share the regular RUN
             // decoder via the `scaled = true` flag.
-            decode_run_block_8(r, plane, /*dst_off=*/ 0, /*stride=*/ 0, bundles, true, &mut ublock)?;
+            decode_run_block_8(
+                r,
+                plane,
+                /*dst_off=*/ 0,
+                /*stride=*/ 0,
+                bundles,
+                true,
+                &mut ublock,
+            )?;
         }
         BlockType::Intra => {
             // Same as regular INTRA but the IDCT goes to ublock with
@@ -776,7 +839,11 @@ fn decode_scaled_block(
         }
         _ => return Err(BikError::Malformed("invalid 16x16 sub-block type")),
     }
-    scale_block(&ublock, &mut plane.data[dst_off..dst_off + 15 * stride + 16], stride);
+    scale_block(
+        &ublock,
+        &mut plane.data[dst_off..dst_off + 15 * stride + 16],
+        stride,
+    );
     Ok(())
 }
 

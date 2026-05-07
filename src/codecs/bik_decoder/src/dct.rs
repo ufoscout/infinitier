@@ -60,9 +60,7 @@ pub fn read_dct_coeffs(
         let mut list_pos = list_start;
         while list_pos < list_end {
             // Skip empty slots and slots whose 1-bit gate is 0.
-            if (mode_list[list_pos] | (coef_list[list_pos] != 0) as u8) == 0
-                || r.read_bit()? == 0
-            {
+            if (mode_list[list_pos] | (coef_list[list_pos] != 0) as u8) == 0 || r.read_bit()? == 0 {
                 list_pos += 1;
                 continue;
             }
@@ -342,16 +340,15 @@ mod tests {
         // loop never fires, so we just consume 4 bits for `bits` and 4 bits
         // for `quant_idx`.
         let buf = pack(&[
-            (0, 4),  // initial_bits = 0 -> bits = -1, no passes
-            (7, 4),  // quant_idx = 7
+            (0, 4), // initial_bits = 0 -> bits = -1, no passes
+            (7, 4), // quant_idx = 7
         ]);
         let mut r = BitReader::new(&buf);
         let mut block = [0i32; 64];
         let scan = BINK_SCAN;
         let mut coef_idx = [0u8; 64];
         let mut count = 0usize;
-        let q = read_dct_coeffs(&mut r, &mut block, &scan, &mut coef_idx, &mut count, -1)
-            .unwrap();
+        let q = read_dct_coeffs(&mut r, &mut block, &scan, &mut coef_idx, &mut count, -1).unwrap();
         assert_eq!(q, 7);
         assert_eq!(count, 0);
         assert!(block.iter().all(|&v| v == 0));
@@ -361,15 +358,14 @@ mod tests {
     fn fixed_quant_idx_path() {
         // Same as above but supply q explicitly; no quant_idx bits read.
         let buf = pack(&[
-            (0, 4),  // initial_bits = 0
+            (0, 4), // initial_bits = 0
         ]);
         let mut r = BitReader::new(&buf);
         let mut block = [0i32; 64];
         let scan = BINK_SCAN;
         let mut coef_idx = [0u8; 64];
         let mut count = 0usize;
-        let q = read_dct_coeffs(&mut r, &mut block, &scan, &mut coef_idx, &mut count, 9)
-            .unwrap();
+        let q = read_dct_coeffs(&mut r, &mut block, &scan, &mut coef_idx, &mut count, 9).unwrap();
         assert_eq!(q, 9);
         assert_eq!(count, 0);
     }

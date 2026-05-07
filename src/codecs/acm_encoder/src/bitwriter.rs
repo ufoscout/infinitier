@@ -33,11 +33,7 @@ impl<W: Write> BitWriter<W> {
         if n == 0 {
             return Ok(());
         }
-        let mask = if n == 32 {
-            !0u32
-        } else {
-            (1u32 << n) - 1
-        };
+        let mask = if n == 32 { !0u32 } else { (1u32 << n) - 1 };
         self.buf |= ((value & mask) as u64) << self.bits;
         self.bits += n;
         // With `n ≤ 32` and `self.bits < 32` on entry, `self.bits` is

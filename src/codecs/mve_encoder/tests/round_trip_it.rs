@@ -22,8 +22,8 @@ use std::io::Cursor;
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::MveDecoder;
 use infinitier_mve_encoder::{
-    encode_solid_colour_video, encode_static_palette8, encode_video, MveEncodeError,
-    StaticImage, VideoOptions,
+    MveEncodeError, StaticImage, VideoOptions, encode_solid_colour_video, encode_static_palette8,
+    encode_video,
 };
 
 fn open_decoder(bytes: Vec<u8>) -> MveDecoder<Box<dyn infinitier_datasource::DataTrait>> {
@@ -451,7 +451,9 @@ fn four_by_four_fill_round_trip() {
             let idx = (sy * 4 + sx) as u8 + 1;
             let expected = [
                 (idx & 0xfc), // r quantised at write
-                0, 0, 255,
+                0,
+                0,
+                255,
             ];
             let _ = expected; // we'll just compare full pixel below
             for dy in 0..2 {
@@ -635,7 +637,11 @@ fn motion_compensation_horizontal_shift_8px() {
             let [r, g, b] = palette_for_check[idx];
             let expected = [r & 0xfc, g & 0xfc, b & 0xfc, 255];
             let off = (y * 16 + x) * 4;
-            assert_eq!(&got[1][off..off + 4], &expected, "frame1 ({x},{y}) idx={idx}");
+            assert_eq!(
+                &got[1][off..off + 4],
+                &expected,
+                "frame1 ({x},{y}) idx={idx}"
+            );
         }
     }
 
@@ -645,8 +651,14 @@ fn motion_compensation_horizontal_shift_8px() {
     // Frame 1: block 0 (Q, 4 distinct colours) → 0x9 quad-pattern;
     // block 1 (= P0) motion-matches at (-8, 0) → 0x4.
     assert_eq!(stats.video8[0x4], 1, "expected one 0x4 block");
-    assert_eq!(stats.video8[0xb], 2, "expected two 0xb blocks (P0, P1 in frame 0)");
-    assert_eq!(stats.video8[0x9], 1, "expected one 0x9 block (Q in frame 1)");
+    assert_eq!(
+        stats.video8[0xb], 2,
+        "expected two 0xb blocks (P0, P1 in frame 0)"
+    );
+    assert_eq!(
+        stats.video8[0x9], 1,
+        "expected one 0x9 block (Q in frame 1)"
+    );
 }
 
 #[test]
@@ -818,7 +830,12 @@ fn single_block_round_trip(
 fn assert_pixel(decoded: &[u8], x: usize, y: usize, expected_rgb: [u8; 3]) {
     let off = (y * 8 + x) * 4;
     let q = |c: u8| c & 0xfc;
-    let expected = [q(expected_rgb[0]), q(expected_rgb[1]), q(expected_rgb[2]), 255];
+    let expected = [
+        q(expected_rgb[0]),
+        q(expected_rgb[1]),
+        q(expected_rgb[2]),
+        255,
+    ];
     assert_eq!(&decoded[off..off + 4], &expected, "pixel ({x},{y})");
 }
 
@@ -1123,7 +1140,10 @@ fn quadrant_pairs_per_half_vertical_round_trip() {
     let dec = assert_block_round_trips(pixels, palette);
     let stats = dec.block_mode_stats();
     assert_eq!(stats.video8[0x8], 1, "expected one 0x8 block");
-    assert_eq!(stats.video8[0x9], 0, "0x9 must not steal at 12 B vs 0x8 12 B");
+    assert_eq!(
+        stats.video8[0x9], 0,
+        "0x9 must not steal at 12 B vs 0x8 12 B"
+    );
     assert_eq!(stats.video8[0xb], 0);
 }
 
@@ -1204,9 +1224,27 @@ fn quadrant_pairs_with_monochrome_quadrant() {
             let qi = ((y / 4) << 1) | (x / 4);
             pixels[y * 8 + x] = match qi {
                 0 => 1, // monochrome top-left
-                1 => if (x + y) % 2 == 0 { 2 } else { 3 },
-                2 => if (x + y) % 2 == 0 { 4 } else { 5 },
-                _ => if (x + y) % 2 == 0 { 6 } else { 7 },
+                1 => {
+                    if (x + y) % 2 == 0 {
+                        2
+                    } else {
+                        3
+                    }
+                }
+                2 => {
+                    if (x + y) % 2 == 0 {
+                        4
+                    } else {
+                        5
+                    }
+                }
+                _ => {
+                    if (x + y) % 2 == 0 {
+                        6
+                    } else {
+                        7
+                    }
+                }
             };
         }
     }

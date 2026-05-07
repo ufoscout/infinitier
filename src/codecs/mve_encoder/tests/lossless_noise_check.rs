@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::MveDecoder;
-use infinitier_mve_encoder::{encode_from_assets, FromAssetsOptions};
+use infinitier_mve_encoder::{FromAssetsOptions, encode_from_assets};
 use infinitier_test_utils::{get_assets_path, get_target_path};
 
 #[test]
@@ -35,8 +35,8 @@ fn noise_encodes_losslessly_with_phase_6() {
         strict_palette: false,
         output_name: "noise_lossless".into(),
     };
-    let path = encode_from_assets(&pngs, &wav, &opts, &out)
-        .expect("lossless noise encode should succeed");
+    let path =
+        encode_from_assets(&pngs, &wav, &opts, &out).expect("lossless noise encode should succeed");
     let size = fs::metadata(&path).unwrap().len();
 
     let bytes = fs::read(&path).unwrap();

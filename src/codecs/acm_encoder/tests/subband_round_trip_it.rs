@@ -15,8 +15,15 @@ fn subband_round_trip(
     acm_rows: u32,
 ) -> Vec<i16> {
     let mut buf = Vec::new();
-    encode_pcm_subband(samples, channels, sample_rate, acm_level, acm_rows, &mut buf)
-        .expect("encode failed");
+    encode_pcm_subband(
+        samples,
+        channels,
+        sample_rate,
+        acm_level,
+        acm_rows,
+        &mut buf,
+    )
+    .expect("encode failed");
     let mut dec = AcmDecoder::open(
         &DataSource::new(buf),
         OutputChannels::Original,
@@ -25,14 +32,8 @@ fn subband_round_trip(
     .expect("open failed");
     assert_eq!(dec.info.channels, channels, "channels round-trip");
     assert_eq!(dec.info.rate, sample_rate, "rate round-trip");
-    assert_eq!(
-        dec.info.acm_level, acm_level,
-        "acm_level round-trip"
-    );
-    assert_eq!(
-        dec.info.acm_rows, acm_rows,
-        "acm_rows round-trip"
-    );
+    assert_eq!(dec.info.acm_level, acm_level, "acm_level round-trip");
+    assert_eq!(dec.info.acm_rows, acm_rows, "acm_rows round-trip");
     assert_eq!(
         dec.info.total_values as usize,
         samples.len(),
@@ -182,12 +183,8 @@ fn subband_with_f_half_smaller() {
     let mut buf = Vec::new();
     encode_pcm_subband_with_f_half(&pcm, 1, 22050, 5, 4, 16, &mut buf).unwrap();
 
-    let mut dec = AcmDecoder::open(
-        &DataSource::new(buf),
-        OutputChannels::Original,
-        "f_half=5",
-    )
-    .unwrap();
+    let mut dec =
+        AcmDecoder::open(&DataSource::new(buf), OutputChannels::Original, "f_half=5").unwrap();
     let out = dec.decode_all().unwrap();
     assert_eq!(out.len(), pcm.len());
     let (max_abs, _) = diff_stats(&pcm, &out);

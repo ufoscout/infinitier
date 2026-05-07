@@ -108,9 +108,12 @@ impl AudioDecoder {
             // `version_b` (BIKb-style audio) skips this boost; we don't
             // currently observe BIKb audio in the corpus, so always boost.
             internal_channels = 1;
-            internal_sample_rate = user_sample_rate
-                .checked_mul(channels as u32)
-                .ok_or(BikError::Unsupported("audio sample_rate * channels overflowed u32"))?;
+            internal_sample_rate =
+                user_sample_rate
+                    .checked_mul(channels as u32)
+                    .ok_or(BikError::Unsupported(
+                        "audio sample_rate * channels overflowed u32",
+                    ))?;
             if channels > 1 {
                 frame_len_bits += (channels as u32).ilog2();
             }
@@ -215,8 +218,10 @@ impl AudioDecoder {
         // Per-block scratch. Each buffer is `frame_len + 2` long: the
         // trailing 2 floats are the Nyquist re/im that the inverse RDFT
         // pre-pass writes (and that the DCT path simply ignores).
-        let mut coeffs: [Vec<f32>; MAX_CHANNELS] =
-            [vec![0f32; self.frame_len + 2], vec![0f32; self.frame_len + 2]];
+        let mut coeffs: [Vec<f32>; MAX_CHANNELS] = [
+            vec![0f32; self.frame_len + 2],
+            vec![0f32; self.frame_len + 2],
+        ];
 
         while r.bit_pos() < total_bits {
             // 2-bit DCT mode prefix — emitted only for the DCT variant.
@@ -243,8 +248,7 @@ impl AudioDecoder {
                     for i in 0..self.overlap_len {
                         let p = prev[i];
                         let c = coeffs[ch][i];
-                        coeffs[ch][i] =
-                            (p * (count - j) as f32 + c * j as f32) / count as f32;
+                        coeffs[ch][i] = (p * (count - j) as f32 + c * j as f32) / count as f32;
                         j += self.internal_channels;
                     }
                 }
@@ -282,11 +286,7 @@ impl AudioDecoder {
     /// Decode the frequency-domain coefficients for one (internal) channel.
     /// Mirrors the inner per-channel loop of `decode_block` in
     /// `binkaudio.c`.
-    fn parse_channel_coeffs(
-        &self,
-        r: &mut BitReader<'_>,
-        coeffs: &mut [f32],
-    ) -> BikResult<()> {
+    fn parse_channel_coeffs(&self, r: &mut BitReader<'_>, coeffs: &mut [f32]) -> BikResult<()> {
         // The first two coefficients are stored as IEEE-754 floats packed
         // 5+23+1 = 29 bits each.
         coeffs[0] = read_packed_float(r)? * self.root;

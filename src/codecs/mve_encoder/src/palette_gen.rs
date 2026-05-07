@@ -238,9 +238,7 @@ fn nearest_palette_index(px: [u8; 3], palette: &[[u8; 3]; 256], palette_size: us
 /// buffers. If the input has ≤ 256 unique colours, the function
 /// short-circuits to a bit-exact mapping (no median cut, no
 /// nearest-neighbour fall-back).
-pub fn quantise_to_palette8(
-    frames: &[&[[u8; 3]]],
-) -> (Box<[[u8; 3]; 256]>, Vec<Vec<u8>>) {
+pub fn quantise_to_palette8(frames: &[&[[u8; 3]]]) -> (Box<[[u8; 3]; 256]>, Vec<Vec<u8>>) {
     // Fast path: collect unique colours; if ≤ 256 use them verbatim.
     let mut unique: HashMap<[u8; 3], u8> = HashMap::new();
     let mut palette = Box::new([[0u8; 3]; 256]);
@@ -288,15 +286,8 @@ mod tests {
     #[test]
     fn fast_path_is_bit_exact_under_256_colours() {
         // 4 distinct colours — well under 256.
-        let cols: [[u8; 3]; 4] = [
-            [255, 0, 0],
-            [0, 255, 0],
-            [0, 0, 255],
-            [128, 128, 128],
-        ];
-        let frame: Vec<[u8; 3]> = (0..16)
-            .map(|i| cols[i as usize % 4])
-            .collect();
+        let cols: [[u8; 3]; 4] = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [128, 128, 128]];
+        let frame: Vec<[u8; 3]> = (0..16).map(|i| cols[i as usize % 4]).collect();
         let frames = [frame.as_slice()];
         let (palette, indexed) = quantise_to_palette8(&frames);
         assert_eq!(indexed.len(), 1);
