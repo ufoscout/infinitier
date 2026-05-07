@@ -48,9 +48,8 @@ use crate::{
     AudioOptions, MveEncodeError, Result, write_chunk, write_segment,
     AUDIO_FLAG_16BIT, AUDIO_FLAG_COMPRESSED, AUDIO_FLAG_STEREO, CHUNK_END, CHUNK_FRAME,
     CHUNK_INIT_AUDIO, CHUNK_INIT_VIDEO, DEFAULT_AUDIO_STREAM, OC_AUDIO_BUFFERS, OC_AUDIO_DATA,
-    OC_CODE_MAP, OC_CREATE_TIMER, OC_END_OF_CHUNK, OC_END_OF_STREAM, OC_PLAY_VIDEO,
-    OC_VIDEO_BUFFERS, OC_VIDEO_DATA, OC_VIDEO_MODE, SIGNATURE_24, SIGNATURE_TAIL,
-    VIDEO_FLAG_DELTA, dpcm,
+    OC_CODE_MAP, OC_END_OF_CHUNK, OC_END_OF_STREAM, OC_PLAY_VIDEO, OC_VIDEO_DATA,
+    SIGNATURE_24, SIGNATURE_TAIL, VIDEO_FLAG_DELTA, dpcm,
 };
 
 // ─── public API ──────────────────────────────────────────────────────────────
@@ -220,30 +219,12 @@ fn build_init_video_chunk_rgb555(
     frame_duration_us: u32,
 ) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
-
-    let mut timer = Vec::with_capacity(6);
-    timer.extend_from_slice(&frame_duration_us.to_le_bytes());
-    timer.extend_from_slice(&1u16.to_le_bytes());
-    write_segment(&mut buf, OC_CREATE_TIMER, 0, &timer);
-
-    // OC_VIDEO_MODE — HiColor variant. mcomp.exe with `HiColor` cfg
-    // emits w=640, h=480, flags=0x0110; PS:T `cannon.mve` (a real
-    // shipped HiColor cutscene) matches exactly.
-    let mut mode = Vec::with_capacity(6);
-    mode.extend_from_slice(&640u16.to_le_bytes());
-    mode.extend_from_slice(&480u16.to_le_bytes());
-    mode.extend_from_slice(&0x0110u16.to_le_bytes());
-    write_segment(&mut buf, OC_VIDEO_MODE, 0, &mode);
-
-    // OC_VIDEO_BUFFERS v2 — frame size in 8×8 blocks, format_flag=1
-    // selects the 16 bpp / RGB555 decoder path.
-    let mut buffers = Vec::with_capacity(8);
-    buffers.extend_from_slice(&(width / 8).to_le_bytes());
-    buffers.extend_from_slice(&(height / 8).to_le_bytes());
-    buffers.extend_from_slice(&1u16.to_le_bytes()); // buf_count
-    buffers.extend_from_slice(&1u16.to_le_bytes()); // format_flag = 1 → RGB555
-    write_segment(&mut buf, OC_VIDEO_BUFFERS, 2, &buffers);
-
+    crate::write_timer_segment(&mut buf, frame_duration_us);
+    // HiColor flags: `mcomp.exe HiColor` writes 0x0110, and PS:T
+    // `cannon.mve` matches exactly.
+    crate::write_video_mode_segment(&mut buf, 0x0110);
+    // format_flag = 1 selects the 16 bpp / RGB555 decoder path.
+    crate::write_video_buffers_segment(&mut buf, width, height, 1);
     write_segment(&mut buf, OC_END_OF_CHUNK, 0, &[]);
 
     if buf.len() > u16::MAX as usize {
@@ -293,10 +274,17 @@ fn build_frame_chunk_rgb555(
     for by in 0..bh {
         for bx in 0..bw {
             let block = read_block16(curr, stride, bx, by);
-            let outcome = encode_block_rgb555(&block, prev, stride, bx, by, lossy_downsample);
-            opcodes.push(outcome.opcode);
-            color_stream.extend_from_slice(&outcome.color_bytes);
-            motion_stream.extend_from_slice(&outcome.motion_bytes);
+            let opcode = encode_block_rgb555(
+                &block,
+                prev,
+                stride,
+                bx,
+                by,
+                lossy_downsample,
+                &mut color_stream,
+                &mut motion_stream,
+            );
+            opcodes.push(opcode);
         }
     }
 
@@ -356,18 +344,12 @@ type Block16 = [[u16; 8]; 8];
 fn read_block16(image: &[u16], stride: usize, bx: usize, by: usize) -> Block16 {
     let mut g = [[0u16; 8]; 8];
     let top_left = by * 8 * stride + bx * 8;
-    for y in 0..8 {
-        for x in 0..8 {
-            g[y][x] = image[top_left + y * stride + x];
-        }
+    // Per-row 8-u16 `copy_from_slice` rather than per-pixel index.
+    for (y, row) in g.iter_mut().enumerate() {
+        let off = top_left + y * stride;
+        row.copy_from_slice(&image[off..off + 8]);
     }
     g
-}
-
-struct BlockOutcome {
-    opcode: u8,
-    color_bytes: Vec<u8>,
-    motion_bytes: Vec<u8>,
 }
 
 const OPC_SKIP: u8 = 0x0;
@@ -382,6 +364,15 @@ const OPC_4X4_FILL: u8 = 0xc;
 const OPC_QUADRANTS: u8 = 0xd;
 const OPC_SOLID: u8 = 0xe;
 
+/// Encode one RGB555 block, appending its payload bytes to either
+/// `color_out` (most opcodes — including `0x5`, since opcode `0x5`
+/// reads from the colour sub-stream in the 16-bit dispatch) or
+/// `motion_out` (only `0x4`). Returns the chosen opcode.
+///
+/// Replaces the previous `BlockOutcome { color_bytes, motion_bytes }`
+/// return type — passing the master streams by `&mut` avoids
+/// allocating two small `Vec<u8>` per block.
+#[allow(clippy::too_many_arguments)]
 fn encode_block_rgb555(
     curr: &Block16,
     prev_full: Option<&[u16]>,
@@ -389,56 +380,44 @@ fn encode_block_rgb555(
     bx: usize,
     by: usize,
     lossy_downsample: bool,
-) -> BlockOutcome {
-    let color_only = |opcode: u8, bytes: Vec<u8>| BlockOutcome {
-        opcode,
-        color_bytes: bytes,
-        motion_bytes: Vec::new(),
-    };
-
+    color_out: &mut Vec<u8>,
+    motion_out: &mut Vec<u8>,
+) -> u8 {
     // 1. Skip — block identical to same position in previous frame.
     if let Some(prev) = prev_full {
         let p = read_block16(prev, stride, bx, by);
         if &p == curr {
-            return BlockOutcome {
-                opcode: OPC_SKIP,
-                color_bytes: Vec::new(),
-                motion_bytes: Vec::new(),
-            };
+            return OPC_SKIP;
         }
     }
 
     // 2. Solid — every pixel the same.
     let p0 = curr[0][0];
     if curr.iter().all(|row| row.iter().all(|&v| v == p0)) {
-        return color_only(OPC_SOLID, p0.to_le_bytes().to_vec());
+        color_out.extend_from_slice(&p0.to_le_bytes());
+        return OPC_SOLID;
     }
 
     // 3. Motion compensation — exact 8×8 match within ±8 px in prev frame.
     if let Some(prev) = prev_full
-        && let Some((dx, dy)) = find_motion_match16(curr, prev, stride, bx, by) {
-            let b = (((dy + 8) as u8) << 4) | ((dx + 8) as u8);
-            return BlockOutcome {
-                opcode: OPC_MOTION,
-                color_bytes: Vec::new(),
-                motion_bytes: vec![b],
-            };
-        }
+        && let Some((dx, dy)) = find_motion_match16(curr, prev, stride, bx, by)
+    {
+        let b = (((dy + 8) as u8) << 4) | ((dx + 8) as u8);
+        motion_out.push(b);
+        return OPC_MOTION;
+    }
 
     // 3a. Extended motion compensation (`0x5`, 2 bytes). Search the
     //     full ±128 px window when `0x4` (±8) fails. Note: in the
     //     16-bit dispatch table, opcode `0x5` reads from the COLOUR
     //     sub-stream (`rc`), not the motion sub-stream (`rd`) — see
-    //     `decode_frame16` in the decoder. So the two payload bytes
-    //     go into `color_bytes` here.
+    //     `decode_frame16` in the decoder.
     if let Some(prev) = prev_full
-        && let Some((dx, dy)) = find_motion_match16_extended(curr, prev, stride, bx, by) {
-            return BlockOutcome {
-                opcode: OPC_MOTION_EXT,
-                color_bytes: vec![dx as u8, dy as u8],
-                motion_bytes: Vec::new(),
-            };
-        }
+        && let Some((dx, dy)) = find_motion_match16_extended(curr, prev, stride, bx, by)
+    {
+        color_out.extend_from_slice(&[dx as u8, dy as u8]);
+        return OPC_MOTION_EXT;
+    }
 
     let bit15_safe = !block_has_bit15(curr);
     let distinct = collect_distinct_block(curr, 5);
@@ -446,113 +425,109 @@ fn encode_block_rgb555(
     // 4. 2-colour modes — only if every pixel has bit 15 = 0.
     if bit15_safe
         && let Some(d) = distinct.as_deref()
-            && d.len() <= 2
-                && let Some(bytes) = build_0x7_per_2x2(curr) {
-                    return color_only(OPC_2COLOR, bytes);
-                }
+        && d.len() <= 2
+        && build_0x7_per_2x2(curr, color_out)
+    {
+        return OPC_2COLOR;
+    }
 
     // 5. Quadrants — 4 uniform 4×4 quadrants, any colour count.
     if let Some(quads) = try_quadrants(curr) {
-        let mut bytes = Vec::with_capacity(8);
         for v in quads {
-            bytes.extend_from_slice(&v.to_le_bytes());
+            color_out.extend_from_slice(&v.to_le_bytes());
         }
-        return color_only(OPC_QUADRANTS, bytes);
+        return OPC_QUADRANTS;
     }
 
     // 6/7. 2-colour per-row, 3-4 colour per-2×2.
     if bit15_safe
-        && let Some(d) = distinct.as_deref() {
-            if d.len() <= 2
-                && let Some(bytes) = build_0x7_per_row(curr) {
-                    return color_only(OPC_2COLOR, bytes);
-                }
-            if (d.len() == 3 || d.len() == 4) && is_2x2_uniform(curr) {
-                let bytes = build_0x9_per_2x2(curr, d);
-                return color_only(OPC_QUAD_COLOR, bytes);
-            }
+        && let Some(d) = distinct.as_deref()
+    {
+        if d.len() <= 2 && build_0x7_per_row(curr, color_out) {
+            return OPC_2COLOR;
         }
+        if (d.len() == 3 || d.len() == 4) && is_2x2_uniform(curr) {
+            build_0x9_per_2x2(curr, d, color_out);
+            return OPC_QUAD_COLOR;
+        }
+    }
 
     // 8. 3-4 colour per-2×1 / per-1×2 (16 B); 9. 0x8 half-split (16 B).
     if bit15_safe {
         if let Some(d) = distinct.as_deref()
-            && (d.len() == 3 || d.len() == 4) {
-                if is_2x1_uniform(curr) {
-                    let bytes = build_0x9_per_2x1_wide(curr, d);
-                    return color_only(OPC_QUAD_COLOR, bytes);
-                }
-                if is_1x2_uniform(curr) {
-                    let bytes = build_0x9_per_1x2_tall(curr, d);
-                    return color_only(OPC_QUAD_COLOR, bytes);
-                }
+            && (d.len() == 3 || d.len() == 4)
+        {
+            if is_2x1_uniform(curr) {
+                build_0x9_per_2x1_wide(curr, d, color_out);
+                return OPC_QUAD_COLOR;
             }
-        if let Some(bytes) = build_0x8_vertical_halves(curr) {
-            return color_only(OPC_HALF_2COL, bytes);
+            if is_1x2_uniform(curr) {
+                build_0x9_per_1x2_tall(curr, d, color_out);
+                return OPC_QUAD_COLOR;
+            }
         }
-        if let Some(bytes) = build_0x8_horizontal_halves(curr) {
-            return color_only(OPC_HALF_2COL, bytes);
+        if build_0x8_vertical_halves(curr, color_out)
+            || build_0x8_horizontal_halves(curr, color_out)
+        {
+            return OPC_HALF_2COL;
         }
     }
 
     // 10/11. 0x9 per-pixel (24 B); 0x8 per-quadrant (24 B).
     if bit15_safe {
         if let Some(d) = distinct.as_deref()
-            && (d.len() == 3 || d.len() == 4) {
-                let bytes = build_0x9_per_pixel(curr, d);
-                return color_only(OPC_QUAD_COLOR, bytes);
-            }
-        if let Some(bytes) = build_0x8_per_quadrant(curr) {
-            return color_only(OPC_HALF_2COL, bytes);
+            && (d.len() == 3 || d.len() == 4)
+        {
+            build_0x9_per_pixel(curr, d, color_out);
+            return OPC_QUAD_COLOR;
+        }
+        if build_0x8_per_quadrant(curr, color_out) {
+            return OPC_HALF_2COL;
         }
     }
 
     // 12. 0xa half-split (32 B).
-    if bit15_safe {
-        if let Some(bytes) = build_0xa_vertical_halves(curr) {
-            return color_only(OPC_HALF_4COL, bytes);
-        }
-        if let Some(bytes) = build_0xa_horizontal_halves(curr) {
-            return color_only(OPC_HALF_4COL, bytes);
-        }
+    if bit15_safe
+        && (build_0xa_vertical_halves(curr, color_out)
+            || build_0xa_horizontal_halves(curr, color_out))
+    {
+        return OPC_HALF_4COL;
     }
 
     // 13. 4×4 fill — any colour count, every 2×2 uniform.
     if let Some(values) = try_4x4_fill(curr) {
-        let mut bytes = Vec::with_capacity(32);
         for v in values {
-            bytes.extend_from_slice(&v.to_le_bytes());
+            color_out.extend_from_slice(&v.to_le_bytes());
         }
-        return color_only(OPC_4X4_FILL, bytes);
+        return OPC_4X4_FILL;
     }
 
     // 14. 0xa per-quadrant (48 B).
-    if bit15_safe
-        && let Some(bytes) = build_0xa_per_quadrant(curr) {
-            return color_only(OPC_HALF_4COL, bytes);
-        }
+    if bit15_safe && build_0xa_per_quadrant(curr, color_out) {
+        return OPC_HALF_4COL;
+    }
 
     // 14a. Lossy fallback — emit 0xc with 2×2 downsample (32 bytes)
     //      instead of 0xb raw (128 bytes). Top-left of each 2×2 wins.
     //      Only used when the caller opted in (`lossy_downsample`).
     if lossy_downsample {
-        return color_only(OPC_4X4_FILL, build_4x4_fill_downsampled_rgb555(curr));
+        build_4x4_fill_downsampled_rgb555(curr, color_out);
+        return OPC_4X4_FILL;
     }
 
     // 15. Raw 8×8 — strictly-lossless fallback (128 bytes).
-    let mut bytes = Vec::with_capacity(128);
     for row in curr.iter() {
         for &v in row.iter() {
-            bytes.extend_from_slice(&v.to_le_bytes());
+            color_out.extend_from_slice(&v.to_le_bytes());
         }
     }
-    color_only(OPC_RAW, bytes)
+    OPC_RAW
 }
 
 /// Lossy 2×2-downsample variant of the 0xc emitter: always succeeds
 /// by taking the top-left pixel of each 2×2 sub-block as the
 /// representative colour. Output is 16 × u16 LE = 32 bytes.
-fn build_4x4_fill_downsampled_rgb555(curr: &Block16) -> Vec<u8> {
-    let mut out = Vec::with_capacity(32);
+fn build_4x4_fill_downsampled_rgb555(curr: &Block16, out: &mut Vec<u8>) {
     let mut y = 0;
     while y < 8 {
         let mut x = 0;
@@ -562,7 +537,6 @@ fn build_4x4_fill_downsampled_rgb555(curr: &Block16) -> Vec<u8> {
         }
         y += 2;
     }
-    out
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -784,15 +758,18 @@ fn find_motion_match16_extended(
 // branch to fire). Encoder picks p0 = "the colour we want index 0 to
 // mean" (bit clear or set as required); p1 = the other colour.
 
-fn build_0x7_per_2x2(curr: &Block16) -> Option<Vec<u8>> {
-    let distinct = collect_distinct_block(curr, 2)?;
+fn build_0x7_per_2x2(curr: &Block16, out: &mut Vec<u8>) -> bool {
+    let Some(distinct) = collect_distinct_block(curr, 2) else {
+        return false;
+    };
     if distinct.is_empty() {
-        return None;
+        return false;
     }
     let p0 = distinct[0];
     let p1 = if distinct.len() == 2 { distinct[1] } else { p0 };
 
-    // Every 2×2 must be uniform AND made of {p0, p1}.
+    // Every 2×2 must be uniform AND made of {p0, p1}. Build the mask
+    // first (no appends to `out` yet), commit at the end.
     let mut mask = 0u16;
     let mut bit = 1u16;
     let mut y = 0;
@@ -801,12 +778,12 @@ fn build_0x7_per_2x2(curr: &Block16) -> Option<Vec<u8>> {
         while x < 8 {
             let v = curr[y][x];
             if curr[y][x + 1] != v || curr[y + 1][x] != v || curr[y + 1][x + 1] != v {
-                return None;
+                return false;
             }
             if v == p1 {
                 mask |= bit;
             } else if v != p0 {
-                return None;
+                return false;
             }
             bit <<= 1;
             x += 2;
@@ -814,17 +791,18 @@ fn build_0x7_per_2x2(curr: &Block16) -> Option<Vec<u8>> {
         y += 2;
     }
 
-    let mut out = Vec::with_capacity(6);
     out.extend_from_slice(&(p0 | 0x8000).to_le_bytes()); // bit 15 set → per-2×2
     out.extend_from_slice(&p1.to_le_bytes());
     out.extend_from_slice(&mask.to_le_bytes());
-    Some(out)
+    true
 }
 
-fn build_0x7_per_row(curr: &Block16) -> Option<Vec<u8>> {
-    let distinct = collect_distinct_block(curr, 2)?;
+fn build_0x7_per_row(curr: &Block16, out: &mut Vec<u8>) -> bool {
+    let Some(distinct) = collect_distinct_block(curr, 2) else {
+        return false;
+    };
     if distinct.is_empty() {
-        return None;
+        return false;
     }
     let p0 = distinct[0];
     let p1 = if distinct.len() == 2 { distinct[1] } else { p0 };
@@ -835,16 +813,15 @@ fn build_0x7_per_row(curr: &Block16) -> Option<Vec<u8>> {
             if v == p1 {
                 rows[y] |= 1 << x;
             } else if v != p0 {
-                return None;
+                return false;
             }
         }
     }
 
-    let mut out = Vec::with_capacity(12);
     out.extend_from_slice(&p0.to_le_bytes()); // bit 15 already 0 (caller checked)
     out.extend_from_slice(&p1.to_le_bytes());
     out.extend_from_slice(&rows);
-    Some(out)
+    true
 }
 
 // ─── 0x9 (3-4 colour) ───────────────────────────────────────────────────────
@@ -873,9 +850,8 @@ fn idx_in(p: &[u16; 4], v: u16) -> u32 {
     p.iter().position(|&c| c == v).expect("colour must be in palette") as u32
 }
 
-fn build_0x9_per_2x2(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
+fn build_0x9_per_2x2(curr: &Block16, distinct: &[u16], out: &mut Vec<u8>) {
     let p = pad_to_4(distinct);
-    let mut out = Vec::with_capacity(12);
     // p[0] clear, p[2] set → per-2×2 sub-mode
     out.extend_from_slice(&p[0].to_le_bytes());
     out.extend_from_slice(&p[1].to_le_bytes());
@@ -894,12 +870,10 @@ fn build_0x9_per_2x2(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
         y += 2;
     }
     out.extend_from_slice(&flags.to_le_bytes());
-    out
 }
 
-fn build_0x9_per_2x1_wide(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
+fn build_0x9_per_2x1_wide(curr: &Block16, distinct: &[u16], out: &mut Vec<u8>) {
     let p = pad_to_4(distinct);
-    let mut out = Vec::with_capacity(16);
     // p[0] set, p[2] clear → per-2×1 sub-mode
     out.extend_from_slice(&(p[0] | 0x8000).to_le_bytes());
     out.extend_from_slice(&p[1].to_le_bytes());
@@ -920,12 +894,10 @@ fn build_0x9_per_2x1_wide(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
         out.extend_from_slice(&flags.to_le_bytes());
         y += 4;
     }
-    out
 }
 
-fn build_0x9_per_1x2_tall(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
+fn build_0x9_per_1x2_tall(curr: &Block16, distinct: &[u16], out: &mut Vec<u8>) {
     let p = pad_to_4(distinct);
-    let mut out = Vec::with_capacity(16);
     // p[0] set, p[2] set → per-1×2 sub-mode
     out.extend_from_slice(&(p[0] | 0x8000).to_le_bytes());
     out.extend_from_slice(&p[1].to_le_bytes());
@@ -946,12 +918,10 @@ fn build_0x9_per_1x2_tall(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
         out.extend_from_slice(&flags.to_le_bytes());
         y += 4;
     }
-    out
 }
 
-fn build_0x9_per_pixel(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
+fn build_0x9_per_pixel(curr: &Block16, distinct: &[u16], out: &mut Vec<u8>) {
     let p = pad_to_4(distinct);
-    let mut out = Vec::with_capacity(24);
     // p[0] clear, p[2] clear → per-pixel sub-mode
     for &v in p.iter() {
         out.extend_from_slice(&v.to_le_bytes());
@@ -964,7 +934,6 @@ fn build_0x9_per_pixel(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
         }
         out.extend_from_slice(&flags.to_le_bytes());
     }
-    out
 }
 
 // ─── 0x8 (2-colour per partition) ───────────────────────────────────────────
@@ -981,7 +950,7 @@ fn build_0x9_per_pixel(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
 // palette entries — the mask bits then don't matter (both lookups
 // resolve to the same colour).
 
-fn build_0x8_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
+fn build_0x8_per_quadrant(curr: &Block16, out: &mut Vec<u8>) -> bool {
     // Each 4×4 quadrant must have ≤ 2 distinct colours.
     let quads = [
         ((0usize, 0usize), 0usize), // TL → slots 0,1
@@ -992,7 +961,9 @@ fn build_0x8_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
     let mut p = [0u16; 8];
     let mut b = [0u8; 8];
     for &((qy, qx), slot) in quads.iter() {
-        let colours = collect_distinct_region(curr, qy, qx, qy + 4, qx + 4, 2)?;
+        let Some(colours) = collect_distinct_region(curr, qy, qx, qy + 4, qx + 4, 2) else {
+            return false;
+        };
         let pp0 = colours[0];
         let pp1 = if colours.len() == 2 { colours[1] } else { pp0 };
         p[slot] = pp0;
@@ -1001,7 +972,6 @@ fn build_0x8_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
         b[slot] = lo;
         b[slot + 1] = hi;
     }
-    let mut out = Vec::with_capacity(24);
     // First u16 must have bit 15 CLEAR to select per-quadrant.
     out.extend_from_slice(&p[0].to_le_bytes());
     out.extend_from_slice(&p[1].to_le_bytes());
@@ -1013,7 +983,7 @@ fn build_0x8_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
         out.push(b[slot]);
         out.push(b[slot + 1]);
     }
-    Some(out)
+    true
 }
 
 /// Pack the 16 mask bits of one 4×4 quadrant into two bytes:
@@ -1043,36 +1013,37 @@ fn quadrant_mask_2col(curr: &Block16, qy: usize, qx: usize, pp0: u16, pp1: u16) 
     (lo, hi)
 }
 
-fn build_0x8_vertical_halves(curr: &Block16) -> Option<Vec<u8>> {
+fn build_0x8_vertical_halves(curr: &Block16, out: &mut Vec<u8>) -> bool {
     // Left half = x in 0..4, right half = x in 4..8.
-    let left = collect_distinct_region(curr, 0, 0, 8, 4, 2)?;
-    let right = collect_distinct_region(curr, 0, 4, 8, 8, 2)?;
+    let Some(left) = collect_distinct_region(curr, 0, 0, 8, 4, 2) else {
+        return false;
+    };
+    let Some(right) = collect_distinct_region(curr, 0, 4, 8, 8, 2) else {
+        return false;
+    };
     let p0 = left[0];
     let p1 = if left.len() == 2 { left[1] } else { p0 };
     let p2 = right[0];
     let p3 = if right.len() == 2 { right[1] } else { p2 };
     let mut b = [0u8; 8];
     write_vertical_halves_mask(curr, &mut b, p0, p1, p2, p3);
-    let mut out = Vec::with_capacity(16);
     // p[0] | 0x8000 → half-split branch; p[2] bit 15 CLEAR → vertical.
     out.extend_from_slice(&(p0 | 0x8000).to_le_bytes());
     out.extend_from_slice(&p1.to_le_bytes());
-    out.push(b[0]);
-    out.push(b[1]);
-    out.push(b[2]);
-    out.push(b[3]);
+    out.extend_from_slice(&b[0..4]);
     out.extend_from_slice(&p2.to_le_bytes());
     out.extend_from_slice(&p3.to_le_bytes());
-    out.push(b[4]);
-    out.push(b[5]);
-    out.push(b[6]);
-    out.push(b[7]);
-    Some(out)
+    out.extend_from_slice(&b[4..8]);
+    true
 }
 
-fn build_0x8_horizontal_halves(curr: &Block16) -> Option<Vec<u8>> {
-    let top = collect_distinct_region(curr, 0, 0, 4, 8, 2)?;
-    let bot = collect_distinct_region(curr, 4, 0, 8, 8, 2)?;
+fn build_0x8_horizontal_halves(curr: &Block16, out: &mut Vec<u8>) -> bool {
+    let Some(top) = collect_distinct_region(curr, 0, 0, 4, 8, 2) else {
+        return false;
+    };
+    let Some(bot) = collect_distinct_region(curr, 4, 0, 8, 8, 2) else {
+        return false;
+    };
     let p0 = top[0];
     let p1 = if top.len() == 2 { top[1] } else { p0 };
     let p2 = bot[0];
@@ -1087,27 +1058,20 @@ fn build_0x8_horizontal_halves(curr: &Block16) -> Option<Vec<u8>> {
             } else if v == pp0 {
                 0
             } else {
-                return None; // shouldn't fire after collect_distinct_region
+                return false; // shouldn't fire after collect_distinct_region
             };
             row |= bit << x;
         }
         b[y] = row;
     }
-    let mut out = Vec::with_capacity(16);
     // p[0] | 0x8000 → half-split branch; p[2] | 0x8000 → horizontal.
     out.extend_from_slice(&(p0 | 0x8000).to_le_bytes());
     out.extend_from_slice(&p1.to_le_bytes());
-    out.push(b[0]);
-    out.push(b[1]);
-    out.push(b[2]);
-    out.push(b[3]);
+    out.extend_from_slice(&b[0..4]);
     out.extend_from_slice(&(p2 | 0x8000).to_le_bytes());
     out.extend_from_slice(&p3.to_le_bytes());
-    out.push(b[4]);
-    out.push(b[5]);
-    out.push(b[6]);
-    out.push(b[7]);
-    Some(out)
+    out.extend_from_slice(&b[4..8]);
+    true
 }
 
 /// Build the 8 mask bytes for the 0x8 vertical-halves sub-mode. The
@@ -1151,7 +1115,7 @@ fn write_vertical_halves_mask(
 // b[8..16] u8. Bit 15 of p[0] SET; bit 15 of p[4] picks vertical
 // (CLEAR) or horizontal (SET).
 
-fn build_0xa_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
+fn build_0xa_per_quadrant(curr: &Block16, out: &mut Vec<u8>) -> bool {
     let quads = [
         ((0usize, 0usize), 0usize),  // TL → palette slots 0..4, mask bytes 0..4
         ((4, 0), 4),                  // BL → 4..8, 4..8
@@ -1161,7 +1125,9 @@ fn build_0xa_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
     let mut p = [0u16; 16];
     let mut b = [0u8; 16];
     for &((qy, qx), slot) in quads.iter() {
-        let colours = collect_distinct_region(curr, qy, qx, qy + 4, qx + 4, 4)?;
+        let Some(colours) = collect_distinct_region(curr, qy, qx, qy + 4, qx + 4, 4) else {
+            return false;
+        };
         let padded = pad_to_4_slice(&colours);
         p[slot..slot + 4].copy_from_slice(&padded);
         for dy in 0..4 {
@@ -1176,7 +1142,6 @@ fn build_0xa_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
     }
     // p[0] bit 15 must be CLEAR. Caller ensured no source pixel has
     // bit 15 set, so the colour at p[0] is already in [0, 0x7fff].
-    let mut out = Vec::with_capacity(48);
     out.extend_from_slice(&p[0].to_le_bytes());
     out.extend_from_slice(&p[1].to_le_bytes());
     out.extend_from_slice(&p[2].to_le_bytes());
@@ -1188,12 +1153,16 @@ fn build_0xa_per_quadrant(curr: &Block16) -> Option<Vec<u8>> {
         }
         out.extend_from_slice(&b[start..start + 4]);
     }
-    Some(out)
+    true
 }
 
-fn build_0xa_vertical_halves(curr: &Block16) -> Option<Vec<u8>> {
-    let left = collect_distinct_region(curr, 0, 0, 8, 4, 4)?;
-    let right = collect_distinct_region(curr, 0, 4, 8, 8, 4)?;
+fn build_0xa_vertical_halves(curr: &Block16, out: &mut Vec<u8>) -> bool {
+    let Some(left) = collect_distinct_region(curr, 0, 0, 8, 4, 4) else {
+        return false;
+    };
+    let Some(right) = collect_distinct_region(curr, 0, 4, 8, 8, 4) else {
+        return false;
+    };
     let p_left = pad_to_4_slice(&left);
     let p_right = pad_to_4_slice(&right);
     let mut b = [0u8; 16];
@@ -1211,12 +1180,17 @@ fn build_0xa_vertical_halves(curr: &Block16) -> Option<Vec<u8>> {
         }
         b[y + 8] = right_mask;
     }
-    Some(emit_0xa_halves(&p_left, &p_right, &b, /*horizontal=*/ false))
+    emit_0xa_halves(&p_left, &p_right, &b, /*horizontal=*/ false, out);
+    true
 }
 
-fn build_0xa_horizontal_halves(curr: &Block16) -> Option<Vec<u8>> {
-    let top = collect_distinct_region(curr, 0, 0, 4, 8, 4)?;
-    let bot = collect_distinct_region(curr, 4, 0, 8, 8, 4)?;
+fn build_0xa_horizontal_halves(curr: &Block16, out: &mut Vec<u8>) -> bool {
+    let Some(top) = collect_distinct_region(curr, 0, 0, 4, 8, 4) else {
+        return false;
+    };
+    let Some(bot) = collect_distinct_region(curr, 4, 0, 8, 8, 4) else {
+        return false;
+    };
     let p_top = pad_to_4_slice(&top);
     let p_bot = pad_to_4_slice(&bot);
     let mut b = [0u8; 16];
@@ -1235,19 +1209,20 @@ fn build_0xa_horizontal_halves(curr: &Block16) -> Option<Vec<u8>> {
         }
         b[y * 2 + 1] = right_mask;
     }
-    Some(emit_0xa_halves(&p_top, &p_bot, &b, /*horizontal=*/ true))
+    emit_0xa_halves(&p_top, &p_bot, &b, /*horizontal=*/ true, out);
+    true
 }
 
-/// Emit a 32-byte 0xa half-split payload. The decoder reads the first
-/// half's palette, then 8 mask bytes, then the second half's palette,
-/// then 8 more mask bytes — see `decode16_0xa`'s "half-split" branch.
+/// Emit a 32-byte 0xa half-split payload (decoder reads first half's
+/// palette, then 8 mask bytes, then the second half's palette, then 8
+/// more mask bytes) by appending into `out`.
 fn emit_0xa_halves(
     first_pal: &[u16; 4],
     second_pal: &[u16; 4],
     b: &[u8; 16],
     horizontal: bool,
-) -> Vec<u8> {
-    let mut out = Vec::with_capacity(32);
+    out: &mut Vec<u8>,
+) {
     // First palette entry: bit 15 SET → half-split branch.
     out.extend_from_slice(&(first_pal[0] | 0x8000).to_le_bytes());
     out.extend_from_slice(&first_pal[1].to_le_bytes());
@@ -1266,7 +1241,6 @@ fn emit_0xa_halves(
     out.extend_from_slice(&second_pal[2].to_le_bytes());
     out.extend_from_slice(&second_pal[3].to_le_bytes());
     out.extend_from_slice(&b[8..16]);
-    out
 }
 
 fn pad_to_4_slice(colours: &[u16]) -> [u16; 4] {
