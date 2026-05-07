@@ -422,14 +422,24 @@ impl<'a> BafParser<'a> {
             return Ok(combined);
         }
 
-        // Resolve function signature.
-        let function = self.resolve_trigger(&name)?.clone();
+        // Resolve function signature. We grab the parameter kinds up front so
+        // the &Function borrow on `self.ctx` can be dropped before we re-enter
+        // the lexer (which needs `&mut self`); the &Function is then re-bound
+        // after argument parsing for `build_trigger` — saving a full
+        // `Function` clone (id + name + params Vec) per trigger statement.
+        let kinds: Vec<ParamKind> = self
+            .resolve_trigger(&name)?
+            .params
+            .iter()
+            .map(|p| p.kind)
+            .collect();
 
         self.expect(&Tok::LParen)?;
-        let raw_args = self.parse_typed_arg_list(&function)?;
+        let raw_args = self.parse_typed_arg_list(&kinds)?;
         self.expect(&Tok::RParen)?;
 
-        let trigger = self.build_trigger(&function, raw_args, negated)?;
+        let function = self.resolve_trigger(&name)?;
+        let trigger = self.build_trigger(function, raw_args, negated)?;
         Ok(vec![trigger])
     }
 
@@ -594,11 +604,17 @@ impl<'a> BafParser<'a> {
             return Ok(act);
         }
 
-        let function = self.resolve_action(&name)?.clone();
+        let kinds: Vec<ParamKind> = self
+            .resolve_action(&name)?
+            .params
+            .iter()
+            .map(|p| p.kind)
+            .collect();
         self.expect(&Tok::LParen)?;
-        let raw_args = self.parse_typed_arg_list(&function)?;
+        let raw_args = self.parse_typed_arg_list(&kinds)?;
         self.expect(&Tok::RParen)?;
-        self.build_action(&function, raw_args)
+        let function = self.resolve_action(&name)?;
+        self.build_action(function, raw_args)
     }
 
     fn build_action(&self, function: &Function, raw_args: Vec<RawArg>) -> std::io::Result<Action> {
@@ -685,16 +701,18 @@ impl<'a> BafParser<'a> {
         self.ctx.concat_info(function.id, function.params.len())
     }
 
-    /// Parses a comma-separated argument list using the function's signature
-    /// to disambiguate cases like `[x.y]` (point) vs `[N.N.N…]` (target list).
-    /// Caller already consumed `(`, stops just before `)`.
-    fn parse_typed_arg_list(&mut self, function: &Function) -> std::io::Result<Vec<RawArg>> {
+    /// Parses a comma-separated argument list using the function's parameter
+    /// kinds to disambiguate cases like `[x.y]` (point) vs `[N.N.N…]` (target
+    /// list). Takes `&[ParamKind]` rather than `&Function` so the caller can
+    /// drop the &Function borrow on `self.ctx` while the lexer mutates
+    /// `&mut self`. Caller already consumed `(`, stops just before `)`.
+    fn parse_typed_arg_list(&mut self, kinds: &[ParamKind]) -> std::io::Result<Vec<RawArg>> {
         let mut args = Vec::new();
         if matches!(self.peek()?, Tok::RParen) {
             return Ok(args);
         }
         loop {
-            let kind_hint = function.params.get(args.len()).map(|p| p.kind);
+            let kind_hint = kinds.get(args.len()).copied();
             args.push(self.parse_arg(kind_hint)?);
             match self.peek()? {
                 Tok::Comma => {
@@ -935,7 +953,7 @@ impl<'a> BafParser<'a> {
             let v = if let Ok(n) = raw.parse::<i64>() {
                 n as i32
             } else {
-                let ids_name = names.get(i).map(|s| s.as_str()).unwrap_or("");
+                let ids_name = names.get(i).copied().unwrap_or("");
                 self.resolve_symbol_as_number(raw, ids_name)?
             };
             targets.push(v);
@@ -1222,17 +1240,16 @@ fn pack_strings(
                 out[dst_index].push(':');
             }
             if even {
-                let s = out[dst_index].clone();
-                out[dst_index] = s + &strings[src_index];
+                out[dst_index].push_str(&strings[src_index]);
             } else {
-                let s = out[dst_index].clone();
-                out[dst_index] = strings[src_index].clone() + &s;
+                out[dst_index].insert_str(0, &strings[src_index]);
                 dst_index += 1;
             }
             even = !even;
         } else {
             if dst_index < out.len() {
-                out[dst_index] = strings[src_index].clone();
+                out[dst_index].clear();
+                out[dst_index].push_str(&strings[src_index]);
                 dst_index += 1;
             }
             even = true;

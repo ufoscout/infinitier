@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use infinitier_datasource::{DataSource, Importer};
 use log::debug;
 use serde::{Deserialize, Serialize};
@@ -18,8 +20,10 @@ impl<'a> Importer for BcsImporter<'a> {
         let mut reader = source.reader()?;
         let mut buf = Vec::new();
         reader.read_to_end(&mut buf)?;
-        let text = String::from_utf8_lossy(&buf);
-        let mut stream = BcsStream::new(&text);
+        // BCS bytecode is ASCII-only by spec; the parser operates on raw bytes
+        // so we skip a `from_utf8_lossy` round-trip (validation + owned copy of
+        // the entire file).
+        let mut stream = BcsStream::new(&buf);
         let bcs = parse_bcs(&mut stream)?;
         debug!(
             "Loaded {} [BCS]: {} condition-response blocks",
@@ -198,11 +202,8 @@ struct BcsStream<'a> {
 }
 
 impl<'a> BcsStream<'a> {
-    fn new(text: &'a str) -> Self {
-        Self {
-            data: text.as_bytes(),
-            pos: 0,
-        }
+    fn new(data: &'a [u8]) -> Self {
+        Self { data, pos: 0 }
     }
 
     fn skip_ws(&mut self) {
@@ -280,7 +281,13 @@ impl<'a> BcsStream<'a> {
         if self.pos >= self.data.len() {
             return Err(std::io::Error::other("unterminated string literal"));
         }
-        let s = String::from_utf8_lossy(&self.data[start..self.pos]).into_owned();
+        // BCS string slots are ASCII in practice; skip the lossy validator's
+        // unconditional alloc when the bytes are already valid UTF-8.
+        let bytes = &self.data[start..self.pos];
+        let s = match std::str::from_utf8(bytes) {
+            Ok(s) => s.to_owned(),
+            Err(_) => String::from_utf8_lossy(bytes).into_owned(),
+        };
         self.pos += 1; // consume closing "
         Ok(s)
     }
@@ -522,19 +529,31 @@ fn parse_action(s: &mut BcsStream<'_>) -> std::io::Result<Action> {
 /// rectangle and additional target slots after the identifiers, which is
 /// why we have to track positions explicitly.
 fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
-    enum Tok {
-        Int(i32),
-        Str(String),
-        Rect([i32; 4]),
-    }
-    let mut tokens: Vec<Tok> = Vec::new();
+    // Single-pass scan: stash integer values with their token positions so we
+    // can carve out the 5 identifier slots once we've seen the separator
+    // (rect preferred, name otherwise — matching NI's `pos_rect.or(pos_name)`
+    // resolution).
+    let mut int_pos: Vec<usize> = Vec::with_capacity(16);
+    let mut int_val: Vec<i32> = Vec::with_capacity(16);
+    let mut pos_rect: Option<usize> = None;
+    let mut pos_name: Option<usize> = None;
+    let mut name = String::new();
+    let mut region: Option<BcsRegion> = None;
+    let mut tok_pos: usize = 0;
     loop {
         if s.try_skip("OB") {
             break;
         }
         match s.peek() {
-            Some(b'-') | Some(b'0'..=b'9') => tokens.push(Tok::Int(s.read_i32()?)),
-            Some(b'"') => tokens.push(Tok::Str(s.read_string()?)),
+            Some(b'-') | Some(b'0'..=b'9') => {
+                int_pos.push(tok_pos);
+                int_val.push(s.read_i32()?);
+            }
+            Some(b'"') => {
+                let st = s.read_string()?;
+                pos_name.get_or_insert(tok_pos);
+                name = st;
+            }
             Some(b'[') => {
                 let parts = s.read_point_or_rect()?;
                 let r = if parts.len() == 4 {
@@ -542,7 +561,13 @@ fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
                 } else {
                     [-1, -1, -1, -1]
                 };
-                tokens.push(Tok::Rect(r));
+                pos_rect.get_or_insert(tok_pos);
+                region = Some(BcsRegion {
+                    x: r[0],
+                    y: r[1],
+                    width: r[2],
+                    height: r[3],
+                });
             }
             None => return Err(std::io::Error::other("unexpected EOS inside OB")),
             Some(c) => {
@@ -552,55 +577,28 @@ fn parse_object_body(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
                 )));
             }
         }
+        tok_pos += 1;
     }
 
-    // Locate the rectangle and the name; identifiers occupy the 5 integer
-    // slots immediately before whichever non-integer marker appears first
-    // (rectangle preferred, name otherwise).
-    let mut pos_rect: Option<usize> = None;
-    let mut pos_name: Option<usize> = None;
-    let mut name = String::new();
-    let mut region: Option<BcsRegion> = None;
-    for (i, tok) in tokens.iter().enumerate() {
-        match tok {
-            Tok::Rect(r) => {
-                pos_rect.get_or_insert(i);
-                region = Some(BcsRegion {
-                    x: r[0],
-                    y: r[1],
-                    width: r[2],
-                    height: r[3],
-                });
-            }
-            Tok::Str(s) => {
-                pos_name.get_or_insert(i);
-                name = s.clone();
-            }
-            _ => {}
-        }
-    }
-
-    let pos_separator = pos_rect.or(pos_name).unwrap_or(tokens.len());
+    let pos_separator = pos_rect.or(pos_name).unwrap_or(tok_pos);
     let id_start = pos_separator.saturating_sub(5);
     let id_end = id_start + 5;
-    let post_name_start = pos_name.map(|p| p + 1).unwrap_or(tokens.len());
+    let post_name_start = pos_name.map(|p| p + 1).unwrap_or(tok_pos);
 
-    let mut targets: Vec<i32> = Vec::new();
+    let mut targets: Vec<i32> = Vec::with_capacity(int_val.len());
     let mut identifiers = [0i32; 5];
     let mut ident_idx = 0;
     let mut trailing_targets = 0usize;
-    for (i, tok) in tokens.iter().enumerate() {
-        if let Tok::Int(v) = tok {
-            if i >= id_start && i < id_end {
-                if ident_idx < 5 {
-                    identifiers[ident_idx] = *v;
-                    ident_idx += 1;
-                }
-            } else {
-                targets.push(*v);
-                if i >= post_name_start {
-                    trailing_targets += 1;
-                }
+    for (i, &v) in int_pos.iter().zip(int_val.iter()) {
+        if *i >= id_start && *i < id_end {
+            if ident_idx < 5 {
+                identifiers[ident_idx] = v;
+                ident_idx += 1;
+            }
+        } else {
+            targets.push(v);
+            if *i >= post_name_start {
+                trailing_targets += 1;
             }
         }
     }
@@ -618,7 +616,9 @@ impl Bcs {
     /// Serializes this script to the BCS byte-code text format (the SC/CR/CO/TR/… encoding
     /// stored in game files). Parsing the returned string produces an equal `Bcs`.
     pub fn to_byte_code(&self) -> String {
-        let mut out = String::new();
+        // Rough sizing: BCS files in the wild average ~3 KB per CR block. The
+        // capacity is just a hint; growth still happens correctly if exceeded.
+        let mut out = String::with_capacity(64 + self.condition_responses.len() * 3072);
         out.push_str("SC\n");
         for cr in &self.condition_responses {
             push_condition_response(&mut out, cr);
@@ -650,15 +650,17 @@ fn push_trigger(out: &mut String, t: &Trigger) {
     // parser populating `t7` only on PST scripts to know whether to write it
     // back here.
     if let Some(p) = t.t7 {
-        out.push_str(&format!(
-            "{} {} {} {} {} [{},{}] \"{}\" \"{}\" OB\n",
+        let _ = writeln!(
+            out,
+            "{} {} {} {} {} [{},{}] \"{}\" \"{}\" OB",
             t.id, t.t1, t.flags, t.t2, t.t3, p.x, p.y, t.t4, t.t5
-        ));
+        );
     } else {
-        out.push_str(&format!(
-            "{} {} {} {} {} \"{}\" \"{}\" OB\n",
+        let _ = writeln!(
+            out,
+            "{} {} {} {} {} \"{}\" \"{}\" OB",
             t.id, t.t1, t.flags, t.t2, t.t3, t.t4, t.t5
-        ));
+        );
     }
     push_object_content(out, &t.target);
     out.push_str("TR\n");
@@ -666,7 +668,7 @@ fn push_trigger(out: &mut String, t: &Trigger) {
 
 fn push_response(out: &mut String, r: &Response) {
     out.push_str("RE\n");
-    out.push_str(&r.weight.to_string());
+    let _ = write!(out, "{}", r.weight);
     for action in &r.actions {
         out.push_str("AC\n");
         push_action(out, action);
@@ -675,17 +677,18 @@ fn push_response(out: &mut String, r: &Response) {
 }
 
 fn push_action(out: &mut String, a: &Action) {
-    out.push_str(&format!("{}OB\n", a.id));
+    let _ = writeln!(out, "{}OB", a.id);
     push_object_content(out, &a.a1);
     out.push_str("OB\n");
     push_object_content(out, &a.a2);
     out.push_str("OB\n");
     push_object_content(out, &a.a3);
     // no space between a7 and the opening quote — matches the game format
-    out.push_str(&format!(
-        "{} {} {} {} {}\"{}\" \"{}\" AC\n",
+    let _ = writeln!(
+        out,
+        "{} {} {} {} {}\"{}\" \"{}\" AC",
         a.a4, a.a5_x, a.a5_y, a.a6, a.a7, a.a8, a.a9
-    ));
+    );
 }
 
 fn push_object_content(out: &mut String, obj: &BcsObject) {
@@ -696,25 +699,25 @@ fn push_object_content(out: &mut String, obj: &BcsObject) {
     // name — those come from `obj.targets` last `trailing_targets` entries.
     let leading_end = obj.targets.len().saturating_sub(obj.trailing_targets);
     for v in &obj.targets[..leading_end] {
-        out.push_str(&format!("{} ", v));
+        let _ = write!(out, "{} ", v);
     }
     for v in &obj.identifiers {
-        out.push_str(&format!("{} ", v));
+        let _ = write!(out, "{} ", v);
     }
     if let Some(r) = &obj.region {
-        out.push_str(&format!("[{}.{}.{}.{}] ", r.x, r.y, r.width, r.height));
+        let _ = write!(out, "[{}.{}.{}.{}] ", r.x, r.y, r.width, r.height);
     }
     if obj.trailing_targets > 0 {
-        out.push_str(&format!("\"{}\" ", obj.name));
+        let _ = write!(out, "\"{}\" ", obj.name);
         for (i, v) in obj.targets[leading_end..].iter().enumerate() {
             if i + 1 == obj.trailing_targets {
-                out.push_str(&format!("{} OB\n", v));
+                let _ = writeln!(out, "{} OB", v);
             } else {
-                out.push_str(&format!("{} ", v));
+                let _ = write!(out, "{} ", v);
             }
         }
     } else {
-        out.push_str(&format!("\"{}\"OB\n", obj.name));
+        let _ = writeln!(out, "\"{}\"OB", obj.name);
     }
 }
 
@@ -731,7 +734,7 @@ mod tests {
 
     #[test]
     fn test_parse_empty_script() {
-        let mut s = BcsStream::new("SC\nSC\n");
+        let mut s = BcsStream::new(b"SC\nSC\n");
         let bcs = parse_bcs(&mut s).unwrap();
         assert_eq!(bcs.condition_responses.len(), 0);
     }
@@ -739,7 +742,7 @@ mod tests {
     #[test]
     fn test_parse_simple_object_all_zeros() {
         let src = "OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\n";
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let obj = parse_object(&mut s).unwrap();
         assert_eq!(obj.targets, vec![0; 7]);
         assert_eq!(obj.identifiers, [0; 5]);
@@ -750,7 +753,7 @@ mod tests {
     fn test_parse_object_with_ea_and_identifiers() {
         // ea=30 in targets, identifiers=[1,12,0,0,0]
         let src = "OB\n30 0 0 0 0 0 0 1 12 0 0 0 \"\"OB\n";
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let obj = parse_object(&mut s).unwrap();
         assert_eq!(obj.targets, vec![30, 0, 0, 0, 0, 0, 0]);
         assert_eq!(obj.identifiers, [1, 12, 0, 0, 0]);
@@ -760,7 +763,7 @@ mod tests {
     #[test]
     fn test_parse_object_with_name() {
         let src = "OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"Caveentrance\"OB\n";
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let obj = parse_object(&mut s).unwrap();
         assert_eq!(obj.name, "Caveentrance");
     }
@@ -768,7 +771,7 @@ mod tests {
     #[test]
     fn test_parse_trigger() {
         let src = "TR\n47 111 0 0 0 \"\" \"\" OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\nTR\n";
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let t = parse_trigger(&mut s).unwrap();
         assert_eq!(t.id, 47);
         assert_eq!(t.t1, 111);
@@ -782,7 +785,7 @@ mod tests {
     #[test]
     fn test_parse_trigger_negated() {
         let src = "TR\n16395 255 1 0 0 \"\" \"\" OB\n0 0 0 0 0 0 0 1 0 0 0 0 \"\"OB\nTR\n";
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let t = parse_trigger(&mut s).unwrap();
         assert_eq!(t.id, 16395);
         assert_eq!(t.t1, 255);
@@ -793,7 +796,7 @@ mod tests {
     #[test]
     fn test_parse_trigger_with_string_param() {
         let src = "TR\n16399 1 0 0 0 \"GLOBALReturnedOutside\" \"\" OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\nTR\n";
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let t = parse_trigger(&mut s).unwrap();
         assert_eq!(t.t4, "GLOBALReturnedOutside");
         assert_eq!(t.t5, "");
@@ -808,7 +811,7 @@ mod tests {
             "OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\n",
             "0 0 0 0 0\"\" \"\" AC\n"
         );
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let a = parse_action(&mut s).unwrap();
         assert_eq!(a.id, 22);
         assert_eq!(a.a2.identifiers, [1, 12, 0, 0, 0]);
@@ -828,7 +831,7 @@ mod tests {
             "OB\n0 0 0 0 0 0 0 0 0 0 0 0 \"\"OB\n",
             "2 0 0 0 0\"GLOBALReturnedOutside\" \"\" AC\n"
         );
-        let mut s = BcsStream::new(src);
+        let mut s = BcsStream::new(src.as_bytes());
         let a = parse_action(&mut s).unwrap();
         assert_eq!(a.id, 30);
         assert_eq!(a.a4, 2);

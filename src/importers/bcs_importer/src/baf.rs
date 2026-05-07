@@ -97,8 +97,10 @@ pub struct BafContext {
     triggers: Signatures,
     actions: Signatures,
     /// Names (without extension, upper-case) of the IDS files mapped onto the
-    /// object's `targets` array, in slot order. Slot 0 is always EA.
-    object_specifier_ids: Vec<String>,
+    /// object's `targets` array, in slot order. Slot 0 is always EA. Always
+    /// one of the engine-specific `OBJECT_SPECIFIER_IDS_*` constants — kept as
+    /// a static slice so `BafContext::new` doesn't allocate.
+    object_specifier_ids: &'static [&'static str],
     /// IDS files indexed by their upper-cased resource name (without
     /// extension). Used for object identifier nesting (`OBJECT`), target
     /// specifier symbols (`EA`, `GENERAL`, …) and `*IdsRef` integer lookups.
@@ -139,23 +141,14 @@ impl BafContext {
     pub fn new(mut triggers: Signatures, actions: Signatures, game: Game) -> Self {
         let engine = game.engine();
         Self::apply_signature_patches(&mut triggers, game);
-        let object_specifier_ids: Vec<String> = match engine {
-            Engine::Iwd2 => OBJECT_SPECIFIER_IDS_IWD2
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-            Engine::Pst => OBJECT_SPECIFIER_IDS_PST
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+        let object_specifier_ids: &'static [&'static str] = match engine {
+            Engine::Iwd2 => OBJECT_SPECIFIER_IDS_IWD2,
+            Engine::Pst => OBJECT_SPECIFIER_IDS_PST,
             // BG, BG2, EE (BGEE / BG2EE / IWDEE / PSTEE / EET) and IWD all
             // use the BG-style 7-slot specifier layout. PSTEE descends from
             // PST but the EE engine reuses the BG bytecode shape, so it
             // belongs here rather than with PST.
-            Engine::Bg | Engine::Bg2 | Engine::Ee | Engine::Iwd => OBJECT_SPECIFIER_IDS_BG
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+            Engine::Bg | Engine::Bg2 | Engine::Ee | Engine::Iwd => OBJECT_SPECIFIER_IDS_BG,
         };
         let combined_strings = match engine {
             Engine::Bg | Engine::Bg2 | Engine::Ee => combined_strings_bg_family(),
@@ -222,8 +215,8 @@ impl BafContext {
         &self.actions
     }
 
-    pub(crate) fn object_specifier_ids(&self) -> &[String] {
-        &self.object_specifier_ids
+    pub(crate) fn object_specifier_ids(&self) -> &'static [&'static str] {
+        self.object_specifier_ids
     }
 
     pub(crate) fn indent(&self) -> &str {
@@ -821,10 +814,10 @@ fn decompile_object(object: &BcsObject, ctx: &BafContext) -> String {
             let v = object.identifiers[i];
             if v != 0 {
                 found = true;
-                let symbol = map
-                    .and_then(|m| m.of_value(v))
-                    .map(normalize_symbol)
-                    .unwrap_or_else(|| format!("UnknownObject{}", v));
+                let symbol = match map.and_then(|m| m.of_value(v)) {
+                    Some(s) => normalize_symbol(s).into_owned(),
+                    None => format!("UnknownObject{}", v),
+                };
                 list.push(symbol);
             } else if found {
                 break;
@@ -899,6 +892,7 @@ fn decompile_object_target(
         } else {
             ctx.object_specifier_ids()
                 .get(i)
+                .copied()
                 .and_then(|name| ctx.ids_lookup(name))
                 .and_then(|map| map.of_value(v))
                 .map(normalize_symbol)
@@ -912,24 +906,29 @@ fn decompile_object_target(
     Some(sb)
 }
 
-fn decompile_number(value: i32, param: &crate::signatures::Parameter, ctx: &BafContext) -> String {
+fn decompile_number<'a>(
+    value: i32,
+    param: &crate::signatures::Parameter,
+    ctx: &'a BafContext,
+) -> std::borrow::Cow<'a, str> {
     if !param.ids_ref.is_empty()
         && let Some(map) = ctx.ids_lookup(&param.ids_ref)
         && let Some(name) = map.of_value(value)
     {
         return normalize_symbol(name);
     }
-    value.to_string()
+    std::borrow::Cow::Owned(value.to_string())
 }
 
 /// Returns the symbol untouched when it parses as a script identifier, or
 /// wraps it in five quotes (NI's escape for symbols that would otherwise be
-/// rejected by the parser).
-fn normalize_symbol(symbol: &str) -> String {
+/// rejected by the parser). The valid-symbol fast path returns `Cow::Borrowed`
+/// to skip an allocation per OBJECT.IDS lookup.
+fn normalize_symbol(symbol: &str) -> std::borrow::Cow<'_, str> {
     if is_valid_symbol(symbol) {
-        symbol.to_string()
+        std::borrow::Cow::Borrowed(symbol)
     } else {
-        format!("\"\"\"\"\"{}\"\"\"\"\"", symbol)
+        std::borrow::Cow::Owned(format!("\"\"\"\"\"{}\"\"\"\"\"", symbol))
     }
 }
 

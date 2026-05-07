@@ -16,7 +16,9 @@ use infinitier_ids_importer::Ids;
 #[derive(Debug, Clone, Default)]
 pub struct Signatures {
     by_id: HashMap<i32, Vec<Function>>,
-    by_name: HashMap<String, Function>,
+    /// Lower-cased name → `(id, index in by_id[id])`. Avoids cloning every
+    /// `Function` into both maps; name lookups indirect through `by_id`.
+    by_name: HashMap<String, (i32, usize)>,
 }
 
 /// One function definition as parsed from an IDS line.
@@ -65,22 +67,23 @@ impl Signatures {
     /// retained; the BAF decompiler picks among them by param-shape scoring.
     pub fn from_ids(ids: &Ids) -> Self {
         let mut by_id: HashMap<i32, Vec<Function>> = HashMap::new();
-        let mut by_name: HashMap<String, Function> = HashMap::new();
+        let mut by_name: HashMap<String, (i32, usize)> = HashMap::new();
         for entry in &ids.entries {
             let Some(func) = Function::parse(entry.value, &entry.name) else {
                 continue;
             };
-            let bucket = by_id.entry(func.id).or_default();
+            let func_id = func.id;
+            let bucket = by_id.entry(func_id).or_default();
             // NI's Function.equals ignores the name and only compares id +
             // params + type, so two same-id same-shape definitions collide and
             // the first added wins. Mirror that here.
             if bucket.iter().any(|existing| existing.params == func.params) {
                 continue;
             }
-            bucket.push(func.clone());
-            by_name
-                .entry(func.name.to_ascii_lowercase())
-                .or_insert(func);
+            let idx = bucket.len();
+            let lc_name = func.name.to_ascii_lowercase();
+            bucket.push(func);
+            by_name.entry(lc_name).or_insert((func_id, idx));
         }
         Self { by_id, by_name }
     }
@@ -92,7 +95,8 @@ impl Signatures {
 
     /// Returns a function by name (case-insensitive).
     pub fn get_by_name(&self, name: &str) -> Option<&Function> {
-        self.by_name.get(&name.to_ascii_lowercase())
+        let (id, idx) = self.by_name.get(&name.to_ascii_lowercase()).copied()?;
+        self.by_id.get(&id).and_then(|v| v.get(idx))
     }
 
     /// Adds a function signature parsed from raw text (e.g.
@@ -109,10 +113,10 @@ impl Signatures {
         if bucket.iter().any(|existing| existing.params == func.params) {
             return false;
         }
-        bucket.push(func.clone());
-        self.by_name
-            .entry(func.name.to_ascii_lowercase())
-            .or_insert(func);
+        let idx = bucket.len();
+        let lc_name = func.name.to_ascii_lowercase();
+        bucket.push(func);
+        self.by_name.entry(lc_name).or_insert((id, idx));
         true
     }
 }
