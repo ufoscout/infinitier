@@ -235,12 +235,8 @@ impl ValuePacker {
     /// bitstream and rewrites `pblock` in-place to hold the quantizer
     /// indices.
     fn analyse<W: Write>(&mut self, block: &[i16], bw: &mut BitWriter<W>) -> io::Result<()> {
-        for v in self.max_abs.iter_mut() {
-            *v = 0;
-        }
-        for v in self.max_plus.iter_mut() {
-            *v = 0;
-        }
+        self.max_abs.fill(0);
+        self.max_plus.fill(0);
 
         let mut sub_number = 0usize;
         for (i, &v) in block.iter().enumerate().take(self.pblock_size) {
@@ -326,32 +322,44 @@ impl ValuePacker {
     /// ceil(log2(max))`, and write `pwr` (4 bits) + `val` (16 bits) to
     /// the bitstream.
     fn granulate<W: Write>(&mut self, val: i32, bw: &mut BitWriter<W>) -> io::Result<()> {
-        let val_f = val as f64;
         let mut max: i32 = 0;
-        for i in 0..self.pblock_size {
-            let n = round_half_away(self.pblock[i] as f64 / val_f);
-            // n is in [-32768, 32767] for any val ≥ 1 and original i16
-            // input. Clamp defensively so we don't depend on rounding
-            // edge cases.
-            let n = n.clamp(i16::MIN as i32, i16::MAX as i32);
-            self.pblock[i] = n as i16;
-            // Match the C++ formula: |n| for negatives, n+1 for
-            // non-negatives (so even max=0 yields max≥1, which keeps
-            // the log2 well defined). The `+1` also ensures the
-            // amplitude lookup table has room for the largest positive
-            // value.
-            let n_abs = if n < 0 { -n } else { n + 1 };
-            if n_abs > max {
-                max = n_abs;
+        if val == 1 {
+            // Identity quantization — `pblock` already holds the i16
+            // input verbatim from `analyse`. Skip the f64 divide /
+            // round / clamp loop entirely; just walk the block to
+            // find the max amplitude.
+            for &v in &self.pblock[..self.pblock_size] {
+                let n = v as i32;
+                let n_abs = if n < 0 { -n } else { n + 1 };
+                if n_abs > max {
+                    max = n_abs;
+                }
+            }
+        } else {
+            let val_f = val as f64;
+            for i in 0..self.pblock_size {
+                let n = round_half_away(self.pblock[i] as f64 / val_f);
+                // n is in [-32768, 32767] for any val ≥ 1 and original
+                // i16 input. Clamp defensively so we don't depend on
+                // rounding edge cases.
+                let n = n.clamp(i16::MIN as i32, i16::MAX as i32);
+                self.pblock[i] = n as i16;
+                // Match the C++ formula: |n| for negatives, n+1 for
+                // non-negatives (so even max=0 yields max≥1, which
+                // keeps the log2 well defined). The `+1` also ensures
+                // the amplitude lookup table has room for the largest
+                // positive value.
+                let n_abs = if n < 0 { -n } else { n + 1 };
+                if n_abs > max {
+                    max = n_abs;
+                }
             }
         }
         // Re-zero the look-ahead padding rows in case granulate ran
         // after a previous block left non-zero values there. (The
         // analyse step doesn't touch these rows, so zeros from
         // construction time persist — but re-zero defensively.)
-        for v in self.pblock[self.pblock_size..].iter_mut() {
-            *v = 0;
-        }
+        self.pblock[self.pblock_size..].fill(0);
 
         let pwr = if max <= 1 {
             0u32
@@ -618,6 +626,12 @@ fn gcd_array(values: &[i16]) -> i32 {
     let mut acc = values[0] as i32;
     for &v in &values[1..] {
         acc = gcd_pair(acc, v as i32);
+        // Once GCD has dropped to 1 no further reductions can change
+        // it — most natural-audio blocks hit this within the first
+        // handful of samples.
+        if acc == 1 {
+            return 1;
+        }
     }
     if acc < 0 { -acc } else { acc }
 }

@@ -1,6 +1,5 @@
 #![doc = include_str!("../readme.md")]
 
-use std::collections::VecDeque;
 use std::io::{self, Seek, SeekFrom};
 use std::path::Path;
 
@@ -22,7 +21,11 @@ pub type Result<T> = std::result::Result<T, WavError>;
 
 #[derive(Debug, ThisError)]
 pub enum WavError {
-    #[error("not a WAV / WAVC / OGG file: unknown magic {0:?}")]
+    #[error(
+        "not a WAV / WAVC / OGG file: unknown magic {:?} ({:02x?})",
+        std::str::from_utf8(.0).unwrap_or("<non-utf8>"),
+        .0
+    )]
     UnknownFormat([u8; 4]),
     #[error(
         "unsupported PCM format: bits_per_sample={bits}, sample_format={fmt:?} (only 16-bit \
@@ -122,8 +125,23 @@ struct OggState {
     format: Box<dyn FormatReader>,
     decoder: Box<dyn Decoder>,
     track_id: u32,
-    /// Decoded samples not yet handed out via `read_samples`.
-    pending: VecDeque<i16>,
+    /// Decoded samples not yet handed out via `read_samples`. Stored
+    /// as `Vec<i16>` + a cursor instead of `VecDeque<i16>` because the
+    /// access pattern is "fill once per packet, drain linearly" — a
+    /// flat Vec gives better cache locality, lets us `extend_from_slice`
+    /// the whole packet in one `memcpy`, and avoids `pop_front` overhead.
+    pending: Vec<i16>,
+    /// Index of the next unconsumed sample inside `pending`. When
+    /// `consumed == pending.len()` the buffer is reset to empty.
+    consumed: usize,
+    /// Reused interleaved-i16 buffer for `copy_interleaved_ref`. Held
+    /// across packets so we don't allocate a fresh `SampleBuffer` (and
+    /// its internal `cap × channels` i16 storage) on every Vorbis
+    /// packet. Symphonia's `SampleBuffer` doesn't expose its capacity,
+    /// so we track it ourselves and rebuild the buffer only when a
+    /// packet's capacity outgrows the previous one.
+    sample_buf: Option<SampleBuffer<i16>>,
+    sample_buf_cap: u64,
     /// Set once `next_packet` returned a clean end-of-stream so we
     /// stop polling the format reader on subsequent calls.
     eos: bool,
@@ -133,10 +151,18 @@ impl OggState {
     fn read_samples(&mut self, out: &mut [i16]) -> Result<usize> {
         let mut written = 0usize;
         while written < out.len() {
-            // Fast path: hand out from the pending buffer first.
-            if let Some(s) = self.pending.pop_front() {
-                out[written] = s;
-                written += 1;
+            // Fast path: copy from the pending buffer in bulk.
+            if self.consumed < self.pending.len() {
+                let avail = self.pending.len() - self.consumed;
+                let want = (out.len() - written).min(avail);
+                out[written..written + want]
+                    .copy_from_slice(&self.pending[self.consumed..self.consumed + want]);
+                self.consumed += want;
+                written += want;
+                if self.consumed == self.pending.len() {
+                    self.pending.clear();
+                    self.consumed = 0;
+                }
                 continue;
             }
             if self.eos {
@@ -167,11 +193,19 @@ impl OggState {
                 Ok(decoded) => {
                     let spec = *decoded.spec();
                     let cap = decoded.capacity() as u64;
-                    let mut sb = SampleBuffer::<i16>::new(cap, spec);
+                    // Re-use the SampleBuffer across packets; only
+                    // rebuild when a packet outgrows the previous
+                    // capacity.
+                    let sb = match self.sample_buf.as_mut() {
+                        Some(sb) if cap <= self.sample_buf_cap => sb,
+                        _ => {
+                            self.sample_buf = Some(SampleBuffer::<i16>::new(cap, spec));
+                            self.sample_buf_cap = cap;
+                            self.sample_buf.as_mut().unwrap()
+                        }
+                    };
                     sb.copy_interleaved_ref(decoded);
-                    for &s in sb.samples() {
-                        self.pending.push_back(s);
-                    }
+                    self.pending.extend_from_slice(sb.samples());
                 }
                 Err(SymphoniaError::DecodeError(_)) => {
                     // Bad packet — Symphonia recommends skipping and
@@ -211,11 +245,18 @@ impl WavDecoder {
     /// forwarded to the inner [`AcmDecoder`] for WAVC sources.
     pub fn open(datasource: &DataSource, name: impl Into<String>) -> Result<Self> {
         let name = name.into();
-        match datasource.reader()?.read_string(4)?.as_str() {
-            "RIFF" => Self::open_riff(datasource, name),
-            "WAVC" => Self::open_wavc(datasource, name),
-            "OggS" => Self::open_ogg(datasource, name),
-            _ => Err(WavError::UnknownFormat([0; 4])),
+        // Read 4 bytes of magic so the unknown-format error can carry
+        // the actual prefix instead of an all-zero placeholder.
+        // Truncated inputs (< 4 bytes) get padded with zeros, matching
+        // the previous behaviour.
+        let mut magic = [0u8; 4];
+        let mut reader = datasource.reader()?;
+        let _ = reader.data.read(&mut magic)?;
+        match &magic {
+            b"RIFF" => Self::open_riff(datasource, name),
+            b"WAVC" => Self::open_wavc(datasource, name),
+            b"OggS" => Self::open_ogg(datasource, name),
+            _ => Err(WavError::UnknownFormat(magic)),
         }
     }
 
@@ -342,7 +383,10 @@ impl WavDecoder {
                 format,
                 decoder,
                 track_id,
-                pending: VecDeque::new(),
+                pending: Vec::new(),
+                consumed: 0,
+                sample_buf: None,
+                sample_buf_cap: 0,
                 eos: false,
             }),
         })

@@ -192,9 +192,10 @@ pub fn encode_pcm_with_block_size<W: Write>(
     Ok(())
 }
 
-/// Encode the contents of a 16-bit signed-integer PCM RIFF/WAVE stream
-/// into an ACM bitstream. Lossless.
-pub fn encode_wav<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
+/// Read a 16-bit signed-integer PCM RIFF/WAVE stream into a `Vec<i16>`
+/// + the source spec. Used by every `encode_wav*` entry point so the
+/// header-validation + sample-collection boilerplate lives in one place.
+fn read_pcm_samples<R: Read>(reader: R) -> Result<(Vec<i16>, hound::WavSpec)> {
     let mut wav = WavReader::new(reader)?;
     let spec = wav.spec();
     if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
@@ -206,6 +207,13 @@ pub fn encode_wav<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
     let samples: Vec<i16> = wav
         .samples::<i16>()
         .collect::<std::result::Result<_, _>>()?;
+    Ok((samples, spec))
+}
+
+/// Encode the contents of a 16-bit signed-integer PCM RIFF/WAVE stream
+/// into an ACM bitstream. Lossless.
+pub fn encode_wav<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
+    let (samples, spec) = read_pcm_samples(reader)?;
     encode_pcm(&samples, spec.channels as u32, spec.sample_rate, writer)
 }
 
@@ -276,14 +284,13 @@ pub fn encode_pcm_packed_with_block_size<W: Write>(
 
     for b in 0..n_blocks {
         let block_start = b * block_len;
-        for (r, slot) in buf.iter_mut().enumerate() {
-            let i = block_start + r;
-            *slot = if i < samples.len() {
-                samples[i]
-            } else {
-                0i16
-            };
-        }
+        let block_end = (block_start + block_len).min(samples.len());
+        let n_real = block_end - block_start;
+        // Bulk-copy the in-range portion (compiler emits a `memcpy`)
+        // and zero-pad the trailing tail of the last block — much
+        // faster than the per-element bounds-checked fill.
+        buf[..n_real].copy_from_slice(&samples[block_start..block_end]);
+        buf[n_real..].fill(0);
         packer.add_block(&buf, &mut bw)?;
     }
 
@@ -400,25 +407,25 @@ pub fn encode_pcm_subband_with_f_half<W: Write>(
     let n_coeffs = coder.filter_data(&input, &mut coeffs);
 
     // Stream coefficients into row-major blocks; pack each full block,
-    // pad the trailing partial block with zeros.
+    // pad the trailing partial block with zeros. Process via
+    // `chunks_exact` for the in-range whole blocks (compiler unrolls
+    // the i64→clamp→i16 pipeline), then handle the trailing partial
+    // block once.
     let mut buf = vec![0i16; block_size];
-    let mut bp = 0usize;
-    for &coeff in coeffs.iter().take(n_coeffs) {
-        // Clamp to i16 — the C++ does the same and counts clipping
-        // events as warnings. Real-world signals only saturate when
-        // the lifting transform amplifies a transient beyond ±32768.
-        let c = coeff.clamp(i16::MIN as i64, i16::MAX as i64) as i16;
-        buf[bp] = c;
-        bp += 1;
-        if bp == block_size {
-            packer.add_block(&buf, &mut bw)?;
-            bp = 0;
+    let coeffs_in = &coeffs[..n_coeffs];
+    let mut chunks = coeffs_in.chunks_exact(block_size);
+    for chunk in &mut chunks {
+        for (slot, &coeff) in buf.iter_mut().zip(chunk.iter()) {
+            *slot = coeff.clamp(i16::MIN as i64, i16::MAX as i64) as i16;
         }
+        packer.add_block(&buf, &mut bw)?;
     }
-    if bp > 0 {
-        for v in &mut buf[bp..] {
-            *v = 0;
+    let tail = chunks.remainder();
+    if !tail.is_empty() {
+        for (slot, &coeff) in buf.iter_mut().zip(tail.iter()) {
+            *slot = coeff.clamp(i16::MIN as i64, i16::MAX as i64) as i16;
         }
+        buf[tail.len()..].fill(0);
         packer.add_block(&buf, &mut bw)?;
     }
 
@@ -431,17 +438,7 @@ pub fn encode_pcm_subband_with_f_half<W: Write>(
 /// defaults — `f_half = 11`, `acm_level = 7`, `acm_rows = 16` —
 /// matching `snd2acm.cpp`'s defaults.
 pub fn encode_wav_subband<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
-    let mut wav = WavReader::new(reader)?;
-    let spec = wav.spec();
-    if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
-        return Err(AcmEncodeError::UnsupportedPcmFormat {
-            bits: spec.bits_per_sample,
-            fmt: spec.sample_format,
-        });
-    }
-    let samples: Vec<i16> = wav
-        .samples::<i16>()
-        .collect::<std::result::Result<_, _>>()?;
+    let (samples, spec) = read_pcm_samples(reader)?;
     encode_pcm_subband(
         &samples,
         spec.channels as u32,
@@ -554,17 +551,7 @@ pub fn encode_pcm_subband_wavc<W: Write>(
 /// [`AcmEncodeError::WavcInvalidSampleRate`] if the input WAV is not at
 /// 22050 Hz.
 pub fn encode_wav_wavc<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
-    let mut wav = WavReader::new(reader)?;
-    let spec = wav.spec();
-    if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
-        return Err(AcmEncodeError::UnsupportedPcmFormat {
-            bits: spec.bits_per_sample,
-            fmt: spec.sample_format,
-        });
-    }
-    let samples: Vec<i16> = wav
-        .samples::<i16>()
-        .collect::<std::result::Result<_, _>>()?;
+    let (samples, spec) = read_pcm_samples(reader)?;
     encode_pcm_wavc(&samples, spec.channels as u32, spec.sample_rate, writer)
 }
 
@@ -575,17 +562,7 @@ pub fn encode_wav_wavc<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<(
 /// [`AcmEncodeError::WavcInvalidSampleRate`] if the input WAV is not at
 /// 22050 Hz.
 pub fn encode_wav_subband_wavc<R: Read, W: Write>(reader: R, writer: &mut W) -> Result<()> {
-    let mut wav = WavReader::new(reader)?;
-    let spec = wav.spec();
-    if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
-        return Err(AcmEncodeError::UnsupportedPcmFormat {
-            bits: spec.bits_per_sample,
-            fmt: spec.sample_format,
-        });
-    }
-    let samples: Vec<i16> = wav
-        .samples::<i16>()
-        .collect::<std::result::Result<_, _>>()?;
+    let (samples, spec) = read_pcm_samples(reader)?;
     encode_pcm_subband_wavc(
         &samples,
         spec.channels as u32,

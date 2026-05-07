@@ -27,6 +27,7 @@ impl<W: Write> BitWriter<W> {
         }
     }
 
+    #[inline]
     pub(crate) fn put_bits(&mut self, value: u32, n: u32) -> io::Result<()> {
         debug_assert!(n <= 32);
         if n == 0 {
@@ -39,7 +40,11 @@ impl<W: Write> BitWriter<W> {
         };
         self.buf |= ((value & mask) as u64) << self.bits;
         self.bits += n;
-        while self.bits >= 32 {
+        // With `n ≤ 32` and `self.bits < 32` on entry, `self.bits` is
+        // now `< 64` — at most one full word can be drained, so an
+        // `if` suffices (the previous `while` could only ever execute
+        // once anyway).
+        if self.bits >= 32 {
             let word = (self.buf & 0xFFFF_FFFF) as u32;
             self.out.write_all(&word.to_le_bytes())?;
             self.buf >>= 32;

@@ -187,14 +187,27 @@ impl SubbandCoder {
         };
         if val != 0 {
             let valf = val as f64;
-            for i in 0..f_len {
-                let pos = base + (cur_no + i) % f_len;
-                let coeff = if is_odd {
-                    self.hp_filter[i]
-                } else {
-                    self.lp_filter[i]
-                };
-                self.incomp[pos] += coeff * valf;
+            // Pick the polyphase branch once per call instead of
+            // re-evaluating the `is_odd` ternary on every tap.
+            let filter: &[f64] = if is_odd {
+                &self.hp_filter
+            } else {
+                &self.lp_filter
+            };
+            // Walk `incomp` in two contiguous slice segments instead
+            // of using `% f_len` per iteration:
+            //   segment 1: positions `cur_no..f_len` ↔ filter `0..f_len-cur_no`
+            //   segment 2: positions `0..cur_no`     ↔ filter `f_len-cur_no..f_len`
+            // The compiler vectorises each fused-multiply-add segment
+            // when both operands are slice-bounded `f64`.
+            let split = f_len - cur_no;
+            let buf = &mut self.incomp[base..base + f_len];
+            let (head, tail) = buf.split_at_mut(cur_no);
+            for (cell, &c) in tail.iter_mut().zip(&filter[..split]) {
+                *cell += c * valf;
+            }
+            for (cell, &c) in head.iter_mut().zip(&filter[split..]) {
+                *cell += c * valf;
             }
         }
         // (long) cast in C++ truncates toward zero; Rust's `as i64`
