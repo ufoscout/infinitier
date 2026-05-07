@@ -1935,6 +1935,8 @@ dependencies = [
  "infinitier_datasource",
  "infinitier_test_utils",
  "log",
+ "serde",
+ "serde_json",
  "sha2",
  "thiserror 2.0.18",
 ]
@@ -2069,6 +2071,7 @@ dependencies = [
  "image",
  "infinitier_datasource",
  "infinitier_mve_decoder",
+ "infinitier_test_utils",
  "log",
  "tempfile",
  "thiserror 2.0.18",

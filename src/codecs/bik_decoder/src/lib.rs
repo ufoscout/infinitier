@@ -13,12 +13,15 @@
 //! enumerate frame counts and audio metadata).
 
 pub mod audio;
+pub mod binkb;
 pub mod bitreader;
 pub mod bundle;
 pub mod container;
 pub mod dct;
 pub mod dsp;
 pub mod error;
+pub mod fft;
+pub mod rdft;
 pub mod tables;
 pub mod vlc;
 pub mod video;

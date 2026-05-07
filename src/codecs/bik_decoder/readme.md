@@ -11,10 +11,26 @@ Supported variants in scope:
 
 | Codec | What it covers |
 |---|---|
-| `binkvideo` (BIKi/BIKb/BIKf) | Bink Video v1 with YUV420p output, optional alpha |
+| `binkvideo` (BIKi/BIKf/BIKg/BIKh) | Bink Video v1 with YUV420p output, optional alpha |
 | `binkaudio_dct` | DCT-based Bink audio (the variant IWD2 uses) |
 
-`binkvideo2` (KB2) and `binkaudio_rdft` are out of scope.
+`BIKb` (BinkB) headers parse but its frame decoder isn't implemented yet
+— the corpus tests skip it cleanly. `binkvideo2` (KB2) and
+`binkaudio_rdft` are out of scope.
 
-See `tests/iwd2_corpus.rs` for the per-frame SHA-256 fixture validation
-against the seven IWD2 cutscene files.
+## Test corpus
+
+Tests live under `tests/`:
+
+* `tests/container.rs` — header / frame-index / audio-track parsing.
+* `tests/video_corpus.rs` — per-frame SHA-256 of the YUV420p output
+  against the FFmpeg-recorded fixtures, byte-exact.
+* `tests/audio_corpus.rs` — full PCM stream against either the recorded
+  SHA-256 (byte-exact) or live FFmpeg re-decode (PSNR ≥ 30 dB).
+
+Fixtures live in `assets/resources/BIK/<stem>.json` next to each
+`.bik` / `.mve` file. To regenerate them after adding new files:
+
+```sh
+python3 assets/resources/BIK/_gen_fixtures.py
+```

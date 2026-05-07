@@ -1,18 +1,24 @@
-//! Bink audio decoder (DCT variant, `binkaudio_dct`).
+//! Bink audio decoder.
 //!
-//! Mirrors FFmpeg's `binkaudio.c` — the DCT-based path only. Bink's RDFT
-//! variant exists but is rare in the wild; every IWD2 cutscene uses
-//! `binkaudio_dct`, so we cover that and reject RDFT explicitly.
+//! Mirrors FFmpeg's `binkaudio.c`. Both variants are covered:
+//!
+//! * **`binkaudio_dct`** — DCT-based path. The decoder runs the parsed
+//!   coefficients through an inverse DCT-III; one logical buffer per
+//!   channel.
+//! * **`binkaudio_rdft`** — RDFT-based path. The decoder treats the
+//!   stream as one virtual mono channel running at the doubled sample
+//!   rate; the FFT-based inverse-RDFT produces interleaved L/R samples
+//!   directly. Used by older Bink files (`original.bik` in the corpus).
 //!
 //! Architecture:
 //!
 //! * Each audio packet starts with a 32-bit reported size (skipped) and
 //!   then carries one or more *blocks*, packed at 32-bit alignment.
-//! * Each block decodes per channel: 2-bit mode skip, two floats for the
-//!   DC pair, per-band quantizer indices, then variable-width groups of
-//!   coefficients.
-//! * The frequency-domain coefficients go through an inverse DCT-III to
-//!   produce time-domain samples.
+//! * Each block decodes per "internal channel" (= 1 for RDFT, =
+//!   `channels` for DCT): two floats for the DC pair, per-band
+//!   quantiser indices, then variable-width groups of coefficients.
+//! * The frequency-domain coefficients go through the inverse transform
+//!   (DCT-III / RDFT) to produce time-domain samples.
 //! * Overlap-add with the previous block's tail forms the block's
 //!   beginning, smoothing across block boundaries.
 //! * Channel samples are converted to interleaved `i16` PCM.
@@ -24,6 +30,7 @@
 use crate::bitreader::BitReader;
 use crate::container::{AudioFlags, AudioTrack};
 use crate::error::{BikError, BikResult};
+use crate::rdft::InverseRdft;
 
 /// WMA critical frequency table (`ff_wma_critical_freqs`). Used to derive
 /// per-block band boundaries.
@@ -37,17 +44,23 @@ const RLE_LENGTH_TAB: [u8; 16] = [2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 1
 
 const MAX_CHANNELS: usize = 2;
 
-/// Bink audio decoder (DCT variant).
+/// Bink audio decoder, covering both `binkaudio_dct` and `binkaudio_rdft`.
 pub struct AudioDecoder {
+    /// User-facing sample rate (e.g. 44100 for stereo @ 44.1kHz, even when
+    /// the RDFT path internally treats it as 88200 mono).
     sample_rate: u32,
+    /// User-facing channel count (1 or 2).
     channels: usize,
-    /// `2^frame_len_bits` — DCT length, also samples-per-channel per block.
+    /// `true` for `binkaudio_dct`, `false` for `binkaudio_rdft`.
+    use_dct: bool,
+    /// Number of "internal" channels processed per block — equals
+    /// `channels` for DCT, always 1 for RDFT (where stereo is folded into
+    /// the doubled frame length).
+    internal_channels: usize,
+    /// Block size in samples (after the boost for RDFT-stereo).
     frame_len: usize,
     /// `frame_len / 16` — overlap-add region length.
     overlap_len: usize,
-    /// `(frame_len - overlap_len) * channels` — output samples per block,
-    /// interleaved.
-    block_size: usize,
     num_bands: usize,
     bands: [u32; 26],
     quant_table: [f32; 96],
@@ -55,41 +68,64 @@ pub struct AudioDecoder {
     previous: [Vec<f32>; MAX_CHANNELS],
     /// `false` means "this is not the first block, do overlap-add".
     first: bool,
-    /// Pre-built `cos(π·(2n+1)·k / (2N))` table, used by the slow DCT-III.
-    /// Indexed as `cos_table[n * frame_len + k]`. Sized once at construction.
+    /// Pre-built `cos(π·(2n+1)·k / (2N))` table for the slow DCT-III.
+    /// Only populated when `use_dct == true`.
     cos_table: Vec<f32>,
+    /// Inverse RDFT context. Only populated when `use_dct == false`.
+    inverse_rdft: Option<InverseRdft>,
 }
 
 impl AudioDecoder {
     /// Build a decoder from one of the parsed audio tracks of a [`BikHeader`].
-    /// Errors out for the RDFT variant since IWD2 doesn't use it.
     pub fn new(track: &AudioTrack) -> BikResult<Self> {
-        if !track.flags.contains(AudioFlags::USE_DCT) {
-            return Err(BikError::Unsupported(
-                "binkaudio_rdft (non-DCT) is not implemented",
-            ));
-        }
         let channels = track.flags.channels() as usize;
         if channels == 0 || channels > MAX_CHANNELS {
             return Err(BikError::Unsupported(
                 "Bink audio supports 1 or 2 channels only",
             ));
         }
+        let use_dct = track.flags.contains(AudioFlags::USE_DCT);
+        let user_sample_rate = track.sample_rate as u32;
 
-        let sample_rate = track.sample_rate as u32;
-        let frame_len_bits = if sample_rate < 22050 {
-            9u32
-        } else if sample_rate < 44100 {
+        // FFmpeg's `decode_init`: pick `frame_len_bits` from the per-channel
+        // sample rate first, then for the RDFT path multiply the rate by
+        // `channels` and bump `frame_len_bits` by `log2(channels)`. Result:
+        // RDFT-stereo's internal frame length is twice the DCT-stereo
+        // value at the same nominal rate.
+        let mut frame_len_bits: u32 = if user_sample_rate < 22050 {
+            9
+        } else if user_sample_rate < 44100 {
             10
         } else {
             11
         };
+        let internal_channels;
+        let internal_sample_rate;
+        if use_dct {
+            internal_channels = channels;
+            internal_sample_rate = user_sample_rate;
+        } else {
+            // `version_b` (BIKb-style audio) skips this boost; we don't
+            // currently observe BIKb audio in the corpus, so always boost.
+            internal_channels = 1;
+            internal_sample_rate = user_sample_rate
+                .checked_mul(channels as u32)
+                .ok_or(BikError::Unsupported("audio sample_rate * channels overflowed u32"))?;
+            if channels > 1 {
+                frame_len_bits += (channels as u32).ilog2();
+            }
+        }
         let frame_len = 1usize << frame_len_bits;
         let overlap_len = frame_len / 16;
-        let block_size = (frame_len - overlap_len) * channels;
-        let sample_rate_half = sample_rate.div_ceil(2);
-        // FFmpeg uses `s->frame_len / (sqrt(s->frame_len) * 32768)` = `sqrt(frame_len)/32768`.
-        let root = (frame_len as f32).sqrt() / 32768.0;
+        let sample_rate_half = internal_sample_rate.div_ceil(2);
+        // FFmpeg picks two different `s->root` values:
+        //   DCT  → `frame_len / (sqrt(frame_len) * 32768)` = `sqrt(N)/32768`
+        //   RDFT → `2 / (sqrt(frame_len) * 32768)`
+        let root = if use_dct {
+            (frame_len as f32).sqrt() / 32768.0
+        } else {
+            2.0 / ((frame_len as f32).sqrt() * 32768.0)
+        };
 
         // 96-entry quantizer log scale (constant from binkaudio.c).
         let mut quant_table = [0f32; 96];
@@ -103,9 +139,7 @@ impl AudioDecoder {
             num_bands += 1;
         }
 
-        // Band boundaries — FFmpeg uses 2 as the seed in the new code, so
-        // band 0 covers coefficients [0..2], i.e. the explicit DC pair the
-        // bitstream carries verbatim.
+        // Band boundaries.
         let mut bands = [0u32; 26];
         bands[0] = 2;
         for i in 1..num_bands {
@@ -115,24 +149,33 @@ impl AudioDecoder {
         }
         bands[num_bands] = frame_len as u32;
 
-        // Cosine table for the slow DCT-III. Sized N×N — for N=2048 (the
-        // 44.1 kHz / 48 kHz case) that's 16 MB, which fits comfortably in
-        // RAM and amortises across thousands of blocks per file.
-        let mut cos_table = vec![0f32; frame_len * frame_len];
-        let pi_over_2n = std::f32::consts::PI / (2.0 * frame_len as f32);
-        for n in 0..frame_len {
-            for k in 0..frame_len {
-                cos_table[n * frame_len + k] =
-                    (pi_over_2n * (2 * n + 1) as f32 * k as f32).cos();
+        // Allocate the heavy `cos_table` only when DCT will actually use it.
+        let cos_table = if use_dct {
+            let mut t = vec![0f32; frame_len * frame_len];
+            let pi_over_2n = std::f32::consts::PI / (2.0 * frame_len as f32);
+            for n in 0..frame_len {
+                for k in 0..frame_len {
+                    t[n * frame_len + k] = (pi_over_2n * (2 * n + 1) as f32 * k as f32).cos();
+                }
             }
-        }
+            t
+        } else {
+            Vec::new()
+        };
+
+        let inverse_rdft = if use_dct {
+            None
+        } else {
+            Some(InverseRdft::new(frame_len_bits))
+        };
 
         Ok(Self {
-            sample_rate,
+            sample_rate: user_sample_rate,
             channels,
+            use_dct,
+            internal_channels,
             frame_len,
             overlap_len,
-            block_size,
             num_bands,
             bands,
             quant_table,
@@ -140,6 +183,7 @@ impl AudioDecoder {
             previous: [vec![0f32; overlap_len], vec![0f32; overlap_len]],
             first: true,
             cos_table,
+            inverse_rdft,
         })
     }
 
@@ -159,72 +203,74 @@ impl AudioDecoder {
     // `&self`; rewriting them with iterators forces awkward borrow splits.
     pub fn decode_packet(&mut self, packet: &[u8]) -> BikResult<Vec<i16>> {
         if packet.len() < 4 {
-            // FFmpeg requires ≥ 4 bytes for the reported-size prefix; an
-            // empty packet is also legal — Bink files emit them when the
-            // video frame doesn't carry any audio.
             return Ok(Vec::new());
         }
         let mut r = BitReader::new(packet);
         // Skip the reported size (32-bit). FFmpeg ignores it.
         r.skip_bits(32);
 
-        let mut out: Vec<i16> = Vec::with_capacity(self.block_size * 4);
+        let mut out: Vec<i16> = Vec::with_capacity(self.frame_len);
         let total_bits = packet.len() * 8;
 
-        // Per-block scratch buffers. Each holds frame_len floats per channel.
+        // Per-block scratch. Each buffer is `frame_len + 2` long: the
+        // trailing 2 floats are the Nyquist re/im that the inverse RDFT
+        // pre-pass writes (and that the DCT path simply ignores).
         let mut coeffs: [Vec<f32>; MAX_CHANNELS] =
-            [vec![0f32; self.frame_len], vec![0f32; self.frame_len]];
+            [vec![0f32; self.frame_len + 2], vec![0f32; self.frame_len + 2]];
 
         while r.bit_pos() < total_bits {
-            // 2-bit DCT mode prefix is **per-block** (one skip per call to
-            // FFmpeg's `decode_block`), not per-channel. The earlier port
-            // had this inside `parse_channel_coeffs` and consumed `2 *
-            // channels` bits per block, throwing off both block boundaries
-            // and bit alignment downstream.
-            r.skip_bits(2);
-            // Per-channel coefficient parsing + IDCT. We always allocate up
-            // to MAX_CHANNELS but only use the first `self.channels`.
-            for ch in 0..self.channels {
+            // 2-bit DCT mode prefix — emitted only for the DCT variant.
+            if self.use_dct {
+                r.skip_bits(2);
+            }
+            for ch in 0..self.internal_channels {
                 self.parse_channel_coeffs(&mut r, &mut coeffs[ch])?;
             }
-            for ch in 0..self.channels {
-                self.inverse_dct(&mut coeffs[ch]);
+            for ch in 0..self.internal_channels {
+                if self.use_dct {
+                    self.inverse_dct(&mut coeffs[ch]);
+                } else {
+                    self.inverse_rdft(&mut coeffs[ch]);
+                }
             }
 
-            // Overlap-add against `previous`, then refresh `previous` for
-            // the next block.
-            for ch in 0..self.channels {
+            // Overlap-add against `previous`, then refresh `previous`.
+            for ch in 0..self.internal_channels {
                 if !self.first {
                     let prev = &self.previous[ch];
-                    let count = self.overlap_len * self.channels;
+                    let count = self.overlap_len * self.internal_channels;
                     let mut j = ch;
                     for i in 0..self.overlap_len {
                         let p = prev[i];
                         let c = coeffs[ch][i];
-                        coeffs[ch][i] = (p * (count - j) as f32 + c * j as f32) / count as f32;
-                        j += self.channels;
+                        coeffs[ch][i] =
+                            (p * (count - j) as f32 + c * j as f32) / count as f32;
+                        j += self.internal_channels;
                     }
                 }
                 self.previous[ch].copy_from_slice(
-                    &coeffs[ch]
-                        [self.frame_len - self.overlap_len..self.frame_len],
+                    &coeffs[ch][self.frame_len - self.overlap_len..self.frame_len],
                 );
             }
 
-            // Convert frame_len - overlap_len samples per channel to
-            // interleaved i16. The trailing overlap_len samples are kept
-            // for the *next* block's overlap-add.
+            // Emit `frame_len - overlap_len` samples per internal channel.
+            // For DCT we interleave the two per-channel buffers; for RDFT
+            // the single buffer is *already* interleaved L/R.
             let take = self.frame_len - self.overlap_len;
-            for i in 0..take {
-                for ch in 0..self.channels {
-                    out.push(float_to_i16(coeffs[ch][i]));
+            if self.use_dct {
+                for i in 0..take {
+                    for ch in 0..self.internal_channels {
+                        out.push(float_to_i16(coeffs[ch][i]));
+                    }
+                }
+            } else {
+                for i in 0..take {
+                    out.push(float_to_i16(coeffs[0][i]));
                 }
             }
 
             self.first = false;
 
-            // Align to the next 32-bit boundary, matching FFmpeg's
-            // `get_bits_align32`.
             let pos = r.bit_pos();
             if pos & 31 != 0 {
                 r.skip_bits(32 - (pos & 31));
@@ -233,16 +279,16 @@ impl AudioDecoder {
         Ok(out)
     }
 
-    /// Decode the frequency-domain coefficients for one channel. Mirrors
-    /// the inner per-channel loop of `decode_block` in `binkaudio.c`. The
-    /// caller is responsible for the per-block 2-bit DCT mode skip.
+    /// Decode the frequency-domain coefficients for one (internal) channel.
+    /// Mirrors the inner per-channel loop of `decode_block` in
+    /// `binkaudio.c`.
     fn parse_channel_coeffs(
         &self,
         r: &mut BitReader<'_>,
         coeffs: &mut [f32],
     ) -> BikResult<()> {
         // The first two coefficients are stored as IEEE-754 floats packed
-        // 5+23+1 = 29 bits each, with the sign bit at the top.
+        // 5+23+1 = 29 bits each.
         coeffs[0] = read_packed_float(r)? * self.root;
         coeffs[1] = read_packed_float(r)? * self.root;
 
@@ -271,10 +317,6 @@ impl AudioDecoder {
                     *slot = 0.0;
                 }
                 i = j;
-                // Match FFmpeg's `q = quant[k++]`: read CURRENT quant, then
-                // advance k. The pre-increment form was a porting bug — it
-                // both used the wrong quantizer per band and ran off the
-                // end of `quants` for any track with full band coverage.
                 while (self.bands[k] as usize) < i {
                     q = quants[k];
                     k += 1;
@@ -300,33 +342,41 @@ impl AudioDecoder {
         Ok(())
     }
 
-    /// Slow O(N²) DCT-III (inverse DCT-II). Operates in place on `coeffs`.
-    /// `coeffs[0]` is doubled first to match FFmpeg's pre-DCT scaling
-    /// (`coeffs[0] /= 0.5;` in `binkaudio.c`); the output is then scaled
-    /// by `1/(2N)`, matching FFmpeg's TX framework's `scale = 1 /
-    /// (1 << frame_len_bits)`.
+    /// Slow O(N²) DCT-III (inverse DCT-II). Operates in place on the first
+    /// `frame_len` floats of `coeffs`; the trailing two slots are unused
+    /// here (they belong to the RDFT path).
     fn inverse_dct(&self, coeffs: &mut [f32]) {
         let n = self.frame_len;
-        // Canonical inverse DCT-III. `2/N` is the standard normalisation;
-        // the X[0]/2 halving pairs naturally with FFmpeg's pre-DCT
-        // `coeffs[0] /= 0.5` (which would otherwise double DC twice over).
-        //
-        // We don't reach byte-exact parity with FFmpeg's tx-framework
-        // implementation here — that one uses an FFT-decomposed variant
-        // whose float operation order is slightly different — but the
-        // resulting PSNR vs the FFmpeg-decoded WAV reference is reliably
-        // ≥ 35 dB for every IWD2 file (audibly indistinguishable).
         let scale = 2.0 / n as f32;
         let mut out = vec![0f32; n];
         for (idx, slot) in out.iter_mut().enumerate() {
             let row = &self.cos_table[idx * n..idx * n + n];
             let mut acc = coeffs[0] * 0.5;
-            for k in 1..n {
-                acc += coeffs[k] * row[k];
+            for (k, &row_k) in row.iter().enumerate().take(n).skip(1) {
+                acc += coeffs[k] * row_k;
             }
             *slot = acc * scale;
         }
-        coeffs.copy_from_slice(&out);
+        coeffs[..n].copy_from_slice(&out);
+    }
+
+    /// Inverse RDFT pre-process + transform. Mirrors the FFmpeg
+    /// `binkaudio.c` RDFT branch: negate odd-imag coefficients, move
+    /// `coeffs[1]` (Nyquist real) to `coeffs[frame_len]`, zero `coeffs[1]`
+    /// and `coeffs[frame_len + 1]`, then run the inverse RDFT.
+    fn inverse_rdft(&self, coeffs: &mut [f32]) {
+        let n = self.frame_len;
+        let mut i = 2;
+        while i < n {
+            coeffs[i + 1] = -coeffs[i + 1];
+            i += 2;
+        }
+        coeffs[n] = coeffs[1];
+        coeffs[1] = 0.0;
+        coeffs[n + 1] = 0.0;
+        // Slow path: there's a `Some(...)` here when `use_dct == false`.
+        let rdft = self.inverse_rdft.as_ref().expect("RDFT context");
+        rdft.run(coeffs);
     }
 }
 
@@ -340,8 +390,7 @@ fn read_packed_float(r: &mut BitReader<'_>) -> BikResult<f32> {
     Ok(if sign { -v } else { v })
 }
 
-/// Convert a float audio sample (in `[-1, 1]` range, approximately) to a
-/// rounded i16 with saturation.
+/// Convert a float audio sample to a rounded i16 with saturation.
 fn float_to_i16(v: f32) -> i16 {
     let scaled = (v * 32768.0).round();
     if scaled >= 32767.0 {
@@ -369,9 +418,19 @@ mod tests {
         }
     }
 
+    fn rdft_track(rate: u16, stereo: bool) -> AudioTrack {
+        let mut flags = AudioFlags::BITS_16;
+        if stereo {
+            flags |= AudioFlags::STEREO;
+        }
+        AudioTrack {
+            sample_rate: rate,
+            flags,
+        }
+    }
+
     #[test]
     fn frame_len_bits_picks_by_sample_rate() {
-        // < 22050 → 9, < 44100 → 10, ≥ 44100 → 11.
         let d = AudioDecoder::new(&dct_track(11025, true)).unwrap();
         assert_eq!(d.frame_len, 1 << 9);
         let d = AudioDecoder::new(&dct_track(22050, true)).unwrap();
@@ -383,44 +442,45 @@ mod tests {
     }
 
     #[test]
-    fn band_boundaries_22050_stereo() {
-        // Spot-check the boundary table for a 22050 Hz stereo track.
-        let d = AudioDecoder::new(&dct_track(22050, true)).unwrap();
-        assert_eq!(d.bands[0], 2);
-        // Last band is always frame_len (1024 here).
-        assert_eq!(d.bands[d.num_bands], 1024);
-        assert!(d.num_bands >= 5 && d.num_bands <= 25);
+    fn rdft_track_doubles_frame_len_for_stereo() {
+        // 44.1 kHz stereo via RDFT internally uses frame_len_bits = 12 (the
+        // base 11 plus log2(2)).
+        let d = AudioDecoder::new(&rdft_track(44100, true)).unwrap();
+        assert!(!d.use_dct);
+        assert_eq!(d.internal_channels, 1);
+        assert_eq!(d.frame_len, 1 << 12);
+        // Mono RDFT: no boost — frame_len_bits stays at 11 for 44.1k.
+        let d = AudioDecoder::new(&rdft_track(44100, false)).unwrap();
+        assert!(!d.use_dct);
+        assert_eq!(d.frame_len, 1 << 11);
     }
 
     #[test]
-    fn rejects_rdft_track() {
-        let track = AudioTrack {
-            sample_rate: 22050,
-            flags: AudioFlags::STEREO | AudioFlags::BITS_16,
-        };
-        assert!(AudioDecoder::new(&track).is_err());
+    fn band_boundaries_22050_stereo() {
+        let d = AudioDecoder::new(&dct_track(22050, true)).unwrap();
+        assert_eq!(d.bands[0], 2);
+        assert_eq!(d.bands[d.num_bands], 1024);
+        assert!(d.num_bands >= 5 && d.num_bands <= 25);
     }
 
     #[test]
     fn float_to_i16_saturates() {
         assert_eq!(float_to_i16(0.5), 16384);
         assert_eq!(float_to_i16(-0.5), -16384);
-        assert_eq!(float_to_i16(1.0), 32767); // saturate
-        assert_eq!(float_to_i16(-1.5), -32768); // saturate
+        assert_eq!(float_to_i16(1.0), 32767);
+        assert_eq!(float_to_i16(-1.5), -32768);
         assert_eq!(float_to_i16(0.0), 0);
     }
 
     #[test]
     fn dct_dc_only() {
-        // Canonical IDCT with X[0]/2 halving and 2/N scale: x[n] = X[0]/N
-        // for a DC-only input. For N=512 (11025 Hz tier), that's 1/512.
         let track = dct_track(11025, false);
         let d = AudioDecoder::new(&track).unwrap();
-        let mut buf = vec![0f32; d.frame_len];
+        let mut buf = vec![0f32; d.frame_len + 2];
         buf[0] = 1.0;
         d.inverse_dct(&mut buf);
         let expected = 1.0 / d.frame_len as f32;
-        for &v in &buf {
+        for v in &buf[..d.frame_len] {
             assert!(
                 (v - expected).abs() < 1e-6,
                 "DC-only inverse DCT should produce {} (= 1/N), got {}",

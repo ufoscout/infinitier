@@ -270,7 +270,10 @@ pub fn parse_header<R: Read + Seek>(r: &mut R) -> BikResult<BikHeader> {
 }
 
 fn is_bink_v1_signature(s: &[u8; 4]) -> bool {
-    matches!(s, b"BIKi" | b"BIKb" | b"BIKf" | b"BIKg" | b"BIKh")
+    matches!(
+        s,
+        b"BIKi" | b"BIKb" | b"BIKf" | b"BIKg" | b"BIKh" | b"BIKk"
+    )
 }
 
 fn read_u16<R: Read>(r: &mut R) -> std::io::Result<u16> {

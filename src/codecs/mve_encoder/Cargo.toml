@@ -19,4 +19,5 @@ image = { workspace = true }
 [dev-dependencies]
 infinitier_datasource = { workspace = true }
 infinitier_mve_decoder = { workspace = true }
+infinitier_test_utils = { workspace = true }  
 tempfile = { workspace = true }

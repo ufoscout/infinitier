@@ -113,7 +113,10 @@ pub struct VideoDecoder {
     swap_planes: bool,
     /// `'b' = 0x62`, `'i' = 0x69`, etc. The codec tag's first byte.
     version: u8,
+    /// Regular Bink-v1 (`'f'..'k'`) bundles. Unused on the BinkB path.
     bundles: Bundles,
+    /// BinkB-specific bundles, allocated only when the codec is `'b'`.
+    binkb_bundles: Option<crate::binkb::Bundles>,
     last: Option<VideoFrame>,
     frame_num: u32,
 }
@@ -123,17 +126,21 @@ impl VideoDecoder {
     /// error if the codec variant is one we don't (yet) handle.
     pub fn new(header: &BikHeader) -> BikResult<Self> {
         let version = header.signature[3];
-        // `BIKb` uses a separate bundle scheme; reject explicitly.
-        if version == b'b' {
-            return Err(BikError::Unsupported("BinkB (BIKb) is not implemented"));
-        }
-        if !matches!(version, b'f' | b'g' | b'h' | b'i') {
-            return Err(BikError::Unsupported("only BIKf/g/h/i are supported"));
+        if !matches!(version, b'b' | b'f' | b'g' | b'h' | b'i' | b'k') {
+            return Err(BikError::Unsupported(
+                "only BIKb/f/g/h/i/k are supported",
+            ));
         }
         if header.is_gray() {
             return Err(BikError::Unsupported("greyscale (BINK_FLAG_GRAY) not implemented"));
         }
         let has_alpha = header.has_alpha();
+
+        let binkb_bundles = if version == b'b' {
+            Some(crate::binkb::Bundles::new(header.width, header.height))
+        } else {
+            None
+        };
 
         Ok(Self {
             width: header.width,
@@ -142,6 +149,7 @@ impl VideoDecoder {
             swap_planes: version >= b'h',
             version,
             bundles: Bundles::new(header.width, header.height),
+            binkb_bundles,
             last: None,
             frame_num: 0,
         })
@@ -164,12 +172,22 @@ impl VideoDecoder {
     /// Returns a borrowed reference to the freshly-decoded frame; subsequent
     /// `decode_frame` calls re-use the same internal buffers.
     pub fn decode_frame(&mut self, packet: &[u8]) -> BikResult<&VideoFrame> {
+        // BinkB layers each frame in place on top of the previous one; the
+        // initial clone provides exactly that behaviour for `SKIP` blocks.
+        // Bink-v1 also clones, but its `SKIP` block explicitly copies from
+        // `prev` (which then equals `current`'s pixels), so the result is
+        // still correct.
         let mut current = self
             .last
             .clone()
             .unwrap_or_else(|| VideoFrame::new(self.width, self.height, self.has_alpha));
 
         let mut r = BitReader::new(packet);
+
+        if self.version == b'b' {
+            self.frame_num += 1;
+            return self.decode_frame_binkb(&mut r, current);
+        }
 
         // Optional 32-bit "alpha plane size" header (FFmpeg skips it).
         if self.has_alpha {
@@ -224,6 +242,55 @@ impl VideoDecoder {
         self.last = Some(current);
         Ok(self.last.as_ref().unwrap())
     }
+
+    /// BinkB-only decode path. Mirrors the `c->version == 'b'` branch of
+    /// FFmpeg's `decode_frame`: the per-frame buffer is shared with the
+    /// previous frame's data (we satisfy that via the upstream clone) and
+    /// each plane is processed with the BinkB-specific 10-bundle decoder.
+    /// `swap_planes` and the `>= 'i'` 32-bit alignments don't apply.
+    fn decode_frame_binkb(
+        &mut self,
+        r: &mut BitReader<'_>,
+        mut current: VideoFrame,
+    ) -> BikResult<&VideoFrame> {
+        // FFmpeg's `is_key` is `c->frame_num == 1` — true only on the very
+        // first frame ever decoded. We've already incremented `frame_num`
+        // by the time we get here, so check `== 1`.
+        let state = crate::binkb::DecoderState {
+            is_first: self.frame_num == 1,
+        };
+        let bundles = self
+            .binkb_bundles
+            .as_mut()
+            .expect("BinkB bundles allocated for version 'b'");
+
+        for plane_idx in 0..3 {
+            let is_chroma = plane_idx != 0;
+            let cur_plane = match plane_idx {
+                0 => &mut current.y,
+                1 => &mut current.u,
+                2 => &mut current.v,
+                _ => unreachable!(),
+            };
+            let plane_w = if is_chroma { self.width / 2 } else { self.width };
+            let plane_h = if is_chroma { self.height / 2 } else { self.height };
+            crate::binkb::decode_plane(
+                r,
+                cur_plane,
+                bundles,
+                &state,
+                plane_w,
+                plane_h,
+                is_chroma,
+            )?;
+            if r.bit_pos() >= r.bit_len() {
+                break;
+            }
+        }
+
+        self.last = Some(current);
+        Ok(self.last.as_ref().unwrap())
+    }
 }
 
 fn pick_plane_pair<'a>(
@@ -263,8 +330,27 @@ fn decode_one_plane(
     width: u32,
     height: u32,
     _is_chroma: bool,
-    _version: u8,
+    version: u8,
 ) -> BikResult<()> {
+    // BIKk-only "whole-plane fill" early-out: a 1-bit flag at the start of
+    // each plane lets the encoder emit a single 8-bit value to fill the
+    // entire plane and skip every bundle. Saves a few hundred bytes per
+    // mostly-uniform plane (typical for letterbox bars / fade-to-black).
+    if version == b'k' && r.read_bit()? != 0 {
+        let fill = r.read_bits(8)? as u8;
+        let stride = plane.stride;
+        for row in 0..plane.height as usize {
+            let off = row * stride;
+            plane.data[off..off + plane.width as usize].fill(fill);
+        }
+        // Pre-plane 32-bit alignment is unconditional below; honour it.
+        let pos = r.bit_pos();
+        if pos & 31 != 0 {
+            r.skip_bits(32 - (pos & 31));
+        }
+        return Ok(());
+    }
+
     // Number of 8x8 blocks horizontally / vertically. The chroma plane is
     // half-size so its block count is half of luma's — this falls out of
     // `width.div_ceil(8)` directly.
@@ -275,10 +361,18 @@ fn decode_one_plane(
 
     let stride = plane.stride;
 
+    // BIKk obfuscates the BlockTypes / SubBlockTypes counts by XOR-ing with
+    // 0xBB. Other versions don't.
+    let count_xor: u32 = if version == b'k' { 0xBB } else { 0 };
+
     for by in 0..bh {
         // Per-row bundle fills.
-        read_block_types(r, &mut bundles.b[SourceKind::BlockTypes as usize])?;
-        read_block_types(r, &mut bundles.b[SourceKind::SubBlockTypes as usize])?;
+        read_block_types(r, &mut bundles.b[SourceKind::BlockTypes as usize], count_xor)?;
+        read_block_types(
+            r,
+            &mut bundles.b[SourceKind::SubBlockTypes as usize],
+            count_xor,
+        )?;
         // For colors we need an explicit borrow split because read_colors
         // also touches `bundles.colors`.
         {

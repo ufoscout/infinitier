@@ -21,14 +21,12 @@ use image::ImageReader;
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::MveDecoder;
 use infinitier_mve_encoder::{encode_from_assets, FromAssetsOptions};
-
-const ASSETS_ROOT: &str = "../../../assets/mve_encoder";
-const OUTPUT_ROOT: &str = "../../../target/mve_encoder";
+use infinitier_test_utils::{get_assets_path, get_target_path};
 
 #[test]
 fn round_trip_every_asset_folder() {
-    let assets_root = manifest_relative(ASSETS_ROOT);
-    let output_root = manifest_relative(OUTPUT_ROOT);
+    let assets_root = get_assets_path().join("mve_encoder");
+    let output_root = get_target_path().join("mve_encoder");
     fs::create_dir_all(&output_root).expect("create target/mve_encoder");
 
     let mut entries: Vec<PathBuf> = fs::read_dir(&assets_root)
@@ -69,10 +67,6 @@ fn round_trip_every_asset_folder() {
         verify_audio(&wav_path, &mve_path);
         eprintln!("OK {name} ({} bytes)", fs::metadata(&mve_path).unwrap().len());
     }
-}
-
-fn manifest_relative(rel: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(rel)
 }
 
 fn sorted_pngs(dir: &Path) -> Vec<PathBuf> {

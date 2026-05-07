@@ -9,11 +9,11 @@ use std::path::PathBuf;
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::MveDecoder;
 use infinitier_mve_encoder::{encode_from_assets, FromAssetsOptions};
+use infinitier_test_utils::{get_assets_path, get_target_path};
 
 #[test]
 fn noise_encodes_losslessly_with_phase_6() {
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let asset = manifest.join("../../../assets/mve_encoder/320x240_15fps_3s_noise");
+    let asset = get_assets_path().join("mve_encoder/320x240_15fps_3s_noise");
     if !asset.is_dir() {
         eprintln!("noise asset missing — skipping");
         return;
@@ -26,7 +26,7 @@ fn noise_encodes_losslessly_with_phase_6() {
         .collect();
     pngs.sort();
     let wav = asset.join("audio.wav");
-    let out = manifest.join("../../../target/mve_encoder");
+    let out = get_target_path().join("mve_encoder");
     fs::create_dir_all(&out).unwrap();
 
     let opts = FromAssetsOptions {

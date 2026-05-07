@@ -19,3 +19,5 @@ thiserror = { workspace = true }
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }
 sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

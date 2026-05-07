@@ -408,10 +408,24 @@ pub fn read_motion_values(r: &mut BitReader<'_>, b: &mut Bundle) -> BikResult<()
 /// repeats of the last "real" symbol with run lengths from `RLE_LENS`.
 const RLE_LENS: [u8; 4] = [4, 8, 12, 32];
 
-pub fn read_block_types(r: &mut BitReader<'_>, b: &mut Bundle) -> BikResult<()> {
-    let Some(t) = check_read_val(r, b)? else {
+pub fn read_block_types(
+    r: &mut BitReader<'_>,
+    b: &mut Bundle,
+    count_xor: u32,
+) -> BikResult<()> {
+    let Some(mut t) = check_read_val(r, b)? else {
         return Ok(());
     };
+    // BIKk obfuscates the count with `t ^= 0xBB`. After XOR-ing, if the
+    // count is zero, the bundle is marked exhausted (same as the regular
+    // CHECK_READ_VAL t == 0 path). Caller passes 0 to opt out.
+    if count_xor != 0 {
+        t ^= count_xor;
+        if t == 0 {
+            b.cur_dec = None;
+            return Ok(());
+        }
+    }
     let cur_dec = b.cur_dec.unwrap();
     let dec_end = cur_dec + t as usize;
     if dec_end > b.data.len() {
@@ -696,7 +710,7 @@ mod tests {
             (9, 4),   // sym=9
         ]);
         let mut r = BitReader::new(&buf);
-        read_block_types(&mut r, &mut b).unwrap();
+        read_block_types(&mut r, &mut b, 0).unwrap();
         assert_eq!(&b.data[..8], &[3, 3, 3, 3, 3, 5, 7, 9]);
     }
 
