@@ -514,11 +514,6 @@ fn parse_action(s: &mut BcsStream<'_>) -> std::io::Result<Action> {
     })
 }
 
-fn parse_object(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
-    s.expect("OB")?;
-    parse_object_body(s)
-}
-
 /// Parses everything between an already-consumed opening `OB` and its
 /// closing `OB`. Mirrors NI's BcsObject.init: token-driven, with the
 /// 5 OBJECT.IDS identifiers carved out of the position immediately before
@@ -728,6 +723,11 @@ mod tests {
     use super::*;
     use infinitier_datasource::DataSource;
     use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, parse_json_file};
+
+    fn parse_object(s: &mut BcsStream<'_>) -> std::io::Result<BcsObject> {
+        s.expect("OB")?;
+        parse_object_body(s)
+    }
 
     #[test]
     fn test_parse_empty_script() {

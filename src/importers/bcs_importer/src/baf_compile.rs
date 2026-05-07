@@ -463,9 +463,10 @@ impl<'a> BafParser<'a> {
                     // A bare string in an object slot is the script-name
                     // form (NI's `decompileObject` falls back to `"name"`
                     // when no targets / identifiers are set).
-                    let mut accum = ObjectAccum::default();
-                    accum.name = Some(s);
-                    object = Some(accum);
+                    object = Some(ObjectAccum {
+                        name: Some(s),
+                        ..ObjectAccum::default()
+                    });
                 }
                 (RawArg::String(s), _) => strings.push(s),
                 (RawArg::Symbol(sym), Some(param)) if param.kind == ParamKind::Integer => {
@@ -616,9 +617,10 @@ impl<'a> BafParser<'a> {
                     numbers.push(v);
                 }
                 (RawArg::String(s), Some(param)) if param.kind == ParamKind::Object => {
-                    let mut accum = ObjectAccum::default();
-                    accum.name = Some(s);
-                    objects.push(accum);
+                    objects.push(ObjectAccum {
+                        name: Some(s),
+                        ..ObjectAccum::default()
+                    });
                 }
                 (RawArg::String(s), _) => strings.push(s),
                 (RawArg::Symbol(sym), Some(param)) if param.kind == ParamKind::Integer => {

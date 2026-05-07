@@ -313,10 +313,13 @@ pub fn encode_from_assets_rgb555(
 /// fast-path can't find a perfect mapping — useful when the caller
 /// pre-quantised upstream and wants to be sure no further loss is
 /// introduced here.
+/// 256-entry RGB palette + one row-major index buffer per frame.
+type SharedPalette = (Box<[[u8; 3]; 256]>, Vec<Vec<u8>>);
+
 fn build_shared_palette(
     frames: &[image::RgbImage],
     strict_palette: bool,
-) -> Result<(Box<[[u8; 3]; 256]>, Vec<Vec<u8>>), FromAssetsError> {
+) -> Result<SharedPalette, FromAssetsError> {
     // Try the fast-path first (bit-exact when ≤ 256 unique colours).
     let mut map: HashMap<[u8; 3], u8> = HashMap::with_capacity(256);
     let mut palette = Box::new([[0u8; 3]; 256]);

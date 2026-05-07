@@ -532,9 +532,9 @@ pub fn encode_pcm_packed_wavc<W: Write>(
     write_wavc(out, samples.len(), channels, sample_rate, &acm)
 }
 
-/// Encode interleaved 16-bit PCM as a WAVC file using the full subband
-/// + packer pipeline (typically 0.3–0.5× compression but slightly
-/// lossy). `sample_rate` must equal 22050 Hz.
+/// Encode interleaved 16-bit PCM as a WAVC file using the full
+/// subband+packer pipeline (typically 0.3–0.5× compression but
+/// slightly lossy). `sample_rate` must equal 22050 Hz.
 pub fn encode_pcm_subband_wavc<W: Write>(
     samples: &[i16],
     channels: u32,

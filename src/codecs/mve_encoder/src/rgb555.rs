@@ -1287,6 +1287,11 @@ mod tests {
     use super::*;
 
     #[test]
+    // Bit groups intentionally line up with RGB555's 5+5+5 channel
+    // layout (bit-15 unused | R5 | G5 | B5) so the literals visually
+    // match the format. The 4-bit grouping clippy prefers would
+    // hide that structure.
+    #[allow(clippy::unusual_byte_groupings)]
     fn pack_rgb555_round_trip() {
         assert_eq!(pack_rgb555(0xff, 0, 0), 0b011111_00000_00000);
         assert_eq!(pack_rgb555(0, 0xff, 0), 0b000000_11111_00000);

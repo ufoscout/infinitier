@@ -497,6 +497,7 @@ fn build_init_video_chunk(
     Ok(buf)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_frame_chunk(
     curr: &[u8],
     prev: Option<&[u8]>,
@@ -1216,19 +1217,9 @@ fn build_0x8_vertical_halves(block: &Block) -> Option<Vec<u8>> {
     let (p2, p3) = pick_pair_ascending(&right);
     let mut b = [0u8; 8];
     write_vertical_halves_mask(block, &mut b, p0, p1, p2, p3);
-    let mut out = Vec::with_capacity(12);
-    out.push(p0);
-    out.push(p1);
-    out.push(b[0]);
-    out.push(b[1]);
-    out.push(b[2]);
-    out.push(b[3]);
-    out.push(p2);
-    out.push(p3);
-    out.push(b[4]);
-    out.push(b[5]);
-    out.push(b[6]);
-    out.push(b[7]);
+    let out = vec![
+        p0, p1, b[0], b[1], b[2], b[3], p2, p3, b[4], b[5], b[6], b[7],
+    ];
     Some(out)
 }
 
@@ -1255,19 +1246,9 @@ fn build_0x8_horizontal_halves(block: &Block) -> Option<Vec<u8>> {
         }
         b[y] = row;
     }
-    let mut out = Vec::with_capacity(12);
-    out.push(p0);
-    out.push(p1);
-    out.push(b[0]);
-    out.push(b[1]);
-    out.push(b[2]);
-    out.push(b[3]);
-    out.push(p2);
-    out.push(p3);
-    out.push(b[4]);
-    out.push(b[5]);
-    out.push(b[6]);
-    out.push(b[7]);
+    let out = vec![
+        p0, p1, b[0], b[1], b[2], b[3], p2, p3, b[4], b[5], b[6], b[7],
+    ];
     Some(out)
 }
 
