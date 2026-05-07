@@ -25,8 +25,6 @@
 //! per-stream `flush_bit_stream` — the surrounding [`BitWriter`] is
 //! finalised by the caller.
 
-#![allow(clippy::needless_range_loop)]
-
 use std::io::{self, Write};
 
 use crate::bitwriter::BitWriter;
@@ -245,8 +243,7 @@ impl ValuePacker {
         }
 
         let mut sub_number = 0usize;
-        for i in 0..self.pblock_size {
-            let v = block[i];
+        for (i, &v) in block.iter().enumerate().take(self.pblock_size) {
             self.pblock[i] = v;
             if v > 0 {
                 if self.max_plus[sub_number] < v {

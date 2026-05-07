@@ -15,8 +15,6 @@
 //! per-column filler-book selection) is a separate stage that consumes
 //! the `i64` coefficients this filter produces.
 
-#![allow(clippy::needless_range_loop)]
-
 /// One per-subband circular FIR queue. Each queue holds `f_len` partial
 /// accumulators (`f64` cells) into which `add_value` smears one input
 /// sample's contribution across all taps; after `f_len` calls each cell

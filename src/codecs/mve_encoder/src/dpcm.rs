@@ -66,8 +66,8 @@ pub(crate) fn compress(samples: &[i16], channels: u16) -> Vec<u8> {
         // Brute-force search the 256-entry LUT. The non-monotonic
         // discontinuity at indices 124–128 makes binary search
         // unsafe, so a linear scan is the simple-and-correct option.
-        for b in 0..256usize {
-            let candidate = (p + DELTA_TABLE[b] as i32).clamp(-32768, 32767);
+        for (b, &delta) in DELTA_TABLE.iter().enumerate() {
+            let candidate = (p + delta as i32).clamp(-32768, 32767);
             let dist = (candidate - target_i).abs();
             if dist < best_dist {
                 best_byte = b as u8;
@@ -98,13 +98,13 @@ mod tests {
         let mut out = Vec::new();
         let mut predictor = [0i32; 2];
         let mut pos = 0usize;
-        for i in 0..channels as usize {
+        for slot in predictor.iter_mut().take(channels as usize) {
             if pos + 2 > data.len() {
                 break;
             }
             let raw = u16::from_le_bytes([data[pos], data[pos + 1]]) as i32;
             let signed = if raw & 0x8000 != 0 { raw - 0x10000 } else { raw };
-            predictor[i] = signed;
+            *slot = signed;
             out.push(signed as i16);
             pos += 2;
         }

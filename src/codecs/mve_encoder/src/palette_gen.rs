@@ -218,8 +218,7 @@ fn nearest_palette_index(px: [u8; 3], palette: &[[u8; 3]; 256], palette_size: us
     let mut best = 0u8;
     let mut best_dist = u32::MAX;
     let n = palette_size.min(256);
-    for i in 0..n {
-        let p = palette[i];
+    for (i, p) in palette.iter().enumerate().take(n) {
         let dr = px[0] as i32 - p[0] as i32;
         let dg = px[1] as i32 - p[1] as i32;
         let db = px[2] as i32 - p[2] as i32;

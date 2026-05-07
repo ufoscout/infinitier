@@ -1,5 +1,3 @@
-#![allow(clippy::needless_range_loop)]
-
 use crate::error::Error;
 
 // ---------------------------------------------------------------------------
@@ -433,8 +431,8 @@ fn decode8_0xa(r: &mut Reader8<'_>, buf: &mut [u8], dst: usize, width: usize) ->
         let p5 = r.read_byte()?;
         let p6 = r.read_byte()?;
         let p7 = r.read_byte()?;
-        for i in 8..16 {
-            b[i] = r.read_byte()?;
+        for slot in b.iter_mut().take(16).skip(8) {
+            *slot = r.read_byte()?;
         }
         let p = [p0, p1, p2, p3, p4, p5, p6, p7, 0u8, 0, 0, 0, 0, 0, 0, 0];
 
@@ -855,8 +853,7 @@ fn decode16_0x8(
             // Horizontal split
             let mut pp0 = p[0];
             let mut pp1 = p[1];
-            for y in 0..8usize {
-                let flags = b[y];
+            for (y, &flags) in b.iter().enumerate().take(8) {
                 if y == 4 {
                     pp0 = p2;
                     pp1 = p[3];
@@ -989,16 +986,16 @@ fn decode16_0xa(
     if p0 & 0x8000 == 0 {
         // 4 quadrants
         let mut b = [0u8; 16];
-        for i in 0..4 {
-            b[i] = r.read_byte()?;
+        for slot in b.iter_mut().take(4) {
+            *slot = r.read_byte()?;
         }
         let mut p = [p0, p1, p2, p3, 0u16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         for chunk in 1..4usize {
-            for i in 0..4 {
-                p[chunk * 4 + i] = r.read_u16()?;
+            for slot in p.iter_mut().skip(chunk * 4).take(4) {
+                *slot = r.read_u16()?;
             }
-            for i in 0..4 {
-                b[chunk * 4 + i] = r.read_byte()?;
+            for slot in b.iter_mut().skip(chunk * 4).take(4) {
+                *slot = r.read_byte()?;
             }
         }
         for y in 0..8usize {
@@ -1013,15 +1010,15 @@ fn decode16_0xa(
     } else {
         let p0 = p0 & !0x8000;
         let mut b = [0u8; 16];
-        for i in 0..8 {
-            b[i] = r.read_byte()?;
+        for slot in b.iter_mut().take(8) {
+            *slot = r.read_byte()?;
         }
         let p4 = r.read_u16()?;
         let p5 = r.read_u16()?;
         let p6 = r.read_u16()?;
         let p7 = r.read_u16()?;
-        for i in 8..16 {
-            b[i] = r.read_byte()?;
+        for slot in b.iter_mut().take(16).skip(8) {
+            *slot = r.read_byte()?;
         }
         let p = [p0, p1, p2, p3, p4, p5, p6, p7, 0u16, 0, 0, 0, 0, 0, 0, 0];
 

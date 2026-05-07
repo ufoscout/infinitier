@@ -1,4 +1,3 @@
-#![allow(clippy::needless_range_loop)]
 #![doc = include_str!("../readme.md")]
 
 use log::{debug, error};
@@ -299,8 +298,8 @@ impl AcmDecoder {
         match self.reader.read_at_most::<4>() {
             Ok((buf, n)) if n > 0 => {
                 let mut word = 0u32;
-                for i in 0..n {
-                    word |= (buf[i] as u32) << (i * 8);
+                for (i, byte) in buf.iter().enumerate().take(n) {
+                    word |= (*byte as u32) << (i * 8);
                 }
                 (word, (n * 8) as u32)
             }

@@ -662,10 +662,10 @@ fn encode_block(
     //    must be uniform. (Implies ≤ 4 distinct colours.)
     let q = [curr[0][0], curr[0][4], curr[4][0], curr[4][4]];
     let mut quadrants_uniform = true;
-    'quad: for y in 0..8 {
-        for x in 0..8 {
+    'quad: for (y, row) in curr.iter().enumerate() {
+        for (x, &v) in row.iter().enumerate() {
             let qi = ((y >= 4) as usize) * 2 + ((x >= 4) as usize);
-            if curr[y][x] != q[qi] {
+            if v != q[qi] {
                 quadrants_uniform = false;
                 break 'quad;
             }
@@ -826,9 +826,9 @@ fn find_motion_match(
                 continue;
             }
             let mut matches = true;
-            for y in 0..8 {
+            for (y, row) in curr.iter().enumerate() {
                 let row_start = (src_y as usize + y) * stride + src_x as usize;
-                if prev[row_start..row_start + 8] != curr[y][..] {
+                if prev[row_start..row_start + 8] != row[..] {
                     matches = false;
                     break;
                 }
@@ -880,9 +880,9 @@ fn find_motion_match_extended(
                 continue;
             }
             let mut matches = true;
-            for y in 0..8 {
+            for (y, row) in curr.iter().enumerate() {
                 let row_start = (src_y as usize + y) * stride + src_x as usize;
-                if prev[row_start..row_start + 8] != curr[y][..] {
+                if prev[row_start..row_start + 8] != row[..] {
                     matches = false;
                     break;
                 }
@@ -951,10 +951,10 @@ fn build_2x2_mask(block: &Block, target_colour: u8) -> Option<u16> {
 /// `(x, y)` equals `target_colour`.
 fn build_row_masks(block: &Block, target_colour: u8) -> [u8; 8] {
     let mut rows = [0u8; 8];
-    for y in 0..8 {
+    for (y, row_pixels) in block.iter().enumerate() {
         let mut row = 0u8;
-        for x in 0..8 {
-            if block[y][x] == target_colour {
+        for (x, &v) in row_pixels.iter().enumerate() {
+            if v == target_colour {
                 row |= 1 << x;
             }
         }
@@ -997,10 +997,10 @@ fn is_2x2_uniform(block: &Block) -> bool {
 }
 
 fn is_2x1_uniform(block: &Block) -> bool {
-    for y in 0..8 {
+    for row in block.iter() {
         let mut x = 0;
         while x < 8 {
-            if block[y][x] != block[y][x + 1] {
+            if row[x] != row[x + 1] {
                 return false;
             }
             x += 2;
@@ -1012,8 +1012,8 @@ fn is_2x1_uniform(block: &Block) -> bool {
 fn is_1x2_uniform(block: &Block) -> bool {
     let mut y = 0;
     while y < 8 {
-        for x in 0..8 {
-            if block[y][x] != block[y + 1][x] {
+        for (a, b) in block[y].iter().zip(block[y + 1].iter()) {
+            if a != b {
                 return false;
             }
         }
@@ -1114,8 +1114,8 @@ fn build_0x9_per_1x2_tall(block: &Block, distinct: &[u8]) -> Vec<u8> {
         let mut shifter = 0;
         let mut dy = 0;
         while dy < 4 {
-            for x in 0..8 {
-                let idx = colour_to_index(&p, block[y + dy][x]);
+            for &v in block[y + dy].iter() {
+                let idx = colour_to_index(&p, v);
                 flags |= idx << shifter;
                 shifter += 2;
             }
@@ -1131,10 +1131,10 @@ fn build_0x9_per_pixel(block: &Block, distinct: &[u8]) -> Vec<u8> {
     let p = quad_palette_per_pixel(distinct);
     let mut out = Vec::with_capacity(20);
     out.extend_from_slice(&p);
-    for y in 0..8 {
+    for row in block.iter() {
         let mut flags: u16 = 0;
-        for x in 0..8 {
-            let idx = colour_to_index(&p, block[y][x]) as u16;
+        for (x, &v) in row.iter().enumerate() {
+            let idx = colour_to_index(&p, v) as u16;
             flags |= idx << (x * 2);
         }
         out.extend_from_slice(&flags.to_le_bytes());
@@ -1241,11 +1241,10 @@ fn build_0x8_horizontal_halves(block: &Block) -> Option<Vec<u8>> {
     let (p2, p3) = pick_pair_descending(&bot)?;
     // Per-row mask: b[y] = 8-bit row mask, bit x = pixel(y, x).
     let mut b = [0u8; 8];
-    for y in 0..8 {
+    for (y, row_pixels) in block.iter().enumerate() {
         let (pp0, pp1) = if y < 4 { (p0, p1) } else { (p2, p3) };
         let mut row = 0u8;
-        for x in 0..8 {
-            let v = block[y][x];
+        for (x, &v) in row_pixels.iter().enumerate() {
             let bit = if v == pp1 { 1u8 } else if v == pp0 { 0 } else {
                 // unreachable: collect_distinct already ensured ≤ 2
                 // colours per half, and pick_pair_descending always
@@ -1317,9 +1316,8 @@ fn write_vertical_halves_mask(
     p2: u8,
     p3: u8,
 ) {
-    for y in 0..8 {
-        for x in 0..8 {
-            let v = block[y][x];
+    for (y, row) in block.iter().enumerate() {
+        for (x, &v) in row.iter().enumerate() {
             let (pp0, pp1) = if x < 4 { (p0, p1) } else { (p2, p3) };
             let bit: u8 = if v == pp1 {
                 1
@@ -1350,9 +1348,8 @@ fn collect_distinct(
     max: usize,
 ) -> Option<Vec<u8>> {
     let mut out: Vec<u8> = Vec::with_capacity(max + 1);
-    for y in y0..y1 {
-        for x in x0..x1 {
-            let v = block[y][x];
+    for row in block.iter().take(y1).skip(y0) {
+        for &v in row.iter().take(x1).skip(x0) {
             if !out.contains(&v) {
                 out.push(v);
                 if out.len() > max {
@@ -1491,16 +1488,16 @@ fn build_0xa_vertical_halves(block: &Block) -> Option<Vec<u8>> {
     let p_left = [p0, p1, p2, p3];
     let p_right = [p4, p5, p6, p7];
     let mut b = [0u8; 16];
-    for y in 0..8 {
+    for (y, row) in block.iter().enumerate() {
         let mut left_mask = 0u8;
-        for x in 0..4 {
-            let idx = palette_index_4(&p_left, block[y][x]);
+        for (x, &v) in row.iter().enumerate().take(4) {
+            let idx = palette_index_4(&p_left, v);
             left_mask |= (idx & 0x03) << (x * 2);
         }
         b[y] = left_mask;
         let mut right_mask = 0u8;
-        for x in 4..8 {
-            let idx = palette_index_4(&p_right, block[y][x]);
+        for (x, &v) in row.iter().enumerate().take(8).skip(4) {
+            let idx = palette_index_4(&p_right, v);
             right_mask |= (idx & 0x03) << ((x - 4) * 2);
         }
         b[y + 8] = right_mask;
@@ -1517,17 +1514,17 @@ fn build_0xa_horizontal_halves(block: &Block) -> Option<Vec<u8>> {
     let p_top = [p0, p1, p2, p3];
     let p_bot = [p4, p5, p6, p7];
     let mut b = [0u8; 16];
-    for y in 0..8 {
+    for (y, row) in block.iter().enumerate() {
         let pal = if y < 4 { &p_top } else { &p_bot };
         let mut left_mask = 0u8;
-        for x in 0..4 {
-            let idx = palette_index_4(pal, block[y][x]);
+        for (x, &v) in row.iter().enumerate().take(4) {
+            let idx = palette_index_4(pal, v);
             left_mask |= (idx & 0x03) << (x * 2);
         }
         b[y * 2] = left_mask;
         let mut right_mask = 0u8;
-        for x in 4..8 {
-            let idx = palette_index_4(pal, block[y][x]);
+        for (x, &v) in row.iter().enumerate().take(8).skip(4) {
+            let idx = palette_index_4(pal, v);
             right_mask |= (idx & 0x03) << ((x - 4) * 2);
         }
         b[y * 2 + 1] = right_mask;

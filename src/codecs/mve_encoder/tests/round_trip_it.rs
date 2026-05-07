@@ -529,8 +529,8 @@ fn raw_block_round_trip_dense_pattern() {
     // are uniform, AND the count exceeds 0x9's 4-colour limit —
     // must take the 0xb path.
     let mut pixels = vec![0u8; 64];
-    for i in 0..64 {
-        pixels[i] = (i % 5) as u8 + 1;
+    for (i, slot) in pixels.iter_mut().enumerate() {
+        *slot = (i % 5) as u8 + 1;
     }
     let mut palette = Box::new([[0u8; 3]; 256]);
     palette[1] = [252, 0, 0];
@@ -1340,8 +1340,8 @@ fn raw_fallback_still_fires_for_dense_blocks() {
     // and every half sees all 5. All of 0x8, 0xa fail — must reach
     // 0xb.
     let mut pixels = [0u8; 64];
-    for i in 0..64 {
-        pixels[i] = (i % 5) as u8 + 1;
+    for (i, slot) in pixels.iter_mut().enumerate() {
+        *slot = (i % 5) as u8 + 1;
     }
     let mut palette = Box::new([[0u8; 3]; 256]);
     for i in 1..=5u8 {
@@ -1417,8 +1417,8 @@ fn extended_motion_fires_outside_0x4_window() {
     // indices — must NOT be a candidate for 0xe (solid) or 0xd
     // (quadrants).
     let mut pattern = [0u8; 64];
-    for i in 0..64 {
-        pattern[i] = (1 + (i % 6)) as u8;
+    for (i, slot) in pattern.iter_mut().enumerate() {
+        *slot = (1 + (i % 6)) as u8;
     }
     let mut f0 = vec![0u8; 64 * 8];
     let mut f1 = vec![0u8; 64 * 8];

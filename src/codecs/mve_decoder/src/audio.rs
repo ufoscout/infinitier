@@ -1,5 +1,3 @@
-#![allow(clippy::needless_range_loop)]
-
 /// DPCM delta lookup table
 static DELTA_TABLE: [i16; 256] = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
@@ -33,18 +31,18 @@ pub fn decompress_audio(data: &[u8], audio_size: u16, channels: u8) -> Vec<i16> 
     let mut pos = 0usize;
 
     // Read initial predictors (one per channel, signed 16-bit LE)
-    for i in 0..channels as usize {
+    for slot in predictor.iter_mut().take(channels as usize) {
         if pos + 2 > data.len() {
             break;
         }
         let raw = u16::from_le_bytes([data[pos], data[pos + 1]]) as i32;
-        predictor[i] = if raw & 0x8000 != 0 {
+        *slot = if raw & 0x8000 != 0 {
             raw - 0x10000
         } else {
             raw
         };
         pos += 2;
-        out.push(predictor[i] as i16);
+        out.push(*slot as i16);
     }
 
     let mut channel = 0usize;

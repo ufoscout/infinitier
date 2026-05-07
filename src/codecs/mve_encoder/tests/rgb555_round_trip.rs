@@ -188,8 +188,8 @@ fn non_uniform_pan_uses_motion() {
 
     let blue = pack_rgb555(0, 0, 0xff);
     let mut pattern = [0u16; 64];
-    for i in 0..64 {
-        pattern[i] = pack_rgb555((i * 4) as u8, ((i * 7) & 0xff) as u8, ((i * 3) & 0xff) as u8);
+    for (i, slot) in pattern.iter_mut().enumerate() {
+        *slot = pack_rgb555((i * 4) as u8, ((i * 7) & 0xff) as u8, ((i * 3) & 0xff) as u8);
     }
     let mut f0 = vec![blue; 16 * 8];
     let mut f1 = vec![blue; 16 * 8];
@@ -662,8 +662,8 @@ fn bit15_set_pixel_falls_back_to_lossless_modes() {
     // the per-row 0x7 path (decoder strips bit 15 in the marker
     // position); the chooser must avoid those modes and reach 0xb.
     let mut block = vec![0u16; 64];
-    for i in 0..64 {
-        block[i] = if i & 1 == 0 { 0x8123 } else { 0x4567 };
+    for (i, slot) in block.iter_mut().enumerate() {
+        *slot = if i & 1 == 0 { 0x8123 } else { 0x4567 };
     }
     let stats = block_mode_stats_for(8, 8, &[block.clone()]);
     assert_eq!(

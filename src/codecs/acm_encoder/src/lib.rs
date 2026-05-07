@@ -1,5 +1,4 @@
 #![doc = include_str!("../readme.md")]
-#![allow(clippy::needless_range_loop)]
 
 mod bitwriter;
 mod packer;
@@ -277,9 +276,9 @@ pub fn encode_pcm_packed_with_block_size<W: Write>(
 
     for b in 0..n_blocks {
         let block_start = b * block_len;
-        for r in 0..block_len {
+        for (r, slot) in buf.iter_mut().enumerate() {
             let i = block_start + r;
-            buf[r] = if i < samples.len() {
+            *slot = if i < samples.len() {
                 samples[i]
             } else {
                 0i16
@@ -404,11 +403,11 @@ pub fn encode_pcm_subband_with_f_half<W: Write>(
     // pad the trailing partial block with zeros.
     let mut buf = vec![0i16; block_size];
     let mut bp = 0usize;
-    for i in 0..n_coeffs {
+    for &coeff in coeffs.iter().take(n_coeffs) {
         // Clamp to i16 — the C++ does the same and counts clipping
         // events as warnings. Real-world signals only saturate when
         // the lifting transform amplifies a transient beyond ±32768.
-        let c = coeffs[i].clamp(i16::MIN as i64, i16::MAX as i64) as i16;
+        let c = coeff.clamp(i16::MIN as i64, i16::MAX as i64) as i16;
         buf[bp] = c;
         bp += 1;
         if bp == block_size {

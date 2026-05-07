@@ -1,5 +1,3 @@
-#![allow(clippy::needless_range_loop)]
-
 //! RGB555 (HiColor / 16-bit) MVE encoder.
 //!
 //! Parallel to the 8-bit paletted path in `lib.rs`. Output bitstream
@@ -600,9 +598,8 @@ fn collect_distinct_region(
     max: usize,
 ) -> Option<Vec<u16>> {
     let mut out: Vec<u16> = Vec::with_capacity(max + 1);
-    for y in y0..y1 {
-        for x in x0..x1 {
-            let v = curr[y][x];
+    for row in curr.iter().take(y1).skip(y0) {
+        for &v in row.iter().take(x1).skip(x0) {
             if !out.contains(&v) {
                 out.push(v);
                 if out.len() > max {
@@ -617,9 +614,9 @@ fn collect_distinct_region(
 fn try_quadrants(curr: &Block16) -> Option<[u16; 4]> {
     let q = |y0: usize, x0: usize| -> Option<u16> {
         let v = curr[y0][x0];
-        for y in y0..y0 + 4 {
-            for x in x0..x0 + 4 {
-                if curr[y][x] != v {
+        for row in curr.iter().take(y0 + 4).skip(y0) {
+            for &px in row.iter().take(x0 + 4).skip(x0) {
+                if px != v {
                     return None;
                 }
             }
@@ -666,10 +663,10 @@ fn is_2x2_uniform(curr: &Block16) -> bool {
 }
 
 fn is_2x1_uniform(curr: &Block16) -> bool {
-    for y in 0..8 {
+    for row in curr.iter() {
         let mut x = 0;
         while x < 8 {
-            if curr[y][x] != curr[y][x + 1] {
+            if row[x] != row[x + 1] {
                 return false;
             }
             x += 2;
@@ -681,8 +678,8 @@ fn is_2x1_uniform(curr: &Block16) -> bool {
 fn is_1x2_uniform(curr: &Block16) -> bool {
     let mut y = 0;
     while y < 8 {
-        for x in 0..8 {
-            if curr[y][x] != curr[y + 1][x] {
+        for (a, b) in curr[y].iter().zip(curr[y + 1].iter()) {
+            if a != b {
                 return false;
             }
         }
@@ -713,10 +710,10 @@ fn find_motion_match16(
                 continue;
             }
             let mut ok = true;
-            'check: for y in 0..8 {
+            'check: for (y, row) in curr.iter().enumerate() {
                 let row_off = (src_y as usize + y) * stride + src_x as usize;
-                for x in 0..8 {
-                    if prev[row_off + x] != curr[y][x] {
+                for (x, &v) in row.iter().enumerate() {
+                    if prev[row_off + x] != v {
                         ok = false;
                         break 'check;
                     }
@@ -759,10 +756,10 @@ fn find_motion_match16_extended(
                 continue;
             }
             let mut ok = true;
-            'check: for y in 0..8 {
+            'check: for (y, row) in curr.iter().enumerate() {
                 let row_off = (src_y as usize + y) * stride + src_x as usize;
-                for x in 0..8 {
-                    if prev[row_off + x] != curr[y][x] {
+                for (x, &v) in row.iter().enumerate() {
+                    if prev[row_off + x] != v {
                         ok = false;
                         break 'check;
                     }
@@ -833,9 +830,8 @@ fn build_0x7_per_row(curr: &Block16) -> Option<Vec<u8>> {
     let p1 = if distinct.len() == 2 { distinct[1] } else { p0 };
 
     let mut rows = [0u8; 8];
-    for y in 0..8 {
-        for x in 0..8 {
-            let v = curr[y][x];
+    for (y, row_pixels) in curr.iter().enumerate() {
+        for (x, &v) in row_pixels.iter().enumerate() {
             if v == p1 {
                 rows[y] |= 1 << x;
             } else if v != p0 {
@@ -941,8 +937,8 @@ fn build_0x9_per_1x2_tall(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
         let mut shifter = 0;
         let mut dy = 0;
         while dy < 4 {
-            for x in 0..8 {
-                flags |= idx_in(&p, curr[y + dy][x]) << shifter;
+            for &v in curr[y + dy].iter() {
+                flags |= idx_in(&p, v) << shifter;
                 shifter += 2;
             }
             dy += 2;
@@ -960,10 +956,10 @@ fn build_0x9_per_pixel(curr: &Block16, distinct: &[u16]) -> Vec<u8> {
     for &v in p.iter() {
         out.extend_from_slice(&v.to_le_bytes());
     }
-    for y in 0..8 {
+    for row in curr.iter() {
         let mut flags: u16 = 0;
-        for x in 0..8 {
-            let idx = idx_in(&p, curr[y][x]) as u16;
+        for (x, &v) in row.iter().enumerate() {
+            let idx = idx_in(&p, v) as u16;
             flags |= idx << (x * 2);
         }
         out.extend_from_slice(&flags.to_le_bytes());
@@ -1082,11 +1078,10 @@ fn build_0x8_horizontal_halves(curr: &Block16) -> Option<Vec<u8>> {
     let p2 = bot[0];
     let p3 = if bot.len() == 2 { bot[1] } else { p2 };
     let mut b = [0u8; 8];
-    for y in 0..8 {
+    for (y, row_pixels) in curr.iter().enumerate() {
         let (pp0, pp1) = if y < 4 { (p0, p1) } else { (p2, p3) };
         let mut row = 0u8;
-        for x in 0..8 {
-            let v = curr[y][x];
+        for (x, &v) in row_pixels.iter().enumerate() {
             let bit: u8 = if v == pp1 {
                 1
             } else if v == pp0 {
@@ -1127,9 +1122,8 @@ fn write_vertical_halves_mask(
     p2: u16,
     p3: u16,
 ) {
-    for y in 0..8 {
-        for x in 0..8 {
-            let v = curr[y][x];
+    for (y, row) in curr.iter().enumerate() {
+        for (x, &v) in row.iter().enumerate() {
             let (pp0, pp1) = if x < 4 { (p0, p1) } else { (p2, p3) };
             let bit: u8 = if v == pp1 {
                 1
@@ -1203,16 +1197,16 @@ fn build_0xa_vertical_halves(curr: &Block16) -> Option<Vec<u8>> {
     let p_left = pad_to_4_slice(&left);
     let p_right = pad_to_4_slice(&right);
     let mut b = [0u8; 16];
-    for y in 0..8 {
+    for (y, row) in curr.iter().enumerate() {
         let mut left_mask = 0u8;
-        for x in 0..4 {
-            let idx = p_left.iter().position(|&c| c == curr[y][x]).unwrap() as u8;
+        for (x, &v) in row.iter().enumerate().take(4) {
+            let idx = p_left.iter().position(|&c| c == v).unwrap() as u8;
             left_mask |= (idx & 0x03) << (x * 2);
         }
         b[y] = left_mask;
         let mut right_mask = 0u8;
-        for x in 4..8 {
-            let idx = p_right.iter().position(|&c| c == curr[y][x]).unwrap() as u8;
+        for (x, &v) in row.iter().enumerate().take(8).skip(4) {
+            let idx = p_right.iter().position(|&c| c == v).unwrap() as u8;
             right_mask |= (idx & 0x03) << ((x - 4) * 2);
         }
         b[y + 8] = right_mask;
@@ -1226,17 +1220,17 @@ fn build_0xa_horizontal_halves(curr: &Block16) -> Option<Vec<u8>> {
     let p_top = pad_to_4_slice(&top);
     let p_bot = pad_to_4_slice(&bot);
     let mut b = [0u8; 16];
-    for y in 0..8 {
+    for (y, row) in curr.iter().enumerate() {
         let pal = if y < 4 { &p_top } else { &p_bot };
         let mut left_mask = 0u8;
-        for x in 0..4 {
-            let idx = pal.iter().position(|&c| c == curr[y][x]).unwrap() as u8;
+        for (x, &v) in row.iter().enumerate().take(4) {
+            let idx = pal.iter().position(|&c| c == v).unwrap() as u8;
             left_mask |= (idx & 0x03) << (x * 2);
         }
         b[y * 2] = left_mask;
         let mut right_mask = 0u8;
-        for x in 4..8 {
-            let idx = pal.iter().position(|&c| c == curr[y][x]).unwrap() as u8;
+        for (x, &v) in row.iter().enumerate().take(8).skip(4) {
+            let idx = pal.iter().position(|&c| c == v).unwrap() as u8;
             right_mask |= (idx & 0x03) << ((x - 4) * 2);
         }
         b[y * 2 + 1] = right_mask;
@@ -1303,25 +1297,13 @@ mod tests {
     #[test]
     fn quadrants_detected() {
         let mut blk = [[0u16; 8]; 8];
-        for y in 0..4 {
-            for x in 0..4 {
-                blk[y][x] = 0x1234;
-            }
+        for row in &mut blk[..4] {
+            row[..4].fill(0x1234);
+            row[4..].fill(0x4321);
         }
-        for y in 0..4 {
-            for x in 4..8 {
-                blk[y][x] = 0x4321;
-            }
-        }
-        for y in 4..8 {
-            for x in 0..4 {
-                blk[y][x] = 0x0aaa;
-            }
-        }
-        for y in 4..8 {
-            for x in 4..8 {
-                blk[y][x] = 0x0001;
-            }
+        for row in &mut blk[4..] {
+            row[..4].fill(0x0aaa);
+            row[4..].fill(0x0001);
         }
         let q = try_quadrants(&blk).unwrap();
         assert_eq!(q, [0x1234, 0x4321, 0x0aaa, 0x0001]);
