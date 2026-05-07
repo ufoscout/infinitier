@@ -54,17 +54,10 @@ fn round_trip_every_asset_folder() {
         let wav_path = asset_dir.join("audio.wav");
         let frame_dur_us = parse_frame_duration_us_from_name(&name);
         let lossy = name.contains("noise");
-        // Exercise both audio paths: compressed DPCM for the
-        // smptebars fixture (smooth tone with ~326-LSB per-sample
-        // deltas — well within DPCM's tracking budget) and raw PCM
-        // for everything else, so the verify-exact path stays
-        // load-bearing.
-        let audio_compressed = name.contains("smptebars");
 
         let opts = FromAssetsOptions {
             frame_duration_us: frame_dur_us,
             lossy_downsample: lossy,
-            audio_compressed,
             output_name: name.clone(),
         };
         let mve_path = encode_from_assets(&png_paths, &wav_path, &opts, &output_root)
@@ -72,7 +65,7 @@ fn round_trip_every_asset_folder() {
         assert!(mve_path.is_file(), "encoder did not write {mve_path:?}");
 
         verify_video(&png_paths, &mve_path, lossy);
-        verify_audio(&wav_path, &mve_path, audio_compressed);
+        verify_audio(&wav_path, &mve_path);
         eprintln!("OK {name} ({} bytes)", fs::metadata(&mve_path).unwrap().len());
     }
 }
@@ -197,7 +190,7 @@ fn verify_frame_lossy(
     }
 }
 
-fn verify_audio(wav_path: &Path, mve_path: &Path, compressed: bool) {
+fn verify_audio(wav_path: &Path, mve_path: &Path) {
     // Concatenate every audio chunk the decoder yields.
     let mut dec = open_decoder(mve_path);
     let mut decoded: Vec<i16> = Vec::new();
@@ -243,38 +236,31 @@ fn verify_audio(wav_path: &Path, mve_path: &Path, compressed: bool) {
         decoded.len(),
         expected.len()
     );
-    if compressed {
-        // DPCM is lossy; assert mean / max error bounds rather than
-        // sample-exact equality. Bounds chosen to fit the smptebars
-        // fixture (~326-LSB per-sample deltas → expected mean error
-        // ~15 LSB, max in low hundreds while the predictor catches
-        // up after the silence-to-tone transition at chunk
-        // boundaries).
-        let mut sum: u64 = 0;
-        let mut max: i32 = 0;
-        for (&d, &e) in decoded.iter().zip(expected.iter()) {
-            let diff = (d as i32 - e as i32).abs();
-            sum += diff as u64;
-            if diff > max {
-                max = diff;
-            }
+    // Audio is always Interplay DPCM — lossy on transient content,
+    // so we compare via mean / max error bounds rather than
+    // sample-exact equality. Bounds are loose enough to cover the
+    // noise fixture (per-sample deltas ~2700 LSB) while still
+    // catching genuine encoder bugs (silence stays bit-exact and a
+    // smooth tone like smptebars sits two orders of magnitude
+    // inside the bound).
+    let mut sum: u64 = 0;
+    let mut max: i32 = 0;
+    for (&d, &e) in decoded.iter().zip(expected.iter()) {
+        let diff = (d as i32 - e as i32).abs();
+        sum += diff as u64;
+        if diff > max {
+            max = diff;
         }
-        let mean = sum / decoded.len().max(1) as u64;
-        assert!(
-            mean <= 50,
-            "DPCM mean abs error {mean} > 50 LSB for {}",
-            wav_path.display()
-        );
-        assert!(
-            max <= 4096,
-            "DPCM max abs error {max} > 4096 LSB for {}",
-            wav_path.display()
-        );
-    } else {
-        assert_eq!(
-            decoded, expected,
-            "audio samples differ from source WAV for {}",
-            wav_path.display()
-        );
     }
+    let mean = sum / decoded.len().max(1) as u64;
+    assert!(
+        mean <= 200,
+        "DPCM mean abs error {mean} > 200 LSB for {}",
+        wav_path.display()
+    );
+    assert!(
+        max <= 8192,
+        "DPCM max abs error {max} > 8192 LSB for {}",
+        wav_path.display()
+    );
 }

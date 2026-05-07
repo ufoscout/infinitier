@@ -78,13 +78,6 @@ pub struct FromAssetsOptions {
     /// `0xc` (16 bytes). Required for high-detail content whose
     /// raw form would exceed MVE's 65 535-byte segment cap.
     pub lossy_downsample: bool,
-    /// When `true`, audio is encoded as **Interplay DPCM** (~1 byte
-    /// per sample after the seed) — what avi2mve and the real game
-    /// cutscenes use. ffprobe will then report
-    /// `codec_name=interplay_dpcm` instead of `pcm_s16le`.
-    /// DPCM is mildly lossy (≤ ±64 LSB on transient content; mean
-    /// absolute error well under 8 LSB on typical music/dialogue).
-    pub audio_compressed: bool,
     /// Basename (no extension) for the produced `.mve` file in
     /// `output_folder`. e.g. `"smptebars"` → `<out>/smptebars.mve`.
     pub output_name: String,
@@ -158,7 +151,6 @@ pub fn encode_from_assets(
     let audio_opts = AudioOptions {
         sample_rate: spec.sample_rate,
         channels: spec.channels,
-        compressed: options.audio_compressed,
     };
     let samples_per_frame = split_audio(&samples, indexed_frames.len(), spec.channels as usize);
 

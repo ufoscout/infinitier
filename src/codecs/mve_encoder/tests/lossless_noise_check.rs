@@ -32,7 +32,6 @@ fn noise_encodes_losslessly_with_phase_6() {
     let opts = FromAssetsOptions {
         frame_duration_us: 66_667,
         lossy_downsample: false,
-        audio_compressed: false,
         output_name: "noise_lossless".into(),
     };
     let path = encode_from_assets(&pngs, &wav, &opts, &out)

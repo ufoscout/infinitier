@@ -109,20 +109,19 @@ pub struct StaticImage {
     pub palette: Box<[[u8; 3]; 256]>,
 }
 
-/// 16-bit-PCM audio configuration.
+/// Audio configuration. Samples are i16 PCM on the wire and always
+/// encoded as **Interplay DPCM** in the produced `.mve` (the format
+/// the engine expects and what avi2mve / real game cutscenes ship).
+/// DPCM is mildly lossy: reconstruction is bit-exact on silence and
+/// stays within a few LSB on smooth content, but high-entropy
+/// material (noise, abrupt transients) can drift further as the
+/// predictor catches up.
 #[derive(Clone, Copy)]
 pub struct AudioOptions {
     /// Samples per second. Must be ≤ 65535 (format stores it as u16).
     pub sample_rate: u32,
     /// 1 for mono, 2 for stereo. Stereo samples are interleaved L,R,L,R,…
     pub channels: u16,
-    /// When `true`, audio is encoded as **Interplay DPCM** (~1 byte
-    /// per sample after the seed). The decoder reconstructs samples
-    /// within ±1 LSB of the source for slow-moving content; abrupt
-    /// transients can drift further as the predictor catches up.
-    /// When `false`, samples are written verbatim as 16-bit LE PCM
-    /// (lossless, but uses 2 bytes per sample).
-    pub compressed: bool,
 }
 
 /// Multi-frame encode options shared between every frame.
@@ -343,17 +342,14 @@ fn build_init_audio_chunk(audio: &AudioOptions) -> Result<Vec<u8>> {
     // OC_AUDIO_BUFFERS v1 — 10-byte payload:
     //   u16 reserved, u16 flags, u16 sample_rate, u32 min_buf
     //
-    // The decoder honours `AUDIO_FLAG_COMPRESSED` only when the
-    // segment version is > 0, so v1 covers both raw-PCM and
-    // Interplay-DPCM streams; this matches what avi2mve writes.
+    // Audio is always Interplay DPCM. The decoder honours the
+    // COMPRESSED flag whenever segment version is > 0; v1 matches
+    // what avi2mve and real game cutscenes ship.
     let mut payload = Vec::with_capacity(10);
     payload.extend_from_slice(&0u16.to_le_bytes());
-    let mut flags: u16 = AUDIO_FLAG_16BIT;
+    let mut flags: u16 = AUDIO_FLAG_16BIT | AUDIO_FLAG_COMPRESSED;
     if audio.channels == 2 {
         flags |= AUDIO_FLAG_STEREO;
-    }
-    if audio.compressed {
-        flags |= AUDIO_FLAG_COMPRESSED;
     }
     payload.extend_from_slice(&flags.to_le_bytes());
     payload.extend_from_slice(&(audio.sample_rate as u16).to_le_bytes());
@@ -470,22 +466,13 @@ fn build_frame_chunk(
     write_segment(&mut buf, OC_CODE_MAP, 0, &code_map);
 
     // OC_AUDIO_DATA (before the video, matching avi2mve's ordering):
-    // 6-byte header + sample bytes. `audio_size` in the header is
-    // always the *uncompressed* sample-byte count (n_samples * 2)
-    // because the decoder uses it to size its output buffer; the
-    // payload bytes that follow are either raw 16-bit LE samples or
-    // a DPCM stream of seeds + delta bytes.
+    // 6-byte header + DPCM payload. `audio_size` in the header is
+    // the *uncompressed* sample-byte count (n_samples * 2) because
+    // the decoder uses it to size its output buffer; the bytes that
+    // follow are the DPCM seeds + delta stream.
     if let Some((aopts, samples)) = audio {
         let uncompressed_bytes = samples.len() * 2;
-        let payload_bytes: Vec<u8> = if aopts.compressed {
-            dpcm::compress(samples, aopts.channels)
-        } else {
-            let mut v = Vec::with_capacity(uncompressed_bytes);
-            for &s in samples {
-                v.extend_from_slice(&s.to_le_bytes());
-            }
-            v
-        };
+        let payload_bytes = dpcm::compress(samples, aopts.channels);
         if payload_bytes.len() > u16::MAX as usize - 6 {
             return Err(MveEncodeError::ChunkTooBig);
         }

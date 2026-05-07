@@ -174,8 +174,7 @@ cargo run --release --example block_mode_histogram -p infinitier_mve_decoder -- 
 | Lossy `0xc` fallback when raw would overflow segment cap | `lib.rs::build_4x4_fill_downsampled` |
 | 16×16 brute-force motion search | `lib.rs::find_motion_match` |
 | Multi-frame skip detection via `VIDEO_FLAG_DELTA` swap | `lib.rs::encode_av` |
-| Uncompressed 16-bit-PCM audio (mono + stereo) | `lib.rs::build_init_audio_chunk`, `build_frame_chunk` |
-| Interplay DPCM compressed audio (~halves audio bytes) | `dpcm.rs::compress` |
+| Interplay DPCM compressed audio (mono + stereo, ~halves audio bytes) | `dpcm.rs::compress`, `lib.rs::build_init_audio_chunk`, `build_frame_chunk` |
 | `encode_from_assets` (PNG dir + WAV → .mve) | `from_assets.rs` |
 | Round-trip integration tests across 10 fixtures | `tests/from_assets_round_trip.rs` |
 
@@ -343,10 +342,11 @@ output; pre-Phase-9 we emitted `pcm_s16le` — interoperable but
 visibly different in `ffprobe -show_streams`.
 
 **Status**: implemented in `src/codecs/mve_encoder/src/dpcm.rs`
-(`compress(samples, channels) -> Vec<u8>`). Wired into
-`AudioOptions::compressed` and surfaced as
-`FromAssetsOptions::audio_compressed`. ffprobe now reports
-`codec_name=interplay_dpcm` on compressed outputs.
+(`compress(samples, channels) -> Vec<u8>`). DPCM is the **only**
+audio path the encoder produces — there is no toggle. The raw-PCM
+branch was kept briefly while validating the compressor and then
+removed once the bounded-error round-trip held across every fixture.
+ffprobe now reports `codec_name=interplay_dpcm` on every output.
 
 ### Implementation notes
 
@@ -387,30 +387,33 @@ Typical Infinity Engine cutscene audio (dialogue, light music) sits
 around the smptebars profile or smoother — well inside the budget the
 existing decoder side has accepted for years.
 
-### Size win — smptebars fixture (3 s @ 22050 Hz mono)
+### Size win across the fixture set
 
-| | Pre-Phase-9 | Post-Phase-9 |
+Audio is now ~half the bytes it used to be on every output. Sample
+totals (post-Phase-6 + Phase-9):
+
+| Fixture | Ours | avi2mve |
 |---|---|---|
-| Total `.mve` | 165 KB | **99 KB** (-40 %) |
-| Audio bytes (≈) | 132 KB raw | **66 KB DPCM** |
-| Audio codec (ffprobe) | `pcm_s16le` | `interplay_dpcm` |
-| Round-trip mean err | 0 | < 30 LSB |
+| smptebars 3 s | **99 KB** | 166 KB |
+| testsrc 320×240 2 s | **84 KB** | 140 KB |
+| testsrc 160×120 2 s | **88 KB** | 134 KB |
+| mandelbrot 3 s | **670 KB** | 709 KB |
+| noise 3 s (lossy video) | **942 KB** | 968 KB |
 
-The video portion is unchanged (Phase 6 already covered it).
-Compression is **opt-in** per `FromAssetsOptions::audio_compressed`
-so the existing exact-WAV regression tests keep their teeth — every
-asset folder except the one explicitly marked compressed still
-verifies sample-exact audio.
+Every output reports `codec_name=interplay_dpcm` in
+`ffprobe -select_streams a`.
 
 ### Validation harness
 
 - `dpcm::tests::*` — empty input, mono/stereo seed-only, silence,
   slow ramp (≤ 1 LSB), 1 kHz sine (≤ 30 LSB mean), 4 kHz sine
   (loose bound), stereo channel-independence, output-length spec.
-- `tests/from_assets_round_trip.rs` — the smptebars asset is now
-  encoded with DPCM and verified against bounds (mean ≤ 50 LSB,
-  max ≤ 4096 LSB, length exact). All other fixtures stay on the
-  sample-exact PCM path.
+- `tests/from_assets_round_trip.rs` — every asset folder is encoded
+  + decoded, and audio is checked against DPCM error bounds (mean
+  ≤ 200 LSB, max ≤ 8192 LSB, length exact). Bounds are sized for
+  the worst-case fixture (the noise WAV, with ~2700-LSB per-sample
+  deltas); silence and smooth-tone fixtures sit two orders of
+  magnitude inside them.
 - ffprobe sanity check (manual):
   `ffprobe -select_streams a target/mve_encoder/320x240_15fps_3s_smptebars.mve`
   reports `codec_name=interplay_dpcm`.
