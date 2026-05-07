@@ -5,6 +5,7 @@ use std::io::{self, Write};
 use log::debug;
 use thiserror::Error as ThisError;
 
+mod dpcm;
 mod from_assets;
 pub use from_assets::{encode_from_assets, FromAssetsError, FromAssetsOptions};
 
@@ -42,14 +43,24 @@ const OC_VIDEO_DATA: u8 = 0x11;
 const VIDEO_FLAG_DELTA: u16 = 0x0001;
 const AUDIO_FLAG_STEREO: u16 = 0x0001;
 const AUDIO_FLAG_16BIT: u16 = 0x0002;
+const AUDIO_FLAG_COMPRESSED: u16 = 0x0004;
 const DEFAULT_AUDIO_STREAM: u16 = 0x0001;
 
-/// Block coding opcodes used by the Phase-5 encoder. See the readme
-/// for what each means and how the chooser picks between them.
+/// Block coding opcodes used by the encoder. See the readme for what
+/// each means and how the chooser picks between them.
 const BLOCK_COPY_PREV: u8 = 0x0;
 const BLOCK_MOTION_PREV: u8 = 0x4;
 const BLOCK_DELTA: u8 = 0x7;
+/// Mode `0x8` — "2-colour per partition": three sub-modes (4 quadrants
+/// × 2 colours = 16 bytes; 2 vertical or horizontal halves × 2 colours
+/// = 12 bytes). Branch selected by `p[0] <= p[1]` and `p[2] <= p[3]`
+/// in the decoder.
+const BLOCK_QUADRANT_PAIRS: u8 = 0x8;
 const BLOCK_QUAD_PATTERN: u8 = 0x9;
+/// Mode `0xa` — "4-colour per partition": three sub-modes (4 quadrants
+/// × 4 colours = 32 bytes; 2 vertical or horizontal halves × 4 colours
+/// = 24 bytes).
+const BLOCK_QUADRANT_QUADS: u8 = 0xa;
 const BLOCK_RAW: u8 = 0xb;
 const BLOCK_4X4_FILL: u8 = 0xc;
 const BLOCK_QUADRANTS: u8 = 0xd;
@@ -98,14 +109,20 @@ pub struct StaticImage {
     pub palette: Box<[[u8; 3]; 256]>,
 }
 
-/// 16-bit-PCM audio configuration. The encoder always emits raw
-/// (uncompressed) signed 16-bit little-endian samples.
+/// 16-bit-PCM audio configuration.
 #[derive(Clone, Copy)]
 pub struct AudioOptions {
     /// Samples per second. Must be ≤ 65535 (format stores it as u16).
     pub sample_rate: u32,
     /// 1 for mono, 2 for stereo. Stereo samples are interleaved L,R,L,R,…
     pub channels: u16,
+    /// When `true`, audio is encoded as **Interplay DPCM** (~1 byte
+    /// per sample after the seed). The decoder reconstructs samples
+    /// within ±1 LSB of the source for slow-moving content; abrupt
+    /// transients can drift further as the predictor catches up.
+    /// When `false`, samples are written verbatim as 16-bit LE PCM
+    /// (lossless, but uses 2 bytes per sample).
+    pub compressed: bool,
 }
 
 /// Multi-frame encode options shared between every frame.
@@ -268,7 +285,7 @@ pub fn encode_av<W: Write>(
         } else {
             Some(frames[frame_idx - 1])
         };
-        let frame_audio = audio.map(|(_, per_frame)| per_frame[frame_idx].as_slice());
+        let frame_audio = audio.map(|(aopts, per_frame)| (*aopts, per_frame[frame_idx].as_slice()));
         let body = build_frame_chunk(
             frame_pixels,
             prev,
@@ -325,11 +342,18 @@ fn build_init_audio_chunk(audio: &AudioOptions) -> Result<Vec<u8>> {
 
     // OC_AUDIO_BUFFERS v1 — 10-byte payload:
     //   u16 reserved, u16 flags, u16 sample_rate, u32 min_buf
+    //
+    // The decoder honours `AUDIO_FLAG_COMPRESSED` only when the
+    // segment version is > 0, so v1 covers both raw-PCM and
+    // Interplay-DPCM streams; this matches what avi2mve writes.
     let mut payload = Vec::with_capacity(10);
     payload.extend_from_slice(&0u16.to_le_bytes());
     let mut flags: u16 = AUDIO_FLAG_16BIT;
     if audio.channels == 2 {
         flags |= AUDIO_FLAG_STEREO;
+    }
+    if audio.compressed {
+        flags |= AUDIO_FLAG_COMPRESSED;
     }
     payload.extend_from_slice(&flags.to_le_bytes());
     payload.extend_from_slice(&(audio.sample_rate as u16).to_le_bytes());
@@ -404,7 +428,7 @@ fn build_frame_chunk(
     n_blocks: usize,
     use_delta: bool,
     lossy_downsample: bool,
-    audio_samples: Option<&[i16]>,
+    audio: Option<(AudioOptions, &[i16])>,
     seq: u16,
 ) -> Result<Vec<u8>> {
     // Walk every block, decide its mode + payload.
@@ -446,19 +470,30 @@ fn build_frame_chunk(
     write_segment(&mut buf, OC_CODE_MAP, 0, &code_map);
 
     // OC_AUDIO_DATA (before the video, matching avi2mve's ordering):
-    // 6-byte header + raw i16 LE samples.
-    if let Some(samples) = audio_samples {
-        let audio_bytes = samples.len() * 2;
-        if audio_bytes > u16::MAX as usize - 6 {
+    // 6-byte header + sample bytes. `audio_size` in the header is
+    // always the *uncompressed* sample-byte count (n_samples * 2)
+    // because the decoder uses it to size its output buffer; the
+    // payload bytes that follow are either raw 16-bit LE samples or
+    // a DPCM stream of seeds + delta bytes.
+    if let Some((aopts, samples)) = audio {
+        let uncompressed_bytes = samples.len() * 2;
+        let payload_bytes: Vec<u8> = if aopts.compressed {
+            dpcm::compress(samples, aopts.channels)
+        } else {
+            let mut v = Vec::with_capacity(uncompressed_bytes);
+            for &s in samples {
+                v.extend_from_slice(&s.to_le_bytes());
+            }
+            v
+        };
+        if payload_bytes.len() > u16::MAX as usize - 6 {
             return Err(MveEncodeError::ChunkTooBig);
         }
-        let mut audio_payload = Vec::with_capacity(6 + audio_bytes);
+        let mut audio_payload = Vec::with_capacity(6 + payload_bytes.len());
         audio_payload.extend_from_slice(&seq.to_le_bytes());
         audio_payload.extend_from_slice(&DEFAULT_AUDIO_STREAM.to_le_bytes());
-        audio_payload.extend_from_slice(&(audio_bytes as u16).to_le_bytes());
-        for &s in samples {
-            audio_payload.extend_from_slice(&s.to_le_bytes());
-        }
+        audio_payload.extend_from_slice(&(uncompressed_bytes as u16).to_le_bytes());
+        audio_payload.extend_from_slice(&payload_bytes);
         write_segment(&mut buf, OC_AUDIO_DATA, 0, &audio_payload);
     }
 
@@ -609,6 +644,8 @@ fn encode_block(
     // 6. Quad-pattern (0x9) — 3-4 distinct colours. Picks the
     //    cheapest of four sub-modes: per-2×2 (8 bytes), per-2×1
     //    wide / per-1×2 tall (12 bytes each), per-pixel (20 bytes).
+    //    Mode 0x8's 12-byte half-split and 16-byte per-quadrant
+    //    forms slot in *before* the 20-byte per-pixel fall-through.
     if distinct.len() == 3 || distinct.len() == 4 {
         distinct.sort_unstable();
         if is_2x2_uniform(curr) {
@@ -620,13 +657,38 @@ fn encode_block(
         if is_1x2_uniform(curr) {
             return (BLOCK_QUAD_PATTERN, build_0x9_per_1x2_tall(curr, &distinct));
         }
+        if let Some(payload) = build_0x8_vertical_halves(curr)
+            .or_else(|| build_0x8_horizontal_halves(curr))
+        {
+            return (BLOCK_QUADRANT_PAIRS, payload);
+        }
+        if let Some(payload) = build_0x8_per_quadrant(curr) {
+            return (BLOCK_QUADRANT_PAIRS, payload);
+        }
         return (BLOCK_QUAD_PATTERN, build_0x9_per_pixel(curr, &distinct));
     }
 
-    // 7. 4×4 fill (0xc) — 16 bytes. Every 2×2 sub-block uniform,
-    //    5+ distinct colours (≤4-colour case is handled by 0x9).
+    // 7. ≥ 5 distinct colours. Cheapest applicable mode:
+    //    0xc (16 B if every 2×2 uniform) → 0x8 per-quadrant (16 B,
+    //    needs ≤ 2 colours/quadrant; max 8 distinct) →
+    //    0xa half-split (24 B) → 0xa per-quadrant (32 B) →
+    //    fallback to 0xb (or lossy 0xc).
+    //
+    // 0x8 half-split caps at 4 distinct total (≤ 2 per half × 2
+    // halves), so it can never fire here — only `…per_quadrant`.
     if let Some(grid) = build_4x4_fill(curr) {
         return (BLOCK_4X4_FILL, grid);
+    }
+    if let Some(payload) = build_0x8_per_quadrant(curr) {
+        return (BLOCK_QUADRANT_PAIRS, payload);
+    }
+    if let Some(payload) = build_0xa_vertical_halves(curr)
+        .or_else(|| build_0xa_horizontal_halves(curr))
+    {
+        return (BLOCK_QUADRANT_QUADS, payload);
+    }
+    if let Some(payload) = build_0xa_per_quadrant(curr) {
+        return (BLOCK_QUADRANT_QUADS, payload);
     }
 
     // 8a. Lossy fallback — emit `0xc` with 2×2 downsample (16 bytes)
@@ -947,6 +1009,454 @@ fn build_0x9_per_pixel(block: &Block, distinct: &[u8]) -> Vec<u8> {
         out.extend_from_slice(&flags.to_le_bytes());
     }
     out
+}
+
+// ─── 0x8 quadrant-pair / half-split helpers ─────────────────────────────────
+//
+// Mode 0x8 carries 8 mask bytes `b[0..8]` and either 8 palette bytes
+// `p[0..8]` (per-quadrant, 16 B total) or 4 palette bytes `p[0..4]`
+// (per-half, 12 B total). Sub-mode is selected by the decoder via
+//
+//   if p[0] <= p[1]              → per-quadrant   (16 B)
+//   else if p[2] <= p[3]         → vertical halves (12 B)
+//   else                         → horizontal halves (12 B)
+//
+// Per-quadrant: each 4×4 quadrant gets its own (pp0, pp1) pair and
+// a 16-bit mask that picks between them. Bit 0 → pp0, 1 → pp1.
+// Quadrant → palette / mask layout (matches `pack_flags_8` indexing):
+//
+//   top-left     → p[0..2]  b[0..2]
+//   bottom-left  → p[2..4]  b[2..4]
+//   top-right    → p[4..6]  b[4..6]
+//   bottom-right → p[6..8]  b[6..8]
+//
+// Each quadrant's two mask bytes hold rows (0,1) and (2,3) packed as
+// low/high nibbles: `b[lo].low` = row 0 bits 0..3, `b[lo].high` =
+// row 1 bits 0..3, `b[hi].low` = row 2, `b[hi].high` = row 3.
+//
+// Vertical halves (per-half): left half (x<4) uses p[0]/p[1], right
+// half (x≥4) uses p[2]/p[3]. Mask layout is identical to per-quadrant
+// (decoder calls the same `pack_flags_8`), but only two palette
+// pairs apply across all rows of each side.
+//
+// Horizontal halves: top half (y<4) uses p[0]/p[1], bottom half (y≥4)
+// uses p[2]/p[3]. Mask is per-row 8-bit, b[y] bit x = pixel (y, x).
+
+fn build_0x8_per_quadrant(block: &Block) -> Option<Vec<u8>> {
+    // Quadrants: ((origin_y, origin_x), palette_slot, mask_slot)
+    let quads = [
+        ((0usize, 0usize), 0usize),
+        ((4, 0), 2),
+        ((0, 4), 4),
+        ((4, 4), 6),
+    ];
+    let mut p = [0u8; 8];
+    let mut b = [0u8; 8];
+    for &((qy, qx), slot) in quads.iter() {
+        let (pp0, pp1) = pick_quadrant_pair_ascending(block, qy, qx)?;
+        p[slot] = pp0;
+        p[slot + 1] = pp1;
+        let (lo, hi) = build_quadrant_mask_2col(block, qy, qx, pp0, pp1);
+        b[slot] = lo;
+        b[slot + 1] = hi;
+    }
+    // Branch selector: top-left needs p[0] <= p[1]. `pick_…ascending`
+    // guarantees that.
+    let mut out = Vec::with_capacity(16);
+    out.push(p[0]);
+    out.push(p[1]);
+    out.push(b[0]);
+    out.push(b[1]);
+    for &slot in &[2usize, 4, 6] {
+        out.push(p[slot]);
+        out.push(p[slot + 1]);
+        out.push(b[slot]);
+        out.push(b[slot + 1]);
+    }
+    Some(out)
+}
+
+fn build_0x8_vertical_halves(block: &Block) -> Option<Vec<u8>> {
+    // Left half: x in 0..4 across all 8 rows. Right half: x in 4..8.
+    let left = collect_distinct(block, 0, 0, 8, 4, 2)?;
+    let right = collect_distinct(block, 0, 4, 8, 8, 2)?;
+    // Branch: p[0] > p[1] AND p[2] <= p[3].
+    let (p0, p1) = pick_pair_descending(&left)?;
+    let (p2, p3) = pick_pair_ascending(&right);
+    let mut b = [0u8; 8];
+    write_vertical_halves_mask(block, &mut b, p0, p1, p2, p3);
+    let mut out = Vec::with_capacity(12);
+    out.push(p0);
+    out.push(p1);
+    out.push(b[0]);
+    out.push(b[1]);
+    out.push(b[2]);
+    out.push(b[3]);
+    out.push(p2);
+    out.push(p3);
+    out.push(b[4]);
+    out.push(b[5]);
+    out.push(b[6]);
+    out.push(b[7]);
+    Some(out)
+}
+
+fn build_0x8_horizontal_halves(block: &Block) -> Option<Vec<u8>> {
+    // Top half: y in 0..4 across all 8 cols. Bottom half: y in 4..8.
+    let top = collect_distinct(block, 0, 0, 4, 8, 2)?;
+    let bot = collect_distinct(block, 4, 0, 8, 8, 2)?;
+    // Branch: p[0] > p[1] AND p[2] > p[3].
+    let (p0, p1) = pick_pair_descending(&top)?;
+    let (p2, p3) = pick_pair_descending(&bot)?;
+    // Per-row mask: b[y] = 8-bit row mask, bit x = pixel(y, x).
+    let mut b = [0u8; 8];
+    for y in 0..8 {
+        let (pp0, pp1) = if y < 4 { (p0, p1) } else { (p2, p3) };
+        let mut row = 0u8;
+        for x in 0..8 {
+            let v = block[y][x];
+            let bit = if v == pp1 { 1u8 } else if v == pp0 { 0 } else {
+                // unreachable: collect_distinct already ensured ≤ 2
+                // colours per half, and pick_pair_descending always
+                // returns one of them as pp1.
+                return None;
+            };
+            row |= bit << x;
+        }
+        b[y] = row;
+    }
+    let mut out = Vec::with_capacity(12);
+    out.push(p0);
+    out.push(p1);
+    out.push(b[0]);
+    out.push(b[1]);
+    out.push(b[2]);
+    out.push(b[3]);
+    out.push(p2);
+    out.push(p3);
+    out.push(b[4]);
+    out.push(b[5]);
+    out.push(b[6]);
+    out.push(b[7]);
+    Some(out)
+}
+
+/// Pack the 16 bits of one 4×4 quadrant into two bytes (low-nibble =
+/// first row of the pair, high-nibble = second row). Bit value is
+/// `1` when the source pixel matches `pp1`, else `0`.
+fn build_quadrant_mask_2col(
+    block: &Block,
+    qy: usize,
+    qx: usize,
+    pp0: u8,
+    pp1: u8,
+) -> (u8, u8) {
+    let mut lo = 0u8;
+    let mut hi = 0u8;
+    for dy in 0..4 {
+        for dx in 0..4 {
+            let v = block[qy + dy][qx + dx];
+            let bit: u8 = if v == pp1 {
+                1
+            } else {
+                debug_assert_eq!(v, pp0);
+                0
+            };
+            match dy {
+                0 => lo |= bit << dx,
+                1 => lo |= bit << (4 + dx),
+                2 => hi |= bit << dx,
+                _ => hi |= bit << (4 + dx),
+            }
+        }
+    }
+    (lo, hi)
+}
+
+/// Compute the 8 mask bytes for the 0x8 vertical-halves sub-mode. Bit
+/// layout matches `pack_flags_8`: each byte holds two half-rows of
+/// one half-column block (4 bits each, low/high nibble). Horizontal
+/// halves use a different per-row packing handled inline by the
+/// caller.
+fn write_vertical_halves_mask(
+    block: &Block,
+    b: &mut [u8; 8],
+    p0: u8,
+    p1: u8,
+    p2: u8,
+    p3: u8,
+) {
+    for y in 0..8 {
+        for x in 0..8 {
+            let v = block[y][x];
+            let (pp0, pp1) = if x < 4 { (p0, p1) } else { (p2, p3) };
+            let bit: u8 = if v == pp1 {
+                1
+            } else {
+                debug_assert_eq!(v, pp0);
+                0
+            };
+            let byte_index = match (y < 4, x < 4) {
+                (true, true) => y / 2,
+                (true, false) => 4 + y / 2,
+                (false, true) => 2 + (y - 4) / 2,
+                (false, false) => 6 + (y - 4) / 2,
+            };
+            let bit_in_byte = (y % 2) * 4 + (x % 4);
+            b[byte_index] |= bit << bit_in_byte;
+        }
+    }
+}
+
+/// Find the up-to-2 distinct palette indices in `block[y0..y1, x0..x1]`.
+/// Returns `None` if there are more than `max` distinct values.
+fn collect_distinct(
+    block: &Block,
+    y0: usize,
+    x0: usize,
+    y1: usize,
+    x1: usize,
+    max: usize,
+) -> Option<Vec<u8>> {
+    let mut out: Vec<u8> = Vec::with_capacity(max + 1);
+    for y in y0..y1 {
+        for x in x0..x1 {
+            let v = block[y][x];
+            if !out.contains(&v) {
+                out.push(v);
+                if out.len() > max {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(out)
+}
+
+fn pick_quadrant_pair_ascending(block: &Block, qy: usize, qx: usize) -> Option<(u8, u8)> {
+    let colours = collect_distinct(block, qy, qx, qy + 4, qx + 4, 2)?;
+    Some(pick_pair_ascending(&colours))
+}
+
+/// `colours.len() ∈ {1, 2}`. Returns `(pp0, pp1)` with `pp0 ≤ pp1`,
+/// duplicating the single colour when there's only one.
+fn pick_pair_ascending(colours: &[u8]) -> (u8, u8) {
+    match colours.len() {
+        1 => (colours[0], colours[0]),
+        2 => {
+            let (a, b) = (colours[0], colours[1]);
+            (a.min(b), a.max(b))
+        }
+        _ => unreachable!("collect_distinct caps at 2"),
+    }
+}
+
+/// `colours.len() ∈ {1, 2}`. Returns `(pp0, pp1)` with `pp0 > pp1`
+/// strictly. The single-colour case fabricates a phantom second
+/// palette entry adjacent to `v` so the inequality holds while the
+/// effective decoded value remains `v`.
+fn pick_pair_descending(colours: &[u8]) -> Option<(u8, u8)> {
+    match colours.len() {
+        1 => {
+            let v = colours[0];
+            // Want all decoded pixels = v. Encoder side picks `bit = 1`
+            // when the pixel equals `pp1` else `bit = 0`; whichever
+            // slot we put `v` in, the other slot just has to satisfy
+            // the strict inequality — and never appear in the source
+            // pixels.
+            if v > 0 {
+                // pp0 = v, pp1 = v - 1: bits 0 → pp0 = v.
+                Some((v, v - 1))
+            } else {
+                // v == 0: pp0 = 1, pp1 = 0: bits 1 → pp1 = 0 = v.
+                Some((1, 0))
+            }
+        }
+        2 => {
+            let (a, b) = (colours[0], colours[1]);
+            Some((a.max(b), a.min(b)))
+        }
+        _ => unreachable!("collect_distinct caps at 2"),
+    }
+}
+
+// ─── 0xa quadrant-quads / half-split helpers ────────────────────────────────
+//
+// Mode 0xa carries up to 16 palette bytes and 16 mask bytes. Sub-modes
+// are selected by the decoder:
+//
+//   if p[0] <= p[1]              → 4 colours per quadrant   (32 B)
+//   else if p[4] <= p[5]         → 4 colours per vertical half (24 B)
+//   else                         → 4 colours per horizontal half (24 B)
+//
+// Per-quadrant palette layout: p[0..4] = top-left, p[4..8] =
+// bottom-left, p[8..12] = top-right, p[12..16] = bottom-right. Mask
+// byte b[N] holds row R of one 4-pixel-wide column-strip (2 bits per
+// pixel × 4 = 8 bits). Indexing matches the decoder's
+// `flags = (b[y+8] << 8) | b[y]` and `idx = split + lower + (flags >>
+// 2x) & 3`:
+//
+//   b[0..4]  = top-left  rows 0..3 (x<4)
+//   b[4..8]  = bottom-left rows 4..7 (x<4)
+//   b[8..12] = top-right rows 0..3 (x≥4)
+//   b[12..16]= bottom-right rows 4..7 (x≥4)
+//
+// Vertical-halves palette layout: p[0..4] = left, p[4..8] = right.
+// Mask: b[y] for x<4 of row y, b[y+8] for x≥4 of row y.
+//
+// Horizontal-halves palette layout: p[0..4] = top, p[4..8] = bottom.
+// Mask: b[2y] for x<4 of row y, b[2y+1] for x≥4 of row y.
+
+fn build_0xa_per_quadrant(block: &Block) -> Option<Vec<u8>> {
+    // (origin_y, origin_x, palette_slot, mask_slot_base) — for this
+    // sub-mode palette and mask slots are aligned at the same offsets.
+    let quads = [
+        ((0usize, 0usize), 0usize),
+        ((4, 0), 4),
+        ((0, 4), 8),
+        ((4, 4), 12),
+    ];
+    let mut p = [0u8; 16];
+    let mut b = [0u8; 16];
+    for &((qy, qx), slot) in quads.iter() {
+        let colours = collect_distinct(block, qy, qx, qy + 4, qx + 4, 4)?;
+        let (a, c, d, e) = pick_quad_ascending(&colours);
+        p[slot] = a;
+        p[slot + 1] = c;
+        p[slot + 2] = d;
+        p[slot + 3] = e;
+        // Build per-row 8-bit masks (4 pixels × 2 bits) for this
+        // quadrant. b[slot + dy] holds row dy of the quadrant.
+        for dy in 0..4 {
+            let mut row = 0u8;
+            for dx in 0..4 {
+                let v = block[qy + dy][qx + dx];
+                let idx = palette_index_4(&p[slot..slot + 4], v);
+                row |= (idx & 0x03) << (dx * 2);
+            }
+            b[slot + dy] = row;
+        }
+    }
+    // Branch selector: p[0] <= p[1] holds because pick_quad_ascending
+    // sorts ascending (and pads with the highest colour).
+    let mut out = Vec::with_capacity(32);
+    // Header: p[0..4], b[0..4]
+    out.extend_from_slice(&p[0..4]);
+    out.extend_from_slice(&b[0..4]);
+    // Three more chunks: p[4..8], b[4..8] / p[8..12], b[8..12] / p[12..16], b[12..16]
+    for &start in &[4usize, 8, 12] {
+        out.extend_from_slice(&p[start..start + 4]);
+        out.extend_from_slice(&b[start..start + 4]);
+    }
+    Some(out)
+}
+
+fn build_0xa_vertical_halves(block: &Block) -> Option<Vec<u8>> {
+    let left = collect_distinct(block, 0, 0, 8, 4, 4)?;
+    let right = collect_distinct(block, 0, 4, 8, 8, 4)?;
+    // Branch: p[0] > p[1] AND p[4] <= p[5].
+    let (p0, p1, p2, p3) = pick_quad_descending(&left)?;
+    let (p4, p5, p6, p7) = pick_quad_ascending(&right);
+    let p_left = [p0, p1, p2, p3];
+    let p_right = [p4, p5, p6, p7];
+    let mut b = [0u8; 16];
+    for y in 0..8 {
+        let mut left_mask = 0u8;
+        for x in 0..4 {
+            let idx = palette_index_4(&p_left, block[y][x]);
+            left_mask |= (idx & 0x03) << (x * 2);
+        }
+        b[y] = left_mask;
+        let mut right_mask = 0u8;
+        for x in 4..8 {
+            let idx = palette_index_4(&p_right, block[y][x]);
+            right_mask |= (idx & 0x03) << ((x - 4) * 2);
+        }
+        b[y + 8] = right_mask;
+    }
+    Some(emit_0xa_halves(&p_left, &p_right, &b))
+}
+
+fn build_0xa_horizontal_halves(block: &Block) -> Option<Vec<u8>> {
+    let top = collect_distinct(block, 0, 0, 4, 8, 4)?;
+    let bot = collect_distinct(block, 4, 0, 8, 8, 4)?;
+    // Branch: p[0] > p[1] AND p[4] > p[5].
+    let (p0, p1, p2, p3) = pick_quad_descending(&top)?;
+    let (p4, p5, p6, p7) = pick_quad_descending(&bot)?;
+    let p_top = [p0, p1, p2, p3];
+    let p_bot = [p4, p5, p6, p7];
+    let mut b = [0u8; 16];
+    for y in 0..8 {
+        let pal = if y < 4 { &p_top } else { &p_bot };
+        let mut left_mask = 0u8;
+        for x in 0..4 {
+            let idx = palette_index_4(pal, block[y][x]);
+            left_mask |= (idx & 0x03) << (x * 2);
+        }
+        b[y * 2] = left_mask;
+        let mut right_mask = 0u8;
+        for x in 4..8 {
+            let idx = palette_index_4(pal, block[y][x]);
+            right_mask |= (idx & 0x03) << ((x - 4) * 2);
+        }
+        b[y * 2 + 1] = right_mask;
+    }
+    Some(emit_0xa_halves(&p_top, &p_bot, &b))
+}
+
+/// Emit a 24-byte 0xa half-split payload in the decoder's read order:
+/// header `p[0..4] b[0..4]`, then `b[4..8]`, then `p_other[0..4]`,
+/// then `b[8..16]`.
+fn emit_0xa_halves(first_pal: &[u8; 4], second_pal: &[u8; 4], b: &[u8; 16]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(24);
+    out.extend_from_slice(first_pal);
+    out.extend_from_slice(&b[0..4]);
+    out.extend_from_slice(&b[4..8]);
+    out.extend_from_slice(second_pal);
+    out.extend_from_slice(&b[8..16]);
+    out
+}
+
+/// `colours.len() ∈ {1, 2, 3, 4}`. Sort ascending and pad to 4 entries
+/// by repeating the last colour. Caller looks up via the FIRST
+/// matching position so duplicate slots are harmless.
+fn pick_quad_ascending(colours: &[u8]) -> (u8, u8, u8, u8) {
+    let mut s = colours.to_vec();
+    s.sort_unstable();
+    while s.len() < 4 {
+        s.push(*s.last().unwrap());
+    }
+    (s[0], s[1], s[2], s[3])
+}
+
+/// `colours.len() ∈ {1, 2, 3, 4}`. Returns `(p0, p1, p2, p3)` with
+/// `p0 > p1` strictly. Single-colour input fabricates a phantom
+/// second palette slot the same way as `pick_pair_descending`.
+fn pick_quad_descending(colours: &[u8]) -> Option<(u8, u8, u8, u8)> {
+    if colours.is_empty() {
+        return None;
+    }
+    if colours.len() == 1 {
+        let v = colours[0];
+        if v > 0 {
+            return Some((v, v - 1, v, v));
+        } else {
+            return Some((1, 0, 0, 0));
+        }
+    }
+    let mut s = colours.to_vec();
+    s.sort_unstable_by(|a, b| b.cmp(a)); // descending
+    while s.len() < 4 {
+        s.push(*s.last().unwrap());
+    }
+    Some((s[0], s[1], s[2], s[3]))
+}
+
+#[inline]
+fn palette_index_4(p: &[u8], v: u8) -> u8 {
+    p.iter()
+        .position(|&c| c == v)
+        .expect("colour must be in palette") as u8
 }
 
 // ─── low-level emitters ──────────────────────────────────────────────────────

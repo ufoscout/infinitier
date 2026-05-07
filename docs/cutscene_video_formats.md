@@ -170,73 +170,107 @@ cargo run --release --example block_mode_histogram -p infinitier_mve_decoder -- 
 | Feature | Where |
 |---|---|
 | Container framing (signature, init/frame/end chunks) | `lib.rs::encode_av` |
-| Palette-8 video, all chooser modes 0x0/0x4/0x7/0x9/0xb/0xc/0xd/0xe | `lib.rs::encode_block` |
+| Palette-8 video, all chooser modes 0x0/0x4/0x7/0x8/0x9/0xa/0xb/0xc/0xd/0xe | `lib.rs::encode_block` |
 | Lossy `0xc` fallback when raw would overflow segment cap | `lib.rs::build_4x4_fill_downsampled` |
 | 16×16 brute-force motion search | `lib.rs::find_motion_match` |
 | Multi-frame skip detection via `VIDEO_FLAG_DELTA` swap | `lib.rs::encode_av` |
 | Uncompressed 16-bit-PCM audio (mono + stereo) | `lib.rs::build_init_audio_chunk`, `build_frame_chunk` |
+| Interplay DPCM compressed audio (~halves audio bytes) | `dpcm.rs::compress` |
 | `encode_from_assets` (PNG dir + WAV → .mve) | `from_assets.rs` |
 | Round-trip integration tests across 10 fixtures | `tests/from_assets_round_trip.rs` |
 
 The encoder is **lossless on any palette-8 input** that fits the
-65 535-byte segment cap; high-detail content needs `lossy_downsample`
-(currently a per-block 2×2 top-left pick).
+65 535-byte segment cap; high-detail content (e.g. random noise) still
+benefits from `lossy_downsample` to keep the file size reasonable.
 
-## Phase 6 — alternative quad-pattern modes 0x8 + 0xa
+## Phase 6 — alternative quad-pattern modes 0x8 + 0xa — **DONE**
 
 **Goal**: emit modes `0x8` and `0xa` for natural-image content where
-they beat our current `0x9` per-pixel (20 bytes) + `0xb` raw (64
+they beat the existing `0x9` per-pixel (20 bytes) + `0xb` raw (64
 bytes) fallbacks.
 
-**Evidence it matters**: avi2mve's noise reference uses **47% `0x8`**
-+ 5% `0xa`. Our equivalent `from_assets` output uses 0% of either; we
-fall through to lossy `0xc` (16 bytes) instead. Result: avi2mve's
-noise.mve is significantly smaller than ours.
+**Status**: implemented in `lib.rs` as `build_0x8_per_quadrant`
+(16 B), `build_0x8_vertical_halves` / `build_0x8_horizontal_halves`
+(12 B each), `build_0xa_per_quadrant` (32 B),
+`build_0xa_vertical_halves` / `build_0xa_horizontal_halves` (24 B
+each). Per-mode round-trip tests live alongside the Phase-5 ones in
+`tests/round_trip_it.rs::quadrant_pairs_*` /
+`four_colour_*`.
 
-**Decoder reference**: `mve_decoder/src/video.rs`
+### Final chooser order
 
-- `decode8_0x8` (lines ~174–284): two sub-modes selected by
-  `p[0] <= p[1]`. The "yes" branch reads 4×4 quadrants × 2 colours
-  each (16 bytes total); the "no" branch reads 2 halves
-  (vertical or horizontal) with 2 colours per half.
-  See `pack_flags_8` (lines ~287–296) for the bit layout.
-- `decode8_0xa` (lines ~381–462): four-colour-per-quadrant or
-  four-colour-per-half with 16-bit masks. Even more sub-modes than
-  `0x8`.
+Cost-sorted, with each mode's applicability constraint in parens.
+Modes are tried top-down; the first one that fits wins:
 
-**Where to wire it in**: `lib.rs::encode_block`, between the existing
-`0x7` (delta) and `0x9` (quad-pattern) fallback levels — these modes
-are 2-colour-per-quadrant and 4-colour-per-half so they sit between
-the 4-byte 0x7 and the 8/12/20-byte 0x9. Likely insertion order:
+| Step | Mode | Bytes | Constraint |
+|---|---|---|---|
+| 1 | `0x0` skip | 0 | block matches prev frame at same offset |
+| 2 | `0xe` solid | 1 | every pixel identical |
+| 3 | `0x4` motion | 1 | exact match within ±8 px of prev frame |
+| 4 | `0xd` quadrants | 4 | 4-quadrant uniform |
+| 5 | `0x7` compact | 4 | 2 colours, every 2×2 sub-block uniform |
+| 6 | `0x9` per-2×2 | 8 | 3-4 colours, every 2×2 uniform |
+| 7 | `0x7` full | 10 | 2 colours, arbitrary |
+| 8 | `0x9` per-2×1 / per-1×2 | 12 | 3-4 colours + the appropriate 2-pixel uniformity |
+| 9 | **`0x8` half-split** | 12 | each half (left/right or top/bottom) ≤ 2 colours |
+| 10 | **`0x8` per-quadrant** | 16 | each 4×4 quadrant ≤ 2 colours |
+| 11 | `0xc` 4×4-fill | 16 | every 2×2 sub-block uniform |
+| 12 | `0x9` per-pixel | 20 | 3-4 colours total |
+| 13 | **`0xa` half-split** | 24 | each half ≤ 4 colours |
+| 14 | **`0xa` per-quadrant** | 32 | each 4×4 quadrant ≤ 4 colours |
+| 15 | `0xc` lossy (opt-in) | 16 | always (top-left of each 2×2 wins) |
+| 16 | `0xb` raw | 64 | always |
 
-```
-… → 0x7 → if can_encode_0x8 → 0x8 → 0x9 → 0xa → …
-```
+`0x8` half-split caps at 4 distinct colours total (≤ 2 × 2 halves), so
+in the ≥ 5-colour branch only the per-quadrant variant can fire — the
+implementation reflects that.
 
-**Algorithm sketch (mode 0x8 "p0 ≤ p1" branch)**:
-1. For each 4×4 quadrant of the 8×8 block, count distinct colours.
-   Reject if any quadrant has >2 colours.
-2. Order the 8 distinct palette indices into `p[0..8]` so `p[0] ≤ p[1]`.
-3. Build 8 byte-masks `b[0..8]` matching `pack_flags_8`'s read order.
+### Bit-layout traps that bit during implementation
 
-**Algorithm sketch (mode 0xa "p0 ≤ p1" branch)**:
-1. Each quadrant has up to 4 colours.
-2. Build `p[0..16]` (4 colours × 4 quadrants).
-3. Build `b[0..16]` for the per-pixel index masks.
+- `pack_flags_8` lays the 32 mask bits as 4 rows × 8 cols. For the 0x8
+  per-quadrant sub-mode, each quadrant's 16 bits live in two bytes
+  (`b[lo]`/`b[hi]`); inside each byte the *low* nibble holds row 0 of
+  the pair, the *high* nibble row 1. Easy to swap the nibble order
+  by mistake.
+- 0x8 sub-mode B/C selection is by **palette ordering**: `p[0] > p[1]`
+  forces the half-split branch and `p[2] <= p[3]` (vs `p[2] > p[3]`)
+  picks vertical vs horizontal. When a half is monochrome, the
+  encoder must fabricate a phantom second palette entry (e.g. v=0
+  → `pp0 = 1, pp1 = 0` and flip every bit) to keep the strict
+  inequality. Covered by `quadrant_pairs_handles_palette_index_zero`.
+- 0xa half-split mask layout differs from per-quadrant: vertical uses
+  `b[y]` for x<4 / `b[y+8]` for x≥4, while horizontal uses `b[2y]`
+  for x<4 / `b[2y+1]` for x≥4. Encoder has separate inner loops.
 
-**Validation**:
-1. Add per-mode round-trip tests in `tests/round_trip_it.rs` matching
-   the existing `quad_pattern_*` style.
-2. Re-run `from_assets_round_trip`: expect noise.mve to shrink and
-   *probably* drop the `lossy_downsample` flag (since 0x8/0xa cover
-   noise content losslessly within the segment cap).
-3. Cross-check histograms: ours should show non-zero `0x8` and `0xa`
-   counts on natural content like `mandelbrot` and `noise`.
+### Histogram comparison vs avi2mve (45 frames at 320×240)
 
-**Estimated cost**: 1–2 sessions. The decoder's `pack_flags_8` is
-fiddly — encode the mask bits in the exact reverse order the decoder
-unpacks them, and add a unit test that round-trips a single block in
-isolation before attempting full-frame.
+| Asset | Ours size | avi2mve | Ours `0x8`% | avi2mve `0x8`% |
+|---|---|---|---|---|
+| smptebars | 165 KB | 166 KB | 0.0 % | 0.0 % |
+| testsrc 320×240 | 128 KB | 140 KB | 0.16 % | 1.75 % |
+| testsrc 160×120 | 132 KB | 134 KB | 0.08 % | 0.20 % |
+| mandelbrot | 737 KB | 709 KB | 3.07 % | 3.20 % |
+| noise (lossy) | 1008 KB | 968 KB | 37.58 % | 47.14 % |
+
+We're competitive on natural-image content and *smaller* than avi2mve
+on testsrc (`0x4` motion compensation does heavy lifting there).
+The remaining size gap on mandelbrot / noise comes from avi2mve's
+**lossy 0x7 / 0x9** paths — they pre-quantise each block to ≤ 2 / ≤ 4
+"dominant" colours and accept the error, while our 0x8/0xa builders
+are strictly lossless. That's a Phase-13 / future-work concern, not a
+correctness issue.
+
+### Bonus: lossless noise now fits the segment cap
+
+Pre-Phase-6, encoding noise without `lossy_downsample` would emit
+~32 K blocks of mode `0xb` (64 B each) per frame, busting the
+65 535-byte segment limit. With 0x8 covering ~38 % of noise blocks
+losslessly at 16 B and the remainder at 64 B, the per-frame video
+segment now fits. Captured by
+`tests/lossless_noise_check.rs::noise_encodes_losslessly_with_phase_6`
+(produces a 2.5 MB lossless `noise_lossless.mve` — useful as a
+regression sentinel even though `lossy_downsample = true` is still
+the default for that fixture).
 
 ## Phase 7 — `0x5` 16-bit motion offset
 
@@ -299,102 +333,87 @@ of avi2mve output.
 
 **Estimated cost**: 1 session; defer unless byte-exactness is needed.
 
-## Phase 9 — Interplay DPCM compressed audio
+## Phase 9 — Interplay DPCM compressed audio — **DONE**
 
 **Goal**: emit `AUDIO_FLAG_COMPRESSED` audio in the **Interplay DPCM**
 format that avi2mve.exe produces. ~50% smaller than raw PCM (1 byte
 per sample after the seed instead of 2). This is the codec ffprobe
 reports as `interplay_dpcm` on real game cutscenes and on avi2mve
-output; we currently emit `pcm_s16le` — interoperable but visibly
-different in `ffprobe -show_streams`.
+output; pre-Phase-9 we emitted `pcm_s16le` — interoperable but
+visibly different in `ffprobe -show_streams`.
 
-**Format spec** (already implemented on the decode side):
+**Status**: implemented in `src/codecs/mve_encoder/src/dpcm.rs`
+(`compress(samples, channels) -> Vec<u8>`). Wired into
+`AudioOptions::compressed` and surfaced as
+`FromAssetsOptions::audio_compressed`. ffprobe now reports
+`codec_name=interplay_dpcm` on compressed outputs.
 
-- Stream header: one i16 LE **predictor seed per channel**
-  (1 word for mono, 2 words for stereo, written L then R).
-- Then a stream of 1-byte deltas. Each byte indexes into a 256-entry
-  signed-i16 lookup table. The decoder adds the table value to the
-  current channel's predictor, saturates to `[-32768, 32767]`,
-  emits the saturated result, and switches channel (stereo only).
+### Implementation notes
 
-The lookup table itself is `DELTA_TABLE` in
-`src/codecs/mve_decoder/src/audio.rs:4-20`. The decoder is
-`decompress_audio` at `audio.rs:29-60`. The encoder must mirror it
-byte-for-byte to avoid predictor drift.
+- **`DELTA_TABLE` is duplicated** into the encoder rather than
+  re-exported from the decoder. The encoder doesn't otherwise depend
+  on the decoder, and dragging in the dependency just to share 512
+  bytes of static data wasn't worth it. The duplicate is one chunk
+  of code; if the table ever changes (it shouldn't — it's defined by
+  the format) keep both copies in sync.
+- **Segment version stays at 1**, not 2 as the original Phase-9 plan
+  suggested. avi2mve writes v1 with `flags = 0x0006`
+  (`AUDIO_FLAG_16BIT | AUDIO_FLAG_COMPRESSED`); the decoder honours
+  the COMPRESSED flag whenever `version > 0`, so v1 is sufficient and
+  matches what real game cutscenes use.
+- **`audio_size` in the per-frame `OC_AUDIO_DATA` header stays as the
+  uncompressed byte count** (`samples.len() * 2`). The decoder uses
+  this to size its output buffer; the *segment size* (which scales
+  the compressed data) lives in the segment header one level up.
+- The compressor uses a **linear 256-entry scan** per sample. The LUT
+  is non-monotonic at indices 124–128 (`-1, 1, 1, 5481, -32589`),
+  which would break a naïve binary search; offline encoding speed is
+  not a bottleneck, so we leave it as a brute-force scan with an
+  early-exit when `dist == 0`.
+- For mono with N samples we write `2 + (N - 1)` bytes; for stereo
+  with N (even) samples, `4 + (N - 2)`. Asserted in
+  `dpcm::tests::output_length_matches_spec`.
 
-**Cross-reference for the encoder side**:
-FFmpeg has a working Interplay DPCM encoder at
-`libavcodec/interplay_dpcm.c` in the FFmpeg tree (search
-`AVCodec ff_interplay_dpcm_encoder`). It's reasonable to read that
-as the reference algorithm — it also uses the same lookup table and
-the same saturation rules.
+### Reconstruction quality (measured)
 
-**Where to edit**:
+| Source content | Per-sample Δ profile | Mean abs err | Max abs err |
+|---|---|---|---|
+| Silence | Δ = 0 | **0** (bit-exact) | 0 |
+| Slow ramp (Δ ≤ 1) | LUT covers 1-LSB exactly | ≤ 1 | ≤ 1 |
+| 1 kHz sine, ±4096 amp | mean Δ ≈ 326 (smptebars-like) | ≤ 30 | ≤ 256 |
+| 4 kHz sine, ±20000 amp | mean Δ ≈ 4500 | ~1500 | ~8000 |
 
-- `src/codecs/mve_encoder/src/lib.rs::build_init_audio_chunk`:
-  set `AUDIO_FLAG_COMPRESSED` (0x0004) in the flags word and bump
-  the segment's version byte from 1 to 2 (the decoder only honours
-  the COMPRESSED flag when `version > 0`; check
-  `decoder.rs::read_audio_buffers`).
-- `src/codecs/mve_encoder/src/lib.rs::build_frame_chunk`: replace
-  the raw `extend_from_slice(&s.to_le_bytes())` loop with the
-  compressor (see algorithm below). The 6-byte header
-  (seq, stream_mask, audio_size) stays the same; `audio_size`
-  remains the *uncompressed* sample-byte count
-  (i.e. `n_samples * 2`) because that's what the decoder uses to
-  size its output buffer (`audio.rs:30`: `total_samples = audio_size / 2`).
-- Make `DELTA_TABLE` reachable from the encoder. Either expose it
-  as `pub const` from `mve_decoder::audio` and add a dependency
-  edge (encoder doesn't currently depend on decoder — adding the
-  edge is fine since the workspace already has the inverse
-  relationship as a `dev-dependency`), or copy the 256 entries into
-  the encoder. Copying is simpler if we don't want to add the dep.
+Typical Infinity Engine cutscene audio (dialogue, light music) sits
+around the smptebars profile or smoother — well inside the budget the
+existing decoder side has accepted for years.
 
-**Algorithm — compressor**:
+### Size win — smptebars fixture (3 s @ 22050 Hz mono)
 
-The first sample of each channel is the predictor seed (write i16 LE
-verbatim). For every subsequent sample, **find the delta-byte
-whose post-saturation predictor is closest to the target sample**:
+| | Pre-Phase-9 | Post-Phase-9 |
+|---|---|---|
+| Total `.mve` | 165 KB | **99 KB** (-40 %) |
+| Audio bytes (≈) | 132 KB raw | **66 KB DPCM** |
+| Audio codec (ffprobe) | `pcm_s16le` | `interplay_dpcm` |
+| Round-trip mean err | 0 | < 30 LSB |
 
-```text
-for each subsequent sample s (channel-interleaved):
-    best_byte = 0
-    best_dist = i32::MAX
-    for b in 0..256:
-        candidate = (predictor[ch] + DELTA_TABLE[b] as i32).clamp(-32768, 32767)
-        dist = (candidate - s as i32).abs()
-        if dist < best_dist:
-            best_byte = b
-            best_dist = dist
-    write best_byte
-    predictor[ch] = (predictor[ch] + DELTA_TABLE[best_byte] as i32).clamp(-32768, 32767)
-    ch ^= channels - 1
-```
+The video portion is unchanged (Phase 6 already covered it).
+Compression is **opt-in** per `FromAssetsOptions::audio_compressed`
+so the existing exact-WAV regression tests keep their teeth — every
+asset folder except the one explicitly marked compressed still
+verifies sample-exact audio.
 
-The 256-entry inner loop is fine for offline encoding. Optimisation
-later: precompute a sorted index over the table, binary-search for
-the closest delta. Watch out — the table is **non-monotonic**: see
-indices 124–128 (`-1, 1, 1, 5481, -32589`) for the discontinuity
-where the encoding flips from "small positive" to "small negative".
-A naïve binary search will miss matches; either search both halves
-or fall back to linear when the linear distance is small.
+### Validation harness
 
-**Validation**:
-
-1. Add a unit test in `from_assets.rs` (or `lib.rs`): encode a known
-   i16 sequence, decode it via `decompress_audio`, assert each
-   reconstructed sample is within ±1 LSB of the source.
-2. Extend `tests/from_assets_round_trip.rs` to optionally encode
-   with `audio_compressed: true`. The current sample-exact
-   comparison must be relaxed: assert mean absolute error ≤ 8 LSB,
-   max absolute error ≤ 64 LSB, and total length matches exactly.
-3. ffprobe sanity check: `ffprobe -show_streams target/mve_encoder/<file>.mve`
-   should now report `codec_name=interplay_dpcm` for the audio
-   stream.
-
-**Estimated cost**: 1–2 sessions. The compressor itself is ~50 lines
-once the decoder reference is open; the test relaxation and the
-optional binary-search optimisation are the slow parts.
+- `dpcm::tests::*` — empty input, mono/stereo seed-only, silence,
+  slow ramp (≤ 1 LSB), 1 kHz sine (≤ 30 LSB mean), 4 kHz sine
+  (loose bound), stereo channel-independence, output-length spec.
+- `tests/from_assets_round_trip.rs` — the smptebars asset is now
+  encoded with DPCM and verified against bounds (mean ≤ 50 LSB,
+  max ≤ 4096 LSB, length exact). All other fixtures stay on the
+  sample-exact PCM path.
+- ffprobe sanity check (manual):
+  `ffprobe -select_streams a target/mve_encoder/320x240_15fps_3s_smptebars.mve`
+  reports `codec_name=interplay_dpcm`.
 
 ## Phase 10 — RGB555 (16-bit) video
 
@@ -480,19 +499,21 @@ issues surface.
 
 ## Phase priority recommendation
 
-If you have one session: **Phase 6** (modes 0x8 / 0xa). It's the
-biggest size win on real content and gets us closer to byte-similar
-output to avi2mve.
+Phases 6 and 9 are **done**. Remaining priority order:
 
-If you have a week: 6 → 9 (compressed audio, halves audio bytes) →
-12 (validate against gemrb).
+If you have one session: **Phase 12** (validate against gemrb /
+NearInfinity / a real game). Codec coverage is now wide enough that
+the next-most-useful work is verifying the bitstream is correct
+end-to-end in a real player — any gaps surface there.
+
+If you have a week: 12 → 7 (`0x5` extended motion, modest size win
+on real cutscenes with camera pans) → 11 (built-in palette
+generation, opens the door to feeding non-pre-quantised inputs).
 
 Defer until needed:
-- Phase 7 (`0x5` extended motion) — niche.
-- Phase 8 (`0x1`/`0x2`/`0x3`) — diminishing returns.
+- Phase 8 (`0x1`/`0x2`/`0x3`) — diminishing returns; only relevant if
+  chasing byte-exact reproduction of avi2mve output.
 - Phase 10 (RGB555) — only if a use case for true-colour MVE exists.
-- Phase 11 (palette generation) — `encode_from_assets` already
-  handles this implicitly via the asset pipeline.
 
 ## Cross-references
 
