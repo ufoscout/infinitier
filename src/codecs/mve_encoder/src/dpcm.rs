@@ -228,7 +228,7 @@ mod tests {
         // predictor, so R must round-trip exactly even while L moves.
         let mut src = Vec::with_capacity(2048);
         for n in 0..1024 {
-            let l = (((n as i32 * 137) % 32767) - 16384) as i16;
+            let l = (((n * 137) % 32767) - 16384) as i16;
             src.push(l);
             src.push(0); // R = silence
         }

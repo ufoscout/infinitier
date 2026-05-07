@@ -347,13 +347,13 @@ fn multi_frame_with_per_block_change_per_frame() {
     assert_eq!(&got[2][..4], &[252, 0, 0, 255]);
 
     // Block (1,0) = top-right — green from frame 1 onwards.
-    let off_block1 = (0 * 16 + 8) * 4;
+    let off_block1 = 8 * 4;
     assert_eq!(&got[0][off_block1..off_block1 + 4], &[252, 0, 0, 255]);
     assert_eq!(&got[1][off_block1..off_block1 + 4], &[0, 252, 0, 255]);
     assert_eq!(&got[2][off_block1..off_block1 + 4], &[0, 252, 0, 255]);
 
     // Block (0,1) = bottom-left — blue from frame 2 onwards.
-    let off_block_bl = (8 * 16 + 0) * 4;
+    let off_block_bl = (8 * 16) * 4;
     assert_eq!(&got[0][off_block_bl..off_block_bl + 4], &[252, 0, 0, 255]);
     assert_eq!(&got[1][off_block_bl..off_block_bl + 4], &[252, 0, 0, 255]);
     assert_eq!(&got[2][off_block_bl..off_block_bl + 4], &[0, 0, 252, 255]);
@@ -425,7 +425,7 @@ fn four_by_four_fill_round_trip() {
         for sx in 0..4 {
             let idx = (sy * 4 + sx) as u8 + 1;
             // Distinct rgb so the visual round-trip is checkable.
-            palette[idx as usize] = [(idx as u8) * 8, (idx as u8) * 4, 0];
+            palette[idx as usize] = [idx * 8, idx * 4, 0];
             for dy in 0..2 {
                 for dx in 0..2 {
                     pixels[(sy * 2 + dy) * 8 + (sx * 2 + dx)] = idx;
@@ -450,7 +450,7 @@ fn four_by_four_fill_round_trip() {
         for sx in 0..4 {
             let idx = (sy * 4 + sx) as u8 + 1;
             let expected = [
-                ((idx & 0xfc) >> 0) << 0, // r quantised at write
+                (idx & 0xfc), // r quantised at write
                 0, 0, 255,
             ];
             let _ = expected; // we'll just compare full pixel below

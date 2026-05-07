@@ -218,8 +218,7 @@ pub fn encode_static_palette8<W: Write>(
         palette: image.palette.clone(),
         lossy_downsample: false,
     };
-    let frames: Vec<&[u8]> = std::iter::repeat(image.pixels.as_slice())
-        .take(frame_count.max(1) as usize)
+    let frames: Vec<&[u8]> = std::iter::repeat_n(image.pixels.as_slice(), frame_count.max(1) as usize)
         .collect();
     encode_video(&opts, &frames, name, out)
 }
@@ -399,7 +398,7 @@ pub fn encode_av_truecolour<W: Write>(
 // ─── chunk builders ──────────────────────────────────────────────────────────
 
 fn validate_dims(width: u16, height: u16) -> Result<()> {
-    if width == 0 || height == 0 || width % 8 != 0 || height % 8 != 0 {
+    if width == 0 || height == 0 || !width.is_multiple_of(8) || !height.is_multiple_of(8) {
         return Err(MveEncodeError::InvalidDimensions { width, height });
     }
     Ok(())
@@ -472,8 +471,8 @@ fn build_init_video_chunk(
 
     // OC_VIDEO_BUFFERS v2 — frame size in 8×8 blocks, 8-bit Palette8.
     let mut buffers = Vec::with_capacity(8);
-    buffers.extend_from_slice(&((width / 8) as u16).to_le_bytes());
-    buffers.extend_from_slice(&((height / 8) as u16).to_le_bytes());
+    buffers.extend_from_slice(&(width / 8).to_le_bytes());
+    buffers.extend_from_slice(&(height / 8).to_le_bytes());
     buffers.extend_from_slice(&1u16.to_le_bytes());
     buffers.extend_from_slice(&0u16.to_le_bytes());
     write_segment(&mut buf, OC_VIDEO_BUFFERS, 2, &buffers);
@@ -645,21 +644,19 @@ fn encode_block(
     // 3. Motion compensation against previous frame (1 byte). Search
     //    the 16×16 window of offsets `(dx, dy) ∈ [-8, 7]²` for an
     //    exact match; lossless guarantee preserved.
-    if let Some(prev) = prev_full {
-        if let Some(b) = find_motion_match(curr, prev, stride, height, bx, by) {
+    if let Some(prev) = prev_full
+        && let Some(b) = find_motion_match(curr, prev, stride, height, bx, by) {
             return (BLOCK_MOTION_PREV, vec![b]);
         }
-    }
 
     // 3a. Extended motion compensation (2 bytes — `0x5`). When the
     //     16×16 window of `0x4` fails, search the full ±128 px
     //     window for an exact match. Cost: 2 bytes vs 1, but unlocks
     //     wide camera pans.
-    if let Some(prev) = prev_full {
-        if let Some((dx, dy)) = find_motion_match_extended(curr, prev, stride, height, bx, by) {
+    if let Some(prev) = prev_full
+        && let Some((dx, dy)) = find_motion_match_extended(curr, prev, stride, height, bx, by) {
             return (BLOCK_MOTION_PREV_EXT, vec![dx as u8, dy as u8]);
         }
-    }
 
     // 4. 4×4 quadrants — 4 bytes. Each 4×4 corner of the 8×8 block
     //    must be uniform. (Implies ≤ 4 distinct colours.)

@@ -114,8 +114,7 @@ fn verify_video(png_paths: &[PathBuf], mve_path: &Path, lossy: bool) {
             .next_frame()
             .unwrap()
             .unwrap_or_else(|| panic!("decoder ran out at frame {i}"));
-        let expected_rgb = ImageReader::open(png)
-            .and_then(|r| Ok(r.with_guessed_format().unwrap()))
+        let expected_rgb = ImageReader::open(png).map(|r| r.with_guessed_format().unwrap())
             .unwrap()
             .decode()
             .unwrap()

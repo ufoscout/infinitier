@@ -116,11 +116,10 @@ impl CaseInsensitiveFS {
             if !in_scope {
                 continue;
             }
-            if let Some(ext) = value.extension() {
-                if ext.eq_ignore_ascii_case(extension) {
+            if let Some(ext) = value.extension()
+                && ext.eq_ignore_ascii_case(extension) {
                     results.push(value.to_owned());
                 }
-            }
         }
         results
     }
@@ -344,15 +343,15 @@ use infinitier_test_utils::{
         let root = temp_dir.path();
         {
             // root files
-            File::create(&root.join("file1.json")).unwrap();
-            File::create(&root.join("file2.json")).unwrap();
-            File::create(&root.join("file1.INI")).unwrap();
+            File::create(root.join("file1.json")).unwrap();
+            File::create(root.join("file2.json")).unwrap();
+            File::create(root.join("file1.INI")).unwrap();
             
             // ini/
             let ini_dir = root.join("ini");
             fs::create_dir(&ini_dir).unwrap();
-            File::create(&ini_dir.join("file1.ini")).unwrap();
-            File::create(&ini_dir.join("file1.Json")).unwrap();
+            File::create(ini_dir.join("file1.ini")).unwrap();
+            File::create(ini_dir.join("file1.Json")).unwrap();
             
             // inner/
             let inner_dir = root.join("INNER");
@@ -361,10 +360,10 @@ use infinitier_test_utils::{
             // inner/inner/
             let inner_inner_dir = inner_dir.join("inner");
             fs::create_dir(&inner_inner_dir).unwrap();
-            File::create(&inner_inner_dir.join("file1.ini")).unwrap();
+            File::create(inner_inner_dir.join("file1.ini")).unwrap();
             
             // inner/file1.json
-            File::create(&inner_dir.join("file1.json")).unwrap();
+            File::create(inner_dir.join("file1.json")).unwrap();
         }
 
         let fs = CaseInsensitiveFS::new(root).unwrap();

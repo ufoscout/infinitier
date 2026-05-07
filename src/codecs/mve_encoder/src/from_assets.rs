@@ -111,7 +111,7 @@ pub fn encode_from_assets(
     let mut rgb_frames: Vec<image::RgbImage> = Vec::with_capacity(png_paths.len());
     for path in png_paths {
         let img = ImageReader::open(path)
-            .and_then(|r| Ok(r.with_guessed_format()?))
+            .and_then(|r| r.with_guessed_format())
             .map_err(FromAssetsError::Io)?
             .decode()
             .map_err(|source| FromAssetsError::Image {
@@ -220,7 +220,7 @@ pub fn encode_from_assets_rgb555(
     let mut size: Option<(u32, u32)> = None;
     for (i, path) in png_paths.iter().enumerate() {
         let img = ImageReader::open(path)
-            .and_then(|r| Ok(r.with_guessed_format()?))
+            .and_then(|r| r.with_guessed_format())
             .map_err(FromAssetsError::Io)?
             .decode()
             .map_err(|source| FromAssetsError::Image {

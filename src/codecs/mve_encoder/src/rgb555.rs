@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 //! RGB555 (HiColor / 16-bit) MVE encoder.
 //!
 //! Parallel to the 8-bit paletted path in `lib.rs`. Output bitstream
@@ -136,7 +138,7 @@ pub fn encode_av_rgb555<W: Write>(
     out: &mut W,
 ) -> Result<()> {
     let _name = name.into();
-    if width == 0 || height == 0 || width % 8 != 0 || height % 8 != 0 {
+    if width == 0 || height == 0 || !width.is_multiple_of(8) || !height.is_multiple_of(8) {
         return Err(MveEncodeError::InvalidDimensions { width, height });
     }
     if frame_duration_us == 0 {
@@ -238,8 +240,8 @@ fn build_init_video_chunk_rgb555(
     // OC_VIDEO_BUFFERS v2 — frame size in 8×8 blocks, format_flag=1
     // selects the 16 bpp / RGB555 decoder path.
     let mut buffers = Vec::with_capacity(8);
-    buffers.extend_from_slice(&((width / 8) as u16).to_le_bytes());
-    buffers.extend_from_slice(&((height / 8) as u16).to_le_bytes());
+    buffers.extend_from_slice(&(width / 8).to_le_bytes());
+    buffers.extend_from_slice(&(height / 8).to_le_bytes());
     buffers.extend_from_slice(&1u16.to_le_bytes()); // buf_count
     buffers.extend_from_slice(&1u16.to_le_bytes()); // format_flag = 1 → RGB555
     write_segment(&mut buf, OC_VIDEO_BUFFERS, 2, &buffers);
@@ -415,8 +417,8 @@ fn encode_block_rgb555(
     }
 
     // 3. Motion compensation — exact 8×8 match within ±8 px in prev frame.
-    if let Some(prev) = prev_full {
-        if let Some((dx, dy)) = find_motion_match16(curr, prev, stride, bx, by) {
+    if let Some(prev) = prev_full
+        && let Some((dx, dy)) = find_motion_match16(curr, prev, stride, bx, by) {
             let b = (((dy + 8) as u8) << 4) | ((dx + 8) as u8);
             return BlockOutcome {
                 opcode: OPC_MOTION,
@@ -424,7 +426,6 @@ fn encode_block_rgb555(
                 motion_bytes: vec![b],
             };
         }
-    }
 
     // 3a. Extended motion compensation (`0x5`, 2 bytes). Search the
     //     full ±128 px window when `0x4` (±8) fails. Note: in the
@@ -432,29 +433,25 @@ fn encode_block_rgb555(
     //     sub-stream (`rc`), not the motion sub-stream (`rd`) — see
     //     `decode_frame16` in the decoder. So the two payload bytes
     //     go into `color_bytes` here.
-    if let Some(prev) = prev_full {
-        if let Some((dx, dy)) = find_motion_match16_extended(curr, prev, stride, bx, by) {
+    if let Some(prev) = prev_full
+        && let Some((dx, dy)) = find_motion_match16_extended(curr, prev, stride, bx, by) {
             return BlockOutcome {
                 opcode: OPC_MOTION_EXT,
                 color_bytes: vec![dx as u8, dy as u8],
                 motion_bytes: Vec::new(),
             };
         }
-    }
 
     let bit15_safe = !block_has_bit15(curr);
     let distinct = collect_distinct_block(curr, 5);
 
     // 4. 2-colour modes — only if every pixel has bit 15 = 0.
-    if bit15_safe {
-        if let Some(d) = distinct.as_deref() {
-            if d.len() <= 2 {
-                if let Some(bytes) = build_0x7_per_2x2(curr) {
+    if bit15_safe
+        && let Some(d) = distinct.as_deref()
+            && d.len() <= 2
+                && let Some(bytes) = build_0x7_per_2x2(curr) {
                     return color_only(OPC_2COLOR, bytes);
                 }
-            }
-        }
-    }
 
     // 5. Quadrants — 4 uniform 4×4 quadrants, any colour count.
     if let Some(quads) = try_quadrants(curr) {
@@ -466,24 +463,22 @@ fn encode_block_rgb555(
     }
 
     // 6/7. 2-colour per-row, 3-4 colour per-2×2.
-    if bit15_safe {
-        if let Some(d) = distinct.as_deref() {
-            if d.len() <= 2 {
-                if let Some(bytes) = build_0x7_per_row(curr) {
+    if bit15_safe
+        && let Some(d) = distinct.as_deref() {
+            if d.len() <= 2
+                && let Some(bytes) = build_0x7_per_row(curr) {
                     return color_only(OPC_2COLOR, bytes);
                 }
-            }
             if (d.len() == 3 || d.len() == 4) && is_2x2_uniform(curr) {
                 let bytes = build_0x9_per_2x2(curr, d);
                 return color_only(OPC_QUAD_COLOR, bytes);
             }
         }
-    }
 
     // 8. 3-4 colour per-2×1 / per-1×2 (16 B); 9. 0x8 half-split (16 B).
     if bit15_safe {
-        if let Some(d) = distinct.as_deref() {
-            if d.len() == 3 || d.len() == 4 {
+        if let Some(d) = distinct.as_deref()
+            && (d.len() == 3 || d.len() == 4) {
                 if is_2x1_uniform(curr) {
                     let bytes = build_0x9_per_2x1_wide(curr, d);
                     return color_only(OPC_QUAD_COLOR, bytes);
@@ -493,7 +488,6 @@ fn encode_block_rgb555(
                     return color_only(OPC_QUAD_COLOR, bytes);
                 }
             }
-        }
         if let Some(bytes) = build_0x8_vertical_halves(curr) {
             return color_only(OPC_HALF_2COL, bytes);
         }
@@ -504,12 +498,11 @@ fn encode_block_rgb555(
 
     // 10/11. 0x9 per-pixel (24 B); 0x8 per-quadrant (24 B).
     if bit15_safe {
-        if let Some(d) = distinct.as_deref() {
-            if d.len() == 3 || d.len() == 4 {
+        if let Some(d) = distinct.as_deref()
+            && (d.len() == 3 || d.len() == 4) {
                 let bytes = build_0x9_per_pixel(curr, d);
                 return color_only(OPC_QUAD_COLOR, bytes);
             }
-        }
         if let Some(bytes) = build_0x8_per_quadrant(curr) {
             return color_only(OPC_HALF_2COL, bytes);
         }
@@ -535,11 +528,10 @@ fn encode_block_rgb555(
     }
 
     // 14. 0xa per-quadrant (48 B).
-    if bit15_safe {
-        if let Some(bytes) = build_0xa_per_quadrant(curr) {
+    if bit15_safe
+        && let Some(bytes) = build_0xa_per_quadrant(curr) {
             return color_only(OPC_HALF_4COL, bytes);
         }
-    }
 
     // 14a. Lossy fallback — emit 0xc with 2×2 downsample (32 bytes)
     //      instead of 0xb raw (128 bytes). Top-left of each 2×2 wins.

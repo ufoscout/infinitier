@@ -1,4 +1,5 @@
 #![doc = include_str!("../readme.md")]
+#![allow(clippy::needless_range_loop)]
 
 mod bitwriter;
 mod packer;
@@ -132,7 +133,7 @@ pub fn encode_pcm_with_block_size<W: Write>(
     if acm_rows == 0 || acm_rows >= 4096 {
         return Err(AcmEncodeError::InvalidBlockSize(acm_rows));
     }
-    if channels == 2 && acm_rows % 2 != 0 {
+    if channels == 2 && !acm_rows.is_multiple_of(2) {
         // The decoder will silently drop a stereo frame that straddles a
         // block boundary, which would corrupt the trail of the file.
         return Err(AcmEncodeError::InvalidBlockSize(acm_rows));
@@ -245,7 +246,7 @@ pub fn encode_pcm_packed_with_block_size<W: Write>(
     if acm_rows == 0 || acm_rows >= 4096 {
         return Err(AcmEncodeError::InvalidBlockSize(acm_rows));
     }
-    if channels == 2 && acm_rows % 2 != 0 {
+    if channels == 2 && !acm_rows.is_multiple_of(2) {
         return Err(AcmEncodeError::InvalidBlockSize(acm_rows));
     }
     if samples.is_empty() {
@@ -365,7 +366,7 @@ pub fn encode_pcm_subband_with_f_half<W: Write>(
     let sb_size = 1usize << acm_level;
     let block_size = acm_rows as usize * sb_size;
 
-    if channels == 2 && block_size % 2 != 0 {
+    if channels == 2 && !block_size.is_multiple_of(2) {
         // The decoder will silently drop a stereo frame that straddles
         // a block boundary — refuse the geometry up-front.
         return Err(AcmEncodeError::InvalidBlockSize(acm_rows));

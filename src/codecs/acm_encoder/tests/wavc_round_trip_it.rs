@@ -201,7 +201,7 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
         assert_wavc_envelope(&wavc_bytes, orig_samples.len() as u32, orig_spec.channels);
 
         let mut dec =
-            WavDecoder::open(&DataSource::new(wavc_bytes), &pick.display().to_string()).unwrap();
+            WavDecoder::open(&DataSource::new(wavc_bytes), pick.display().to_string()).unwrap();
         assert_eq!(dec.format(), WavFormat::Wavc);
         let decoded = dec.decode_all().unwrap();
         assert_eq!(decoded, orig_samples, "v1 WAVC round-trip must be lossless");
@@ -214,7 +214,7 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
         assert_wavc_envelope(&wavc_bytes, orig_samples.len() as u32, orig_spec.channels);
 
         let mut dec =
-            WavDecoder::open(&DataSource::new(wavc_bytes), &pick.display().to_string()).unwrap();
+            WavDecoder::open(&DataSource::new(wavc_bytes), pick.display().to_string()).unwrap();
         assert_eq!(dec.format(), WavFormat::Wavc);
         let decoded = dec.decode_all().unwrap();
         assert_eq!(decoded.len(), orig_samples.len());

@@ -269,7 +269,7 @@ impl SubbandCoder {
             let mut i = s as i64 - 2;
             while i >= 0 {
                 let iu = i as usize;
-                if iu % 2 == 0 {
+                if iu.is_multiple_of(2) {
                     lp[iu] = old_val;
                 } else {
                     old_val = lp[iu];
@@ -319,7 +319,7 @@ impl SubbandCoder {
         }
 
         // Normalize and build hp.
-        let f_half_parity = (self.f_half % 2) as usize;
+        let f_half_parity = self.f_half % 2;
         for i in 0..f_len {
             self.lp_filter[i] /= divisor;
             self.hp_filter[i] = self.lp_filter[i];
