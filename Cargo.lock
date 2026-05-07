@@ -1928,6 +1928,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_bik_decoder"
+version = "0.0.3"
+dependencies = [
+ "bitflags 2.11.1",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
+ "sha2",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "infinitier_bmp_importer"
 version = "0.0.3"
 dependencies = [

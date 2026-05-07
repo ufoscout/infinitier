@@ -23,6 +23,7 @@ repository = "https://github.com/ufoscout/infinitier"
 # Codecs
 infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.3" }
 infinitier_acm_encoder = { path = "src/codecs/acm_encoder", version = "0.0.3"  }
+infinitier_bik_decoder = { path = "src/codecs/bik_decoder", version = "0.0.3"  }
 infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.3"  }
 infinitier_mve_encoder = { path = "src/codecs/mve_encoder", version = "0.0.3"  }
 infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.3"  }
@@ -100,6 +101,8 @@ opt-level = 2
 [profile.dev.package.infinitier_acm_decoder]
 opt-level = 2
 [profile.dev.package.infinitier_acm_encoder]
+opt-level = 2
+[profile.dev.package.infinitier_bik_decoder]
 opt-level = 2
 [profile.dev.package.infinitier_mve_decoder]
 opt-level = 2

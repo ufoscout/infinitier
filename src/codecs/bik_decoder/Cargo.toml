@@ -1,0 +1,21 @@
+[package]
+name = "infinitier_bik_decoder"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Pure-Rust decoder for the Bink Video v1 (BIKi) format used by IWD2 cutscenes"
+readme = "readme.md"
+keywords = ["video", "bink", "decoder", "bik", "iwd2"]
+
+[dependencies]
+infinitier_datasource = { workspace = true }
+bitflags = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }
+sha2 = { workspace = true }
