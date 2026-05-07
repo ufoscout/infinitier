@@ -201,20 +201,14 @@ fn decode8_0x8(r: &mut Reader8<'_>, buf: &mut [u8], dst: usize, width: usize) ->
         p = [p0, p1, p2, p3, p4, p5, p6, p7];
         b = [b0, b1, b2, b3, b4, b5, b6, b7];
 
-        let mut lower_half;
+        // `flags` depends only on `lower_half` (0 or 2), so just two
+        // unique values across the 8 rows — hoist them out of the
+        // y-loop instead of recomputing 8 times.
+        let flags_top = pack_flags_8(&b, 0, 1, 4, 5);
+        let flags_bot = pack_flags_8(&b, 2, 3, 6, 7);
         for y in 0..8usize {
-            if y == 4 {
-                let flags = pack_flags_8(&b, 2, 3, 6, 7);
-                let _ = flags; // recomputed below
-            }
-            lower_half = if y >= 4 { 2usize } else { 0usize };
-            let flags = pack_flags_8(
-                &b,
-                lower_half,
-                lower_half + 1,
-                lower_half + 4,
-                lower_half + 5,
-            );
+            let lower_half = if y >= 4 { 2usize } else { 0usize };
+            let flags = if y < 4 { flags_top } else { flags_bot };
             let mut pp0 = p[lower_half];
             let mut pp1 = p[lower_half + 1];
             for x in 0..8usize {
@@ -460,11 +454,17 @@ fn decode8_0xa(r: &mut Reader8<'_>, buf: &mut [u8], dst: usize, width: usize) ->
 }
 
 fn decode8_0xb(r: &mut Reader8<'_>, buf: &mut [u8], dst: usize, width: usize) -> Result<(), Error> {
-    for y in 0..8usize {
-        for x in 0..8usize {
-            buf[dst + y * width + x] = r.read_byte()?;
-        }
+    // Bulk-copy 8 bytes per row instead of byte-by-byte through
+    // `read_byte()` (64 bounds-checks → 8).
+    if r.pos + 64 > r.data.len() {
+        return Err(Error::VideoDecode("unexpected end of video data".into()));
     }
+    for y in 0..8usize {
+        let off = dst + y * width;
+        let src = r.pos + y * 8;
+        buf[off..off + 8].copy_from_slice(&r.data[src..src + 8]);
+    }
+    r.pos += 64;
     Ok(())
 }
 
@@ -504,10 +504,11 @@ fn decode8_0xd(r: &mut Reader8<'_>, buf: &mut [u8], dst: usize, width: usize) ->
 
 fn decode8_0xe(r: &mut Reader8<'_>, buf: &mut [u8], dst: usize, width: usize) -> Result<(), Error> {
     let px = r.read_byte()?;
+    // `slice::fill` lowers to a single `memset` per row instead of
+    // 8 individual byte stores per row.
     for y in 0..8usize {
-        for x in 0..8usize {
-            buf[dst + y * width + x] = px;
-        }
+        let off = dst + y * width;
+        buf[off..off + 8].fill(px);
     }
     Ok(())
 }
@@ -794,9 +795,13 @@ fn decode16_0x8(
         let p = [p0, p1, p2, p3, p4, p5, p6, p7];
         let b = [b0, b1, b2, b3, b4, b5, b6, b7];
 
+        // Hoist `pack_flags_8` calls — only two distinct values (one
+        // per top/bottom half) instead of recomputing on every row.
+        let flags_top = pack_flags_8(&b, 0, 1, 4, 5);
+        let flags_bot = pack_flags_8(&b, 2, 3, 6, 7);
         for y in 0..8usize {
             let lower = if y >= 4 { 2usize } else { 0 };
-            let flags = pack_flags_8(&b, lower, lower + 1, lower + 4, lower + 5);
+            let flags = if y < 4 { flags_top } else { flags_bot };
             let mut pp0 = p[lower];
             let mut pp1 = p[lower + 1];
             for x in 0..8usize {
@@ -1061,13 +1066,19 @@ fn decode16_0xb(
     dst_px: usize,
     width: usize,
 ) -> Result<(), Error> {
-    for y in 0..8usize {
-        for x in 0..8usize {
-            let v = r.read_u16()?;
-            let off = (dst_px + y * width + x) * BPP16;
-            buf[off..off + 2].copy_from_slice(&v.to_le_bytes());
-        }
+    // Bulk-copy 16 bytes per row instead of u16-by-u16. Pixels are
+    // already little-endian on the wire so no byteswap is needed.
+    if r.pos + 128 > r.data.len() {
+        return Err(Error::VideoDecode(
+            "unexpected end of 16-bit video data".into(),
+        ));
     }
+    for y in 0..8usize {
+        let off = (dst_px + y * width) * BPP16;
+        let src = r.pos + y * 16;
+        buf[off..off + 16].copy_from_slice(&r.data[src..src + 16]);
+    }
+    r.pos += 128;
     Ok(())
 }
 
@@ -1120,11 +1131,16 @@ fn decode16_0xe(
 ) -> Result<(), Error> {
     let v = r.read_u16()?;
     let vb = v.to_le_bytes();
+    // Build one row of 16 bytes (8 × u16) in a small stack array, then
+    // splat it across all 8 rows via `copy_from_slice` — one row-sized
+    // `memcpy` per row instead of 8 × 2-byte stores.
+    let mut row = [0u8; 16];
+    for chunk in row.chunks_exact_mut(2) {
+        chunk.copy_from_slice(&vb);
+    }
     for y in 0..8usize {
-        for x in 0..8usize {
-            let off = (dst_px + y * width + x) * BPP16;
-            buf[off..off + 2].copy_from_slice(&vb);
-        }
+        let off = (dst_px + y * width) * BPP16;
+        buf[off..off + 16].copy_from_slice(&row);
     }
     Ok(())
 }

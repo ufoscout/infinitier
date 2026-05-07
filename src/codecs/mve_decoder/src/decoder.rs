@@ -100,9 +100,20 @@ pub struct MveDecoder<R: BufRead + Seek> {
     height: u16,
     format: VideoFormat,
     palette: Box<[[u8; 4]; 256]>,
-    buf1: Vec<u8>,
-    buf2: Vec<u8>,
+    /// Front frame buffer. `Box<[u8]>` (not `Vec`) because the size is
+    /// fixed by `read_video_buffers` once and never grows after.
+    buf1: Box<[u8]>,
+    /// Back frame buffer (held across frames for delta decoding).
+    buf2: Box<[u8]>,
+    /// Per-frame code map. Resize-in-place via `Vec::resize` keeps the
+    /// allocation warm across frames; `Vec` is the right type because
+    /// `resize` is the cheap path here, not `push`.
     code_map: Vec<u8>,
+    /// Scratch buffer for `OC_VIDEO_DATA` / `OC_AUDIO_DATA` payloads.
+    /// Reused across frames so we don't allocate a fresh `Vec<u8>` per
+    /// frame for the (often 10-50 KB) compressed video block stream
+    /// and per-frame audio segments.
+    scratch: Vec<u8>,
 
     // Audio state
     audio: AudioInfo,
@@ -148,10 +159,16 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             width: 0,
             height: 0,
             format: VideoFormat::Palette8,
-            palette: Box::new([[0u8; 4]; 256]),
-            buf1: Vec::new(),
-            buf2: Vec::new(),
+            // Pre-set alpha=0xff for every entry; `read_palette`
+            // writes RGB into [0..3] and `build_video_frame` copies
+            // the whole 4-byte slot, so untouched palette entries
+            // stay opaque (matches the prior behaviour where the
+            // alpha byte was always written as 0xff).
+            palette: Box::new([[0u8, 0, 0, 0xff]; 256]),
+            buf1: Box::default(),
+            buf2: Box::default(),
             code_map: Vec::new(),
+            scratch: Vec::new(),
             audio: AudioInfo::default(),
             frame_duration_us: 0,
             pending_audio: Vec::new(),
@@ -200,33 +217,52 @@ impl<R: BufRead + Seek> MveDecoder<R> {
     /// decoder; if you need to continue decoding video afterwards open a fresh
     /// `MveDecoder`.
     pub fn extract_audio_to_wav(mut self, dest: impl AsRef<Path>) -> Result<(), Error> {
-        let mut channels: Option<u16> = None;
-        let mut sample_rate: Option<u32> = None;
-        let mut all_samples: Vec<i16> = Vec::new();
+        // Stream samples straight to the WAV writer instead of
+        // collecting the whole stream in `Vec<i16>` first — keeps
+        // peak memory at one frame's audio chunk regardless of clip
+        // length.
+        //
+        // The first audio chunk decides the WAV header (channels +
+        // sample rate); we open the writer lazily on that frame so a
+        // video with no audio doesn't produce a header-only WAV.
+        let mut writer: Option<hound::WavWriter<std::io::BufWriter<std::fs::File>>> = None;
 
         while let Some(frame) = self.next_frame()? {
             for chunk in frame.audio {
-                if channels.is_none() {
-                    channels = Some(chunk.channels as u16);
-                    sample_rate = Some(chunk.sample_rate);
+                let w = match writer.as_mut() {
+                    Some(w) => w,
+                    None => {
+                        let spec = hound::WavSpec {
+                            channels: chunk.channels as u16,
+                            sample_rate: chunk.sample_rate,
+                            bits_per_sample: 16,
+                            sample_format: hound::SampleFormat::Int,
+                        };
+                        writer = Some(hound::WavWriter::create(dest.as_ref(), spec)?);
+                        writer.as_mut().unwrap()
+                    }
+                };
+                for &s in &chunk.samples {
+                    w.write_sample(s)?;
                 }
-                all_samples.extend_from_slice(&chunk.samples);
             }
         }
 
-        let channels = channels.unwrap_or(2);
-        let sample_rate = sample_rate.unwrap_or(22050);
-
-        let spec = hound::WavSpec {
-            channels,
-            sample_rate,
-            bits_per_sample: 16,
-            sample_format: hound::SampleFormat::Int,
+        // No audio chunks at all — emit an empty stereo / 22050 Hz
+        // WAV so the destination file always exists, matching the
+        // previous behaviour.
+        let writer = match writer {
+            Some(w) => w,
+            None => hound::WavWriter::create(
+                dest.as_ref(),
+                hound::WavSpec {
+                    channels: 2,
+                    sample_rate: 22050,
+                    bits_per_sample: 16,
+                    sample_format: hound::SampleFormat::Int,
+                },
+            )?,
         };
-        let mut writer = hound::WavWriter::create(dest, spec)?;
-        for s in all_samples {
-            writer.write_sample(s)?;
-        }
         writer.finalize()?;
 
         Ok(())
@@ -263,12 +299,6 @@ impl<R: BufRead + Seek> MveDecoder<R> {
 
     fn read_u32(&mut self) -> Result<u32, Error> {
         Ok(self.reader.read_u32()?)
-    }
-
-    fn read_exact_vec(&mut self, n: usize) -> Result<Vec<u8>, Error> {
-        let mut v = vec![0u8; n];
-        self.reader.data.read_exact(&mut v)?;
-        Ok(v)
     }
 
     fn skip(&mut self, n: u64) -> Result<(), Error> {
@@ -383,8 +413,8 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             1
         };
         let frame_bytes = self.width as usize * self.height as usize * bpp;
-        self.buf1 = vec![0u8; frame_bytes];
-        self.buf2 = vec![0u8; frame_bytes];
+        self.buf1 = vec![0u8; frame_bytes].into_boxed_slice();
+        self.buf2 = vec![0u8; frame_bytes].into_boxed_slice();
         Ok(())
     }
 
@@ -408,7 +438,12 @@ impl<R: BufRead + Seek> MveDecoder<R> {
     }
 
     fn read_code_map(&mut self, size: u16) -> Result<(), Error> {
-        self.code_map = self.read_exact_vec(size as usize)?;
+        // Resize-in-place keeps the `code_map` buffer warm across frames
+        // — the underlying allocation is reused, so no alloc/free pair
+        // per frame.
+        let n = size as usize;
+        self.code_map.resize(n, 0);
+        self.reader.data.read_exact(&mut self.code_map)?;
         Ok(())
     }
 
@@ -436,13 +471,16 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             return Ok(());
         }
 
-        let raw = self.read_exact_vec(data_size)?;
+        // Reuse the scratch buffer so we don't allocate fresh per audio segment.
+        self.scratch.resize(data_size, 0);
+        self.reader.data.read_exact(&mut self.scratch)?;
 
         let samples = if self.audio.compressed {
-            decompress_audio(&raw, audio_size, self.audio.channels)
+            decompress_audio(&self.scratch, audio_size, self.audio.channels)
         } else {
             // Raw i16 LE samples
-            raw.chunks_exact(2)
+            self.scratch
+                .chunks_exact(2)
                 .map(|c| i16::from_le_bytes([c[0], c[1]]))
                 .collect()
         };
@@ -465,14 +503,17 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             std::mem::swap(&mut self.buf1, &mut self.buf2);
         }
 
-        let raw = self.read_exact_vec(data_size)?;
+        // Reuse the scratch buffer for the (often 10-50 KB) compressed
+        // block stream — saves a fresh `Vec<u8>` allocation per frame.
+        self.scratch.resize(data_size, 0);
+        self.reader.data.read_exact(&mut self.scratch)?;
 
         if self.format == VideoFormat::Rgb555 {
             decode_frame16(
                 &mut self.buf1,
                 &mut self.buf2,
                 &self.code_map,
-                &raw,
+                &self.scratch,
                 self.width,
                 self.height,
                 &mut self.block_mode_stats,
@@ -482,7 +523,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
                 &mut self.buf1,
                 &mut self.buf2,
                 &self.code_map,
-                &raw,
+                &self.scratch,
                 self.width,
                 self.height,
                 &mut self.block_mode_stats,
@@ -499,28 +540,30 @@ impl<R: BufRead + Seek> MveDecoder<R> {
         let w = self.width as usize;
         let h = self.height as usize;
         let n_pixels = w * h;
-        let mut rgba = Vec::with_capacity(n_pixels * 4);
 
+        // Pre-fill the buffer to its exact size and write via slice
+        // chunks instead of `Vec::push` per channel — saves four
+        // capacity-checks and four bounds-checks per pixel.
+        let mut rgba = vec![0u8; n_pixels * 4];
         match self.format {
             VideoFormat::Palette8 => {
-                for &idx in &self.buf1 {
-                    let c = self.palette[idx as usize];
-                    rgba.push(c[0]);
-                    rgba.push(c[1]);
-                    rgba.push(c[2]);
-                    rgba.push(0xff); // alpha is always opaque
+                for (dst, &idx) in rgba.chunks_exact_mut(4).zip(self.buf1.iter()) {
+                    dst.copy_from_slice(&self.palette[idx as usize]);
                 }
             }
             VideoFormat::Rgb555 => {
-                for chunk in self.buf1.chunks_exact(2) {
-                    let px = u16::from_le_bytes([chunk[0], chunk[1]]);
+                for (dst, src) in rgba
+                    .chunks_exact_mut(4)
+                    .zip(self.buf1.chunks_exact(2))
+                {
+                    let px = u16::from_le_bytes([src[0], src[1]]);
                     let r = ((px >> 10) & 0x1f) as u8;
                     let g = ((px >> 5) & 0x1f) as u8;
                     let b = (px & 0x1f) as u8;
-                    rgba.push((r << 3) | (r >> 2));
-                    rgba.push((g << 3) | (g >> 2));
-                    rgba.push((b << 3) | (b >> 2));
-                    rgba.push(0xff);
+                    dst[0] = (r << 3) | (r >> 2);
+                    dst[1] = (g << 3) | (g >> 2);
+                    dst[2] = (b << 3) | (b >> 2);
+                    dst[3] = 0xff;
                 }
             }
         }
