@@ -19,6 +19,23 @@ const MAP_2BIT_NEAR: [i32; 4] = [-2, -1, 1, 2];
 const MAP_2BIT_FAR: [i32; 4] = [-3, -2, 2, 3];
 const MAP_3BIT: [i32; 8] = [-4, -3, -2, -1, 1, 2, 3, 4];
 
+/// Tail-decoder selector for the eight Huffman-style fillers (modes
+/// `f_k12`/`f_k13`/`f_k23`/`f_k24`/`f_k34`/`f_k35`/`f_k44`/`f_k45`).
+/// Each variant identifies which trailing bits the filler reads after
+/// the leading prefix, and which constant table it maps them through.
+#[derive(Clone, Copy)]
+enum HuffTail {
+    /// 1 bit → `MAP_1BIT` (±1)
+    M1,
+    /// 2 bits → `MAP_2BIT_NEAR` (±1, ±2)
+    M2Near,
+    /// 3 bits → `MAP_3BIT` (±1..±4)
+    M3,
+    /// 1 prefix bit: 0 → `MAP_1BIT` (1 more bit), 1 → `MAP_2BIT_FAR`
+    /// (2 more bits, ±2/±3)
+    M1OrM2Far,
+}
+
 // ─── Error type ──────────────────────────────────────────────────────────────
 
 pub type Result<T> = std::result::Result<T, AcmError>;
@@ -52,7 +69,7 @@ impl From<AcmError> for std::io::Error {
 
 // ─── Public info struct ───────────────────────────────────────────────────────
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AcmInfo {
     pub channels: u32,
     pub rate: u32,
@@ -111,14 +128,24 @@ pub struct AcmDecoder {
     /// True once we have already returned the one padding word at EOF (matching
     /// the C libacm behaviour of appending 4 zero bytes to the raw data).
     eof_padding_given: bool,
-    bit_data: u32,
+    /// Bitstream register. The 64-bit width lets `get_bits` stay on the
+    /// fast path twice as long as a 32-bit register would on a typical
+    /// 1-7-bit-per-call workload, halving the slow-path frequency.
+    bit_data: u64,
     bit_avail: u32,
 
     // ── block buffers ──
-    block: Vec<i32>,
-    wrapbuf: Vec<i32>,
-    /// 0x10000-element amplitude lookup table.  `midbuf[i]` is `ampbuf[MIDBUF_OFFSET + i]`.
-    ampbuf: Vec<i32>,
+    /// Decoded block samples. `Box<[i32]>` (not `Vec`) because the
+    /// length is fixed once `init` finishes — no `push`/`resize` after.
+    block: Box<[i32]>,
+    /// Stateful "edge" samples carried by the inverse-lifting transform
+    /// across blocks. Length fixed at `init` time.
+    wrapbuf: Box<[i32]>,
+    /// 0x10000-element amplitude lookup table. `midbuf[i]` is
+    /// `ampbuf[MIDBUF_OFFSET + i]`. Always exactly 64 K entries —
+    /// `pwr=15` worst case fills all of `[MIDBUF_OFFSET-32768,
+    /// MIDBUF_OFFSET+32768)`.
+    ampbuf: Box<[i32]>,
     block_len: usize,
 
     block_ready: bool,
@@ -174,25 +201,15 @@ impl AcmDecoder {
         // Construct with placeholder buffers; `init` opens the reader, parses
         // the header, and sizes everything correctly.
         let mut dec = AcmDecoder {
-            info: AcmInfo {
-                channels: 0,
-                rate: 0,
-                acm_id: 0,
-                acm_version: 0,
-                acm_channels: 0,
-                acm_level: 0,
-                acm_cols: 0,
-                acm_rows: 0,
-                total_values: 0,
-            },
+            info: AcmInfo::default(),
             name: name.into(),
             reader: datasource.reader()?,
             eof_padding_given: false,
             bit_data: 0,
             bit_avail: 0,
-            block: Vec::new(),
-            wrapbuf: Vec::new(),
-            ampbuf: vec![0i32; 0x10000],
+            block: Box::default(),
+            wrapbuf: Box::default(),
+            ampbuf: vec![0i32; 0x10000].into_boxed_slice(),
             block_len: 0,
             block_ready: false,
             wavc_file: false,
@@ -247,17 +264,7 @@ impl AcmDecoder {
 
         // Header is fully overwritten by `read_header`, but re-zero so a
         // partially populated `info` from a failed reset can't be observed.
-        self.info = AcmInfo {
-            channels: 0,
-            rate: 0,
-            acm_id: 0,
-            acm_version: 0,
-            acm_channels: 0,
-            acm_level: 0,
-            acm_cols: 0,
-            acm_rows: 0,
-            total_values: 0,
-        };
+        self.info = AcmInfo::default();
 
         self.read_header()?;
 
@@ -272,13 +279,12 @@ impl AcmDecoder {
         let wrapbuf_len = (2 * self.info.acm_cols as usize).saturating_sub(2);
         self.block_len = self.info.acm_rows as usize * self.info.acm_cols as usize;
 
-        // Resize and zero — `wrapbuf` is stateful across blocks (juggle's
-        // edge samples), so leftover values from a previous run would
-        // contaminate the first few output samples on a reset.
-        self.block.clear();
-        self.block.resize(self.block_len, 0);
-        self.wrapbuf.clear();
-        self.wrapbuf.resize(wrapbuf_len.max(1), 0);
+        // Allocate fresh buffers at the new size. `wrapbuf` is stateful
+        // across blocks (juggle's edge samples), so leftover values from
+        // a previous run would contaminate the first few output samples
+        // on a reset — the new boxed slices start zeroed.
+        self.block = vec![0i32; self.block_len].into_boxed_slice();
+        self.wrapbuf = vec![0i32; wrapbuf_len.max(1)].into_boxed_slice();
 
         debug!(
             "[{}] Opened ACM: channels={}, rate={}, total_values={}",
@@ -289,17 +295,19 @@ impl AcmDecoder {
 
     // ── bitstream helpers ────────────────────────────────────────────────────
 
-    /// Load the next up-to-4 bytes from the reader as a little-endian word.
-    /// Returns `(word, bits_loaded)`.
+    /// Load the next up-to-8 bytes from the reader as a little-endian
+    /// word. Returns `(word, bits_loaded)`.
     ///
-    /// At EOF, returns one synthetic zero word (32 bits) before returning
-    /// `(0, 0)`, mirroring the C libacm convention of appending 4 zero bytes.
-    fn load_next_word(&mut self) -> (u32, u32) {
-        match self.reader.read_at_most::<4>() {
+    /// At EOF, returns one synthetic zero word of **32 bits** before
+    /// returning `(0, 0)`, mirroring the C libacm convention of
+    /// appending exactly 4 zero bytes to the raw data — keeping this
+    /// at 32 bits is what makes the byte-exact round-trip pass.
+    fn load_next_word(&mut self) -> (u64, u32) {
+        match self.reader.read_at_most::<8>() {
             Ok((buf, n)) if n > 0 => {
-                let mut word = 0u32;
+                let mut word = 0u64;
                 for (i, byte) in buf.iter().enumerate().take(n) {
-                    word |= (*byte as u32) << (i * 8);
+                    word |= (*byte as u64) << (i * 8);
                 }
                 (word, (n * 8) as u32)
             }
@@ -315,11 +323,13 @@ impl AcmDecoder {
         }
     }
 
-    /// Extract `bits` bits from the bitstream (bits must be ≤ 31).
+    /// Extract `bits` bits from the bitstream (bits must be ≤ 32 — the
+    /// callers actually max out at 16).
+    #[inline]
     pub(crate) fn get_bits(&mut self, bits: u32) -> Result<u32> {
         if self.bit_avail >= bits {
-            let mask = (1u32 << bits) - 1;
-            let val = self.bit_data & mask;
+            let mask = (1u64 << bits) - 1;
+            let val = (self.bit_data & mask) as u32;
             self.bit_data >>= bits;
             self.bit_avail -= bits;
             return Ok(val);
@@ -328,6 +338,8 @@ impl AcmDecoder {
     }
 
     /// Slow path: reload the bit register and extract.
+    #[cold]
+    #[inline(never)]
     fn get_bits_slow(&mut self, bits: u32) -> Result<u32> {
         let saved = self.bit_data; // bits already available
         let got = self.bit_avail;
@@ -339,8 +351,8 @@ impl AcmDecoder {
             return Err(AcmError::UnexpectedEofError);
         }
 
-        let mask = (1u32 << remaining) - 1;
-        let val = saved | ((b_data & mask) << got);
+        let mask = (1u64 << remaining) - 1;
+        let val = (saved | ((b_data & mask) << got)) as u32;
         self.bit_data = b_data >> remaining;
         self.bit_avail = b_avail - remaining;
         Ok(val)
@@ -423,10 +435,69 @@ impl AcmDecoder {
     // ── amplitude table helper ───────────────────────────────────────────────
 
     /// Write `block[row * acm_cols + col] = ampbuf[MIDBUF_OFFSET + idx]`.
+    #[inline]
     fn set_pos(&mut self, row: usize, col: usize, idx: i32) {
         let block_idx = (row << self.info.acm_level as usize) + col;
         let amp_idx = (MIDBUF_OFFSET as i32 + idx) as usize;
         self.block[block_idx] = self.ampbuf[amp_idx];
+    }
+
+    /// Read the variable-bit "tail" of one of the Huffman fillers and
+    /// return the signed amplitude index it codes for.
+    #[inline]
+    fn read_huffman_tail(&mut self, tail: HuffTail) -> Result<i32> {
+        Ok(match tail {
+            HuffTail::M1 => MAP_1BIT[self.get_bits(1)? as usize],
+            HuffTail::M2Near => MAP_2BIT_NEAR[self.get_bits(2)? as usize],
+            HuffTail::M3 => MAP_3BIT[self.get_bits(3)? as usize],
+            HuffTail::M1OrM2Far => {
+                if self.get_bits(1)? == 0 {
+                    MAP_1BIT[self.get_bits(1)? as usize]
+                } else {
+                    MAP_2BIT_FAR[self.get_bits(2)? as usize]
+                }
+            }
+        })
+    }
+
+    /// Three-prefix Huffman skeleton — `0→(zero,zero) | 10→zero | 11{tail}`.
+    /// Used by `f_k13` (17), `f_k24` (20), `f_k35` (23), `f_k45` (26).
+    fn fill_huffman_zz_z(&mut self, col: usize, rows: usize, tail: HuffTail) -> Result<()> {
+        let mut i = 0;
+        while i < rows {
+            if self.get_bits(1)? == 0 {
+                self.set_pos(i, col, 0);
+                i += 1;
+                if i < rows {
+                    self.set_pos(i, col, 0);
+                    i += 1;
+                }
+                continue;
+            }
+            if self.get_bits(1)? == 0 {
+                self.set_pos(i, col, 0);
+                i += 1;
+                continue;
+            }
+            let v = self.read_huffman_tail(tail)?;
+            self.set_pos(i, col, v);
+            i += 1;
+        }
+        Ok(())
+    }
+
+    /// Two-prefix Huffman skeleton — `0→zero | 1{tail}`. Used by
+    /// `f_k12` (18), `f_k23` (21), `f_k34` (24), `f_k44` (27).
+    fn fill_huffman_z(&mut self, col: usize, rows: usize, tail: HuffTail) -> Result<()> {
+        for row in 0..rows {
+            if self.get_bits(1)? == 0 {
+                self.set_pos(row, col, 0);
+            } else {
+                let v = self.read_huffman_tail(tail)?;
+                self.set_pos(row, col, v);
+            }
+        }
+        Ok(())
     }
 
     // ── block decoding ───────────────────────────────────────────────────────
@@ -520,43 +591,11 @@ impl AcmDecoder {
                 }
             }
 
-            // ── f_k13 ───────────────────────────────────────────────────────
-            // Huffman: 0→(zero,zero)  10→zero  11?→±1
-            17 => {
-                let mut i = 0;
-                while i < rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        if i < rows {
-                            self.set_pos(i, col, 0);
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        continue;
-                    }
-                    let b = self.get_bits(1)? as usize;
-                    self.set_pos(i, col, MAP_1BIT[b]);
-                    i += 1;
-                }
-            }
+            // ── f_k13: Huffman 0→(zero,zero) | 10→zero | 11?→±1 ─────────────
+            17 => self.fill_huffman_zz_z(col, rows, HuffTail::M1)?,
 
-            // ── f_k12 ───────────────────────────────────────────────────────
-            // Huffman: 0→zero  1?→±1
-            18 => {
-                for row in 0..rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(row, col, 0);
-                    } else {
-                        let b = self.get_bits(1)? as usize;
-                        self.set_pos(row, col, MAP_1BIT[b]);
-                    }
-                }
-            }
+            // ── f_k12: Huffman 0→zero | 1?→±1 ───────────────────────────────
+            18 => self.fill_huffman_z(col, rows, HuffTail::M1)?,
 
             // ── f_t15 ───────────────────────────────────────────────────────
             // 5 bits encode 3 ternary values: v = x1 + x2*3 + x3*9
@@ -586,43 +625,11 @@ impl AcmDecoder {
                 }
             }
 
-            // ── f_k24 ───────────────────────────────────────────────────────
-            // Huffman: 0→(zero,zero)  10→zero  11??→±1,±2
-            20 => {
-                let mut i = 0;
-                while i < rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        if i < rows {
-                            self.set_pos(i, col, 0);
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        continue;
-                    }
-                    let b = self.get_bits(2)? as usize;
-                    self.set_pos(i, col, MAP_2BIT_NEAR[b]);
-                    i += 1;
-                }
-            }
+            // ── f_k24: Huffman 0→(zero,zero) | 10→zero | 11??→±1,±2 ─────────
+            20 => self.fill_huffman_zz_z(col, rows, HuffTail::M2Near)?,
 
-            // ── f_k23 ───────────────────────────────────────────────────────
-            // Huffman: 0→zero  1??→±1,±2
-            21 => {
-                for row in 0..rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(row, col, 0);
-                    } else {
-                        let b = self.get_bits(2)? as usize;
-                        self.set_pos(row, col, MAP_2BIT_NEAR[b]);
-                    }
-                }
-            }
+            // ── f_k23: Huffman 0→zero | 1??→±1,±2 ───────────────────────────
+            21 => self.fill_huffman_z(col, rows, HuffTail::M2Near)?,
 
             // ── f_t27 ───────────────────────────────────────────────────────
             // 7 bits encode 3 quinary values: v = x1 + x2*5 + x3*25
@@ -652,91 +659,17 @@ impl AcmDecoder {
                 }
             }
 
-            // ── f_k35 ───────────────────────────────────────────────────────
-            // Huffman: 0→(zero,zero)  10→zero  110?→±1  111??→±2,±3
-            23 => {
-                let mut i = 0;
-                while i < rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        if i < rows {
-                            self.set_pos(i, col, 0);
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        continue;
-                    }
-                    if self.get_bits(1)? == 0 {
-                        let b = self.get_bits(1)? as usize;
-                        self.set_pos(i, col, MAP_1BIT[b]);
-                    } else {
-                        let b = self.get_bits(2)? as usize;
-                        self.set_pos(i, col, MAP_2BIT_FAR[b]);
-                    }
-                    i += 1;
-                }
-            }
+            // ── f_k35: Huffman 0→(zero,zero) | 10→zero | 110?→±1 | 111??→±2,±3
+            23 => self.fill_huffman_zz_z(col, rows, HuffTail::M1OrM2Far)?,
 
-            // ── f_k34 ───────────────────────────────────────────────────────
-            // Huffman: 0→zero  10?→±1  11??→±2,±3
-            24 => {
-                for row in 0..rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(row, col, 0);
-                        continue;
-                    }
-                    if self.get_bits(1)? == 0 {
-                        let b = self.get_bits(1)? as usize;
-                        self.set_pos(row, col, MAP_1BIT[b]);
-                    } else {
-                        let b = self.get_bits(2)? as usize;
-                        self.set_pos(row, col, MAP_2BIT_FAR[b]);
-                    }
-                }
-            }
+            // ── f_k34: Huffman 0→zero | 10?→±1 | 11??→±2,±3 ─────────────────
+            24 => self.fill_huffman_z(col, rows, HuffTail::M1OrM2Far)?,
 
-            // ── f_k45 ───────────────────────────────────────────────────────
-            // Huffman: 0→(zero,zero)  10→zero  11???→±1..±4
-            26 => {
-                let mut i = 0;
-                while i < rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        if i < rows {
-                            self.set_pos(i, col, 0);
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(i, col, 0);
-                        i += 1;
-                        continue;
-                    }
-                    let b = self.get_bits(3)? as usize;
-                    self.set_pos(i, col, MAP_3BIT[b]);
-                    i += 1;
-                }
-            }
+            // ── f_k45: Huffman 0→(zero,zero) | 10→zero | 11???→±1..±4 ───────
+            26 => self.fill_huffman_zz_z(col, rows, HuffTail::M3)?,
 
-            // ── f_k44 ───────────────────────────────────────────────────────
-            // Huffman: 0→zero  1???→±1..±4
-            27 => {
-                for row in 0..rows {
-                    if self.get_bits(1)? == 0 {
-                        self.set_pos(row, col, 0);
-                    } else {
-                        let b = self.get_bits(3)? as usize;
-                        self.set_pos(row, col, MAP_3BIT[b]);
-                    }
-                }
-            }
+            // ── f_k44: Huffman 0→zero | 1???→±1..±4 ─────────────────────────
+            27 => self.fill_huffman_z(col, rows, HuffTail::M3)?,
 
             // ── f_t37 ───────────────────────────────────────────────────────
             // 7 bits encode 2 values in base-11: v = x1 + x2*11
