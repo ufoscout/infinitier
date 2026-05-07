@@ -1401,3 +1401,140 @@ fn oc_video_mode_matches_official_interplay_tools() {
          (w=640, h=480, flags=0x0101); got {payload:02x?}"
     );
 }
+
+// ─── Phase 7: 0x5 extended motion ───────────────────────────────────────────
+
+#[test]
+fn extended_motion_fires_outside_0x4_window() {
+    // 64x8 frame: pattern at columns 0..8 in frame 0, same pattern at
+    // columns 32..40 in frame 1. dx = 32 (outside ±8 window of 0x4)
+    // → must use 0x5 (2-byte motion).
+    let mut palette = Box::new([[0u8; 3]; 256]);
+    for i in 0..6 {
+        palette[i + 1] = [(i * 40) as u8, (i * 30) as u8, (i * 20) as u8];
+    }
+    // Build a non-trivial 8×8 pattern using 6 different palette
+    // indices — must NOT be a candidate for 0xe (solid) or 0xd
+    // (quadrants).
+    let mut pattern = [0u8; 64];
+    for i in 0..64 {
+        pattern[i] = (1 + (i % 6)) as u8;
+    }
+    let mut f0 = vec![0u8; 64 * 8];
+    let mut f1 = vec![0u8; 64 * 8];
+    for y in 0..8 {
+        for x in 0..8 {
+            f0[y * 64 + x] = pattern[y * 8 + x];
+        }
+    }
+    for y in 0..8 {
+        for x in 32..40 {
+            f1[y * 64 + x] = pattern[y * 8 + (x - 32)];
+        }
+    }
+
+    let opts = VideoOptions {
+        width: 64,
+        height: 8,
+        frame_duration_us: 66_667,
+        palette,
+        lossy_downsample: false,
+    };
+    let frames: Vec<&[u8]> = vec![&f0, &f1];
+    let mut buf = Vec::new();
+    encode_video(&opts, &frames, "ext_motion", &mut buf).unwrap();
+
+    let dec = open_decoder(buf);
+    let stats = drain_stats(dec);
+    assert!(
+        stats.video8[0x5] >= 1,
+        "expected ≥ 1 0x5 block; got: {:?}",
+        stats.video8
+    );
+}
+
+fn drain_stats(
+    mut dec: MveDecoder<Box<dyn infinitier_datasource::DataTrait>>,
+) -> infinitier_mve_decoder::BlockModeStats {
+    while dec.next_frame().unwrap().is_some() {}
+    dec.block_mode_stats().clone()
+}
+
+// ─── Phase 11: built-in palette generation ──────────────────────────────────
+
+#[test]
+fn truecolour_under_256_unique_is_bit_exact() {
+    use infinitier_mve_encoder::encode_video_truecolour;
+
+    // The MVE palette quantises each channel to 6 bits on the wire
+    // (`value >> 2` written, `value << 2` read back). Pre-quantise
+    // the source values so the round-trip is bit-exact at the
+    // 6-bit-per-channel level — multiples of 4 only.
+    let cols = [
+        [252u8, 0, 0],
+        [0, 252, 0],
+        [0, 0, 252],
+        [252, 252, 0],
+        [128, 128, 128],
+    ];
+    let w = 16usize;
+    let h = 16usize;
+    let mut frame = vec![[0u8; 3]; w * h];
+    for i in 0..w * h {
+        frame[i] = cols[i % cols.len()];
+    }
+    let frames: Vec<&[[u8; 3]]> = vec![&frame];
+
+    let mut buf = Vec::new();
+    encode_video_truecolour(w as u16, h as u16, 66_667, &frames, "tc", &mut buf).unwrap();
+    let mut dec = open_decoder(buf);
+    let dec_frame = dec.next_frame().unwrap().expect("at least one frame");
+    for (i, src) in frame.iter().enumerate() {
+        let expected = [src[0], src[1], src[2], 0xff];
+        let got = &dec_frame.video.pixels[i * 4..i * 4 + 4];
+        assert_eq!(got, &expected, "pixel {i}: src={src:?}, got={got:?}");
+    }
+}
+
+#[test]
+fn truecolour_over_256_unique_quantises_close() {
+    use infinitier_mve_encoder::encode_video_truecolour;
+
+    // 8x8 cube of distinct RGB triples (8 levels per channel, 512
+    // unique colours total — over the 256 limit, forces median-cut).
+    let w = 32usize;
+    let h = 16usize;
+    let mut frame = vec![[0u8; 3]; w * h];
+    for y in 0..h {
+        for x in 0..w {
+            frame[y * w + x] = [
+                ((x * 8) & 0xff) as u8,
+                ((y * 16) & 0xff) as u8,
+                (((x ^ y) * 4) & 0xff) as u8,
+            ];
+        }
+    }
+    let frames: Vec<&[[u8; 3]]> = vec![&frame];
+
+    let mut buf = Vec::new();
+    encode_video_truecolour(w as u16, h as u16, 66_667, &frames, "tcq", &mut buf).unwrap();
+    let mut dec = open_decoder(buf);
+    let dec_frame = dec.next_frame().unwrap().unwrap();
+
+    // Mean per-pixel RGB distance must be small (median-cut on this
+    // small region typically lands < 10 LSB / channel).
+    let mut total_sq: u64 = 0;
+    for (i, src) in frame.iter().enumerate() {
+        let got = &dec_frame.video.pixels[i * 4..i * 4 + 4];
+        for k in 0..3 {
+            let d = src[k] as i32 - got[k] as i32;
+            total_sq += (d * d) as u64;
+        }
+    }
+    let n = (w * h) as u64;
+    let mean_per_channel = ((total_sq as f64) / (3.0 * n as f64)).sqrt();
+    assert!(
+        mean_per_channel < 20.0,
+        "mean per-channel error {mean_per_channel:.2} too high; want < 20"
+    );
+}

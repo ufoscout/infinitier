@@ -24,7 +24,8 @@ use image::ImageReader;
 use thiserror::Error;
 
 use crate::{
-    encode_av, encode_av_rgb555, pack_rgb555, AudioOptions, MveEncodeError, VideoOptions,
+    encode_av, encode_av_rgb555, pack_rgb555, palette_gen::quantise_to_palette8, AudioOptions,
+    MveEncodeError, VideoOptions,
 };
 
 #[derive(Debug, Error)]
@@ -78,6 +79,17 @@ pub struct FromAssetsOptions {
     /// `0xc` (16 bytes). Required for high-detail content whose
     /// raw form would exceed MVE's 65 535-byte segment cap.
     pub lossy_downsample: bool,
+    /// When `true`, the encoder refuses to lose colour information
+    /// during palette construction: if the input has > 256 unique
+    /// colours it returns [`FromAssetsError::TooManyColours`]
+    /// instead of falling back to median-cut quantisation. Default
+    /// `false` — most users want auto-quantisation.
+    ///
+    /// Set this to `true` when the caller has pre-quantised the
+    /// frames upstream (e.g. via `ffmpeg palettegen` +
+    /// `paletteuse`) and wants to verify nothing further is being
+    /// approximated.
+    pub strict_palette: bool,
     /// Basename (no extension) for the produced `.mve` file in
     /// `output_folder`. e.g. `"smptebars"` → `<out>/smptebars.mve`.
     pub output_name: String,
@@ -126,8 +138,10 @@ pub fn encode_from_assets(
     let width = width_u32 as u16;
     let height = height_u32 as u16;
 
-    // 2. Build a shared palette and per-frame index buffers.
-    let (palette, indexed_frames) = build_shared_palette(&rgb_frames)?;
+    // 2. Build a shared palette and per-frame index buffers. Falls
+    //    back to median-cut quantisation when the input has > 256
+    //    unique colours (unless `strict_palette = true`).
+    let (palette, indexed_frames) = build_shared_palette(&rgb_frames, options.strict_palette)?;
 
     // 3. Read WAV samples.
     let mut reader = hound::WavReader::open(wav_path).map_err(|source| FromAssetsError::Wav {
@@ -291,15 +305,23 @@ pub fn encode_from_assets_rgb555(
     Ok(output_path)
 }
 
-/// Walk every pixel in every frame, building a colour-to-index map.
-/// Returns the palette (256 entries, unused slots black) and one
-/// index buffer per frame.
+/// Build a 256-entry palette + per-frame index buffers from RGB888
+/// `frames`. Uses the bit-exact fast-path when the input has ≤ 256
+/// unique colours; otherwise falls back to median-cut quantisation
+/// from [`crate::palette_gen`]. Returns `Err(TooManyColours)` only
+/// when [`FromAssetsOptions::strict_palette`] is set and the
+/// fast-path can't find a perfect mapping — useful when the caller
+/// pre-quantised upstream and wants to be sure no further loss is
+/// introduced here.
 fn build_shared_palette(
     frames: &[image::RgbImage],
+    strict_palette: bool,
 ) -> Result<(Box<[[u8; 3]; 256]>, Vec<Vec<u8>>), FromAssetsError> {
+    // Try the fast-path first (bit-exact when ≤ 256 unique colours).
     let mut map: HashMap<[u8; 3], u8> = HashMap::with_capacity(256);
     let mut palette = Box::new([[0u8; 3]; 256]);
-    let mut indexed = Vec::with_capacity(frames.len());
+    let mut indexed: Vec<Vec<u8>> = Vec::with_capacity(frames.len());
+    let mut over_budget = false;
     for frame in frames {
         let mut buf = Vec::with_capacity(frame.width() as usize * frame.height() as usize);
         for px in frame.pixels() {
@@ -309,7 +331,8 @@ fn build_shared_palette(
                 None => {
                     let next = map.len();
                     if next >= 256 {
-                        return Err(FromAssetsError::TooManyColours);
+                        over_budget = true;
+                        break;
                     }
                     palette[next] = rgb;
                     map.insert(rgb, next as u8);
@@ -318,9 +341,29 @@ fn build_shared_palette(
             };
             buf.push(idx);
         }
+        if over_budget {
+            break;
+        }
         indexed.push(buf);
     }
-    Ok((palette, indexed))
+    if !over_budget {
+        return Ok((palette, indexed));
+    }
+    if strict_palette {
+        return Err(FromAssetsError::TooManyColours);
+    }
+
+    // Slow path: median-cut to 256 representatives.
+    let frame_buffers: Vec<Vec<[u8; 3]>> = frames
+        .iter()
+        .map(|f| {
+            f.pixels()
+                .map(|px| [px[0], px[1], px[2]])
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    let frame_refs: Vec<&[[u8; 3]]> = frame_buffers.iter().map(|f| f.as_slice()).collect();
+    Ok(quantise_to_palette8(&frame_refs))
 }
 
 /// Split a contiguous interleaved sample buffer into `n_frames`

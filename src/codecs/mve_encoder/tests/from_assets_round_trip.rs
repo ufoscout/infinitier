@@ -58,6 +58,7 @@ fn round_trip_every_asset_folder() {
         let opts = FromAssetsOptions {
             frame_duration_us: frame_dur_us,
             lossy_downsample: lossy,
+            strict_palette: false,
             output_name: name.clone(),
         };
         let mve_path = encode_from_assets(&png_paths, &wav_path, &opts, &output_root)

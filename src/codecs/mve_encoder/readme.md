@@ -1,150 +1,196 @@
 # infinitier_mve_encoder
 
-Pure-Rust encoder for the Interplay MVE video format (the cutscene
-container used by BG1, BG2, IWD, and PST originals).
+Pure-Rust encoder for the **Interplay MVE** movies.
+This includes both the `Interplay MVE` video format and the
+`Interplay DPCM` audio format used by Infinity-Engine cutscenes
+shipped with the original Baldur's Gate 1, BG2,
+Icewind Dale, and Planescape: Torment.
 
-## Provenance
+## What is this for?
 
-This encoder was developed by **observing the bitstream produced by
-existing tools** rather than from any official format specification:
+If you want to *play* Infinity-Engine cutscenes, you need a decoder
+(see `infinitier_mve_decoder`). This crate solves the opposite
+problem: **producing** valid MVE files from your own video frames
+and audio. It is a research project useful for:
 
-- **Video bitstream (per-block opcodes, chunk + segment framing, palette layout, frame timing):** 
-  reverse-engineered by running `avi2mve.exe` (tool by Abel / TeamX, 2003-04) against
-  a matrix of synthetic AVI inputs and analysing the per-block mode
-  histograms of its output.
-- **Audio path (Interplay DPCM):**
-  cross-referenced against FFmpeg's
-  [`libavcodec/interplay_dpcm.c`](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/interplay_dpcm.c),
-  which contains the canonical lookup table and saturation rules for
-  the format. 
+- **Modding** — replace a stock cutscene in BG2 / PST with your own.
+- **Preservation work** — re-encode salvaged frames into a
+  documented, round-trippable codepath, then verify against the
+  ground-truth decoder.
+- **Tooling** — power converters that accept any modern video format
+  upstream (PNG sequence, RGB888 buffers, AVI via ffmpeg) and emit
+  classic-engine-compatible cutscenes downstream.
+- **Studying** — study the format, build modding tools, or
+  experiment with new encodings.
 
-  
-## Disclaimer — research / interoperability use only
+The encoder produces output that is bit-stream-equivalent to what
+`avi2mve.exe` and the official Interplay `mcomp.exe` write..
 
-The Interplay MVE container and its per-block coding modes are a
-**proprietary format** owned by Interplay Entertainment. This crate
-is published purely as a **research and interoperability project**:
-it exists so that classic Infinity Engine cutscenes can be inspected,
-re-encoded for analysis, and round-tripped through a documented
-codepath. **It is not endorsed by, affiliated with, or licensed from
-Interplay.** Use it to study the format, build modding tools, or
-contribute to open-source preservation efforts; do not use it to
-produce or distribute content that infringes Interplay's
-intellectual-property rights. The crate's GPL-3.0-or-later licence governs the
-Rust source code in this repository — it does not, and cannot,
-grant any rights over the underlying file format.
+## Quick start
 
-## Status: Phase 5 — full quad-pattern coverage
-
-Phase 5 adds mode `0x9` (quad-pattern), which carries 4 palette
-indices and a per-sub-block bit-mask. Four sub-modes are picked by
-the byte ordering of `p[0..4]`:
-
-| sub-mode      | branch                          | mask bits/sub-block | cost     |
-|---------------|---------------------------------|---------------------|----------|
-| per-2×2       | `p0 ≤ p1 && p2 > p3`            | 16 sub-blocks of 2×2 | 8 bytes  |
-| per-2×1 wide  | `p0 > p1 && p2 ≤ p3`            | 32 sub-blocks of 2×1 | 12 bytes |
-| per-1×2 tall  | `p0 > p1 && p2 > p3`            | 32 sub-blocks of 1×2 | 12 bytes |
-| per-pixel     | `p0 ≤ p1 && p2 ≤ p3`            | 64 sub-blocks of 1×1 | 20 bytes |
-
-Mode `0x9` covers any 3- or 4-colour 8×8 block; the encoder picks the
-cheapest sub-mode that fits the layout. This replaces `0xc` (16 bytes)
-and `0xb` (64 bytes) for those colour counts.
-
-Full opcode catalogue:
-
-| opcode | name              | meaning                                                                   | bytes/block |
-|--------|-------------------|---------------------------------------------------------------------------|-------------|
-| `0x0`  | `copy_prev_block` | with `VIDEO_FLAG_DELTA` set: "stay the same as last frame"                | 0           |
-| `0xe`  | `solid_colour`    | fill the 8×8 block with one palette index                                 | 1           |
-| `0x4`  | `motion_prev`     | copy 8×8 block from previous frame at offset `(dx, dy) ∈ [-8, 7]²`        | 1           |
-| `0xd`  | `quadrants`       | 4 colours, one per 4×4 quadrant of the 8×8 block                          | 4           |
-| `0x7c` | `delta_compact`   | 2 colours; 16-bit per-2×2 mask (when every 2×2 sub-block is uniform)      | 4           |
-| `0x9 ` | `quad_pattern`    | 3-4 colours, one of four sub-modes; see table above                       | 8 / 12 / 20 |
-| `0x7f` | `delta_full`      | 2 colours; 8 per-row 8-bit masks                                          | 10          |
-| `0xc`  | `4x4_fill`        | every 2×2 sub-block uniform with ≥ 5 colours; one byte per 2×2 (16 bytes) | 16          |
-| `0xb`  | `raw`             | 64 raw palette indices, one per pixel — always works                      | 64          |
-
-The chooser picks the cheapest mode that fits each block, in order:
-**skip → solid → motion_prev → quadrants → delta_compact → delta_full
-→ quad_pattern → 4×4_fill → raw**.
-
-Modes still missing (avi2mve never emits them in our test matrix):
-`0x1`, `0x2`, `0x3`, `0x5`, `0x8`, `0xa`, `0xf`. The first four are
-edge-case temporal modes (`0x1` keep-from-2-frames-ago, `0x2`/`0x3`
-self-referential motion within the current frame, `0x5` 16-bit motion
-offset). `0x8` and `0xa` are alternative quad-pattern variants with
-different palette layouts but no clear size advantage over `0x9` in
-practice. None affect correctness — they would only marginally
-reduce file size.
-
-## Performance note
-
-Motion search is brute-force: for every block in every non-first
-frame, the encoder walks all 256 candidates in the 16×16 window and
-compares 8 rows of 8 bytes for equality. That is 16k byte comparisons
-per block (or ~250M per second of 640×480 footage at 15 fps). It is
-plenty for offline encoding of static or short cutscene content; for
-high-resolution real-time use, fingerprint-based search would be the
-next optimisation.
-
-## Usage
-
-### Solid-colour helper
+The simplest starting point is **a directory of PNG frames plus an
+optional WAV audio file**. The encoder handles palette generation,
+audio compression, and bitstream framing for you.
 
 ```rust,no_run
-use infinitier_mve_encoder::encode_solid_colour_video;
+use infinitier_mve_encoder::{
+    encode_from_assets, fps_to_frame_duration_us, FromAssetsOptions,
+};
+use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut out = std::fs::File::create("blue.mve")?;
-    encode_solid_colour_video(
-        320, 240,        // resolution (must be multiples of 8)
-        [0, 0, 252],     // RGB (8-bit; quantised to 6-bit for MVE)
-        30,              // frame count
-        66_667,          // frame duration in µs (≈ 15 fps)
-        "blue.mve",      // log label
+    let png_paths: Vec<PathBuf> = vec![
+        "frames/0001.png".into(),
+        "frames/0002.png".into(),
+        "frames/0003.png".into(),
+        // … one PNG per video frame, all the same size
+    ];
+
+    let opts = FromAssetsOptions {
+        frame_duration_us: fps_to_frame_duration_us(15.0), // 15 fps
+        lossy_downsample: false,   // strict-lossless; flip on for very dense content
+        strict_palette: false,     // auto-quantise > 256 colours via median-cut
+        output_name: "intro".into(),
+    };
+
+    let out = encode_from_assets(
+        &png_paths,
+        std::path::Path::new("audio.wav"),
+        &opts,
+        std::path::Path::new("./out"),
+    )?;
+    println!("wrote {}", out.display());
+    Ok(())
+}
+```
+
+If you have your frames in memory as RGB888 you can skip the PNG
+step and call the in-memory truecolour API:
+
+```rust,no_run
+use infinitier_mve_encoder::{encode_video_truecolour, fps_to_frame_duration_us};
+use std::fs::File;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let (w, h) = (320u16, 240u16);
+    let frame_a: Vec<[u8; 3]> = vec![[255, 0, 0]; (w as usize) * (h as usize)];
+    let frame_b: Vec<[u8; 3]> = vec![[0, 0, 255]; (w as usize) * (h as usize)];
+    let frames: Vec<&[[u8; 3]]> = vec![&frame_a, &frame_b];
+
+    let mut out = File::create("flash.mve")?;
+    encode_video_truecolour(
+        w,
+        h,
+        fps_to_frame_duration_us(15.0),
+        &frames,
+        "flash",
         &mut out,
     )?;
     Ok(())
 }
 ```
 
-### Static palette-8 still
+## Picking a video format
 
-```rust,no_run
-use infinitier_mve_encoder::{encode_static_palette8, StaticImage};
+The MVE container supports two pixel formats. The encoder exposes
+both; pick whichever matches your source data.
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let img = StaticImage {
-        width: 320,
-        height: 240,
-        pixels: vec![0; 320 * 240], // every pixel is palette index 0
-        palette: Box::new([[0u8; 3]; 256]),
-    };
-    let mut out = std::fs::File::create("static.mve")?;
-    encode_static_palette8(&img, 30, 66_667, "static", &mut out)?;
-    Ok(())
-}
-```
+| Format | Best for | Entry points |
+|---|---|---|
+| **Palette-8** (8 bpp, 256-colour palette) | Source has ≤ 256 colours, OR you accept median-cut quantisation | `encode_from_assets`, `encode_video`, `encode_av`, `encode_video_truecolour`, `encode_av_truecolour`, `encode_solid_colour_video`, `encode_static_palette8` |
+| **HiColor / RGB555** (16 bpp) | True-colour source, no palette quantisation, larger files | `encode_from_assets_rgb555`, `encode_video_rgb555`, `encode_av_rgb555`, `encode_video_rgb555_lossy` |
 
-### Multi-frame video
+Real shipped game cutscenes use Palette-8 (BG, BG2, IWD, original
+PST in places) and HiColor (PST `cannon.mve`, late PST cutscenes).
+gemrb plays both.
 
-```rust,no_run
-use infinitier_mve_encoder::{encode_video, VideoOptions};
+### Variant cheat-sheet
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let opts = VideoOptions {
-        width: 64,
-        height: 64,
-        frame_duration_us: 66_667,
-        palette: Box::new([[0u8; 3]; 256]),
-        lossy_downsample: false,
-    };
-    let frame_a = vec![0u8; 64 * 64];
-    let frame_b = vec![1u8; 64 * 64];
-    let frames: Vec<&[u8]> = vec![&frame_a, &frame_a, &frame_b];
-    let mut out = std::fs::File::create("flicker.mve")?;
-    encode_video(&opts, &frames, "flicker", &mut out)?;
-    Ok(())
-}
-```
+- Want **the easiest** thing? `encode_from_assets` (Palette-8) or
+  `encode_from_assets_rgb555` (HiColor). PNG dir + optional WAV in,
+  `.mve` file out.
+- Have **frames already in RAM** and don't want a palette ceremony?
+  `encode_video_truecolour` (auto-quantises) or
+  `encode_video_rgb555` (use [`pack_rgb555`] to build the u16
+  buffers).
+- Need **audio**? Use the `_av_` variants, which take
+  `Some((&AudioOptions, &[Vec<i16>]))`. The
+  `encode_from_assets[_rgb555]` helpers handle audio for you when
+  you pass a WAV path.
+- Producing **a static still or solid colour**?
+  `encode_static_palette8` and `encode_solid_colour_video` are
+  convenience entry-points that don't require you to assemble
+  per-frame buffers.
+- Hitting the **65 535-byte segment cap** on extreme-detail content
+  (random noise at high resolution)?  Set `lossy_downsample = true`
+  on `VideoOptions` / `FromAssetsOptions`, or call
+  `encode_video_rgb555_lossy`. The encoder then falls through to a
+  `0xc` 4×4-fill (top-left of each 2×2 wins) instead of `0xb` raw.
+
+## Frame timing & sane defaults
+
+`frame_duration_us` is microseconds between consecutive frames.
+Common rates:
+
+| Rate | `frame_duration_us` |
+|---|---|
+| 15 fps (most BG / IWD / PST cutscenes) | `66_667` |
+| 30 fps (high-rate BG2 cutscenes) | `33_333` |
+| 12 fps | `83_333` |
+
+Use [`fps_to_frame_duration_us`] in code to avoid memorising those.
+
+## Provenance
+
+This encoder was developed by **observing the bitstream produced by
+existing tools** rather than from any official format specification:
+
+- **Video bitstream** (per-block opcodes, chunk + segment framing,
+  palette layout, frame timing): reverse-engineered by running
+  `avi2mve.exe` (community tool, 2003-04) against a matrix of
+  synthetic AVI inputs and analysing the per-block mode histograms
+  of its output. The two-stream layout for HiColor and the
+  `OC_VIDEO_MODE` flag values were cross-checked against the
+  official Interplay `mcomp.exe` (under DOSBox) and against shipped
+  PS:T cutscenes.
+- **Audio path** (Interplay DPCM): cross-referenced against
+  FFmpeg's
+  [`libavcodec/interplay_dpcm.c`](https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/interplay_dpcm.c),
+  which contains the canonical lookup table and saturation rules
+  for the format.
+
+
+## Disclaimer — research / interoperability use only
+
+The Interplay MVE container and its per-block coding modes are a
+**proprietary format** owned by Interplay Entertainment. This crate
+is published purely as a **research and interoperability project**:
+it exists so that classic Infinity-Engine cutscenes can be inspected,
+re-encoded for analysis, and round-tripped through a documented
+codepath. **It is not endorsed by, affiliated with, or licensed from
+Interplay.** Use it to study the format, build modding tools, or
+contribute to open-source preservation efforts; do not use it to
+produce or distribute content that infringes Interplay's
+intellectual-property rights. The crate's GPL-3.0-or-later licence
+governs the Rust source code in this repository — it does not, and
+cannot, grant any rights over the underlying file format.
+
+
+## API at a glance
+
+| Function | Pixel format | Audio | Output | Notes |
+|---|---|---|---|---|
+| [`encode_solid_colour_video`] | Palette-8 | – | `&mut W` | Single RGB triple, repeats N frames |
+| [`encode_static_palette8`] | Palette-8 | – | `&mut W` | One static image, N frames |
+| [`encode_video`] | Palette-8 (indexed) | – | `&mut W` | General-purpose multi-frame |
+| [`encode_av`] | Palette-8 (indexed) | yes | `&mut W` | General-purpose multi-frame + audio |
+| [`encode_video_truecolour`] | RGB888 | – | `&mut W` | Auto-quantises via median-cut |
+| [`encode_av_truecolour`] | RGB888 | yes | `&mut W` | Auto-quantises + audio |
+| [`encode_video_rgb555`] | RGB555 (u16) | – | `&mut W` | Bit-15-clean input, lossless |
+| [`encode_av_rgb555`] | RGB555 (u16) | yes | `&mut W` | + audio + lossy toggle |
+| [`encode_video_rgb555_lossy`] | RGB555 (u16) | – | `&mut W` | Forces `lossy_downsample = true` |
+| [`encode_from_assets`] | Palette-8 (auto-quantise) | yes (WAV) | `Path` | PNG dir + WAV → file path |
+| [`encode_from_assets_rgb555`] | RGB555 | optional (WAV) | `Path` | PNG dir + optional WAV → file path |
+
+Helpers: [`fps_to_frame_duration_us`], [`pack_rgb555`],
+[`quantise_to_palette8`].

@@ -7,10 +7,12 @@ use thiserror::Error as ThisError;
 
 mod dpcm;
 mod from_assets;
+mod palette_gen;
 mod rgb555;
 pub use from_assets::{
     encode_from_assets, encode_from_assets_rgb555, FromAssetsError, FromAssetsOptions,
 };
+pub use palette_gen::quantise_to_palette8;
 pub use rgb555::{
     encode_av_rgb555, encode_video_rgb555, encode_video_rgb555_lossy, pack_rgb555,
 };
@@ -56,6 +58,7 @@ pub(crate) const DEFAULT_AUDIO_STREAM: u16 = 0x0001;
 /// each means and how the chooser picks between them.
 const BLOCK_COPY_PREV: u8 = 0x0;
 const BLOCK_MOTION_PREV: u8 = 0x4;
+const BLOCK_MOTION_PREV_EXT: u8 = 0x5;
 const BLOCK_DELTA: u8 = 0x7;
 /// Mode `0x8` — "2-colour per partition": three sub-modes (4 quadrants
 /// × 2 colours = 16 bytes; 2 vertical or horizontal halves × 2 colours
@@ -98,6 +101,22 @@ pub enum MveEncodeError {
         "audio_samples_per_frame length {got} does not match video frame count {expected}"
     )]
     AudioFramesMismatch { got: usize, expected: usize },
+}
+
+// ─── frame-rate helpers ──────────────────────────────────────────────────────
+
+/// Convert a frame rate (frames per second) to the microseconds-per-frame
+/// value the encoder APIs take as `frame_duration_us`. Useful so callers
+/// don't have to remember that 15 fps ≈ `66_667 µs` and 30 fps ≈ `33_333 µs`.
+///
+/// ```
+/// use infinitier_mve_encoder::fps_to_frame_duration_us;
+/// assert_eq!(fps_to_frame_duration_us(15.0), 66_667);
+/// assert_eq!(fps_to_frame_duration_us(30.0), 33_333);
+/// ```
+#[inline]
+pub fn fps_to_frame_duration_us(fps: f32) -> u32 {
+    (1_000_000.0 / fps).round() as u32
 }
 
 // ─── public API ──────────────────────────────────────────────────────────────
@@ -321,6 +340,60 @@ pub fn encode_av<W: Write>(
         options.frame_duration_us
     );
     Ok(())
+}
+
+/// Encode an arbitrary multi-frame **true-colour** video. Each frame is a
+/// row-major slice of `width * height` RGB888 triples. The encoder
+/// quantises the input to a 256-entry palette via median-cut (with a
+/// bit-exact fast-path when the input has ≤ 256 unique colours) and
+/// then dispatches to [`encode_video`].
+///
+/// This is the recommended entry-point when you have RGB888 input and
+/// don't want to depend on `ffmpeg palettegen` upstream.
+pub fn encode_video_truecolour<W: Write>(
+    width: u16,
+    height: u16,
+    frame_duration_us: u32,
+    frames: &[&[[u8; 3]]],
+    name: impl Into<String>,
+    out: &mut W,
+) -> Result<()> {
+    encode_av_truecolour(width, height, frame_duration_us, frames, None, name, out)
+}
+
+/// Like [`encode_video_truecolour`] but with optional per-frame audio.
+pub fn encode_av_truecolour<W: Write>(
+    width: u16,
+    height: u16,
+    frame_duration_us: u32,
+    frames: &[&[[u8; 3]]],
+    audio: Option<(&AudioOptions, &[Vec<i16>])>,
+    name: impl Into<String>,
+    out: &mut W,
+) -> Result<()> {
+    if frames.is_empty() {
+        return Err(MveEncodeError::NoFrames);
+    }
+    let expected = width as usize * height as usize;
+    for f in frames.iter() {
+        if f.len() != expected {
+            return Err(MveEncodeError::PixelBufferSize {
+                got: f.len(),
+                expected,
+            });
+        }
+    }
+
+    let (palette, indexed_frames) = palette_gen::quantise_to_palette8(frames);
+    let opts = VideoOptions {
+        width,
+        height,
+        frame_duration_us,
+        palette,
+        lossy_downsample: false,
+    };
+    let frame_refs: Vec<&[u8]> = indexed_frames.iter().map(|v| v.as_slice()).collect();
+    encode_av(&opts, &frame_refs, audio, name, out)
 }
 
 // ─── chunk builders ──────────────────────────────────────────────────────────
@@ -578,6 +651,16 @@ fn encode_block(
         }
     }
 
+    // 3a. Extended motion compensation (2 bytes — `0x5`). When the
+    //     16×16 window of `0x4` fails, search the full ±128 px
+    //     window for an exact match. Cost: 2 bytes vs 1, but unlocks
+    //     wide camera pans.
+    if let Some(prev) = prev_full {
+        if let Some((dx, dy)) = find_motion_match_extended(curr, prev, stride, height, bx, by) {
+            return (BLOCK_MOTION_PREV_EXT, vec![dx as u8, dy as u8]);
+        }
+    }
+
     // 4. 4×4 quadrants — 4 bytes. Each 4×4 corner of the 8×8 block
     //    must be uniform. (Implies ≤ 4 distinct colours.)
     let q = [curr[0][0], curr[0][4], curr[4][0], curr[4][4]];
@@ -755,6 +838,60 @@ fn find_motion_match(
             }
             if matches {
                 return Some(((dy_field as u8) << 4) | (dx_field as u8));
+            }
+        }
+    }
+    None
+}
+
+/// Brute-force search the full ±128 px motion window for an exact
+/// match of `curr` in `prev`, **excluding** the inner 16×16 region
+/// already covered by `find_motion_match` (so a `0x5` is only ever
+/// chosen when `0x4` fails — saves a byte).
+///
+/// Returns `(dx, dy)` as signed bytes in `-128..=127`. Brute force is
+/// 65 280 candidates per block — slow, but offline encoding speed is
+/// not a bottleneck here. A previous-frame block-hash index would
+/// drop this to O(1) per candidate; left as future work.
+fn find_motion_match_extended(
+    curr: &Block,
+    prev: &[u8],
+    stride: usize,
+    height: usize,
+    bx: usize,
+    by: usize,
+) -> Option<(i8, i8)> {
+    let bx_pix = bx as isize * 8;
+    let by_pix = by as isize * 8;
+    for dy in -128i32..=127 {
+        // Skip the 16×16 window already swept by `find_motion_match`.
+        // Only checking dy here is enough as a coarse filter; the dx
+        // condition below handles the inner skip exactly.
+        let src_y = by_pix + dy as isize;
+        if src_y < 0 || src_y as usize + 8 > height {
+            continue;
+        }
+        for dx in -128i32..=127 {
+            // Inside the inner ±8 window (which `0x4` already swept),
+            // skip — emitting `0x5` for these would be 2 bytes when
+            // `0x4` would have done it in 1.
+            if (-8..=7).contains(&dx) && (-8..=7).contains(&dy) {
+                continue;
+            }
+            let src_x = bx_pix + dx as isize;
+            if src_x < 0 || src_x as usize + 8 > stride {
+                continue;
+            }
+            let mut matches = true;
+            for y in 0..8 {
+                let row_start = (src_y as usize + y) * stride + src_x as usize;
+                if prev[row_start..row_start + 8] != curr[y][..] {
+                    matches = false;
+                    break;
+                }
+            }
+            if matches {
+                return Some((dx as i8, dy as i8));
             }
         }
     }

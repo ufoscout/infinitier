@@ -58,6 +58,7 @@ fn from_assets_rgb555_round_trip_silent() {
     let opts = FromAssetsOptions {
         frame_duration_us: 66_667,
         lossy_downsample: false,
+        strict_palette: false,
         output_name: "hi".to_string(),
     };
     let mve_path = encode_from_assets_rgb555(&paths, /*wav_path=*/ None, &opts, &out_dir)
@@ -136,6 +137,7 @@ fn from_assets_rgb555_with_audio() {
     let opts = FromAssetsOptions {
         frame_duration_us: 66_667,
         lossy_downsample: false,
+        strict_palette: false,
         output_name: "hi_audio".to_string(),
     };
     let mve_path =

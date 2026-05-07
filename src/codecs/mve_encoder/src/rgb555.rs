@@ -372,6 +372,7 @@ struct BlockOutcome {
 
 const OPC_SKIP: u8 = 0x0;
 const OPC_MOTION: u8 = 0x4;
+const OPC_MOTION_EXT: u8 = 0x5;
 const OPC_2COLOR: u8 = 0x7;
 const OPC_HALF_2COL: u8 = 0x8;
 const OPC_QUAD_COLOR: u8 = 0x9;
@@ -421,6 +422,22 @@ fn encode_block_rgb555(
                 opcode: OPC_MOTION,
                 color_bytes: Vec::new(),
                 motion_bytes: vec![b],
+            };
+        }
+    }
+
+    // 3a. Extended motion compensation (`0x5`, 2 bytes). Search the
+    //     full ±128 px window when `0x4` (±8) fails. Note: in the
+    //     16-bit dispatch table, opcode `0x5` reads from the COLOUR
+    //     sub-stream (`rc`), not the motion sub-stream (`rd`) — see
+    //     `decode_frame16` in the decoder. So the two payload bytes
+    //     go into `color_bytes` here.
+    if let Some(prev) = prev_full {
+        if let Some((dx, dy)) = find_motion_match16_extended(curr, prev, stride, bx, by) {
+            return BlockOutcome {
+                opcode: OPC_MOTION_EXT,
+                color_bytes: vec![dx as u8, dy as u8],
+                motion_bytes: Vec::new(),
             };
         }
     }
@@ -715,6 +732,52 @@ fn find_motion_match16(
             }
             if ok {
                 return Some((dx, dy));
+            }
+        }
+    }
+    None
+}
+
+/// Brute-force ±128 px motion search, **excluding** the inner ±8 px
+/// region already covered by [`find_motion_match16`]. Returned offsets
+/// are guaranteed signed-i8 representable.
+fn find_motion_match16_extended(
+    curr: &Block16,
+    prev: &[u16],
+    stride: usize,
+    bx: usize,
+    by: usize,
+) -> Option<(i8, i8)> {
+    let height = prev.len() / stride;
+    let block_x = bx * 8;
+    let block_y = by * 8;
+    for dy in -128i32..=127 {
+        let src_y = block_y as i32 + dy;
+        if src_y < 0 || src_y + 8 > height as i32 {
+            continue;
+        }
+        for dx in -128i32..=127 {
+            // Skip the ±8 inner window — already swept by `0x4`'s
+            // search and would cost an extra byte if we re-emitted.
+            if (-8..=7).contains(&dx) && (-8..=7).contains(&dy) {
+                continue;
+            }
+            let src_x = block_x as i32 + dx;
+            if src_x < 0 || src_x + 8 > stride as i32 {
+                continue;
+            }
+            let mut ok = true;
+            'check: for y in 0..8 {
+                let row_off = (src_y as usize + y) * stride + src_x as usize;
+                for x in 0..8 {
+                    if prev[row_off + x] != curr[y][x] {
+                        ok = false;
+                        break 'check;
+                    }
+                }
+            }
+            if ok {
+                return Some((dx as i8, dy as i8));
             }
         }
     }
