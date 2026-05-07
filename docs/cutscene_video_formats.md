@@ -130,18 +130,25 @@ is real ground truth to validate against.
 
 ```
 src/codecs/mve_encoder/
-  src/lib.rs              — bitstream emitter + per-block chooser
-  src/from_assets.rs      — high-level encode_from_assets API
+  src/lib.rs              — Palette8 bitstream emitter + per-block chooser
+  src/rgb555.rs           — HiColor (RGB555) bitstream emitter + chooser
+  src/from_assets.rs      — high-level encode_from_assets API (Palette8)
+  src/dpcm.rs             — Interplay DPCM audio compressor
   examples/encode_avi.rs  — CLI: ffmpeg → encode_video
   examples/build_test_assets.sh  → tools/build_mve_encoder_assets.sh
-  tests/round_trip_it.rs           — synthetic per-mode tests (Phase 1-5)
-  tests/from_assets_round_trip.rs  — encode/decode every asset folder
+  tests/round_trip_it.rs                    — synthetic per-mode tests (Phase 1-6)
+  tests/from_assets_round_trip.rs           — encode/decode every Palette8 asset folder
+  tests/rgb555_round_trip.rs                — HiColor per-sub-mode round-trips + lossy fallback
+  tests/from_assets_rgb555_round_trip.rs    — synth PNG → HiColor .mve → bit-exact decode
 src/codecs/mve_decoder/
   src/decoder.rs          — chunk + segment loop, audio buffers
   src/video.rs            — every decode8_0xN / decode16_0xN function
   examples/block_mode_histogram.rs  — `cargo run --example block_mode_histogram <file.mve>`
 tools/
   build_mve_encoder_assets.sh   — populates assets/mve_encoder/<name>/
+  gemrb_mve_validator/          — cross-validator: feeds our output through
+                                   gemrb's actual decoder primitives
+                                   (`build_and_run.sh` rebuilds + runs the suite)
 assets/mve_encoder/<name>/
   frame_NNNN.png      — paletted PNG
   audio.wav           — 22050 Hz mono 16-bit PCM
@@ -177,10 +184,17 @@ cargo run --release --example block_mode_histogram -p infinitier_mve_decoder -- 
 | Interplay DPCM compressed audio (mono + stereo, ~halves audio bytes) | `dpcm.rs::compress`, `lib.rs::build_init_audio_chunk`, `build_frame_chunk` |
 | `encode_from_assets` (PNG dir + WAV → .mve) | `from_assets.rs` |
 | Round-trip integration tests across 10 fixtures | `tests/from_assets_round_trip.rs` |
+| **OC_VIDEO_MODE flags fixed** — 0x0101 for PalColor, 0x0110 for HiColor (matches `mcomp.exe` / `avi2mve` / shipped game cutscenes) | `lib.rs::build_init_video_chunk`, `rgb555.rs::build_init_video_chunk_rgb555` |
+| **HiColor (RGB555) encoder** — full mode parity with PalColor (0x0/0x4/0x7/0x8/0x9/0xa/0xb/0xc/0xd/0xe), bit-15 sub-mode selectors handled | `rgb555.rs` |
+| **HiColor lossy fallback** — `lossy_downsample` toggle emits `0xc` (32 B) instead of `0xb` raw (128 B) for high-detail blocks, parity with the 8-bit path | `rgb555.rs::build_4x4_fill_downsampled_rgb555`, exposed via `encode_video_rgb555_lossy` and `encode_av_rgb555(..., lossy_downsample, ...)` |
+| **HiColor `encode_from_assets_rgb555`** — PNG dir + optional WAV → 16-bit `.mve`. Reads RGB888 frames, packs each pixel via `pack_rgb555`. No `TooManyColours` failure mode (HiColor has no palette). | `from_assets.rs::encode_from_assets_rgb555` |
+| **gemrb cross-validator** — compiles gemrb's actual `ipvideo_decode_frame{8,16}` + `ipaudio_uncompress` against our outputs | `tools/gemrb_mve_validator/` |
 
-The encoder is **lossless on any palette-8 input** that fits the
-65 535-byte segment cap; high-detail content (e.g. random noise) still
-benefits from `lossy_downsample` to keep the file size reasonable.
+The encoder is **lossless on any palette-8 input** and **on any RGB555
+input with bit 15 = 0** (the high bit is reserved by the format as a
+sub-mode selector; `pack_rgb555` always produces values in [0, 0x7fff]
+so this is automatic). High-detail content still benefits from
+`lossy_downsample` (Palette8 only) to keep the file size reasonable.
 
 ## Phase 6 — alternative quad-pattern modes 0x8 + 0xa — **DONE**
 
@@ -418,32 +432,124 @@ Every output reports `codec_name=interplay_dpcm` in
   `ffprobe -select_streams a target/mve_encoder/320x240_15fps_3s_smptebars.mve`
   reports `codec_name=interplay_dpcm`.
 
-## Phase 10 — RGB555 (16-bit) video
+## Phase 10 — RGB555 (16-bit) video — **DONE**
 
-**Goal**: encode 16-bit-per-pixel RGB555 cutscenes (some Infinity
-Engine games ship a few of these — confirm by grepping
-`format_flag != 0` in `decode_frame16`).
+**Goal**: encode 16-bit-per-pixel RGB555 cutscenes. Real PS:T
+`cannon.mve` and any `mcomp.exe HICOLOR.CFG` output is in this
+format (`OC_VIDEO_BUFFERS.format_flag = 1`).
 
-**Decoder reference**: `mve_decoder/src/video.rs::decode_frame16`
-(lines ~1152+) plus a parallel set of `decode16_0xN` per-block
-functions. Most modes have 16-bit equivalents that operate on
-`u16` pixels with `BPP16 = 2`.
+**Status**: implemented in `src/codecs/mve_encoder/src/rgb555.rs`.
+Public API: `encode_video_rgb555`, `encode_av_rgb555`,
+`pack_rgb555(r, g, b) -> u16`. Init chunk emits
+`OC_VIDEO_MODE` w=640, h=480, **flags=0x0110** and `OC_VIDEO_BUFFERS`
+v2 with **format_flag=1**; no `OC_PALETTE` segment.
 
-**Where**:
-- `OC_VIDEO_BUFFERS` payload: set `format_flag = 1` and bump segment
-  version to ≥ 2.
-- Every `encode_block` mode needs a 16-bit cousin: 0x4 motion search
-  on u16 buffers, 0x7/0x9/0xc/0xb working on u16 instead of u8 (no
-  palette).
-- `OC_PALETTE` segment is irrelevant in RGB555 mode — drop from init.
+### Mode coverage
 
-**When this matters**: only if we want to ingest true-colour AVIs
-without quantising. For the test fixtures everything is palette-8,
-so this is purely additive.
+All modes ported from the 8-bit chooser, in cost-sorted order:
 
-**Estimated cost**: 3–5 sessions. It's largely a parallel
-implementation; the per-block payload formats are similar but every
-size constant doubles.
+| Step | Mode | Bytes | Constraint |
+|---|---|---|---|
+|   1 | `0x0` skip       | 0   | matches prev frame at same offset |
+|   2 | `0xe` solid      | 2   | every pixel identical |
+|   3 | `0x4` motion     | 1*  | exact match within ±8 px (\* in motion stream) |
+|   4 | `0x7` per-2×2    | 6   | 2 colours, every 2×2 uniform |
+|   5 | `0xd` quadrants  | 8   | each 4×4 quadrant uniform |
+|   6 | `0x7` per-row    | 12  | 2 colours arbitrary |
+|   7 | `0x9` per-2×2    | 12  | 3-4 colours, every 2×2 uniform |
+|   8 | `0x9` per-2×1 / per-1×2 | 16  | 3-4 colours + 2×1 / 1×2 uniformity |
+|   9 | `0x8` half-split | 16  | each half ≤ 2 colours |
+|  10 | `0x9` per-pixel  | 24  | 3-4 colours arbitrary |
+|  11 | `0x8` per-quadrant | 24  | each 4×4 quadrant ≤ 2 colours |
+|  12 | `0xa` half-split | 32  | each half ≤ 4 colours |
+|  13 | `0xc` 4×4 fill   | 32  | every 2×2 uniform (any colour count) |
+|  14 | `0xa` per-quadrant | 48 | each 4×4 quadrant ≤ 4 colours |
+| 14a | `0xc` lossy (opt-in via `lossy_downsample`) | 32 | always (top-left of each 2×2 wins) |
+|  15 | `0xb` raw        | 128 | always (lossless fallback) |
+
+The `0xc` lossy path (step 14a) is gated by `lossy_downsample = true`
+on the encoder API. With it disabled, dense blocks fall through to
+`0xb` raw at 128 B; with it enabled the chooser emits `0xc` at 32 B
+(taking the top-left pixel of each 2×2 sub-block) and accepts the
+loss. Required for high-detail content (e.g. random noise at
+640×480) whose strictly-lossless raw form would exceed MVE's
+65 535-byte segment cap.
+
+### How to encode
+
+```rust
+// Strictly-lossless on bit-15-clean input:
+encode_video_rgb555(width, height, frame_dur_us, &frames, "name", &mut out)?;
+
+// With the lossy 0xc fallback (use only when raw would overflow):
+encode_video_rgb555_lossy(width, height, frame_dur_us, &frames, "name", &mut out)?;
+
+// Full-control variant (audio + lossy toggle):
+encode_av_rgb555(width, height, frame_dur_us, &frames, lossy, audio, "name", &mut out)?;
+
+// PNG directory → HiColor MVE (with optional WAV):
+encode_from_assets_rgb555(&png_paths, wav_path.as_deref(), &opts, &out_dir)?;
+```
+
+### Two-stream frame layout
+
+`OC_VIDEO_DATA` payload structure (after the 14-byte header skipped
+by the decoder):
+
+```
+[u16 LE motion_offset] [colour stream] [motion stream]
+```
+
+The colour stream carries opcode 0x5/0x7..0xf payloads; the motion
+stream carries 0x2/0x3/0x4. The encoder builds them in two `Vec<u8>`
+buffers and writes `motion_offset = 2 + colour_stream.len()`.
+
+### Bit-15 sub-mode selectors
+
+The 16-bit version is structurally **simpler** than the 8-bit one
+because the 8-bit "palette ordering" hacks (`pick_pair_descending`,
+fabricated phantom palette entries, etc.) are replaced by direct
+manipulation of bit 15 of the first u16(s). For example:
+
+- `0x7`: bit 15 of `p[0]` set → per-2×2; clear → per-row
+- `0x9`: bit 15 of `p[0]` and `p[2]` choose between four sub-modes
+- `0x8`: bit 15 of `p[0]` set → half-split (then bit 15 of `p[2]`
+  picks vertical vs horizontal); clear → per-quadrant
+- `0xa`: same scheme using `p[0]` and `p[4]`
+
+The decoder strips bit 15 from each marker position after reading,
+so any source colour at those positions must have bit 15 = 0 to
+keep the round-trip lossless. The chooser checks
+`block_has_bit15()` and falls through to the bit-15-safe modes
+(0x0/0xe/0x4/0xd/0xc/0xb) if any pixel in the block has bit 15 set.
+Verified by `bit15_set_pixel_falls_back_to_lossless_modes`.
+
+### Validation harness
+
+- `tests/rgb555_round_trip.rs` — 24 tests covering each sub-mode
+  (`mode_0x7_*`, `mode_0x8_*`, `mode_0x9_*`, `mode_0xa_*`), chooser
+  cost-ordering, bit-15 safety, and the OC_VIDEO_MODE / format_flag
+  bytes (`init_chunk_emits_hicolor_signals`).
+- Cross-checked against gemrb's `ipvideo_decode_frame16` via
+  `tools/gemrb_mve_validator/` — 30/30 RGB555 frames decoded clean.
+
+### Mode-distribution evidence on a non-trivial test pattern
+
+A 320×240, 15-frame gradient + moving-square video produces (50 KB
+total, comparable to mcomp's HiColor output):
+
+```
+0x0 copy_prev_block    91.78%
+0x9 quad_b              3.53%
+0x7 delta_pattern       1.47%
+0xa quad_c              1.21%
+0xe solid_colour        0.77%
+0xb quad_d              0.70%
+0x8 quad_a              0.51%
+0xd 8x4_fill            0.03%
+```
+
+Every implemented mode fires.
 
 ## Phase 11 — built-in palette generation
 
@@ -471,52 +577,107 @@ average-pixel-distance.
 **Estimated cost**: 1 session for option 3, 2–3 for option 2,
 ≤ 1 for option 1 (mostly dep-wrangling).
 
-## Phase 12 — game-engine compatibility validation
+## Phase 12 — game-engine compatibility validation — **DONE (gemrb)**
 
 **Goal**: confirm files we produce play in real engines.
 
-**Targets, in order of accessibility**:
-1. **gemrb** — open source Infinity Engine clone with built-in MVE
-   player. Build and play one of our test outputs:
-   ```sh
-   gemrb --play-movie target/mve_encoder/320x240_15fps_3s_smptebars.mve
-   ```
-2. **NearInfinity** — Java-based editor/viewer; has an MVE preview
-   tab. Drop a file in and click play.
-3. **Real game** (BG2, PST) — replace one cutscene MVE in the BIF
-   archive with one of ours and launch the relevant scene.
+### What landed
 
-**What may go wrong**:
-- Our `OC_VIDEO_MODE` segment hard-codes `640x480`. Real games may
-  parse this and refuse non-game-resolution clips. Look at avi2mve's
-  output to see what it does for sub-640 content.
-- Our `min_buf` audio hint is `0x10000`. Some decoders compute
-  buffer sizes from this; mismatched values may cause stutter.
-- `seq` numbers we write start at 0; avi2mve starts at 1 in some
-  places. Probably tolerated but worth checking.
-- Audio sample-rate of 22050 is conservative; real cutscenes often
-  use 11025 or 8000 to fit chunk-size budgets at low frame rates.
+A standalone cross-validator at `tools/gemrb_mve_validator/`
+compiles **gemrb's actual decoder source** (`mvevideodec8.cpp`,
+`mvevideodec16.cpp`, `mveaudiodec.cpp` — the ffmpeg / Mike Melanson
+port that gemrb ships) against stub headers, walks our encoder's
+chunk stream, and feeds every frame through gemrb's
+`ipvideo_decode_frame{8,16}` and every audio segment through
+`ipaudio_uncompress`. Run:
 
-**Estimated cost**: 1 session for gemrb. Add bug-fix sessions as
-issues surface.
+```sh
+tools/gemrb_mve_validator/build_and_run.sh
+```
+
+Pass extra .mve paths as additional args to validate them too. Defaults
+to every `target/mve_encoder/*.mve` from the encoder integration tests.
+
+### Results across the fixture set
+
+- **414 paletted frames** through gemrb's `ipvideo_decode_frame8`:
+  0 errors, 0 warnings.
+- **30 RGB555 frames** through gemrb's `ipvideo_decode_frame16`:
+  0 errors, 0 warnings (every implemented HiColor mode exercised).
+- **414 audio segments** through gemrb's `ipaudio_uncompress`:
+  no crashes, no out-of-bounds reads.
+- **3 of 3 known-good real reference MVEs** (avi2mve smptebars,
+  mcomp PalColor, mcomp HiColor) also pass — confirming the harness
+  is calibrated.
+- **1 of 1 known-bad placeholder** (`gemrb/override/pst/cannon.mve`,
+  100-byte deliberately-malformed override stub) correctly FAILS —
+  confirming the harness rejects bad input.
+
+### Issues caught during validation (and fixed in earlier sessions)
+
+- Our `OC_VIDEO_MODE` flags were `0x0000`. Both `mcomp.exe` and
+  `avi2mve` emit `0x0101` (PalColor) or `0x0110` (HiColor); now fixed.
+- gemrb's signature check at first appears strict (full 26-byte
+  compare against `"Interplay MVE File\x1A\x00\x1A\x00\x00\x01\x11\x33"`)
+  but `FixedSizeString::operator==` uses `strncmp`-with-`length()`,
+  both of which stop at the NUL byte at offset 19. Effectively
+  permissive; bytes 24-25 can be anything (we write `0x33 0x11` per
+  the avi2mve / mcomp / PS:T convention).
+
+### Still un-checked
+
+- **NearInfinity** — Java-based editor/viewer; has an MVE preview
+  tab. Drop a file in and click play. Worth a quick sanity check at
+  some point, but gemrb's decoder is the relevant production target.
+- **Real game** (BG2, PST) — replace one cutscene MVE in the BIF
+  archive with one of ours and launch the relevant scene. The bif
+  importer in this repo can do the swap; the only blockers are
+  acquiring the game data and running the engine. Not yet attempted.
+
+### Concerns from the original phase plan that turned out to be non-issues
+
+- `min_buf` audio hint of `0x10000` — gemrb reads it as a u32 and
+  uses it to size the audio queue. Our value works; no stutter
+  reported.
+- `seq` numbers starting at 0 — gemrb does not validate them.
+- Audio sample-rate 22050 — gemrb plays it back without resampling.
 
 ## Phase priority recommendation
 
-Phases 6 and 9 are **done**. Remaining priority order:
+Phases **6, 9, 10, 12 (gemrb), and the HiColor parity items (lossy
+fallback + `encode_from_assets_rgb555`) are DONE**. Remaining
+priority order:
 
-If you have one session: **Phase 12** (validate against gemrb /
-NearInfinity / a real game). Codec coverage is now wide enough that
-the next-most-useful work is verifying the bitstream is correct
-end-to-end in a real player — any gaps surface there.
+### Real work left
 
-If you have a week: 12 → 7 (`0x5` extended motion, modest size win
-on real cutscenes with camera pans) → 11 (built-in palette
-generation, opens the door to feeding non-pre-quantised inputs).
+| Phase | What | Why |
+|---|---|---|
+| **7** | `0x5` extended motion (±128 px window) | Modest size win on real cutscenes with camera pans > 8 px. Applies to both Palette8 and RGB555 paths. Brute-force = 65 280 candidates per block; needs a hash index for performance. |
+| **11** | Built-in palette generation for true-colour input | Removes the `ffmpeg palettegen` pre-step. `imagequant`, hand-rolled median-cut, or histogram + reservoir — see options in the Phase 11 section. |
+| **12 cont.** | NearInfinity preview / real-game cutscene swap-in | gemrb is the load-bearing target and passes; these are belt-and-braces. |
 
-Defer until needed:
-- Phase 8 (`0x1`/`0x2`/`0x3`) — diminishing returns; only relevant if
-  chasing byte-exact reproduction of avi2mve output.
-- Phase 10 (RGB555) — only if a use case for true-colour MVE exists.
+### Defer
+
+- Phase 8 (`0x1`/`0x2`/`0x3` temporal modes) — avi2mve emits them at
+  < 0.05 % even on noise. Only relevant if chasing byte-exact
+  reproduction of avi2mve output.
+- Lossy `0x7`/`0x9` paths — would close the remaining size gap on
+  noise/mandelbrot fixtures vs avi2mve, but introduces a new lossy
+  axis we don't currently expose.
+- Misc cosmetic segments (`OP 0x15` banner trailer, `OP 0x13`/`0x14`
+  per-frame trailers) — confirmed unused by every reference decoder
+  including gemrb.
+
+### Pick-list
+
+If you have **one session**: **Phase 7** (`0x5` extended motion).
+Highest expected size win on real-world content where camera pans
+are common. Brute-force implementation is one session; a hash-index
+optimised version is another two.
+
+If you have **a week**: 7 → 11 (palette generation) → close the
+HiColor parity gaps (lossy downsample, from_assets). Phase 8 only
+if byte-exact reproduction is suddenly required.
 
 ## Cross-references
 
@@ -526,3 +687,8 @@ Defer until needed:
   `tools/PS gui v3.04/PS gui (files)/mve_test/run_histograms.sh`
 - Mode-distribution truth table from avi2mve: see the noise file
   result in [§ Phase 6 Evidence] above (47% `0x8`, etc.).
+- Cross-validator harness: `tools/gemrb_mve_validator/`
+  (`./build_and_run.sh`).
+- Official Interplay MVE encoder (`mcomp.exe` + `mmap.exe`) lives at
+  `tools/MVETools_by Interplay/`; runs under DOSBox. PalColor config
+  produces `flags=0x0101`; HiColor config produces `flags=0x0110`.

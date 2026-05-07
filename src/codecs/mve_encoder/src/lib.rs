@@ -8,8 +8,12 @@ use thiserror::Error as ThisError;
 mod dpcm;
 mod from_assets;
 mod rgb555;
-pub use from_assets::{encode_from_assets, FromAssetsError, FromAssetsOptions};
-pub use rgb555::{encode_av_rgb555, encode_video_rgb555, pack_rgb555};
+pub use from_assets::{
+    encode_from_assets, encode_from_assets_rgb555, FromAssetsError, FromAssetsOptions,
+};
+pub use rgb555::{
+    encode_av_rgb555, encode_video_rgb555, encode_video_rgb555_lossy, pack_rgb555,
+};
 
 // ─── format constants ────────────────────────────────────────────────────────
 

@@ -24,7 +24,7 @@ use image::ImageReader;
 use thiserror::Error;
 
 use crate::{
-    encode_av, AudioOptions, MveEncodeError, VideoOptions,
+    encode_av, encode_av_rgb555, pack_rgb555, AudioOptions, MveEncodeError, VideoOptions,
 };
 
 #[derive(Debug, Error)]
@@ -171,6 +171,120 @@ pub fn encode_from_assets(
         &video_opts,
         &frame_refs,
         Some((&audio_opts, &samples_per_frame)),
+        options.output_name.clone(),
+        &mut out,
+    )?;
+    Ok(output_path)
+}
+
+/// HiColor (RGB555) variant of [`encode_from_assets`]: encodes a PNG
+/// sequence + WAV audio into a 16-bit MVE. PNGs are read as RGB and
+/// each pixel is packed into RGB555 via [`crate::pack_rgb555`] —
+/// every channel is quantised from 8 to 5 bits (drop the low 3 bits),
+/// so the round-trip is *visually* lossless and bit-exact at the
+/// 5-bit-per-channel level. No palette generation is involved
+/// (HiColor doesn't use an `OC_PALETTE` segment).
+///
+/// Unlike the Palette8 path, frames may contain **any** number of
+/// distinct colours — there's no `TooManyColours` failure mode.
+///
+/// `wav_path` is optional. Pass `None` for a silent-track HiColor
+/// MVE; pass `Some(path)` to mix in 16-bit PCM audio (mono or
+/// stereo, sample rate ≤ 65535 Hz).
+pub fn encode_from_assets_rgb555(
+    png_paths: &[PathBuf],
+    wav_path: Option<&Path>,
+    options: &FromAssetsOptions,
+    output_folder: &Path,
+) -> Result<PathBuf, FromAssetsError> {
+    if png_paths.is_empty() {
+        return Err(FromAssetsError::NoFrames);
+    }
+
+    // 1. Read every PNG as RGB888 and convert to RGB555 u16 frames.
+    let mut frames_u16: Vec<Vec<u16>> = Vec::with_capacity(png_paths.len());
+    let mut size: Option<(u32, u32)> = None;
+    for (i, path) in png_paths.iter().enumerate() {
+        let img = ImageReader::open(path)
+            .and_then(|r| Ok(r.with_guessed_format()?))
+            .map_err(FromAssetsError::Io)?
+            .decode()
+            .map_err(|source| FromAssetsError::Image {
+                path: path.clone(),
+                source,
+            })?
+            .into_rgb8();
+        let (w, h) = (img.width(), img.height());
+        match size {
+            None => size = Some((w, h)),
+            Some((expected_w, expected_h)) => {
+                if w != expected_w || h != expected_h {
+                    return Err(FromAssetsError::FrameSizeMismatch {
+                        index: i,
+                        path: path.clone(),
+                        got_w: w,
+                        got_h: h,
+                        exp_w: expected_w,
+                        exp_h: expected_h,
+                    });
+                }
+            }
+        }
+        let mut frame = Vec::with_capacity((w * h) as usize);
+        for px in img.pixels() {
+            frame.push(pack_rgb555(px[0], px[1], px[2]));
+        }
+        frames_u16.push(frame);
+    }
+    let (width_u32, height_u32) = size.expect("at least one frame");
+    let width = width_u32 as u16;
+    let height = height_u32 as u16;
+
+    // 2. Read WAV samples if a path was provided.
+    let mut audio_block: Option<(AudioOptions, Vec<Vec<i16>>)> = None;
+    if let Some(wav_path) = wav_path {
+        let mut reader =
+            hound::WavReader::open(wav_path).map_err(|source| FromAssetsError::Wav {
+                path: wav_path.to_path_buf(),
+                source,
+            })?;
+        let spec = reader.spec();
+        if spec.bits_per_sample != 16 {
+            return Err(FromAssetsError::UnsupportedWavBitDepth {
+                bits: spec.bits_per_sample,
+            });
+        }
+        let samples: Vec<i16> = reader
+            .samples::<i16>()
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|source| FromAssetsError::Wav {
+                path: wav_path.to_path_buf(),
+                source,
+            })?;
+        let aopts = AudioOptions {
+            sample_rate: spec.sample_rate,
+            channels: spec.channels,
+        };
+        let buckets = split_audio(&samples, frames_u16.len(), spec.channels as usize);
+        audio_block = Some((aopts, buckets));
+    }
+
+    // 3. Encode.
+    fs::create_dir_all(output_folder)?;
+    let output_path = output_folder.join(format!("{}.mve", options.output_name));
+    let mut out = fs::File::create(&output_path)?;
+
+    let frame_refs: Vec<&[u16]> = frames_u16.iter().map(|v| v.as_slice()).collect();
+    let audio_arg = audio_block
+        .as_ref()
+        .map(|(aopts, buckets)| (aopts, buckets.as_slice()));
+    encode_av_rgb555(
+        width,
+        height,
+        options.frame_duration_us,
+        &frame_refs,
+        options.lossy_downsample,
+        audio_arg,
         options.output_name.clone(),
         &mut out,
     )?;

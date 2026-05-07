@@ -677,3 +677,73 @@ fn bit15_set_pixel_falls_back_to_lossless_modes() {
     assert!(stats[0xb] >= 1);
     assert_round_trip_bit_exact(8, 8, &[block]);
 }
+
+// ─── lossy_downsample fallback ──────────────────────────────────────────────
+
+use infinitier_mve_encoder::encode_video_rgb555_lossy;
+
+fn block_mode_stats_lossy(width: u16, height: u16, frames: &[Vec<u16>]) -> [u64; 16] {
+    let frame_refs: Vec<&[u16]> = frames.iter().map(|f| f.as_slice()).collect();
+    let mut buf = Vec::new();
+    encode_video_rgb555_lossy(width, height, 66_667, &frame_refs, "lossy", &mut buf).unwrap();
+    let ds = DataSource::new(buf);
+    let mut dec: MveDecoder<Box<dyn infinitier_datasource::DataTrait>> =
+        MveDecoder::new(ds.reader().unwrap(), "lossy").unwrap();
+    while dec.next_frame().unwrap().is_some() {}
+    dec.block_mode_stats().video16
+}
+
+#[test]
+fn lossy_downsample_replaces_raw_with_4x4_fill() {
+    // 64 distinct RGB555 values, no useful uniformity → strictly
+    // lossless emits 0xb (128 B). With lossy_downsample = true the
+    // chooser falls through to 0xc (32 B) instead.
+    let mut block = vec![0u16; 64];
+    for i in 0..64u16 {
+        let r = (i & 0x1f) as u8;
+        let b = ((i >> 5) & 0x07) as u8;
+        block[i as usize] = (((r as u16) << 10) | (b as u16)) & 0x7fff;
+    }
+    // Sanity: lossless path picks 0xb.
+    let lossless_stats = block_mode_stats_for(8, 8, &[block.clone()]);
+    assert_eq!(lossless_stats[0xb], 1);
+    assert_eq!(lossless_stats[0xc], 0);
+
+    // Lossy path picks 0xc instead.
+    let lossy_stats = block_mode_stats_lossy(8, 8, &[block]);
+    assert_eq!(lossy_stats[0xb], 0);
+    assert_eq!(lossy_stats[0xc], 1);
+}
+
+#[test]
+fn lossy_downsample_does_not_steal_from_lossless_modes() {
+    // Block that 0x9 per-2×2 (lossless 12 B) can encode — even with
+    // lossy_downsample=true the chooser must prefer the lossless
+    // mode over 0xc lossy (32 B).
+    let cols = [
+        pack_rgb555(0xff, 0, 0),
+        pack_rgb555(0, 0xff, 0),
+        pack_rgb555(0, 0, 0xff),
+        pack_rgb555(0xff, 0xff, 0),
+    ];
+    let mut block = vec![0u16; 64];
+    let mut y = 0;
+    let mut idx = 0usize;
+    while y < 8 {
+        let mut x = 0;
+        while x < 8 {
+            let v = cols[idx % 4];
+            idx += 1;
+            for dy in 0..2 {
+                for dx in 0..2 {
+                    block[(y + dy) * 8 + x + dx] = v;
+                }
+            }
+            x += 2;
+        }
+        y += 2;
+    }
+    let stats = block_mode_stats_lossy(8, 8, &[block]);
+    assert_eq!(stats[0x9], 1, "lossless 0x9 must still win");
+    assert_eq!(stats[0xc], 0);
+}

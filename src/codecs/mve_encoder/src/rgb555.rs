@@ -67,6 +67,11 @@ pub const fn pack_rgb555(r: u8, g: u8, b: u8) -> u16 {
 /// Each entry in `frames` is a row-major `width * height` slice of u16
 /// pixels in RGB555 (use [`pack_rgb555`] to build them from RGB888).
 /// Width/height must be non-zero multiples of 8.
+///
+/// Lossless on every input where `pixel & 0x8000 == 0` (the format's
+/// reserved bit). For high-detail content whose lossless raw form
+/// would exceed MVE's 65 535-byte segment cap, see
+/// [`encode_video_rgb555_lossy`] / [`encode_av_rgb555`].
 pub fn encode_video_rgb555<W: Write>(
     width: u16,
     height: u16,
@@ -75,15 +80,57 @@ pub fn encode_video_rgb555<W: Write>(
     name: impl Into<String>,
     out: &mut W,
 ) -> Result<()> {
-    encode_av_rgb555(width, height, frame_duration_us, frames, None, name, out)
+    encode_av_rgb555(
+        width,
+        height,
+        frame_duration_us,
+        frames,
+        false,
+        None,
+        name,
+        out,
+    )
 }
 
-/// Like [`encode_video_rgb555`] but with optional per-frame audio.
+/// Variant of [`encode_video_rgb555`] that opts in to a lossy 2×2
+/// downsample fallback: blocks that would otherwise be emitted as
+/// `0xb` raw (128 bytes) are instead lossily emitted as `0xc` 4×4
+/// fill (32 bytes), keeping the top-left pixel of each 2×2 sub-block.
+/// Use this when a fully-lossless raw frame would exceed MVE's
+/// 65 535-byte segment cap (e.g. random noise at 640×480).
+pub fn encode_video_rgb555_lossy<W: Write>(
+    width: u16,
+    height: u16,
+    frame_duration_us: u32,
+    frames: &[&[u16]],
+    name: impl Into<String>,
+    out: &mut W,
+) -> Result<()> {
+    encode_av_rgb555(
+        width,
+        height,
+        frame_duration_us,
+        frames,
+        true,
+        None,
+        name,
+        out,
+    )
+}
+
+/// Like [`encode_video_rgb555`] but with optional per-frame audio
+/// **and** an explicit `lossy_downsample` toggle. Set
+/// `lossy_downsample = true` to engage the 2×2 downsample fallback
+/// described in [`encode_video_rgb555_lossy`]; set it to `false` to
+/// stay strictly lossless (and risk hitting the segment-cap on
+/// extreme-detail input).
+#[allow(clippy::too_many_arguments)]
 pub fn encode_av_rgb555<W: Write>(
     width: u16,
     height: u16,
     frame_duration_us: u32,
     frames: &[&[u16]],
+    lossy_downsample: bool,
     audio: Option<(&AudioOptions, &[Vec<i16>])>,
     name: impl Into<String>,
     out: &mut W,
@@ -152,6 +199,7 @@ pub fn encode_av_rgb555<W: Write>(
             bw,
             bh,
             frame_idx > 0,
+            lossy_downsample,
             frame_audio,
             frame_idx as u16,
         )?;
@@ -225,6 +273,7 @@ fn build_init_audio_chunk_rgb555(audio: &AudioOptions) -> Result<Vec<u8>> {
 
 // ─── frame chunk ─────────────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn build_frame_chunk_rgb555(
     curr: &[u16],
     prev: Option<&[u16]>,
@@ -232,6 +281,7 @@ fn build_frame_chunk_rgb555(
     bw: usize,
     bh: usize,
     use_delta: bool,
+    lossy_downsample: bool,
     audio: Option<(AudioOptions, &[i16])>,
     seq: u16,
 ) -> Result<Vec<u8>> {
@@ -243,7 +293,7 @@ fn build_frame_chunk_rgb555(
     for by in 0..bh {
         for bx in 0..bw {
             let block = read_block16(curr, stride, bx, by);
-            let outcome = encode_block_rgb555(&block, prev, stride, bx, by);
+            let outcome = encode_block_rgb555(&block, prev, stride, bx, by, lossy_downsample);
             opcodes.push(outcome.opcode);
             color_stream.extend_from_slice(&outcome.color_bytes);
             motion_stream.extend_from_slice(&outcome.motion_bytes);
@@ -337,6 +387,7 @@ fn encode_block_rgb555(
     stride: usize,
     bx: usize,
     by: usize,
+    lossy_downsample: bool,
 ) -> BlockOutcome {
     let color_only = |opcode: u8, bytes: Vec<u8>| BlockOutcome {
         opcode,
@@ -473,7 +524,14 @@ fn encode_block_rgb555(
         }
     }
 
-    // 15. Raw 8×8 — fallback.
+    // 14a. Lossy fallback — emit 0xc with 2×2 downsample (32 bytes)
+    //      instead of 0xb raw (128 bytes). Top-left of each 2×2 wins.
+    //      Only used when the caller opted in (`lossy_downsample`).
+    if lossy_downsample {
+        return color_only(OPC_4X4_FILL, build_4x4_fill_downsampled_rgb555(curr));
+    }
+
+    // 15. Raw 8×8 — strictly-lossless fallback (128 bytes).
     let mut bytes = Vec::with_capacity(128);
     for row in curr.iter() {
         for &v in row.iter() {
@@ -481,6 +539,23 @@ fn encode_block_rgb555(
         }
     }
     color_only(OPC_RAW, bytes)
+}
+
+/// Lossy 2×2-downsample variant of the 0xc emitter: always succeeds
+/// by taking the top-left pixel of each 2×2 sub-block as the
+/// representative colour. Output is 16 × u16 LE = 32 bytes.
+fn build_4x4_fill_downsampled_rgb555(curr: &Block16) -> Vec<u8> {
+    let mut out = Vec::with_capacity(32);
+    let mut y = 0;
+    while y < 8 {
+        let mut x = 0;
+        while x < 8 {
+            out.extend_from_slice(&curr[y][x].to_le_bytes());
+            x += 2;
+        }
+        y += 2;
+    }
+    out
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
