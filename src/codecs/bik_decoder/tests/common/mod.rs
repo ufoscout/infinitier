@@ -1,10 +1,11 @@
 //! Shared helpers for the asset-corpus tests.
 //!
 //! All Bink fixtures live under `assets/resources/BIK/` next to a
-//! `<stem>.json` manifest produced by `_gen_fixtures.py` (which pipes the
-//! file through FFmpeg). The schema is a near-clone of the MVE fixture at
-//! `assets/resources/MVE/16_bits/BISLOGO.json`, with `codec_tag` replacing
-//! the MVE-only `palette_bits` field.
+//! `<stem>.json` manifest produced by this crate's `gen_fixtures`
+//! example (run via `cargo run --example gen_fixtures --release`). The
+//! schema is a near-clone of the MVE fixture at
+//! `assets/resources/MVE/16_bits/BISLOGO.json`, with `codec_tag`
+//! replacing the MVE-only `palette_bits` field.
 
 #![allow(dead_code)] // each consumer test pulls a different subset.
 
@@ -24,10 +25,8 @@ pub struct CorpusFixture {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VideoFixture {
-    /// Codec tag from FFmpeg, e.g. `"BIKi"` or `"BIKb"`. Files tagged
-    /// `BIKb` are BinkB and are not decodable by `bik_decoder` yet — the
-    /// corpus tests skip them at the decode step but still validate
-    /// container-parser invariants.
+    /// 4-byte codec tag taken from the file signature, e.g. `"BIKi"`,
+    /// `"BIKb"`, `"BIKf"`. Recorded for diagnostics.
     pub codec_tag: String,
     pub width: u32,
     pub height: u32,
@@ -92,7 +91,7 @@ pub fn corpus() -> Vec<CorpusEntry> {
             let json_path = json_for(&p);
             assert!(
                 json_path.is_file(),
-                "missing fixture {} (run assets/resources/BIK/_gen_fixtures.py to regenerate)",
+                "missing fixture {} (run `cargo run -p infinitier_bik_decoder --example gen_fixtures --release` to regenerate)",
                 json_path.display()
             );
             let fixture: CorpusFixture = parse_json_file(&json_path);

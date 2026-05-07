@@ -1,16 +1,4 @@
-//! Pure-Rust decoder for Bink Video v1 (BIKi).
-//!
-//! Crate scope:
-//! - **Container parser** ([`container::parse_header`]) — full BIKi/BIKb/BIKf
-//!   header + frame index + audio-track-table parsing.
-//! - **Video decoder** (TODO, phases 2-6) — port of FFmpeg's
-//!   `libavcodec/bink.c`.
-//! - **Audio decoder** (TODO, phase 7) — port of FFmpeg's `binkaudio_dct`
-//!   path (the variant IWD2 uses).
-//!
-//! The split between phases lives behind module boundaries so the container
-//! parser is usable on its own (e.g. for the IWD2 corpus tests that just
-//! enumerate frame counts and audio metadata).
+#![doc = include_str!("../readme.md")]
 
 pub mod audio;
 pub mod binkb;

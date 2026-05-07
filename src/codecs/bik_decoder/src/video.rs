@@ -68,8 +68,8 @@ pub struct Plane {
 impl Plane {
     fn new(width: u32, height: u32) -> Self {
         let stride = ((width + 7) & !7) as usize;
-        // Round height up to the next 8 too, matching the block-aligned
-        // worst case (an 8x8 write at the bottom-right edge).
+        // Round height up to the next 8 too — block-aligned worst case
+        // for an 8x8 write at the bottom-right edge.
         let alloc_h = ((height + 7) & !7) as usize;
         Self {
             width,

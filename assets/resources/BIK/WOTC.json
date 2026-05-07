@@ -104,6 +104,6 @@
     "bits_per_sample": 16,
     "format": "PCM 16-bit stereo at 22050 Hz",
     "total_samples": 264960,
-    "wav_sha256": "fd94f41d66ac7b2004b5347471fd4ef8490c90bb12ed8fab685c69830ad9ee1c"
+    "wav_sha256": "568a9546e76a7afa15ebda4cfabdc869daa850368db012e55916286e7d3a0563"
   }
 }
