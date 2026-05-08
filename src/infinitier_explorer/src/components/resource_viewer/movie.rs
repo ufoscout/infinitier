@@ -2,7 +2,7 @@ use super::ResourceViewerTrait;
 use eframe::egui;
 use infinitier_core::{
     game::{GameResource, ResourceId},
-    movie::{MovieDecoder, MovieSource, MovieVideoFrame},
+    movie::{MovieDecoder, MovieFormat, MovieSource, MovieVideoFrame},
 };
 use log::error;
 use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
@@ -45,6 +45,10 @@ const AUDIO_FMT_TIMEOUT_MS: u64 = 250;
 /// `Drop` impl does the same so threads don't survive viewer changes.
 pub struct MovieViewer {
     source: MovieSource,
+    /// Container format detected at metadata-probe time. Surfaced in
+    /// the bottom info bar; `None` when the file failed to open and
+    /// the format never got identified.
+    format: Option<MovieFormat>,
     width: u16,
     height: u16,
     frame_duration_us: u32,
@@ -75,17 +79,25 @@ impl MovieViewer {
         // first (BIK reads the header; MVE does a one-shot metadata
         // scan in its constructor), so `info()` is fully populated as
         // soon as `open` returns.
-        let (width, height, frame_duration_us, total_duration, decode_error) = match source.open()
-        {
-            Ok(dec) => {
-                let info = dec.info();
-                (info.width, info.height, info.frame_duration_us, info.total_duration_us, None)
-            }
-            Err(e) => (0, 0, 0, 0, Some(format!("failed to open movie: {e}"))),
-        };
+        let (format, width, height, frame_duration_us, total_duration, decode_error) =
+            match source.open() {
+                Ok(dec) => {
+                    let info = dec.info();
+                    (
+                        Some(dec.format()),
+                        info.width,
+                        info.height,
+                        info.frame_duration_us,
+                        info.total_duration_us,
+                        None,
+                    )
+                }
+                Err(e) => (None, 0, 0, 0, 0, Some(format!("failed to open movie: {e}"))),
+            };
 
         Self {
             source,
+            format,
             width,
             height,
             frame_duration_us,
@@ -537,6 +549,10 @@ impl ResourceViewerTrait for MovieViewer {
             ui.horizontal(|ui| {
                 ui.label(&self.source.name);
                 ui.separator();
+                if let Some(fmt) = self.format {
+                    ui.label(fmt.to_string());
+                    ui.separator();
+                }
                 ui.label(format!("{}×{}", self.width, self.height));
                 ui.separator();
                 let fps = if self.frame_duration_us > 0 {
@@ -546,8 +562,7 @@ impl ResourceViewerTrait for MovieViewer {
                 };
                 ui.label(format!("{fps:.2} fps"));
                 ui.separator();
-                let total_label = format_duration(self.total_duration);
-                ui.label(total_label);
+                ui.label(format_duration(self.total_duration));
             });
         });
 
@@ -586,17 +601,16 @@ impl ResourceViewerTrait for MovieViewer {
                     },
                 );
                 ui.add_space(6.0);
-                // Progress bar below the buttons. We don't know the
-                // total duration without scanning the whole file, so the
-                // bar shows elapsed time and a generous best-effort
-                // fraction (capped so it doesn't run off the end while
-                // playing).
                 let elapsed_secs = pos.as_secs_f64();
                 let progress = (elapsed_secs / 60.0).clamp(0.0, 1.0) as f32;
                 ui.add(
                     egui::ProgressBar::new(progress)
                         .desired_width(420.0)
-                        .text(format_duration(pos)),
+                        .text(format!(
+                                "{} / {}",
+                                format_duration(pos),
+                                format_duration(self.total_duration)
+                            )),
                 );
                 ui.add_space(4.0);
             });
