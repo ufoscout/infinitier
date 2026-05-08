@@ -1,6 +1,6 @@
-use infinitier_common::Game;
+use infinitier_common::{Game, ResourceType};
 use infinitier_core::{
-    game::{DataOrigin, GameDataBuilder},
+    game::{DataOrigin, GameDataBuilder, GameResource},
     game_detect::detect_game,
 };
 use infinitier_fs::CaseInsensitiveFS;
@@ -62,7 +62,9 @@ fn test_import_all_resources() {
                 continue;
             }
             if let Err(e) = resource.import() {
-                dir_failures.push(format!("  {} — {e}", resource.filename));
+                if !expected_failures(&resource) {
+                    dir_failures.push(format!("  {} — {e}", resource.filename));
+                }
             }
         }
 
@@ -96,4 +98,15 @@ fn test_import_all_resources() {
         all_failures.len(),
         all_failures.join("\n")
     );
+}
+
+/// Some resources are expected to fail to import because they are
+/// corrupted.
+fn expected_failures(resource: &GameResource) -> bool {
+    let failures = [
+        (Game::Bg, "cader09", ResourceType::Wav),
+        (Game::Bg, "thunder3", ResourceType::Wav),
+    ];
+    
+    failures.contains(&(resource.game_type, &resource.name.to_lowercase(), resource.r#type))
 }
