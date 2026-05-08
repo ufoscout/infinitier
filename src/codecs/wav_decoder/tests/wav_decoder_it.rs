@@ -61,6 +61,32 @@ fn test_decode_wav() {
     assert_eq!(created_wav_hash, wav_hash);
 }
 
+/// 8-bit mono PCM (e.g. BG's CHANT.WAV) — gemrb supports it, and so do we.
+#[test]
+fn test_decode_wav_8bit() {
+    let wav_path = get_assets_path().join("resources/WAV/CHANT.WAV");
+    let data = DataSource::new(wav_path);
+    let mut dec = WavDecoder::open(&data, "CHANT").unwrap();
+
+    assert_eq!(dec.format(), WavFormat::Wav);
+    assert_eq!(
+        dec.info(),
+        &WavInfo {
+            channels: 1,
+            sample_rate: 22050,
+            bits_per_sample: 8,
+            total_values: 320213,
+        }
+    );
+
+    let samples = dec.decode_all().unwrap();
+    assert_eq!(samples.len(), 320213);
+    // Output must be scaled to the full i16 range — i.e. at least one sample
+    // must land outside the 8-bit native [-128, 127] window. Otherwise we'd
+    // be playing ~256× too quiet, which is the bug we're guarding against.
+    assert!(samples.iter().any(|&s| s > 127 || s < -128));
+}
+
 #[test]
 fn test_decoded_wavc_infos_match() {
     let mut wavc = {

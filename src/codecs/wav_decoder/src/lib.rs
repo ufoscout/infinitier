@@ -28,8 +28,8 @@ pub enum WavError {
     )]
     UnknownFormat([u8; 4]),
     #[error(
-        "unsupported PCM format: bits_per_sample={bits}, sample_format={fmt:?} (only 16-bit \
-         integer PCM is supported)"
+        "unsupported PCM format: bits_per_sample={bits}, sample_format={fmt:?} (only 8- and \
+         16-bit integer PCM is supported)"
     )]
     UnsupportedPcmFormat { bits: u16, fmt: SampleFormat },
     #[error("io error: {0}")]
@@ -257,7 +257,9 @@ impl WavDecoder {
         let reader = WavReader::new(reader_box)?;
         let spec = reader.spec();
 
-        if spec.sample_format != SampleFormat::Int || spec.bits_per_sample != 16 {
+        if spec.sample_format != SampleFormat::Int
+            || (spec.bits_per_sample != 16 && spec.bits_per_sample != 8)
+        {
             return Err(WavError::UnsupportedPcmFormat {
                 bits: spec.bits_per_sample,
                 fmt: spec.sample_format,
@@ -418,12 +420,18 @@ impl WavDecoder {
                     return Ok(0);
                 }
 
+                // hound's `samples::<i16>()` reads 8-bit unsigned PCM as the
+                // signed i8 value (-128..=127) sign-extended into i16, so it
+                // would play ~256× too quiet next to native 16-bit content.
+                // Shift up by 8 to fill the i16 range — same conversion gemrb
+                // applies in WAVReader.cpp for `wBitsPerSample == 8`.
+                let shift = if self.info.bits_per_sample == 8 { 8 } else { 0 };
                 let mut iter = reader.samples::<i16>();
                 let mut written = 0usize;
                 while written < want {
                     match iter.next() {
                         Some(Ok(s)) => {
-                            out[written] = s;
+                            out[written] = s << shift;
                             written += 1;
                         }
                         Some(Err(e)) => return Err(e.into()),
