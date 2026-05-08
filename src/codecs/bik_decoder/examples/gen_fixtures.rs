@@ -170,7 +170,11 @@ fn process(path: &Path) {
 
     let json_path = path.with_extension("json");
     std::fs::write(&json_path, json + "\n").expect("write");
-    eprintln!("wrote {} ({} frames)", json_path.display(), header.frame_count);
+    eprintln!(
+        "wrote {} ({} frames)",
+        json_path.display(),
+        header.frame_count
+    );
     let _ = label;
 }
 
@@ -182,7 +186,11 @@ fn main() {
     paths.extend(get_all_in_folder_by_extension(&folder, "bik"));
     paths.extend(get_all_in_folder_by_extension(&folder, "mve"));
     paths.sort();
-    assert!(!paths.is_empty(), "no .bik / .mve files in {}", folder.display());
+    assert!(
+        !paths.is_empty(),
+        "no .bik / .mve files in {}",
+        folder.display()
+    );
 
     for p in &paths {
         process(p);

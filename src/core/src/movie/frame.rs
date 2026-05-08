@@ -1,4 +1,3 @@
-
 /// One decoded video frame, RGBA8 pixels packed `width * height * 4`
 /// bytes row-major.
 #[derive(Debug, Clone)]

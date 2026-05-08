@@ -187,71 +187,70 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
     );
 
     for pick in &all_wavs {
+        let (orig_samples, orig_spec) = read_wav_samples(pick);
+        if orig_spec.sample_rate != 22050 {
+            eprintln!(
+                "skip {}: rate {} ≠ 22050",
+                pick.display(),
+                orig_spec.sample_rate
+            );
+            return;
+        }
+        if orig_spec.bits_per_sample != 16 {
+            // The WAVC encoder pipeline assumes 16-bit input. Other bit
+            // depths (e.g. CHANT.WAV is 8-bit) get their own coverage in
+            // `infinitier_wav_decoder`'s tests.
+            eprintln!(
+                "skip {}: bits_per_sample {} ≠ 16",
+                pick.display(),
+                orig_spec.bits_per_sample
+            );
+            return;
+        }
 
-    let (orig_samples, orig_spec) = read_wav_samples(pick);
-    if orig_spec.sample_rate != 22050 {
-        eprintln!(
-            "skip {}: rate {} ≠ 22050",
-            pick.display(),
-            orig_spec.sample_rate
-        );
-        return;
+        // Lossless path.
+        {
+            let mut wavc_bytes = Vec::new();
+            encode_wav_wavc(Cursor::new(fs::read(pick).unwrap()), &mut wavc_bytes).unwrap();
+            assert_wavc_envelope(&wavc_bytes, orig_samples.len() as u32, orig_spec.channels);
+
+            let mut dec =
+                WavDecoder::open(&DataSource::new(wavc_bytes), pick.display().to_string()).unwrap();
+            assert_eq!(dec.format(), WavFormat::Wavc);
+            let decoded = dec.decode_all().unwrap();
+            assert_eq!(decoded, orig_samples, "v1 WAVC round-trip must be lossless");
+        }
+
+        // Subband path — bounded error.
+        {
+            let mut wavc_bytes = Vec::new();
+            encode_wav_subband_wavc(Cursor::new(fs::read(pick).unwrap()), &mut wavc_bytes).unwrap();
+            assert_wavc_envelope(&wavc_bytes, orig_samples.len() as u32, orig_spec.channels);
+
+            let mut dec =
+                WavDecoder::open(&DataSource::new(wavc_bytes), pick.display().to_string()).unwrap();
+            assert_eq!(dec.format(), WavFormat::Wavc);
+            let decoded = dec.decode_all().unwrap();
+            assert_eq!(decoded.len(), orig_samples.len());
+
+            let (max_abs, sum_sq) =
+                orig_samples
+                    .iter()
+                    .zip(decoded.iter())
+                    .fold((0i32, 0u128), |(m, s), (a, b)| {
+                        let d = (*a as i32 - *b as i32).abs();
+                        let m = m.max(d);
+                        let s = s + (d as u128) * (d as u128);
+                        (m, s)
+                    });
+            let rms = (sum_sq as f64 / orig_samples.len() as f64).sqrt();
+            eprintln!(
+                "  {}: subband WAVC round-trip max_abs={max_abs} rms={rms:.2}",
+                pick.display()
+            );
+            assert!(max_abs < i16::MAX as i32);
+        }
     }
-    if orig_spec.bits_per_sample != 16 {
-        // The WAVC encoder pipeline assumes 16-bit input. Other bit
-        // depths (e.g. CHANT.WAV is 8-bit) get their own coverage in
-        // `infinitier_wav_decoder`'s tests.
-        eprintln!(
-            "skip {}: bits_per_sample {} ≠ 16",
-            pick.display(),
-            orig_spec.bits_per_sample
-        );
-        return;
-    }
-
-    // Lossless path.
-    {
-        let mut wavc_bytes = Vec::new();
-        encode_wav_wavc(Cursor::new(fs::read(pick).unwrap()), &mut wavc_bytes).unwrap();
-        assert_wavc_envelope(&wavc_bytes, orig_samples.len() as u32, orig_spec.channels);
-
-        let mut dec =
-            WavDecoder::open(&DataSource::new(wavc_bytes), pick.display().to_string()).unwrap();
-        assert_eq!(dec.format(), WavFormat::Wavc);
-        let decoded = dec.decode_all().unwrap();
-        assert_eq!(decoded, orig_samples, "v1 WAVC round-trip must be lossless");
-    }
-
-    // Subband path — bounded error.
-    {
-        let mut wavc_bytes = Vec::new();
-        encode_wav_subband_wavc(Cursor::new(fs::read(pick).unwrap()), &mut wavc_bytes).unwrap();
-        assert_wavc_envelope(&wavc_bytes, orig_samples.len() as u32, orig_spec.channels);
-
-        let mut dec =
-            WavDecoder::open(&DataSource::new(wavc_bytes), pick.display().to_string()).unwrap();
-        assert_eq!(dec.format(), WavFormat::Wavc);
-        let decoded = dec.decode_all().unwrap();
-        assert_eq!(decoded.len(), orig_samples.len());
-
-        let (max_abs, sum_sq) =
-            orig_samples
-                .iter()
-                .zip(decoded.iter())
-                .fold((0i32, 0u128), |(m, s), (a, b)| {
-                    let d = (*a as i32 - *b as i32).abs();
-                    let m = m.max(d);
-                    let s = s + (d as u128) * (d as u128);
-                    (m, s)
-                });
-        let rms = (sum_sq as f64 / orig_samples.len() as f64).sqrt();
-        eprintln!(
-            "  {}: subband WAVC round-trip max_abs={max_abs} rms={rms:.2}",
-            pick.display()
-        );
-        assert!(max_abs < i16::MAX as i32);
-    }
-}
 }
 
 #[test]

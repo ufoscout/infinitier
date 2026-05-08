@@ -15,9 +15,7 @@
 
 use std::io::{self, Read};
 
-use infinitier_bik_decoder::{
-    BikError, BikOutputFormat, BikPixels, BikStreamingDecoder,
-};
+use infinitier_bik_decoder::{BikError, BikOutputFormat, BikPixels, BikStreamingDecoder};
 use infinitier_datasource::{DataSource, DataTrait, Reader};
 use infinitier_mve_decoder::{Error as MveError, MveDecoder};
 
@@ -265,11 +263,11 @@ pub enum MovieOpenError {
     UnknownFormat([u8; 4]),
 }
 
-impl Into<io::Error> for MovieOpenError {
-    fn into(self) -> io::Error {
-        match self {
+impl From<MovieOpenError> for io::Error {
+    fn from(val: MovieOpenError) -> Self {
+        match val {
             MovieOpenError::Io(e) => e,
-            _ => io::Error::new(io::ErrorKind::Other, self),
+            _ => io::Error::other(val),
         }
     }
 }
@@ -290,14 +288,12 @@ pub enum MovieDecodeError {
     UnexpectedYuvFromBik,
 }
 
-impl Into<io::Error> for MovieDecodeError {
-    fn into(self) -> io::Error {
-        match self {
+impl From<MovieDecodeError> for io::Error {
+    fn from(val: MovieDecodeError) -> Self {
+        match val {
             MovieDecodeError::Mve(e) => e.into(),
             MovieDecodeError::Bik(e) => e.into(),
-            MovieDecodeError::UnexpectedYuvFromBik => {
-                io::Error::new(io::ErrorKind::Other, self)
-            }
+            MovieDecodeError::UnexpectedYuvFromBik => io::Error::other(val),
         }
     }
 }

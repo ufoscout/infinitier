@@ -57,7 +57,11 @@ fn extract_audio_matches_fixture_pcm() {
         let dest = dir.path().join(format!("{label}.wav"));
         extract_audio_to_wav(&entry.bik_path, &dest)
             .unwrap_or_else(|e| panic!("{label} extract: {e}"));
-        assert!(dest.is_file(), "{label}: WAV not created at {}", dest.display());
+        assert!(
+            dest.is_file(),
+            "{label}: WAV not created at {}",
+            dest.display()
+        );
 
         let (spec, samples) = read_wav_samples(&dest);
 

@@ -26,8 +26,7 @@ fn movie_source_opens_bundled_mve() {
     assert!(info.width > 0, "width must be non-zero");
     assert!(info.height > 0, "height must be non-zero");
     assert!(info.frame_duration_us > 0, "frame_dur must be non-zero");
-    let total = info
-        .total_duration_us;
+    let total = info.total_duration_us;
     assert_eq!(
         total % info.frame_duration_us as u64,
         0,
@@ -67,9 +66,12 @@ fn movie_source_opens_bundled_bik() {
     assert!(info.frame_duration_us > 0, "frame_dur must be non-zero");
     // BIK headers carry an explicit frame count → total duration is
     // computable up front.
-    let total = info
-        .total_duration_us;
-    assert_eq!(total, 266 * info.frame_duration_us as u64, "266 frames @ frame_dur");
+    let total = info.total_duration_us;
+    assert_eq!(
+        total,
+        266 * info.frame_duration_us as u64,
+        "266 frames @ frame_dur"
+    );
 
     // Pull a handful of frames so the audio/video paths both run.
     let mut decoded = 0usize;

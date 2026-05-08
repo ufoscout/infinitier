@@ -1,7 +1,8 @@
 use infinitier_common::{Game, ResourceType};
 use infinitier_core::{
     game::{DataOrigin, GameDataBuilder, GameResource},
-    game_detect::detect_game, imported_resource::ImportedResource,
+    game_detect::detect_game,
+    imported_resource::ImportedResource,
 };
 use infinitier_fs::CaseInsensitiveFS;
 use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
@@ -65,28 +66,26 @@ fn test_import_all_resources() {
                 Ok(res) => match res {
                     ImportedResource::Sound(mut sound_decoder) => {
                         sound_decoder.decode_all().map(|_| ())
-                    },
-                    ImportedResource::Mve(movie_source) => {
-                        match movie_source.open() {
-                            Ok(mut movie_decoder) => loop {
-                                match movie_decoder.next_frame() {
-                                    Ok(Some(_)) => continue,
-                                    Ok(None) => break Ok(()),
-                                    Err(e) => break Err(e.into()),
-                                }
-                            },
-                            Err(e) => Err(e.into()),
-                        }
+                    }
+                    ImportedResource::Mve(movie_source) => match movie_source.open() {
+                        Ok(mut movie_decoder) => loop {
+                            match movie_decoder.next_frame() {
+                                Ok(Some(_)) => continue,
+                                Ok(None) => break Ok(()),
+                                Err(e) => break Err(e.into()),
+                            }
+                        },
+                        Err(e) => Err(e.into()),
                     },
                     _ => Ok(()),
                 },
-                Err(e) => Err(e)
+                Err(e) => Err(e),
             };
 
-            if let Err(e) = result {
-                if !expected_failures(&resource) {
-                    dir_failures.push(format!("  {} — {e}", resource.filename));
-                }
+            if let Err(e) = result
+                && !expected_failures(resource)
+            {
+                dir_failures.push(format!("  {} — {e}", resource.filename));
             }
         }
 
@@ -129,6 +128,10 @@ fn expected_failures(resource: &GameResource) -> bool {
         (Game::Bg, "cader09", ResourceType::Wav),
         (Game::Bg, "thunder3", ResourceType::Wav),
     ];
-    
-    failures.contains(&(resource.game_type, &resource.name.to_lowercase(), resource.r#type))
+
+    failures.contains(&(
+        resource.game_type,
+        &resource.name.to_lowercase(),
+        resource.r#type,
+    ))
 }

@@ -14,11 +14,11 @@ pub enum Error {
     AudioDecode(String),
 }
 
-impl Into<std::io::Error> for Error {
-    fn into(self) -> std::io::Error {
-        match self {
+impl From<Error> for std::io::Error {
+    fn from(val: Error) -> Self {
+        match val {
             Error::Io(e) => e,
-            _ => std::io::Error::new(std::io::ErrorKind::Other, self),
+            _ => std::io::Error::other(val),
         }
     }
 }

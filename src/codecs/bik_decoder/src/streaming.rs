@@ -133,8 +133,8 @@ impl<R: Read + Seek> BikStreamingDecoder<R> {
             Some(track) => Some(open_audio(track)?),
             None => None,
         };
-        let frame_duration_us = (header.fps_den as u64 * 1_000_000
-            / header.fps_num.max(1) as u64) as u32;
+        let frame_duration_us =
+            (header.fps_den as u64 * 1_000_000 / header.fps_num.max(1) as u64) as u32;
         let packet_buf = Vec::with_capacity(header.max_frame_size as usize);
         Ok(Self {
             reader,
@@ -238,9 +238,11 @@ impl<R: Read + Seek> BikStreamingDecoder<R> {
         let frame = self.video.decode_frame(video_bytes)?;
         let pixels = match self.output_format {
             BikOutputFormat::Yuv => BikPixels::Yuv(frame.clone()),
-            BikOutputFormat::Rgba => {
-                BikPixels::Rgba(yuv420p_to_rgba8(frame, self.header.width, self.header.height))
-            }
+            BikOutputFormat::Rgba => BikPixels::Rgba(yuv420p_to_rgba8(
+                frame,
+                self.header.width,
+                self.header.height,
+            )),
         };
 
         self.frame_idx += 1;
@@ -275,10 +277,8 @@ fn yuv420p_to_rgba8(frame: &VideoFrame, width: u32, height: u32) -> Vec<u8> {
     for row in 0..h {
         let y_row = &frame.y.data[row * frame.y.stride..row * frame.y.stride + w];
         let chroma_row = row / 2;
-        let u_row = &frame.u.data
-            [chroma_row * frame.u.stride..chroma_row * frame.u.stride + w / 2];
-        let v_row = &frame.v.data
-            [chroma_row * frame.v.stride..chroma_row * frame.v.stride + w / 2];
+        let u_row = &frame.u.data[chroma_row * frame.u.stride..chroma_row * frame.u.stride + w / 2];
+        let v_row = &frame.v.data[chroma_row * frame.v.stride..chroma_row * frame.v.stride + w / 2];
         for col in 0..w {
             let y = y_row[col] as f32;
             let u = u_row[col / 2] as f32 - 128.0;

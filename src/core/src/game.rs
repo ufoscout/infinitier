@@ -452,10 +452,15 @@ impl GameDataBuilder {
         // sounds/     *.wav
         let mut result = vec![];
 
-        for resource in self.fs.search_files_by_extension(&CaseInsensitivePath::new("data"), "mve", false) {
-            let TODO: &str = "REMOVE UNWRAP AND COMPLETE THIS";
+        for resource in
+            self.fs
+                .search_files_by_extension(&CaseInsensitivePath::new("data"), "mve", false)
+        {
+            let _TODO: &str = "REMOVE UNWRAP AND COMPLETE THIS";
             result.push(GameResource {
-                data_origin: DataOrigin::Override { path: resource.clone() },
+                data_origin: DataOrigin::Override {
+                    path: resource.clone(),
+                },
                 file_size: Some(resource.metadata()?.len()),
                 datasource: Some(DataSource::new(resource.as_path())),
                 game_type: self.game_type,

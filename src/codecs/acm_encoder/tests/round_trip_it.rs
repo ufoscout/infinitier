@@ -69,7 +69,10 @@ fn check_round_trip(wav_path: &Path, out_root: &Path) {
         let probe = hound::WavReader::new(Cursor::new(&orig_bytes)).expect("parse wav");
         let bits = probe.spec().bits_per_sample;
         if bits != 16 {
-            eprintln!("    skip {}: bits_per_sample {bits} ≠ 16", wav_path.display());
+            eprintln!(
+                "    skip {}: bits_per_sample {bits} ≠ 16",
+                wav_path.display()
+            );
             return;
         }
     }

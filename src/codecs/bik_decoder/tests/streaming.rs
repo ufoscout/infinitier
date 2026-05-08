@@ -56,7 +56,10 @@ fn streaming_decoder_yuv_default_pulls_frames() {
         }
         assert_eq!(frames as u32, entry.fixture.video.frame_count);
         assert_eq!(audio_samples, total_audio_samples_expected);
-        eprintln!("✓  YUV  {:<24}  {} frames, {} audio samples", label, frames, audio_samples);
+        eprintln!(
+            "✓  YUV  {:<24}  {} frames, {} audio samples",
+            label, frames, audio_samples
+        );
     }
 }
 
@@ -71,9 +74,8 @@ fn streaming_decoder_rgba_emits_rgba8() {
         assert_eq!(dec.output_format(), BikOutputFormat::Rgba);
 
         // Just probe the first 4 frames to keep the test cheap.
-        let expected_bytes = entry.fixture.video.width as usize
-            * entry.fixture.video.height as usize
-            * 4;
+        let expected_bytes =
+            entry.fixture.video.width as usize * entry.fixture.video.height as usize * 4;
         for i in 0..4u32 {
             match dec.next_frame().expect("next_frame") {
                 Some(frame) => match &frame.video.pixels {

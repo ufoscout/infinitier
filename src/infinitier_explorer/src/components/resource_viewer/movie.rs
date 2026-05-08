@@ -281,11 +281,8 @@ impl MovieViewer {
             match self.texture.as_mut() {
                 Some(handle) => handle.set(img, egui::TextureOptions::LINEAR),
                 None => {
-                    self.texture = Some(ctx.load_texture(
-                        "movie-frame",
-                        img,
-                        egui::TextureOptions::LINEAR,
-                    ));
+                    self.texture =
+                        Some(ctx.load_texture("movie-frame", img, egui::TextureOptions::LINEAR));
                 }
             }
         }
@@ -614,10 +611,10 @@ impl ResourceViewerTrait for MovieViewer {
                     egui::ProgressBar::new(progress)
                         .desired_width(420.0)
                         .text(format!(
-                                "{} / {}",
-                                format_duration(pos),
-                                format_duration(self.total_duration)
-                            )),
+                            "{} / {}",
+                            format_duration(pos),
+                            format_duration(self.total_duration)
+                        )),
                 );
                 ui.add_space(4.0);
             });

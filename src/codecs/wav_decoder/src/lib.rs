@@ -267,8 +267,7 @@ impl RiffPcmReader {
             self.reader.data.read_exact(&mut scratch[..bytes])?;
             if self.bits_per_sample == 16 {
                 for i in 0..n {
-                    out[written + i] =
-                        i16::from_le_bytes([scratch[i * 2], scratch[i * 2 + 1]]);
+                    out[written + i] = i16::from_le_bytes([scratch[i * 2], scratch[i * 2 + 1]]);
                 }
             } else {
                 // 8-bit unsigned PCM. Center on 0 and shift to fill the
@@ -294,9 +293,7 @@ impl RiffPcmReader {
 /// in-the-wild assets ship them with bogus values that would break
 /// strict parsers like hound or symphonia. See
 /// `assets/resources/WAV/broken/AFT_M01.md` for a worked example.
-fn open_riff_pcm(
-    mut reader: Reader<Box<dyn DataTrait>>,
-) -> Result<(WavInfo, RiffPcmReader)> {
+fn open_riff_pcm(mut reader: Reader<Box<dyn DataTrait>>) -> Result<(WavInfo, RiffPcmReader)> {
     let head: [u8; 12] = reader.read_exact()?;
     if &head[0..4] != RIFF_MAGIC {
         return Err(WavError::MalformedWav("missing RIFF marker"));
@@ -337,8 +334,8 @@ fn open_riff_pcm(
                 }
             }
             b if b == DATA_MAGIC => {
-                let (format_tag, channels, sample_rate, bits) = fmt
-                    .ok_or(WavError::MalformedWav("data chunk before fmt chunk"))?;
+                let (format_tag, channels, sample_rate, bits) =
+                    fmt.ok_or(WavError::MalformedWav("data chunk before fmt chunk"))?;
                 if format_tag != FORMAT_PCM || (bits != 8 && bits != 16) {
                     return Err(WavError::UnsupportedPcmFormat { bits, format_tag });
                 }

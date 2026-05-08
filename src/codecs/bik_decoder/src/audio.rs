@@ -188,10 +188,7 @@ impl AudioDecoder {
             root,
             previous: [vec![0f32; overlap_len], vec![0f32; overlap_len]],
             first: true,
-            coeffs_scratch: [
-                vec![0f32; frame_len + 2],
-                vec![0f32; frame_len + 2],
-            ],
+            coeffs_scratch: [vec![0f32; frame_len + 2], vec![0f32; frame_len + 2]],
             dct,
             inverse_rdft,
         })
@@ -390,10 +387,7 @@ impl AudioDecoder {
 /// Memory stays bounded — samples are streamed straight into the WAV
 /// writer one packet at a time, so peak overhead is one `frame_len`'s
 /// worth of decoded i16 plus the `hound` writer's own buffering.
-pub fn extract_audio_to_wav(
-    src: impl AsRef<Path>,
-    dest: impl AsRef<Path>,
-) -> BikResult<()> {
+pub fn extract_audio_to_wav(src: impl AsRef<Path>, dest: impl AsRef<Path>) -> BikResult<()> {
     let mut f = File::open(src.as_ref())?;
     let header = parse_header(&mut f)?;
 
@@ -527,5 +521,4 @@ mod tests {
         assert_eq!(float_to_i16(-1.5), -32768);
         assert_eq!(float_to_i16(0.0), 0);
     }
-
 }
