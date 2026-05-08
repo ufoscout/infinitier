@@ -11,7 +11,6 @@ readme = "readme.md"
 keywords = ["wav", "wavc", "audio", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
-hound = { workspace = true }
 infinitier_acm_decoder = { workspace = true }
 infinitier_datasource = { workspace = true }
 log = { workspace = true }

@@ -1,9 +1,8 @@
 #![doc = include_str!("../readme.md")]
 
-use std::io::{self, Seek, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
-use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use log::debug;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::{Decoder, DecoderOptions};
@@ -28,14 +27,14 @@ pub enum WavError {
     )]
     UnknownFormat([u8; 4]),
     #[error(
-        "unsupported PCM format: bits_per_sample={bits}, sample_format={fmt:?} (only 8- and \
-         16-bit integer PCM is supported)"
+        "unsupported PCM format: bits_per_sample={bits}, format_tag=0x{format_tag:04x} (only 8- \
+         and 16-bit PCM, format_tag=0x0001, is supported)"
     )]
-    UnsupportedPcmFormat { bits: u16, fmt: SampleFormat },
+    UnsupportedPcmFormat { bits: u16, format_tag: u16 },
+    #[error("malformed RIFF/WAVE: {0}")]
+    MalformedWav(&'static str),
     #[error("io error: {0}")]
     Io(#[from] io::Error),
-    #[error("hound error: {0}")]
-    Wav(#[from] hound::Error),
     #[error("acm decoder error: {0}")]
     Acm(#[from] infinitier_acm_decoder::AcmError),
     #[error("symphonia error: {0}")]
@@ -104,14 +103,22 @@ pub struct WavDecoder {
 }
 
 enum WavInner {
-    /// hound-driven RIFF/WAVE reader that owns its underlying file handle
-    /// (or in-memory cursor) so the decoder is `'static`.
-    Wav {
-        reader: WavReader<Reader<Box<dyn DataTrait>>>,
-        /// Total samples already produced; used to clamp output to the
-        /// declared `total_values` if hound reports more.
-        produced: u32,
-    },
+    /// In-house RIFF/WAVE PCM streamer.
+    ///
+    /// We hand-parse RIFF rather than using `hound` or `symphonia`'s WAV
+    /// reader because some Infinity Engine assets ship with an internally
+    /// inconsistent fmt chunk — e.g. `block_align` set to a stereo-sized
+    /// value while `channels=1` and `bits_per_sample=16`. Hound rejects
+    /// those outright (`Error::FormatError("inconsistent fmt chunk")`,
+    /// `hound-3.5.1/src/read.rs:421`); symphonia accepts the file at
+    /// probe time but trusts the literal `block_align` to size packets,
+    /// silently producing roughly half the samples. NearInfinity and
+    /// gemrb just ignore `block_align` for PCM streams. We do the same:
+    /// `block_align` and `byte_rate` are redundant fields, fully
+    /// derivable from `channels × bits_per_sample`, so we recompute them
+    /// instead of believing the file. See
+    /// `assets/resources/WAV/broken/AFT_M01.md` for a real-world example.
+    Wav(RiffPcmReader),
     Wavc(AcmDecoder),
     /// Streaming Ogg/Vorbis decoder via Symphonia. The format reader's
     /// initial probe seeks to the file's tail and reads the last Ogg
@@ -217,6 +224,177 @@ impl OggState {
     }
 }
 
+const RIFF_MAGIC: &[u8; 4] = b"RIFF";
+const WAVE_MAGIC: &[u8; 4] = b"WAVE";
+const FMT_MAGIC: &[u8; 4] = b"fmt ";
+const DATA_MAGIC: &[u8; 4] = b"data";
+/// `WAVE_FORMAT_PCM` — uncompressed integer PCM. The only fmt tag we accept.
+const FORMAT_PCM: u16 = 0x0001;
+
+/// Streaming reader for the data chunk of a RIFF/WAVE PCM file.
+///
+/// Created by [`open_riff_pcm`], which has already walked the RIFF
+/// header and positioned the underlying reader at the first sample
+/// byte of the `data` chunk.
+struct RiffPcmReader {
+    reader: Reader<Box<dyn DataTrait>>,
+    /// 8 or 16; validated up front by [`open_riff_pcm`].
+    bits_per_sample: u16,
+    /// Bytes left to consume in the data chunk. Decremented as samples
+    /// are read; reads return `Ok(0)` once it hits zero.
+    data_remaining: u64,
+}
+
+impl RiffPcmReader {
+    fn read_samples(&mut self, out: &mut [i16]) -> Result<usize> {
+        if out.is_empty() || self.data_remaining == 0 {
+            return Ok(0);
+        }
+        let bytes_per = (self.bits_per_sample / 8) as u64;
+        let max_values = ((self.data_remaining / bytes_per) as usize).min(out.len());
+        if max_values == 0 {
+            return Ok(0);
+        }
+
+        // Stack-allocated I/O scratch — sized so a single read covers
+        // up to 2048 i16 samples (4 KB) regardless of bit depth.
+        let mut scratch = [0u8; 4096];
+        let chunk_capacity = scratch.len() / bytes_per as usize;
+        let mut written = 0usize;
+        while written < max_values {
+            let n = (max_values - written).min(chunk_capacity);
+            let bytes = n * bytes_per as usize;
+            self.reader.data.read_exact(&mut scratch[..bytes])?;
+            if self.bits_per_sample == 16 {
+                for i in 0..n {
+                    out[written + i] =
+                        i16::from_le_bytes([scratch[i * 2], scratch[i * 2 + 1]]);
+                }
+            } else {
+                // 8-bit unsigned PCM. Center on 0 and shift to fill the
+                // i16 range — same conversion gemrb's WAVReader applies
+                // for `wBitsPerSample == 8`.
+                for i in 0..n {
+                    out[written + i] = ((scratch[i] as i16) - 128) << 8;
+                }
+            }
+            written += n;
+            self.data_remaining -= bytes as u64;
+        }
+        Ok(written)
+    }
+}
+
+/// Walk a RIFF/WAVE header and return stream metadata plus a streaming
+/// reader positioned at the first byte of the `data` chunk.
+///
+/// We deliberately *ignore* the literal `block_align` and
+/// `nAvgBytesPerSec` fields in the fmt chunk — they're redundant
+/// (derivable from `channels × bits_per_sample × sample_rate`) and some
+/// in-the-wild assets ship them with bogus values that would break
+/// strict parsers like hound or symphonia. See
+/// `assets/resources/WAV/broken/AFT_M01.md` for a worked example.
+fn open_riff_pcm(
+    mut reader: Reader<Box<dyn DataTrait>>,
+) -> Result<(WavInfo, RiffPcmReader)> {
+    let head: [u8; 12] = reader.read_exact()?;
+    if &head[0..4] != RIFF_MAGIC {
+        return Err(WavError::MalformedWav("missing RIFF marker"));
+    }
+    if &head[8..12] != WAVE_MAGIC {
+        return Err(WavError::MalformedWav("RIFF form is not WAVE"));
+    }
+
+    let mut fmt: Option<(u16, u16, u32, u16)> = None; // tag, channels, rate, bits
+
+    loop {
+        let hdr: [u8; 8] = match reader.read_exact() {
+            Ok(b) => b,
+            Err(_) => return Err(WavError::MalformedWav("missing data chunk")),
+        };
+        let chunk_id: [u8; 4] = hdr[0..4].try_into().unwrap();
+        let chunk_size = u32::from_le_bytes(hdr[4..8].try_into().unwrap());
+
+        match &chunk_id {
+            b if b == FMT_MAGIC => {
+                if chunk_size < 16 {
+                    return Err(WavError::MalformedWav("fmt chunk too small"));
+                }
+                let body: [u8; 16] = reader.read_exact()?;
+                let format_tag = u16::from_le_bytes(body[0..2].try_into().unwrap());
+                let channels = u16::from_le_bytes(body[2..4].try_into().unwrap());
+                let sample_rate = u32::from_le_bytes(body[4..8].try_into().unwrap());
+                // body[8..12]  = byte_rate    — ignored, see fn doc.
+                // body[12..14] = block_align  — ignored, see fn doc.
+                let bits = u16::from_le_bytes(body[14..16].try_into().unwrap());
+                fmt = Some((format_tag, channels, sample_rate, bits));
+
+                // Skip any extension fields (cb_size + extras) plus the
+                // RIFF 1-byte pad if the chunk size is odd.
+                let extra = chunk_size as i64 - 16 + (chunk_size & 1) as i64;
+                if extra > 0 {
+                    reader.data.seek(SeekFrom::Current(extra))?;
+                }
+            }
+            b if b == DATA_MAGIC => {
+                let (format_tag, channels, sample_rate, bits) = fmt
+                    .ok_or(WavError::MalformedWav("data chunk before fmt chunk"))?;
+                if format_tag != FORMAT_PCM || (bits != 8 && bits != 16) {
+                    return Err(WavError::UnsupportedPcmFormat { bits, format_tag });
+                }
+                if channels == 0 {
+                    return Err(WavError::MalformedWav("zero channels"));
+                }
+                let bytes_per = (bits / 8) as u32;
+                let total_values = chunk_size / bytes_per;
+                let info = WavInfo {
+                    channels,
+                    sample_rate,
+                    bits_per_sample: bits,
+                    total_values,
+                };
+                let pcm = RiffPcmReader {
+                    reader,
+                    bits_per_sample: bits,
+                    data_remaining: chunk_size as u64,
+                };
+                return Ok((info, pcm));
+            }
+            _ => {
+                let skip = chunk_size as i64 + (chunk_size & 1) as i64;
+                reader.data.seek(SeekFrom::Current(skip))?;
+            }
+        }
+    }
+}
+
+/// Write a 44-byte canonical RIFF/WAVE PCM header for the given
+/// stream. Caller follows up by writing `total_values × 2` bytes of
+/// little-endian i16 samples (`decode_to_file` always emits 16-bit).
+fn write_riff_pcm_header<W: Write>(w: &mut W, info: &WavInfo) -> io::Result<()> {
+    let bits: u16 = 16;
+    let bytes_per_sample = u32::from(bits / 8);
+    let block_align = info.channels * (bits / 8);
+    let byte_rate = info.sample_rate * u32::from(block_align);
+    let data_size = info.total_values * bytes_per_sample;
+    let riff_size = 36 + data_size;
+
+    w.write_all(RIFF_MAGIC)?;
+    w.write_all(&riff_size.to_le_bytes())?;
+    w.write_all(WAVE_MAGIC)?;
+    w.write_all(FMT_MAGIC)?;
+    w.write_all(&16u32.to_le_bytes())?;
+    w.write_all(&FORMAT_PCM.to_le_bytes())?;
+    w.write_all(&info.channels.to_le_bytes())?;
+    w.write_all(&info.sample_rate.to_le_bytes())?;
+    w.write_all(&byte_rate.to_le_bytes())?;
+    w.write_all(&block_align.to_le_bytes())?;
+    w.write_all(&bits.to_le_bytes())?;
+    w.write_all(DATA_MAGIC)?;
+    w.write_all(&data_size.to_le_bytes())?;
+    Ok(())
+}
+
 impl std::fmt::Debug for WavDecoder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WavDecoder")
@@ -231,10 +409,11 @@ impl WavDecoder {
     /// Open a WAV / WAVC / Ogg-Vorbis stream from a [`DataSource`].
     /// The first four bytes determine the flavour:
     ///
-    /// - `RIFF` → standard PCM, decoded via [`hound`];
+    /// - `RIFF` → standard PCM, decoded by our in-house parser (see
+    ///   [`RiffPcmReader`] for why we don't use `hound` or `symphonia`);
     /// - `WAVC` → Interplay's ACM-wrapping header, delegated to
     ///   [`AcmDecoder`] (which skips the 28-byte WAVC header itself);
-    /// - `OggS` → Ogg-encapsulated Vorbis, decoded via [`lewton`].
+    /// - `OggS` → Ogg-encapsulated Vorbis, decoded via Symphonia.
     ///   Enhanced Edition titles ship Vorbis audio under the `.WAV`
     ///   extension — we transparently accept that.
     ///
@@ -253,29 +432,7 @@ impl WavDecoder {
     }
 
     fn open_riff(datasource: &DataSource, name: String) -> Result<Self> {
-        let reader_box = datasource.reader()?;
-        let reader = WavReader::new(reader_box)?;
-        let spec = reader.spec();
-
-        if spec.sample_format != SampleFormat::Int
-            || (spec.bits_per_sample != 16 && spec.bits_per_sample != 8)
-        {
-            return Err(WavError::UnsupportedPcmFormat {
-                bits: spec.bits_per_sample,
-                fmt: spec.sample_format,
-            });
-        }
-
-        // hound exposes `len()` as total interleaved samples, which is exactly
-        // what we want for `total_values`.
-        let total_values = reader.len();
-
-        let info = WavInfo {
-            channels: spec.channels,
-            sample_rate: spec.sample_rate,
-            bits_per_sample: spec.bits_per_sample,
-            total_values,
-        };
+        let (info, pcm) = open_riff_pcm(datasource.reader()?)?;
 
         debug!(
             "[{}] Opened WAV: channels={}, rate={}, bits={}, total_values={}",
@@ -286,10 +443,7 @@ impl WavDecoder {
             info,
             name,
             datasource: datasource.clone(),
-            inner: WavInner::Wav {
-                reader,
-                produced: 0,
-            },
+            inner: WavInner::Wav(pcm),
         })
     }
 
@@ -413,34 +567,7 @@ impl WavDecoder {
             return Ok(0);
         }
         match &mut self.inner {
-            WavInner::Wav { reader, produced } => {
-                let remaining = self.info.total_values.saturating_sub(*produced) as usize;
-                let want = out.len().min(remaining);
-                if want == 0 {
-                    return Ok(0);
-                }
-
-                // hound's `samples::<i16>()` reads 8-bit unsigned PCM as the
-                // signed i8 value (-128..=127) sign-extended into i16, so it
-                // would play ~256× too quiet next to native 16-bit content.
-                // Shift up by 8 to fill the i16 range — same conversion gemrb
-                // applies in WAVReader.cpp for `wBitsPerSample == 8`.
-                let shift = if self.info.bits_per_sample == 8 { 8 } else { 0 };
-                let mut iter = reader.samples::<i16>();
-                let mut written = 0usize;
-                while written < want {
-                    match iter.next() {
-                        Some(Ok(s)) => {
-                            out[written] = s << shift;
-                            written += 1;
-                        }
-                        Some(Err(e)) => return Err(e.into()),
-                        None => break,
-                    }
-                }
-                *produced += written as u32;
-                Ok(written)
-            }
+            WavInner::Wav(pcm) => pcm.read_samples(out),
             WavInner::Wavc(dec) => Ok(dec.read_samples(out)?),
             WavInner::Ogg(state) => Ok(state.read_samples(out)?),
         }
@@ -464,24 +591,24 @@ impl WavDecoder {
 
     /// Decode the stream into a 16-bit PCM `RIFF`/`WAVE` file.
     pub fn decode_to_file<P: AsRef<Path>>(&mut self, path: P) -> Result<()> {
-        let spec = WavSpec {
-            channels: self.info.channels,
-            sample_rate: self.info.sample_rate,
-            bits_per_sample: 16,
-            sample_format: SampleFormat::Int,
-        };
-        let mut writer = WavWriter::create(path, spec)?;
-        let mut buf = [0i16; 4096];
+        let mut writer = io::BufWriter::new(std::fs::File::create(path)?);
+        write_riff_pcm_header(&mut writer, &self.info)?;
+
+        let mut samples = [0i16; 4096];
+        let mut bytes = [0u8; 4096 * 2];
         loop {
-            let n = self.read_samples(&mut buf)?;
+            let n = self.read_samples(&mut samples)?;
             if n == 0 {
                 break;
             }
-            for &s in &buf[..n] {
-                writer.write_sample(s)?;
+            for i in 0..n {
+                let le = samples[i].to_le_bytes();
+                bytes[i * 2] = le[0];
+                bytes[i * 2 + 1] = le[1];
             }
+            writer.write_all(&bytes[..n * 2])?;
         }
-        writer.finalize()?;
+        writer.flush()?;
         Ok(())
     }
 

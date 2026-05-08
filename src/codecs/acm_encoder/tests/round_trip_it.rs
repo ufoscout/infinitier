@@ -1,12 +1,11 @@
 use std::fs;
 use std::io::Cursor;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
 use infinitier_acm_encoder::{encode_wav, encode_wav_subband};
 use infinitier_datasource::DataSource;
 use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path};
-use rand::seq::IndexedRandom;
 
 /// Decode a RIFF/WAVE byte buffer into `(samples, spec)` for sample-level
 /// comparison.
@@ -61,6 +60,20 @@ fn check_round_trip(wav_path: &Path, out_root: &Path) {
     eprintln!("\n  fixture: {}", wav_path.display());
 
     let orig_bytes = fs::read(wav_path).expect("read original wav");
+
+    // Skip non-16-bit fixtures: `read_wav` and the acm encoders below
+    // both assume 16-bit signed PCM. Other bit depths (e.g.
+    // `CHANT.WAV` is 8-bit) get their own coverage in
+    // `infinitier_wav_decoder`'s tests.
+    {
+        let probe = hound::WavReader::new(Cursor::new(&orig_bytes)).expect("parse wav");
+        let bits = probe.spec().bits_per_sample;
+        if bits != 16 {
+            eprintln!("    skip {}: bits_per_sample {bits} ≠ 16", wav_path.display());
+            return;
+        }
+    }
+
     let (orig_samples, orig_spec) = read_wav(&orig_bytes);
 
     // ── 1. encode_wav (v1, lossless) ────────────────────────────────────
@@ -168,12 +181,7 @@ fn round_trip_random_wavs_via_encoders() {
         wav_root.display()
     );
 
-    let mut rng = rand::rng();
-    let picks: Vec<&PathBuf> = all_wavs.choose_multiple(&mut rng, 3).collect();
-
-    assert!(!picks.is_empty());
-
-    for wav_path in picks {
+    for wav_path in &all_wavs {
         let dir = tempfile::tempdir().unwrap();
         check_round_trip(wav_path, dir.path());
     }

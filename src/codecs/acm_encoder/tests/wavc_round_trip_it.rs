@@ -14,7 +14,6 @@ use infinitier_acm_encoder::{
 use infinitier_datasource::DataSource;
 use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path};
 use infinitier_wav_decoder::{WavDecoder, WavFormat};
-use rand::seq::IndexedRandom;
 
 /// Verify the 28-byte WAVC header is well-formed regardless of which
 /// encoder body produced the ACM payload.
@@ -187,8 +186,7 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
         wav_root.display()
     );
 
-    let mut rng = rand::rng();
-    let pick = all_wavs.choose(&mut rng).unwrap();
+    for pick in &all_wavs {
 
     let (orig_samples, orig_spec) = read_wav_samples(pick);
     if orig_spec.sample_rate != 22050 {
@@ -196,6 +194,17 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
             "skip {}: rate {} ≠ 22050",
             pick.display(),
             orig_spec.sample_rate
+        );
+        return;
+    }
+    if orig_spec.bits_per_sample != 16 {
+        // The WAVC encoder pipeline assumes 16-bit input. Other bit
+        // depths (e.g. CHANT.WAV is 8-bit) get their own coverage in
+        // `infinitier_wav_decoder`'s tests.
+        eprintln!(
+            "skip {}: bits_per_sample {} ≠ 16",
+            pick.display(),
+            orig_spec.bits_per_sample
         );
         return;
     }
@@ -242,6 +251,7 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
         );
         assert!(max_abs < i16::MAX as i32);
     }
+}
 }
 
 #[test]

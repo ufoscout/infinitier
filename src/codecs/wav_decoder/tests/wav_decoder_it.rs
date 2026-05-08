@@ -61,6 +61,34 @@ fn test_decode_wav() {
     assert_eq!(created_wav_hash, wav_hash);
 }
 
+/// `AFT_M01.WAV` ships with an inconsistent fmt chunk (`block_align=4`
+/// for mono 16-bit PCM, where it should be 2). Hound rejects it,
+/// symphonia silently drops half the samples; our hand-rolled PCM
+/// parser ignores the bogus block_align and decodes the full stream.
+/// Lives under `broken/` so non-recursive folder-scan tests in other
+/// crates (`acm_encoder`'s round-trips) don't randomly pick it up.
+/// See `assets/resources/WAV/broken/AFT_M01.md` for the full diagnosis.
+#[test]
+fn test_decode_wav_inconsistent_block_align() {
+    let wav_path = get_assets_path().join("resources/WAV/broken/AFT_M01.WAV");
+    let data = DataSource::new(wav_path);
+    let mut dec = WavDecoder::open(&data, "AFT_M01").unwrap();
+
+    assert_eq!(dec.format(), WavFormat::Wav);
+    assert_eq!(
+        dec.info(),
+        &WavInfo {
+            channels: 1,
+            sample_rate: 22050,
+            bits_per_sample: 16,
+            total_values: 58236,
+        }
+    );
+
+    let samples = dec.decode_all().unwrap();
+    assert_eq!(samples.len(), 58236);
+}
+
 /// 8-bit mono PCM (e.g. BG's CHANT.WAV) — gemrb supports it, and so do we.
 #[test]
 fn test_decode_wav_8bit() {
@@ -84,7 +112,7 @@ fn test_decode_wav_8bit() {
     // Output must be scaled to the full i16 range — i.e. at least one sample
     // must land outside the 8-bit native [-128, 127] window. Otherwise we'd
     // be playing ~256× too quiet, which is the bug we're guarding against.
-    assert!(samples.iter().any(|&s| s > 127 || s < -128));
+    assert!(samples.iter().any(|&s| !(-128..=127).contains(&s)));
 }
 
 #[test]
