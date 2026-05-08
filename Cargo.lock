@@ -1865,7 +1865,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_acm_decoder"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "hound",
  "infinitier_datasource",
@@ -1878,7 +1878,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_acm_encoder"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "hound",
  "infinitier_acm_decoder",
@@ -1893,7 +1893,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_bam_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "image",
  "infinitier_datasource",
@@ -1905,7 +1905,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_bcs_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_common",
  "infinitier_datasource",
@@ -1918,7 +1918,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_bif_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_common",
  "infinitier_datasource",
@@ -1929,21 +1929,23 @@ dependencies = [
 
 [[package]]
 name = "infinitier_bik_decoder"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bitflags 2.11.1",
+ "hound",
  "infinitier_datasource",
  "infinitier_test_utils",
  "log",
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "infinitier_bmp_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "image",
  "infinitier_datasource",
@@ -1953,14 +1955,14 @@ dependencies = [
 
 [[package]]
 name = "infinitier_common"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "infinitier_core"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_acm_decoder",
  "infinitier_bam_importer",
@@ -1984,7 +1986,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_datasource"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "encoding_rs",
  "flate2",
@@ -1993,7 +1995,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_explorer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bytesize",
  "clap",
@@ -2008,7 +2010,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_fs"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_test_utils",
  "serde",
@@ -2017,7 +2019,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_ids_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_datasource",
  "infinitier_test_utils",
@@ -2027,7 +2029,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_ini_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_datasource",
  "infinitier_test_utils",
@@ -2038,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_key_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_common",
  "infinitier_datasource",
@@ -2050,7 +2052,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_mve_decoder"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "encoding_rs",
  "hound",
@@ -2065,7 +2067,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_mve_encoder"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "hound",
  "image",
@@ -2079,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_pvr_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "image",
  "infinitier_datasource",
@@ -2090,7 +2092,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_test_utils"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "env_logger",
  "image",
@@ -2101,7 +2103,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_two_da_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "infinitier_datasource",
  "infinitier_fs",
@@ -2112,7 +2114,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_wav_decoder"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "hound",
  "infinitier_acm_decoder",
@@ -2127,7 +2129,7 @@ dependencies = [
 
 [[package]]
 name = "infinitier_wed_importer"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "bitflags 2.11.1",
  "infinitier_common",

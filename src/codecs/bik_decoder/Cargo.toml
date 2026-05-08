@@ -13,6 +13,7 @@ keywords = ["video", "bink", "decoder", "bik", "iwd2"]
 [dependencies]
 infinitier_datasource = { workspace = true }
 bitflags = { workspace = true }
+hound = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 
@@ -21,3 +22,4 @@ infinitier_test_utils = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }

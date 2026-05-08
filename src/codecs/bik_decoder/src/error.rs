@@ -29,6 +29,9 @@ pub enum BikError {
 
     #[error("malformed bitstream: {0}")]
     Malformed(&'static str),
+
+    #[error("WAV writer: {0}")]
+    Wav(#[from] hound::Error),
 }
 
 pub type BikResult<T> = std::result::Result<T, BikError>;

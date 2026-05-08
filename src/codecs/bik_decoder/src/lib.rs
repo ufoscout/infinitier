@@ -15,7 +15,7 @@ pub mod tables;
 pub mod video;
 pub mod vlc;
 
-pub use audio::AudioDecoder;
+pub use audio::{AudioDecoder, extract_audio_to_wav};
 pub use video::{BlockType, Plane, VideoDecoder, VideoFrame};
 
 pub use container::{AudioFlags, AudioTrack, BikHeader, FrameEntry, parse_header};

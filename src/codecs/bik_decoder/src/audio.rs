@@ -27,8 +27,12 @@
 //! * `libavcodec/binkaudio.c` (FFmpeg release/6.1).
 //! * <http://wiki.multimedia.cx/index.php?title=Bink_Audio>
 
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
+
 use crate::bitreader::BitReader;
-use crate::container::{AudioFlags, AudioTrack};
+use crate::container::{AudioFlags, AudioTrack, parse_header};
 use crate::dct3::Dct3;
 use crate::error::{BikError, BikResult};
 use crate::rdft::InverseRdft;
@@ -373,6 +377,63 @@ impl AudioDecoder {
         let rdft = self.inverse_rdft.as_mut().expect("RDFT context");
         rdft.run(coeffs);
     }
+}
+
+/// Decode every audio packet in `src` and write the resulting interleaved
+/// s16le PCM to a canonical PCM-WAV file at `dest`. The file is created
+/// (or truncated) at `dest`.
+///
+/// If the input has no audio track, the destination is created as an
+/// empty stereo / 22050 Hz PCM-WAV (matching `mve_decoder`'s contract,
+/// so callers always get a header at the destination path).
+///
+/// Memory stays bounded — samples are streamed straight into the WAV
+/// writer one packet at a time, so peak overhead is one `frame_len`'s
+/// worth of decoded i16 plus the `hound` writer's own buffering.
+pub fn extract_audio_to_wav(
+    src: impl AsRef<Path>,
+    dest: impl AsRef<Path>,
+) -> BikResult<()> {
+    let mut f = File::open(src.as_ref())?;
+    let header = parse_header(&mut f)?;
+
+    let Some(track) = header.audio_tracks.first() else {
+        // No audio track — produce an empty WAV so the destination file
+        // always exists, like `MveDecoder::extract_audio_to_wav` does.
+        hound::WavWriter::create(
+            dest.as_ref(),
+            hound::WavSpec {
+                channels: 2,
+                sample_rate: 22050,
+                bits_per_sample: 16,
+                sample_format: hound::SampleFormat::Int,
+            },
+        )?
+        .finalize()?;
+        return Ok(());
+    };
+
+    let spec = hound::WavSpec {
+        channels: track.flags.channels(),
+        sample_rate: track.sample_rate as u32,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = hound::WavWriter::create(dest.as_ref(), spec)?;
+    let mut audio = AudioDecoder::new(track)?;
+
+    let mut packet: Vec<u8> = Vec::with_capacity(header.max_frame_size as usize);
+    for fr in &header.frames {
+        packet.resize(fr.size as usize, 0);
+        f.seek(SeekFrom::Start(fr.pos as u64))?;
+        f.read_exact(&mut packet)?;
+        let aud_len = u32::from_le_bytes([packet[0], packet[1], packet[2], packet[3]]) as usize;
+        for s in audio.decode_packet(&packet[4..4 + aud_len])? {
+            writer.write_sample(s)?;
+        }
+    }
+    writer.finalize()?;
+    Ok(())
 }
 
 /// Read one of Bink audio's "packed float" values: 5-bit power, 23-bit
