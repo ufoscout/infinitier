@@ -17,8 +17,9 @@ The goal is to implement pure Rust readers for all file formats used by the Infi
 | ACM | Compressed audio | Done |
 | ARE | Area / location data | |
 | BAM | Bitmap animation | Done |
-| BCS | Compiled script | |
+| BCS | Compiled script | Done |
 | BIF | Resource archive | Done |
+| BIK | Bink video (`mve` extension) | Done |
 | BMP | Bitmap image | Done |
 | CHR | Character record | |
 | CHU | UI window and control definitions | |
@@ -38,7 +39,7 @@ The goal is to implement pure Rust readers for all file formats used by the Infi
 | MENU | WeiDU menu | |
 | MOS | Background mosaic image | |
 | MUS | Music playlist | |
-| MVE | Interplay MVE video | Done |
+| MVE | Interplay MVE video | Done (both `Interplay MVE` and `BIKi`) |
 | PLT | Paperdoll layered bitmap | |
 | PNG | PNG image | |
 | PRO | Projectile | |
