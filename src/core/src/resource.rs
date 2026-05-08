@@ -3,6 +3,9 @@
 pub mod acm {
     pub use infinitier_acm_decoder::*;
 }
+pub mod bik {
+    pub use infinitier_bik_decoder::*;
+}
 pub mod mve {
     pub use infinitier_mve_decoder::*;
 }

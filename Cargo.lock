@@ -1967,6 +1967,7 @@ dependencies = [
  "infinitier_acm_decoder",
  "infinitier_bam_importer",
  "infinitier_bif_importer",
+ "infinitier_bik_decoder",
  "infinitier_bmp_importer",
  "infinitier_common",
  "infinitier_datasource",

@@ -31,8 +31,8 @@ mod lua;
 mod maze;
 mod menu;
 mod mos;
+mod movie;
 mod mus;
-mod mve;
 mod plt;
 mod png;
 mod pro;
@@ -80,8 +80,8 @@ use lua::LuaViewer;
 use maze::MazeViewer;
 use menu::MenuViewer;
 use mos::MosViewer;
+use movie::MovieViewer;
 use mus::MusViewer;
-use mve::MveViewer;
 use plt::PltViewer;
 use png::PngViewer;
 use pro::ProViewer;
@@ -175,7 +175,7 @@ impl ResourceViewer {
                                 ImportedResource::Menu => Box::new(MenuViewer::new()),
                                 ImportedResource::Mos => Box::new(MosViewer::new()),
                                 ImportedResource::Mus => Box::new(MusViewer::new()),
-                                ImportedResource::Mve(src) => Box::new(MveViewer::new(src)),
+                                ImportedResource::Mve(src) => Box::new(MovieViewer::new(src)),
                                 ImportedResource::Plt => Box::new(PltViewer::new()),
                                 ImportedResource::Png => Box::new(PngViewer::new()),
                                 ImportedResource::Pro => Box::new(ProViewer::new()),

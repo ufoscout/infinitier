@@ -2,8 +2,7 @@ use super::ResourceViewerTrait;
 use eframe::egui;
 use infinitier_core::{
     game::{GameResource, ResourceId},
-    movie::{MovieSource, StreamingMveDecoder},
-    resource::mve::VideoFrame,
+    movie::{MovieDecoder, MovieSource, MovieVideoFrame},
 };
 use log::error;
 use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
@@ -25,26 +24,26 @@ const AUDIO_CAPACITY: usize = 3 * 48_000 * 2;
 
 /// How long to wait for the producer thread to surface the file's
 /// audio format (channels + sample rate) before giving up and playing
-/// without sound. MVE files in the wild always emit audio metadata in
-/// the first frame, so 250 ms is plenty.
+/// without sound. Both MVE and BIK files in the wild always emit audio
+/// metadata within the first frame or two, so 250 ms is plenty.
 const AUDIO_FMT_TIMEOUT_MS: u64 = 250;
 
-/// Streaming MVE player.
+/// Streaming movie player.
 ///
 /// On Play, the viewer:
-/// 1. Opens a fresh [`StreamingMveDecoder`] from the saved
-///    [`MovieSource`].
+/// 1. Opens a fresh [`MovieDecoder`] from the saved [`MovieSource`].
+///    The decoder dispatches MVE vs. BIK based on the file's magic.
 /// 2. Spawns a producer thread that feeds two queues — interleaved
 ///    `f32` audio samples and decoded RGBA video frames — pre-buffered
 ///    to ~3 seconds.
-/// 3. Attaches a [`MveStreamSource`] to the rodio sink which pulls
+/// 3. Attaches a [`MovieAudioSource`] to the rodio sink which pulls
 ///    audio from the audio queue, and on every UI tick the central
 ///    panel pulls the next due frame from the video queue.
 ///
 /// Stop signals the thread, drains the rodio sink, joins the thread
 /// (so the decoder is fully released), and clears the texture. The
 /// `Drop` impl does the same so threads don't survive viewer changes.
-pub struct MveViewer {
+pub struct MovieViewer {
     source: MovieSource,
     width: u16,
     height: u16,
@@ -65,21 +64,23 @@ struct Audio {
     sink: Player,
 }
 
-impl MveViewer {
+impl MovieViewer {
     pub fn new(source: MovieSource) -> Self {
         // Open once just to extract metadata for the info bar. Drop the
         // decoder immediately — actual playback opens a fresh one.
         //
-        // `MveDecoder::new` only consumes the two init chunks (which
-        // give us width/height); the timer chunk lives inside the first
-        // frame, so `frame_duration_us` is still 0 right after `new`.
-        // Pull one frame here to surface the timer.
+        // For MVE the timer chunk lives inside frame 1, so
+        // `frame_duration_us` is still 0 right after `MovieSource::open`;
+        // pulling one frame surfaces the timer. For BIK the value is
+        // available from the header up front, but pulling a frame is
+        // harmless (gives us a probe that the decoder works).
         let (width, height, frame_duration_us, decode_error) = match source.open() {
             Ok(mut dec) => {
                 let _ = dec.next_frame();
-                (dec.width(), dec.height(), dec.frame_duration_us(), None)
+                let info = dec.info();
+                (info.width, info.height, info.frame_duration_us, None)
             }
-            Err(e) => (0, 0, 0, Some(format!("failed to open MVE: {e}"))),
+            Err(e) => (0, 0, 0, Some(format!("failed to open movie: {e}"))),
         };
 
         Self {
@@ -105,7 +106,7 @@ impl MveViewer {
         let decoder = match self.source.open() {
             Ok(d) => d,
             Err(e) => {
-                self.decode_error = Some(format!("failed to open MVE: {e}"));
+                self.decode_error = Some(format!("failed to open movie: {e}"));
                 return;
             }
         };
@@ -119,9 +120,9 @@ impl MveViewer {
         let handle = {
             let state = Arc::clone(&state);
             thread::Builder::new()
-                .name("mve-viewer-decoder".into())
+                .name("movie-viewer-decoder".into())
                 .spawn(move || decoder_loop(state, decoder))
-                .expect("failed to spawn mve decoder thread")
+                .expect("failed to spawn movie decoder thread")
         };
 
         // Wire audio if the producer surfaces a format quickly. If it
@@ -132,7 +133,7 @@ impl MveViewer {
                 state.wait_for_audio_fmt(Duration::from_millis(AUDIO_FMT_TIMEOUT_MS))
         {
             audio.sink.pause();
-            audio.sink.append(MveStreamSource {
+            audio.sink.append(MovieAudioSource {
                 state: Arc::clone(&state),
                 channels,
                 sample_rate,
@@ -168,7 +169,7 @@ impl MveViewer {
         if let Some(handle) = playback.handle.take()
             && let Err(e) = handle.join()
         {
-            error!("mve decoder thread panicked: {e:?}");
+            error!("movie decoder thread panicked: {e:?}");
         }
         self.texture = None;
     }
@@ -243,7 +244,7 @@ impl MveViewer {
         }
         let target = elapsed.as_micros() as u64 / frame_dur_us;
 
-        let mut latest: Option<VideoFrame> = None;
+        let mut latest: Option<MovieVideoFrame> = None;
         {
             let mut q = playback.state.video_queue.lock().unwrap();
             while playback.frames_consumed <= target {
@@ -266,8 +267,11 @@ impl MveViewer {
             match self.texture.as_mut() {
                 Some(handle) => handle.set(img, egui::TextureOptions::LINEAR),
                 None => {
-                    self.texture =
-                        Some(ctx.load_texture("mve-frame", img, egui::TextureOptions::LINEAR));
+                    self.texture = Some(ctx.load_texture(
+                        "movie-frame",
+                        img,
+                        egui::TextureOptions::LINEAR,
+                    ));
                 }
             }
         }
@@ -291,7 +295,7 @@ impl MveViewer {
     }
 }
 
-impl Drop for MveViewer {
+impl Drop for MovieViewer {
     fn drop(&mut self) {
         // Make sure the producer thread is fully gone before the
         // viewer's heap allocations go away.
@@ -334,7 +338,7 @@ struct PlaybackState {
     audio_cond: Condvar,
     audio_capacity: usize,
 
-    video_queue: Mutex<VecDeque<VideoFrame>>,
+    video_queue: Mutex<VecDeque<MovieVideoFrame>>,
     video_cond: Condvar,
     video_capacity: usize,
 
@@ -392,7 +396,7 @@ impl PlaybackState {
     }
 }
 
-fn decoder_loop(state: Arc<PlaybackState>, mut decoder: StreamingMveDecoder) {
+fn decoder_loop(state: Arc<PlaybackState>, mut decoder: MovieDecoder) {
     loop {
         if state.stop.load(Ordering::Acquire) {
             return;
@@ -421,7 +425,7 @@ fn decoder_loop(state: Arc<PlaybackState>, mut decoder: StreamingMveDecoder) {
                 return;
             }
             Err(e) => {
-                error!("[mve] decode error: {e}");
+                error!("[movie] decode error: {e}");
                 state.eos.store(true, Ordering::Release);
                 state.audio_cond.notify_all();
                 state.video_cond.notify_all();
@@ -466,13 +470,13 @@ fn decoder_loop(state: Arc<PlaybackState>, mut decoder: StreamingMveDecoder) {
 
 // ─── rodio Source pulling audio out of the playback state ─────────────────────
 
-struct MveStreamSource {
+struct MovieAudioSource {
     state: Arc<PlaybackState>,
     channels: ChannelCount,
     sample_rate: SampleRate,
 }
 
-impl Iterator for MveStreamSource {
+impl Iterator for MovieAudioSource {
     type Item = f32;
 
     fn next(&mut self) -> Option<f32> {
@@ -502,7 +506,7 @@ impl Iterator for MveStreamSource {
     }
 }
 
-impl Source for MveStreamSource {
+impl Source for MovieAudioSource {
     fn current_span_len(&self) -> Option<usize> {
         None
     }
@@ -519,7 +523,7 @@ impl Source for MveStreamSource {
 
 // ─── UI ───────────────────────────────────────────────────────────────────────
 
-impl ResourceViewerTrait for MveViewer {
+impl ResourceViewerTrait for MovieViewer {
     fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
         // Pull due video frames every tick.
         self.advance_frames(ui.ctx());
@@ -527,7 +531,7 @@ impl ResourceViewerTrait for MveViewer {
         self.poll_for_eos();
 
         // ── Bottom info bar ────────────────────────────────────────────────
-        egui::Panel::bottom("mve_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("movie_info_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(&self.source.name);
                 ui.separator();
@@ -552,7 +556,7 @@ impl ResourceViewerTrait for MveViewer {
         let mut click_play_pause = false;
         let mut click_stop = false;
 
-        egui::Panel::bottom("mve_transport_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("movie_transport_panel").show_inside(ui, |ui| {
             ui.add_space(6.0);
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                 ui.allocate_ui_with_layout(
@@ -580,10 +584,10 @@ impl ResourceViewerTrait for MveViewer {
                 );
                 ui.add_space(6.0);
                 // Progress bar below the buttons. We don't know the
-                // total duration of an MVE without scanning the whole
-                // file, so the bar shows elapsed time and a generous
-                // best-effort fraction (capped so it doesn't run off
-                // the end while playing).
+                // total duration without scanning the whole file, so the
+                // bar shows elapsed time and a generous best-effort
+                // fraction (capped so it doesn't run off the end while
+                // playing).
                 let elapsed_secs = pos.as_secs_f64();
                 let progress = (elapsed_secs / 60.0).clamp(0.0, 1.0) as f32;
                 ui.add(
