@@ -312,6 +312,10 @@ impl GameDataBuilder {
             }
         }
 
+        for resource in self.search_resource()? {
+            game_data.add_resource(resource);
+        }
+
         for resource in key.resource_entries {
             let name = resource.resource_name;
             let r#type = resource.r#type;
@@ -436,17 +440,32 @@ impl GameDataBuilder {
     }
 
     /// Search for resources in a folder
-    fn search_resource(&self, cs_path: &CaseInsensitivePath) -> Option<PathBuf> {
+    fn search_resource(&self) -> io::Result<Vec<GameResource>> {
         // characters/ *.bio
         //             *.chr
+        // data/       *.mve
         // music/      *.mus
         //             *.acm
         // ./          *.ini  (Special)
         // override/   only files not already imported
         // scripts/    *.bs
         // sounds/     *.wav
+        let mut result = vec![];
 
-        self.fs.search_path_opt(cs_path)
+        for resource in self.fs.search_files_by_extension(&CaseInsensitivePath::new("data"), "mve", false) {
+            let TODO: &str = "REMOVE UNWRAP AND COMPLETE THIS";
+            result.push(GameResource {
+                data_origin: DataOrigin::Override { path: resource.clone() },
+                file_size: Some(resource.metadata()?.len()),
+                datasource: Some(DataSource::new(resource.as_path())),
+                game_type: self.game_type,
+                r#type: ResourceType::Mve,
+                name: resource.file_stem().unwrap().to_str().unwrap().to_string(),
+                filename: resource.file_name().unwrap().to_str().unwrap().to_string(),
+            });
+        }
+
+        Ok(result)
     }
 }
 

@@ -601,8 +601,15 @@ impl ResourceViewerTrait for MovieViewer {
                     },
                 );
                 ui.add_space(6.0);
-                let elapsed_secs = pos.as_secs_f64();
-                let progress = (elapsed_secs / 60.0).clamp(0.0, 1.0) as f32;
+
+                // ── Progress bar ──
+                let total_secs = self.total_duration.as_secs_f64();
+                let progress = if total_secs > 0.0 {
+                    (pos.as_secs_f64() / total_secs).clamp(0.0, 1.0) as f32
+                } else {
+                    0.0
+                };
+
                 ui.add(
                     egui::ProgressBar::new(progress)
                         .desired_width(420.0)
