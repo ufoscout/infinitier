@@ -16,24 +16,34 @@ fn open(path_in_assets: &str, label: &str) -> MovieDecoder {
 
 #[test]
 fn movie_source_opens_bundled_mve() {
-    let mut dec = open("resources/MVE/8_bits/BILOGO.MVE", "BILOGO.MVE");
+    let dec = open("resources/MVE/8_bits/BILOGO.MVE", "BILOGO.MVE");
     assert_eq!(dec.format(), MovieFormat::Mve);
-    // For MVE the timer chunk lives in the first frame, so info() only
-    // becomes fully populated after the first `next_frame`.
+    let info = dec.info();
+    println!(
+        "BILOGO: {}x{}, frame_dur={}us, total={:?}",
+        info.width, info.height, info.frame_duration_us, info.total_duration_us,
+    );
+    assert!(info.width > 0, "width must be non-zero");
+    assert!(info.height > 0, "height must be non-zero");
+    assert!(info.frame_duration_us > 0, "frame_dur must be non-zero");
+    let total = info
+        .total_duration_us;
+    assert_eq!(
+        total % info.frame_duration_us as u64,
+        0,
+        "total must be a whole multiple of frame_duration_us",
+    );
+    let frame_count = total / info.frame_duration_us as u64;
+    assert!(frame_count > 0, "at least one frame must be present");
+
+    // Pull a frame and verify its shape against the cached info.
+    let mut dec = dec;
     let frame = dec
         .next_frame()
         .expect("next_frame")
         .expect("first frame must exist");
-    let info = dec.info();
-    println!(
-        "BILOGO: {}x{}, frame_dur={}us",
-        info.width, info.height, info.frame_duration_us
-    );
-    assert_eq!(frame.video.width, info.width, "frame width vs info");
-    assert_eq!(frame.video.height, info.height, "frame height vs info");
-    assert!(info.width > 0, "width must be non-zero");
-    assert!(info.height > 0, "height must be non-zero");
-    assert!(info.frame_duration_us > 0, "frame_dur must be non-zero");
+    assert_eq!(frame.video.width, info.width);
+    assert_eq!(frame.video.height, info.height);
     assert_eq!(
         frame.video.pixels.len(),
         info.width as usize * info.height as usize * 4,
@@ -49,12 +59,17 @@ fn movie_source_opens_bundled_bik() {
     // frame before reading info().
     let info = dec.info();
     println!(
-        "logo_lucas: {}x{}, frame_dur={}us",
-        info.width, info.height, info.frame_duration_us
+        "logo_lucas: {}x{}, frame_dur={}us, total={:?}",
+        info.width, info.height, info.frame_duration_us, info.total_duration_us,
     );
     assert!(info.width > 0, "width must be non-zero");
     assert!(info.height > 0, "height must be non-zero");
     assert!(info.frame_duration_us > 0, "frame_dur must be non-zero");
+    // BIK headers carry an explicit frame count → total duration is
+    // computable up front.
+    let total = info
+        .total_duration_us;
+    assert_eq!(total, 266 * info.frame_duration_us as u64, "266 frames @ frame_dur");
 
     // Pull a handful of frames so the audio/video paths both run.
     let mut decoded = 0usize;

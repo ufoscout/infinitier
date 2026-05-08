@@ -121,6 +121,11 @@ pub struct MveDecoder<R: BufRead + Seek> {
     // Frame timing (microseconds per frame)
     frame_duration_us: u32,
 
+    // Total number of video frames in the stream — counted up front
+    // by the metadata scan in `new`, so `frame_count` is correct as
+    // soon as the constructor returns (no `next_frame` required).
+    frame_count: u32,
+
     // Accumulated audio for the next video frame
     pending_audio: Vec<AudioChunk>,
 
@@ -153,6 +158,19 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             return Err(Error::InvalidSignature);
         }
 
+        // Walk the rest of the stream once to count `OC_PLAY_VIDEO`
+        // segments and pull the frame duration out of the first
+        // `OC_CREATE_TIMER` segment. Both live inside frame chunks (not
+        // the init chunks) so without this pass the caller would have
+        // to drive `next_frame` once just to read the timer — and would
+        // never get the total frame count without exhausting the
+        // stream. After the scan we seek back so the rest of `new`
+        // (and every later `next_frame` call) sees the file from the
+        // first chunk again.
+        let post_sig_pos = reader.data.stream_position()?;
+        let scan = scan_stream_metadata(&mut reader, &name)?;
+        reader.data.seek(SeekFrom::Start(post_sig_pos))?;
+
         let mut dec = MveDecoder {
             reader,
             name,
@@ -170,7 +188,8 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             code_map: Vec::new(),
             scratch: Vec::new(),
             audio: AudioInfo::default(),
-            frame_duration_us: 0,
+            frame_duration_us: scan.frame_duration_us,
+            frame_count: scan.frame_count,
             pending_audio: Vec::new(),
             block_mode_stats: BlockModeStats::default(),
         };
@@ -207,8 +226,22 @@ impl<R: BufRead + Seek> MveDecoder<R> {
         &self.block_mode_stats
     }
 
+    /// Constant per-frame display duration in microseconds.
     pub fn frame_duration_us(&self) -> u32 {
         self.frame_duration_us
+    }
+
+    /// Total duration of the stream in microseconds.
+    pub fn total_duration_us(&self) -> u64 {
+        self.frame_count as u64 * self.frame_duration_us as u64
+    }
+
+    /// Total number of `OC_PLAY_VIDEO` segments in the stream — the
+    /// total number of decoded frames the caller will see across all
+    /// `next_frame` calls. Populated by the one-shot metadata scan in
+    /// `new`, so it's correct without having to play any frames.
+    pub fn frame_count(&self) -> u32 {
+        self.frame_count
     }
 
     /// Decode all audio from the stream and write it to a WAV file at `dest`.
@@ -571,5 +604,100 @@ impl<R: BufRead + Seek> MveDecoder<R> {
             pixels: rgba,
             duration_us: self.frame_duration_us,
         }
+    }
+}
+
+/// Result of [`scan_stream_metadata`] — a one-pass walk over the
+/// chunks/segments to surface the timer and frame count up front.
+struct StreamMetadata {
+    /// Microseconds per frame, taken from the first `OC_CREATE_TIMER`
+    /// segment encountered (these are emitted at most once per file in
+    /// practice, and always before the first `OC_PLAY_VIDEO`).
+    frame_duration_us: u32,
+    /// Total number of `OC_PLAY_VIDEO` segments — i.e. video frames
+    /// the caller will be able to pull through `next_frame`.
+    frame_count: u32,
+}
+
+/// Walk the stream from the current reader position to either an
+/// `OC_END_OF_STREAM` marker or natural EOF, counting `OC_PLAY_VIDEO`
+/// segments and capturing the create-timer payload. Reads only segment
+/// headers + the 6-byte timer body; every other segment body is skipped
+/// via `Seek::Current` so the scan runs at I/O speed and doesn't decode
+/// any video / audio. The reader is left at whatever position the scan
+/// finished on — the caller is responsible for seeking back.
+fn scan_stream_metadata<R: BufRead + Seek>(
+    reader: &mut Reader<R>,
+    name: &str,
+) -> Result<StreamMetadata, Error> {
+    let mut frame_duration_us = 0u32;
+    let mut frame_count = 0u32;
+
+    loop {
+        // Outer chunk header: u16 length + u16 type. Treat a clean EOF
+        // here (e.g. files with no end-of-stream marker) as a graceful
+        // end of the scan — anything else is a real error.
+        let chunk_size = match reader.read_u16() {
+            Ok(s) => s,
+            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                return Ok(StreamMetadata {
+                    frame_duration_us,
+                    frame_count,
+                });
+            }
+            Err(e) => return Err(e.into()),
+        };
+        let _chunk_type = reader.read_u16()?;
+        let mut offset = 0u16;
+
+        while offset < chunk_size {
+            let seg_size = reader.read_u16()?;
+            let seg_type = reader.read_u8()?;
+            let _seg_ver = reader.read_u8()?;
+            offset = offset.saturating_add(4 + seg_size);
+
+            match seg_type {
+                OC_CREATE_TIMER => {
+                    // Mirror `read_timer`: rate (u32) * subdiv (u16) →
+                    // microseconds per frame. Only the first one wins;
+                    // skip any extra body bytes the segment carries.
+                    if seg_size >= 6 {
+                        let rate = reader.read_u32()?;
+                        let subdiv = reader.read_u16()?;
+                        if frame_duration_us == 0 {
+                            frame_duration_us = rate.saturating_mul(subdiv as u32);
+                        }
+                        if seg_size > 6 {
+                            reader.data.seek(SeekFrom::Current((seg_size - 6) as i64))?;
+                        }
+                    } else {
+                        // Malformed but tolerable — skip what's there.
+                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                    }
+                }
+                OC_PLAY_VIDEO => {
+                    frame_count = frame_count.saturating_add(1);
+                    if seg_size > 0 {
+                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                    }
+                }
+                OC_END_OF_STREAM => {
+                    if seg_size > 0 {
+                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                    }
+                    return Ok(StreamMetadata {
+                        frame_duration_us,
+                        frame_count,
+                    });
+                }
+                _ => {
+                    if seg_size > 0 {
+                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                    }
+                }
+            }
+        }
+
+        let _ = name; // kept in the signature for diagnostic logging
     }
 }

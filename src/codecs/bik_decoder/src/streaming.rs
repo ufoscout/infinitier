@@ -179,6 +179,11 @@ impl<R: Read + Seek> BikStreamingDecoder<R> {
         self.frame_duration_us
     }
 
+    /// Total duration of the stream in microseconds.
+    pub fn total_duration_us(&self) -> u64 {
+        self.header.frame_count as u64 * self.frame_duration_us as u64
+    }
+
     /// Total number of video frames in the stream (from the header).
     pub fn frame_count(&self) -> u32 {
         self.header.frame_count

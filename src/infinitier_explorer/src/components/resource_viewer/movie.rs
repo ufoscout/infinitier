@@ -48,6 +48,8 @@ pub struct MovieViewer {
     width: u16,
     height: u16,
     frame_duration_us: u32,
+    /// Total stream duration captured at metadata-probe time.
+    total_duration: Duration,
     /// Fallback for the bottom info bar when the file can't be opened
     /// for metadata.
     decode_error: Option<String>,
@@ -68,19 +70,18 @@ impl MovieViewer {
     pub fn new(source: MovieSource) -> Self {
         // Open once just to extract metadata for the info bar. Drop the
         // decoder immediately — actual playback opens a fresh one.
-        //
-        // For MVE the timer chunk lives inside frame 1, so
-        // `frame_duration_us` is still 0 right after `MovieSource::open`;
-        // pulling one frame surfaces the timer. For BIK the value is
-        // available from the header up front, but pulling a frame is
-        // harmless (gives us a probe that the decoder works).
-        let (width, height, frame_duration_us, decode_error) = match source.open() {
-            Ok(mut dec) => {
-                let _ = dec.next_frame();
+        // Both per-format decoders surface dimensions, frame duration
+        // and total length without needing any frame to be pulled
+        // first (BIK reads the header; MVE does a one-shot metadata
+        // scan in its constructor), so `info()` is fully populated as
+        // soon as `open` returns.
+        let (width, height, frame_duration_us, total_duration, decode_error) = match source.open()
+        {
+            Ok(dec) => {
                 let info = dec.info();
-                (info.width, info.height, info.frame_duration_us, None)
+                (info.width, info.height, info.frame_duration_us, info.total_duration_us, None)
             }
-            Err(e) => (0, 0, 0, Some(format!("failed to open movie: {e}"))),
+            Err(e) => (0, 0, 0, 0, Some(format!("failed to open movie: {e}"))),
         };
 
         Self {
@@ -88,6 +89,7 @@ impl MovieViewer {
             width,
             height,
             frame_duration_us,
+            total_duration: Duration::from_micros(total_duration),
             decode_error,
             audio: init_audio(),
             playback: None,
@@ -544,7 +546,8 @@ impl ResourceViewerTrait for MovieViewer {
                 };
                 ui.label(format!("{fps:.2} fps"));
                 ui.separator();
-                ui.label(format_duration(self.playback_position()));
+                let total_label = format_duration(self.total_duration);
+                ui.label(total_label);
             });
         });
 

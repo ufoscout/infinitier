@@ -57,12 +57,10 @@ impl std::fmt::Display for MovieFormat {
 pub struct MovieInfo {
     pub width: u16,
     pub height: u16,
-    /// Display duration of one frame, in microseconds. For MVE this is
-    /// the global timer set by the file's first timer chunk (so it is
-    /// `0` until the first frame has been pulled); for BIK it is
-    /// `fps_den * 1_000_000 / fps_num` — known up front from the
-    /// header.
+    /// Display duration of one frame, in microseconds.
     pub frame_duration_us: u32,
+    /// Total stream duration in microseconds.
+    pub total_duration_us: u64,
 }
 
 /// A reusable handle to a movie resource. Holds the [`DataSource`] and
@@ -89,11 +87,7 @@ impl MovieSource {
 
     /// Open a fresh streaming decoder. Sniffs the first four bytes to
     /// pick the format — Bink's "BIK*" magic vs. MVE's
-    /// "Interplay MVE File…" magic — then opens a fresh reader so the
-    /// decoder sees the full stream from byte 0. The Bink branch is
-    /// configured to deliver RGBA pixels (a `MovieFrame` is RGBA by
-    /// definition); callers that need raw YUV planes should use
-    /// `infinitier_bik_decoder::BikStreamingDecoder` directly.
+    /// "Interplay MVE File…" magic.
     pub fn open(&self) -> Result<MovieDecoder, MovieOpenError> {
         let mut probe_reader = self.datasource.reader()?;
         let mut probe = [0u8; 4];
@@ -152,11 +146,6 @@ impl MovieFormat {
 
 /// Streaming movie decoder. Pull frames with [`Self::next_frame`] until
 /// it returns `Ok(None)`.
-///
-/// Both variants are boxed because each decoder carries ~½–3 KB of
-/// internal state (palette / trig tables / per-codec scratch); keeping
-/// the enum at one machine word per variant means matching, moving and
-/// returning a `MovieDecoder` is cheap.
 pub enum MovieDecoder {
     Mve(Box<StreamingMveDecoder>),
     Bik(Box<StreamingBikDecoder>),
@@ -181,11 +170,13 @@ impl MovieDecoder {
                 width: d.width(),
                 height: d.height(),
                 frame_duration_us: d.frame_duration_us(),
+                total_duration_us: d.total_duration_us(),
             },
             MovieDecoder::Bik(d) => MovieInfo {
                 width: d.width() as u16,
                 height: d.height() as u16,
                 frame_duration_us: d.frame_duration_us(),
+                total_duration_us: d.total_duration_us(),
             },
         }
     }
