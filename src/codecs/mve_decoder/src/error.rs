@@ -13,3 +13,12 @@ pub enum Error {
     #[error("Audio decode error: {0}")]
     AudioDecode(String),
 }
+
+impl Into<std::io::Error> for Error {
+    fn into(self) -> std::io::Error {
+        match self {
+            Error::Io(e) => e,
+            _ => std::io::Error::new(std::io::ErrorKind::Other, self),
+        }
+    }
+}

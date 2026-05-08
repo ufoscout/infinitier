@@ -1,7 +1,7 @@
 use infinitier_common::{Game, ResourceType};
 use infinitier_core::{
     game::{DataOrigin, GameDataBuilder, GameResource},
-    game_detect::detect_game,
+    game_detect::detect_game, imported_resource::ImportedResource,
 };
 use infinitier_fs::CaseInsensitiveFS;
 use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
@@ -61,7 +61,29 @@ fn test_import_all_resources() {
             if matches!(resource.data_origin, DataOrigin::Missing) {
                 continue;
             }
-            if let Err(e) = resource.import() {
+            let result: std::io::Result<()> = match resource.import() {
+                Ok(res) => match res {
+                    ImportedResource::Sound(mut sound_decoder) => {
+                        sound_decoder.decode_all().map(|_| ())
+                    },
+                    ImportedResource::Mve(movie_source) => {
+                        match movie_source.open() {
+                            Ok(mut movie_decoder) => loop {
+                                match movie_decoder.next_frame() {
+                                    Ok(Some(_)) => continue,
+                                    Ok(None) => break Ok(()),
+                                    Err(e) => break Err(e.into()),
+                                }
+                            },
+                            Err(e) => Err(e.into()),
+                        }
+                    },
+                    _ => Ok(()),
+                },
+                Err(e) => Err(e)
+            };
+
+            if let Err(e) = result {
                 if !expected_failures(&resource) {
                     dir_failures.push(format!("  {} — {e}", resource.filename));
                 }

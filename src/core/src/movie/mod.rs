@@ -265,6 +265,15 @@ pub enum MovieOpenError {
     UnknownFormat([u8; 4]),
 }
 
+impl Into<io::Error> for MovieOpenError {
+    fn into(self) -> io::Error {
+        match self {
+            MovieOpenError::Io(e) => e,
+            _ => io::Error::new(io::ErrorKind::Other, self),
+        }
+    }
+}
+
 /// Errors returned from [`MovieDecoder::next_frame`]. Wraps the
 /// per-format decoder errors so callers can `?` through.
 #[derive(Debug, thiserror::Error)]
@@ -279,4 +288,16 @@ pub enum MovieDecodeError {
     /// without calling `with_output_format(BikOutputFormat::Rgba)`).
     #[error("internal: BIK decoder delivered YUV pixels to MovieDecoder (expected RGBA)")]
     UnexpectedYuvFromBik,
+}
+
+impl Into<io::Error> for MovieDecodeError {
+    fn into(self) -> io::Error {
+        match self {
+            MovieDecodeError::Mve(e) => e.into(),
+            MovieDecodeError::Bik(e) => e.into(),
+            MovieDecodeError::UnexpectedYuvFromBik => {
+                io::Error::new(io::ErrorKind::Other, self)
+            }
+        }
+    }
 }

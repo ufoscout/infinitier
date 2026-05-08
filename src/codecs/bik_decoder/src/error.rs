@@ -35,3 +35,12 @@ pub enum BikError {
 }
 
 pub type BikResult<T> = std::result::Result<T, BikError>;
+
+impl Into<std::io::Error> for BikError {
+    fn into(self) -> std::io::Error {
+        match self {
+            BikError::Io(e) => e,
+            _ => std::io::Error::new(std::io::ErrorKind::Other, self),
+        }
+    }
+}
