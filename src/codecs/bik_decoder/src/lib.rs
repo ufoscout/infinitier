@@ -6,6 +6,7 @@ pub mod bitreader;
 pub mod bundle;
 pub mod container;
 pub mod dct;
+pub mod dct3;
 pub mod dsp;
 pub mod error;
 pub mod fft;

@@ -29,6 +29,7 @@
 
 use crate::bitreader::BitReader;
 use crate::container::{AudioFlags, AudioTrack};
+use crate::dct3::Dct3;
 use crate::error::{BikError, BikResult};
 use crate::rdft::InverseRdft;
 
@@ -68,9 +69,16 @@ pub struct AudioDecoder {
     previous: [Vec<f32>; MAX_CHANNELS],
     /// `false` means "this is not the first block, do overlap-add".
     first: bool,
-    /// Pre-built `cos(π·(2n+1)·k / (2N))` table for the slow DCT-III.
-    /// Only populated when `use_dct == true`.
-    cos_table: Vec<f32>,
+    /// Per-channel coefficient scratch buffers (`frame_len + 2` long
+    /// each). Reused across `decode_packet` calls so the audio hot path
+    /// doesn't allocate. The trailing 2 floats are the Nyquist re/im
+    /// that the inverse RDFT pre-pass writes (and that the DCT path
+    /// simply ignores).
+    coeffs_scratch: [Vec<f32>; MAX_CHANNELS],
+    /// FFT-based DCT-III context. Populated when `use_dct == true`.
+    /// Replaces the previous O(N²) slow DCT plus `frame_len² * 4`-byte
+    /// cosine table.
+    dct: Option<Dct3>,
     /// Inverse RDFT context. Only populated when `use_dct == false`.
     inverse_rdft: Option<InverseRdft>,
 }
@@ -152,20 +160,11 @@ impl AudioDecoder {
         }
         bands[num_bands] = frame_len as u32;
 
-        // Allocate the heavy `cos_table` only when DCT will actually use it.
-        let cos_table = if use_dct {
-            let mut t = vec![0f32; frame_len * frame_len];
-            let pi_over_2n = std::f32::consts::PI / (2.0 * frame_len as f32);
-            for n in 0..frame_len {
-                for k in 0..frame_len {
-                    t[n * frame_len + k] = (pi_over_2n * (2 * n + 1) as f32 * k as f32).cos();
-                }
-            }
-            t
+        let dct = if use_dct {
+            Some(Dct3::new(frame_len_bits))
         } else {
-            Vec::new()
+            None
         };
-
         let inverse_rdft = if use_dct {
             None
         } else {
@@ -185,7 +184,11 @@ impl AudioDecoder {
             root,
             previous: [vec![0f32; overlap_len], vec![0f32; overlap_len]],
             first: true,
-            cos_table,
+            coeffs_scratch: [
+                vec![0f32; frame_len + 2],
+                vec![0f32; frame_len + 2],
+            ],
+            dct,
             inverse_rdft,
         })
     }
@@ -201,27 +204,37 @@ impl AudioDecoder {
     /// Decode all blocks contained in a single audio packet (the bytes
     /// stored as the per-frame `audio_packet_len` payload). Returns
     /// interleaved 16-bit PCM samples — channel-interleaved when stereo.
-    #[allow(clippy::needless_range_loop)] // per-channel loops also touch
-    // `self.previous[ch]` and pass `coeffs[ch]` into helpers that need
-    // `&self`; rewriting them with iterators forces awkward borrow splits.
     pub fn decode_packet(&mut self, packet: &[u8]) -> BikResult<Vec<i16>> {
         if packet.len() < 4 {
             return Ok(Vec::new());
         }
+        // Move the scratch buffers out of `self` for the duration of the
+        // call so the per-channel helpers (which take `&self`) can write
+        // into them without aliasing the outer `&mut self` borrow. They
+        // go back at the end via the unconditional `self.coeffs_scratch =
+        // coeffs` line below — even on the `?` early-return path the
+        // reference is restored, which keeps the steady-state allocation
+        // count at zero.
+        let mut coeffs = std::mem::take(&mut self.coeffs_scratch);
+        let result = self.decode_packet_with_scratch(&mut coeffs, packet);
+        self.coeffs_scratch = coeffs;
+        result
+    }
+
+    #[allow(clippy::needless_range_loop)] // per-channel loops also touch
+    // `self.previous[ch]` and pass `coeffs[ch]` into helpers that need
+    // `&self`; rewriting them with iterators forces awkward borrow splits.
+    fn decode_packet_with_scratch(
+        &mut self,
+        coeffs: &mut [Vec<f32>; MAX_CHANNELS],
+        packet: &[u8],
+    ) -> BikResult<Vec<i16>> {
         let mut r = BitReader::new(packet);
         // Skip the reported size (32-bit). FFmpeg ignores it.
         r.skip_bits(32);
 
         let mut out: Vec<i16> = Vec::with_capacity(self.frame_len);
         let total_bits = packet.len() * 8;
-
-        // Per-block scratch. Each buffer is `frame_len + 2` long: the
-        // trailing 2 floats are the Nyquist re/im that the inverse RDFT
-        // pre-pass writes (and that the DCT path simply ignores).
-        let mut coeffs: [Vec<f32>; MAX_CHANNELS] = [
-            vec![0f32; self.frame_len + 2],
-            vec![0f32; self.frame_len + 2],
-        ];
 
         while r.bit_pos() < total_bits {
             // 2-bit DCT mode prefix — emitted only for the DCT variant.
@@ -233,7 +246,7 @@ impl AudioDecoder {
             }
             for ch in 0..self.internal_channels {
                 if self.use_dct {
-                    self.inverse_dct(&mut coeffs[ch]);
+                    self.dct.as_mut().expect("DCT context").run(&mut coeffs[ch]);
                 } else {
                     self.inverse_rdft(&mut coeffs[ch]);
                 }
@@ -342,35 +355,11 @@ impl AudioDecoder {
         Ok(())
     }
 
-    /// Slow O(N²) DCT-III (inverse DCT-II). Operates in place on the first
-    /// `frame_len` floats of `coeffs`; the trailing two slots are unused
-    /// here (they belong to the RDFT path).
-    ///
-    /// FFmpeg's `binkaudio.c` pre-doubles `coeffs[0]` (`coeffs[0] /= 0.5`)
-    /// before invoking its FFT-based DCT-III, which itself uses the
-    /// "no ½·x[0] factor" convention. Folding that doubling into the DC
-    /// accumulator (`acc = coeffs[0]` instead of `coeffs[0] * 0.5`) matches
-    /// FFmpeg's DC scaling on the output.
-    fn inverse_dct(&self, coeffs: &mut [f32]) {
-        let n = self.frame_len;
-        let scale = 2.0 / n as f32;
-        let mut out = vec![0f32; n];
-        for (idx, slot) in out.iter_mut().enumerate() {
-            let row = &self.cos_table[idx * n..idx * n + n];
-            let mut acc = coeffs[0];
-            for (k, &row_k) in row.iter().enumerate().take(n).skip(1) {
-                acc += coeffs[k] * row_k;
-            }
-            *slot = acc * scale;
-        }
-        coeffs[..n].copy_from_slice(&out);
-    }
-
     /// Inverse RDFT pre-process + transform. Mirrors the FFmpeg
     /// `binkaudio.c` RDFT branch: negate odd-imag coefficients, move
     /// `coeffs[1]` (Nyquist real) to `coeffs[frame_len]`, zero `coeffs[1]`
     /// and `coeffs[frame_len + 1]`, then run the inverse RDFT.
-    fn inverse_rdft(&self, coeffs: &mut [f32]) {
+    fn inverse_rdft(&mut self, coeffs: &mut [f32]) {
         let n = self.frame_len;
         let mut i = 2;
         while i < n {
@@ -381,7 +370,7 @@ impl AudioDecoder {
         coeffs[1] = 0.0;
         coeffs[n + 1] = 0.0;
         // Slow path: there's a `Some(...)` here when `use_dct == false`.
-        let rdft = self.inverse_rdft.as_ref().expect("RDFT context");
+        let rdft = self.inverse_rdft.as_mut().expect("RDFT context");
         rdft.run(coeffs);
     }
 }
@@ -478,24 +467,4 @@ mod tests {
         assert_eq!(float_to_i16(0.0), 0);
     }
 
-    #[test]
-    fn dct_dc_only() {
-        // With FFmpeg's "no ½·x[0]" convention (mirrored here), a DC-only
-        // input of `x[0] = 1` yields `(2/N) * x[0] = 2/N` on every output
-        // sample.
-        let track = dct_track(11025, false);
-        let d = AudioDecoder::new(&track).unwrap();
-        let mut buf = vec![0f32; d.frame_len + 2];
-        buf[0] = 1.0;
-        d.inverse_dct(&mut buf);
-        let expected = 2.0 / d.frame_len as f32;
-        for v in &buf[..d.frame_len] {
-            assert!(
-                (v - expected).abs() < 1e-6,
-                "DC-only inverse DCT should produce {} (= 2/N), got {}",
-                expected,
-                v
-            );
-        }
-    }
 }

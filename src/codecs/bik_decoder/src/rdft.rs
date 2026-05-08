@@ -37,6 +37,10 @@ pub struct InverseRdft {
     tcos: Vec<f32>,
     /// `sin(2π·k / N)` for `k ∈ [0, N/4)`.
     tsin: Vec<f32>,
+    /// Pre-allocated `N/2`-element scratch for the complex IFFT stage.
+    /// Reused across calls to [`run`] so the audio hot path doesn't
+    /// allocate.
+    fft_buf: Vec<ComplexF32>,
 }
 
 impl InverseRdft {
@@ -58,18 +62,20 @@ impl InverseRdft {
         // Internal complex FFT runs INVERSE (matches IRDFT in the old
         // enum: `complex_inverse = trans == IRDFT || trans == RIDFT`).
         let fft = Fft::new(nbits - 1, /*inverse=*/ true);
+        let fft_buf = vec![ComplexF32::ZERO; n / 2];
         Self {
             nbits,
             n,
             fft,
             tcos,
             tsin,
+            fft_buf,
         }
     }
 
     /// Apply the inverse RDFT in place. `data.len()` must be `N + 2`; the
     /// trailing 2 slots hold the Nyquist real/imag.
-    pub fn run(&self, data: &mut [f32]) {
+    pub fn run(&mut self, data: &mut [f32]) {
         let n = self.n;
         debug_assert!(data.len() >= n);
         // Unmangling pass — splits the packed real-DFT representation
@@ -110,16 +116,14 @@ impl InverseRdft {
         data[1] *= k1;
 
         // Complex IFFT of size N/2, in place. We re-interpret `data[0..n]`
-        // as `n/2` complex pairs (`(re, im)` per pair).
+        // as `n/2` complex pairs (`(re, im)` per pair) via the pre-
+        // allocated `fft_buf` (so this hot-path call doesn't allocate).
         let half = n / 2;
-        // SAFETY-free transmute: copy into a Vec<ComplexF32>, run, copy
-        // back. The buffers are tiny (≤ 2048 floats) so the extra
-        // allocation is negligible.
-        let mut buf: Vec<ComplexF32> = (0..half)
-            .map(|i| ComplexF32::new(data[2 * i], data[2 * i + 1]))
-            .collect();
-        self.fft.run(&mut buf);
-        for (i, c) in buf.iter().enumerate() {
+        for i in 0..half {
+            self.fft_buf[i] = ComplexF32::new(data[2 * i], data[2 * i + 1]);
+        }
+        self.fft.run(&mut self.fft_buf);
+        for (i, c) in self.fft_buf.iter().enumerate() {
             data[2 * i] = c.re;
             data[2 * i + 1] = c.im;
         }
@@ -134,7 +138,7 @@ mod tests {
     /// Inverse RDFT of an all-zero input is all-zero output.
     #[test]
     fn inverse_rdft_zero_input() {
-        let r = InverseRdft::new(5); // N = 32
+        let mut r = InverseRdft::new(5); // N = 32
         let mut data = vec![0f32; r.n + 2];
         r.run(&mut data);
         for &v in &data[..r.n] {
@@ -148,7 +152,7 @@ mod tests {
     /// but a constant value scaled by the un-normalised inverse.
     #[test]
     fn inverse_rdft_dc_constant() {
-        let r = InverseRdft::new(5); // N = 32
+        let mut r = InverseRdft::new(5); // N = 32
         let mut data = vec![0f32; r.n + 2];
         data[0] = r.n as f32; // DC real = N — picks up the conventional normalisation
         // data[1] = 0 (Nyquist re), data[N..N+2] = 0 (already zero)
