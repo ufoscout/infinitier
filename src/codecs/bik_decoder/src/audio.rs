@@ -345,13 +345,19 @@ impl AudioDecoder {
     /// Slow O(N²) DCT-III (inverse DCT-II). Operates in place on the first
     /// `frame_len` floats of `coeffs`; the trailing two slots are unused
     /// here (they belong to the RDFT path).
+    ///
+    /// FFmpeg's `binkaudio.c` pre-doubles `coeffs[0]` (`coeffs[0] /= 0.5`)
+    /// before invoking its FFT-based DCT-III, which itself uses the
+    /// "no ½·x[0] factor" convention. Folding that doubling into the DC
+    /// accumulator (`acc = coeffs[0]` instead of `coeffs[0] * 0.5`) matches
+    /// FFmpeg's DC scaling on the output.
     fn inverse_dct(&self, coeffs: &mut [f32]) {
         let n = self.frame_len;
         let scale = 2.0 / n as f32;
         let mut out = vec![0f32; n];
         for (idx, slot) in out.iter_mut().enumerate() {
             let row = &self.cos_table[idx * n..idx * n + n];
-            let mut acc = coeffs[0] * 0.5;
+            let mut acc = coeffs[0];
             for (k, &row_k) in row.iter().enumerate().take(n).skip(1) {
                 acc += coeffs[k] * row_k;
             }
@@ -474,16 +480,19 @@ mod tests {
 
     #[test]
     fn dct_dc_only() {
+        // With FFmpeg's "no ½·x[0]" convention (mirrored here), a DC-only
+        // input of `x[0] = 1` yields `(2/N) * x[0] = 2/N` on every output
+        // sample.
         let track = dct_track(11025, false);
         let d = AudioDecoder::new(&track).unwrap();
         let mut buf = vec![0f32; d.frame_len + 2];
         buf[0] = 1.0;
         d.inverse_dct(&mut buf);
-        let expected = 1.0 / d.frame_len as f32;
+        let expected = 2.0 / d.frame_len as f32;
         for v in &buf[..d.frame_len] {
             assert!(
                 (v - expected).abs() < 1e-6,
-                "DC-only inverse DCT should produce {} (= 1/N), got {}",
+                "DC-only inverse DCT should produce {} (= 2/N), got {}",
                 expected,
                 v
             );
