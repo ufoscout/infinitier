@@ -1,6 +1,5 @@
 #![doc = include_str!("../readme.md")]
 
-pub mod reader_new;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Cursor, Read, Seek, Take},
