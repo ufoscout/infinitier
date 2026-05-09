@@ -24,7 +24,7 @@ impl KeyFileTreeView {
         let mut groups: Groups = BTreeMap::new();
         for (i, entry) in game_data.resources().iter().enumerate() {
             let ext = entry.r#type.get_extension().unwrap_or("unknown");
-            let leaf_label = if matches!(entry.data_origin, DataOrigin::Override { .. }) {
+            let leaf_label = if matches!(entry.data_origin, DataOrigin::Dir { .. }) {
                 format!("{} (O)", entry.filename)
             } else {
                 entry.filename.clone()
@@ -164,7 +164,8 @@ mod tests {
             (
                 "MINSCM",
                 ResourceType::Bmp,
-                DataOrigin::Override {
+                DataOrigin::Dir {
+                    name: "override".to_string(),
                     path: PathBuf::from("override/MINSCM.bmp"),
                 },
             ),

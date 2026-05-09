@@ -117,7 +117,7 @@ pub struct GameResource {
 #[derive(Debug, PartialEq, Eq)]
 pub enum DataOrigin {
     Bif { name: String },
-    Override { path: PathBuf },
+    Dir { name: String, path: PathBuf },
     Missing,
 }
 
@@ -315,10 +315,6 @@ impl GameDataBuilder {
             }
         }
 
-        for resource in self.search_resource()? {
-            game_data.add_resource(resource);
-        }
-
         for resource in key.resource_entries {
             let name = resource.resource_name;
             let r#type = resource.r#type;
@@ -341,7 +337,7 @@ impl GameDataBuilder {
                     filename,
                     file_size,
                     datasource,
-                    data_origin: DataOrigin::Override { path: r#override },
+                    data_origin: DataOrigin::Dir { name: "override".to_owned(), path: r#override },
                 });
             } else {
                 if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
@@ -425,6 +421,22 @@ impl GameDataBuilder {
             }
         }
 
+        // Resources from folders:
+        // music/      *.mus
+        //             *.acm
+        // ./          *.ini  (Special)
+        // override/   only files not already imported
+        // scripts/    *.bs
+        // sounds/     *.wav
+        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Bio, false)?;
+        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Chr, false)?;
+        self.add_resources_from_dir(&mut game_data, "data", ResourceType::Mve, false)?;
+        self.add_resources_from_dir(&mut game_data, "movies", ResourceType::Wbm, false)?;
+        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Acm, true)?;
+        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Mus, false)?;
+        self.add_resources_from_dir(&mut game_data, "scripts", ResourceType::Bs, false)?;
+        self.add_resources_from_dir(&mut game_data, "sounds", ResourceType::Wav, false)?;
+
         Ok(game_data)
     }
 
@@ -442,58 +454,31 @@ impl GameDataBuilder {
         None
     }
 
-    /// Search for resources in a folder
-    fn search_resource(&self) -> io::Result<Vec<GameResource>> {
-        // characters/ *.bio
-        //             *.chr
-        // data/       *.mve
-        // music/      *.mus
-        //             *.acm
-        // ./          *.ini  (Special)
-        // override/   only files not already imported
-        // scripts/    *.bs
-        // sounds/     *.wav
-        let mut result = vec![];
-
+    fn add_resources_from_dir(&self, game: &mut GameData, dir_name: &str, r#type: ResourceType, recursive: bool) -> io::Result<()> {
+        debug!("Searching for resources in {}/{:?}", dir_name, r#type.get_extension());
         for resource in
             self.fs
-                .search_files_by_extension(&CaseInsensitivePath::new("data"), "mve", false)
+                .search_files_by_extension(&CaseInsensitivePath::new(dir_name), r#type.get_extension().ok_or_else(|| io::Error::other("Unknown resource type"))?, recursive)
         {
-            let _TODO: &str = "REMOVE UNWRAP AND COMPLETE THIS";
-            result.push(GameResource {
-                data_origin: DataOrigin::Override {
+            debug!("Found resource {}", resource.display());
+            game.add_resource(GameResource {
+                data_origin: DataOrigin::Dir {
+                    name: dir_name.to_owned(),
                     path: resource.clone(),
                 },
                 file_size: Some(resource.metadata()?.len()),
                 datasource: Some(DataSource::new(resource.as_path())),
                 game_type: self.game_type,
-                r#type: ResourceType::Mve,
-                name: resource.file_stem().unwrap().to_str().unwrap().to_string(),
-                filename: resource.file_name().unwrap().to_str().unwrap().to_string(),
+                r#type,
+                name: resource.file_stem().unwrap_or_default().to_str().unwrap_or_default().to_string(),
+                filename: resource.file_name().unwrap_or_default().to_str().unwrap_or_default().to_string(),
             });
         }
-
-        for resource in
-            self.fs
-                .search_files_by_extension(&CaseInsensitivePath::new("movies"), "wbm", false)
-        {
-            let _TODO: &str = "REMOVE UNWRAP AND COMPLETE THIS";
-            result.push(GameResource {
-                data_origin: DataOrigin::Override {
-                    path: resource.clone(),
-                },
-                file_size: Some(resource.metadata()?.len()),
-                datasource: Some(DataSource::new(resource.as_path())),
-                game_type: self.game_type,
-                r#type: ResourceType::Wbm,
-                name: resource.file_stem().unwrap().to_str().unwrap().to_string(),
-                filename: resource.file_name().unwrap().to_str().unwrap().to_string(),
-            });
-        }
-
-        Ok(result)
+        Ok(())
     }
+
 }
+
 
 #[cfg(test)]
 mod tests {
@@ -579,7 +564,7 @@ mod tests {
             .join("KEY")
             .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
-        assert_eq!(DataOrigin::Override { path }, resource.data_origin);
+        assert_eq!(DataOrigin::Dir { name: "override".to_owned(), path }, resource.data_origin);
 
         // Test that the override datasource can be read
         TwoDAImporter { name: "ABCLASRQ" }
@@ -599,7 +584,7 @@ mod tests {
             .join("KEY")
             .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
-        assert_eq!(DataOrigin::Override { path }, resource.data_origin);
+        assert_eq!(DataOrigin::Dir { name: "override".to_owned(), path }, resource.data_origin);
     }
 
     #[test]
