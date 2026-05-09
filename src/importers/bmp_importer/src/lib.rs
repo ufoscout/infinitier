@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use image::{ImageBuffer, Rgba};
 use log::debug;
 

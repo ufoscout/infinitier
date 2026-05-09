@@ -1,7 +1,7 @@
 use infinitier_datasource::Reader;
 use log::{debug, warn};
 use std::{
-    io::{BufRead, Seek, SeekFrom},
+    io::{BufRead, Read, Seek, SeekFrom},
     path::Path,
 };
 
@@ -152,7 +152,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
     /// gets prefixed to every log record this decoder emits.
     pub fn new(mut reader: Reader<R>, name: impl Into<String>) -> Result<Self, Error> {
         let name = name.into();
-        let sig = reader.read_exact::<26>()?;
+        let sig = reader.read_exact_to_array::<26>()?;
         if &sig[..24] != MVE_SIGNATURE_PREFIX {
             log::error!("[{name}] Invalid MVE signature");
             return Err(Error::InvalidSignature);
@@ -167,9 +167,9 @@ impl<R: BufRead + Seek> MveDecoder<R> {
         // stream. After the scan we seek back so the rest of `new`
         // (and every later `next_frame` call) sees the file from the
         // first chunk again.
-        let post_sig_pos = reader.data.stream_position()?;
+        let post_sig_pos = reader.stream_position()?;
         let scan = scan_stream_metadata(&mut reader, &name)?;
-        reader.data.seek(SeekFrom::Start(post_sig_pos))?;
+        reader.seek(SeekFrom::Start(post_sig_pos))?;
 
         let mut dec = MveDecoder {
             reader,
@@ -335,7 +335,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
     }
 
     fn skip(&mut self, n: u64) -> Result<(), Error> {
-        self.reader.data.seek(SeekFrom::Current(n as i64))?;
+        self.reader.seek(SeekFrom::Current(n as i64))?;
         Ok(())
     }
 
@@ -476,7 +476,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
         // per frame.
         let n = size as usize;
         self.code_map.resize(n, 0);
-        self.reader.data.read_exact(&mut self.code_map)?;
+        self.reader.read_exact(&mut self.code_map)?;
         Ok(())
     }
 
@@ -506,7 +506,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
 
         // Reuse the scratch buffer so we don't allocate fresh per audio segment.
         self.scratch.resize(data_size, 0);
-        self.reader.data.read_exact(&mut self.scratch)?;
+        self.reader.read_exact(&mut self.scratch)?;
 
         let samples = if self.audio.compressed {
             decompress_audio(&self.scratch, audio_size, self.audio.channels)
@@ -539,7 +539,7 @@ impl<R: BufRead + Seek> MveDecoder<R> {
         // Reuse the scratch buffer for the (often 10-50 KB) compressed
         // block stream — saves a fresh `Vec<u8>` allocation per frame.
         self.scratch.resize(data_size, 0);
-        self.reader.data.read_exact(&mut self.scratch)?;
+        self.reader.read_exact(&mut self.scratch)?;
 
         if self.format == VideoFormat::Rgb555 {
             decode_frame16(
@@ -668,22 +668,22 @@ fn scan_stream_metadata<R: BufRead + Seek>(
                             frame_duration_us = rate.saturating_mul(subdiv as u32);
                         }
                         if seg_size > 6 {
-                            reader.data.seek(SeekFrom::Current((seg_size - 6) as i64))?;
+                            reader.seek(SeekFrom::Current((seg_size - 6) as i64))?;
                         }
                     } else {
                         // Malformed but tolerable — skip what's there.
-                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                        reader.seek(SeekFrom::Current(seg_size as i64))?;
                     }
                 }
                 OC_PLAY_VIDEO => {
                     frame_count = frame_count.saturating_add(1);
                     if seg_size > 0 {
-                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                        reader.seek(SeekFrom::Current(seg_size as i64))?;
                     }
                 }
                 OC_END_OF_STREAM => {
                     if seg_size > 0 {
-                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                        reader.seek(SeekFrom::Current(seg_size as i64))?;
                     }
                     return Ok(StreamMetadata {
                         frame_duration_us,
@@ -692,7 +692,7 @@ fn scan_stream_metadata<R: BufRead + Seek>(
                 }
                 _ => {
                     if seg_size > 0 {
-                        reader.data.seek(SeekFrom::Current(seg_size as i64))?;
+                        reader.seek(SeekFrom::Current(seg_size as i64))?;
                     }
                 }
             }

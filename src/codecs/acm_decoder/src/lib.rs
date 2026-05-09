@@ -303,7 +303,7 @@ impl AcmDecoder {
     /// appending exactly 4 zero bytes to the raw data — keeping this
     /// at 32 bits is what makes the byte-exact round-trip pass.
     fn load_next_word(&mut self) -> (u64, u32) {
-        match self.reader.read_at_most::<8>() {
+        match self.reader.read_at_most_to_array::<8>() {
             Ok((buf, n)) if n > 0 => {
                 let mut word = 0u64;
                 for (i, byte) in buf.iter().enumerate().take(n) {

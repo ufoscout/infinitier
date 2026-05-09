@@ -264,7 +264,7 @@ impl RiffPcmReader {
         while written < max_values {
             let n = (max_values - written).min(chunk_capacity);
             let bytes = n * bytes_per as usize;
-            self.reader.data.read_exact(&mut scratch[..bytes])?;
+            self.reader.read_exact(&mut scratch[..bytes])?;
             if self.bits_per_sample == 16 {
                 for i in 0..n {
                     out[written + i] = i16::from_le_bytes([scratch[i * 2], scratch[i * 2 + 1]]);
@@ -294,7 +294,7 @@ impl RiffPcmReader {
 /// strict parsers like hound or symphonia. See
 /// `assets/WAV/broken/AFT_M01.md` for a worked example.
 fn open_riff_pcm(mut reader: Reader<Box<dyn DataTrait>>) -> Result<(WavInfo, RiffPcmReader)> {
-    let head: [u8; 12] = reader.read_exact()?;
+    let head: [u8; 12] = reader.read_exact_to_array()?;
     if &head[0..4] != RIFF_MAGIC {
         return Err(WavError::MalformedWav("missing RIFF marker"));
     }
@@ -305,7 +305,7 @@ fn open_riff_pcm(mut reader: Reader<Box<dyn DataTrait>>) -> Result<(WavInfo, Rif
     let mut fmt: Option<(u16, u16, u32, u16)> = None; // tag, channels, rate, bits
 
     loop {
-        let hdr: [u8; 8] = match reader.read_exact() {
+        let hdr: [u8; 8] = match reader.read_exact_to_array() {
             Ok(b) => b,
             Err(_) => return Err(WavError::MalformedWav("missing data chunk")),
         };
@@ -317,7 +317,7 @@ fn open_riff_pcm(mut reader: Reader<Box<dyn DataTrait>>) -> Result<(WavInfo, Rif
                 if chunk_size < 16 {
                     return Err(WavError::MalformedWav("fmt chunk too small"));
                 }
-                let body: [u8; 16] = reader.read_exact()?;
+                let body: [u8; 16] = reader.read_exact_to_array()?;
                 let format_tag = u16::from_le_bytes(body[0..2].try_into().unwrap());
                 let channels = u16::from_le_bytes(body[2..4].try_into().unwrap());
                 let sample_rate = u32::from_le_bytes(body[4..8].try_into().unwrap());
@@ -330,7 +330,7 @@ fn open_riff_pcm(mut reader: Reader<Box<dyn DataTrait>>) -> Result<(WavInfo, Rif
                 // RIFF 1-byte pad if the chunk size is odd.
                 let extra = chunk_size as i64 - 16 + (chunk_size & 1) as i64;
                 if extra > 0 {
-                    reader.data.seek(SeekFrom::Current(extra))?;
+                    reader.seek(SeekFrom::Current(extra))?;
                 }
             }
             b if b == DATA_MAGIC => {
@@ -359,7 +359,7 @@ fn open_riff_pcm(mut reader: Reader<Box<dyn DataTrait>>) -> Result<(WavInfo, Rif
             }
             _ => {
                 let skip = chunk_size as i64 + (chunk_size & 1) as i64;
-                reader.data.seek(SeekFrom::Current(skip))?;
+                reader.seek(SeekFrom::Current(skip))?;
             }
         }
     }
@@ -419,7 +419,7 @@ impl WavDecoder {
     /// forwarded to the inner [`AcmDecoder`] for WAVC sources.
     pub fn open(datasource: &DataSource, name: impl Into<String>) -> Result<Self> {
         let name = name.into();
-        let magic: ([u8; 4], _) = datasource.reader()?.read_at_most()?;
+        let magic: ([u8; 4], _) = datasource.reader()?.read_at_most_to_array()?;
         match &magic.0 {
             b"RIFF" => Self::open_riff(datasource, name),
             b"WAVC" => Self::open_wavc(datasource, name),
@@ -472,7 +472,7 @@ impl WavDecoder {
     }
 
     fn open_ogg(datasource: &DataSource, name: String) -> Result<Self> {
-        let media_source = DataTraitMediaSource::new(datasource.reader()?.data)?;
+        let media_source = DataTraitMediaSource::new(datasource.reader()?)?;
         let mss = MediaSourceStream::new(Box::new(media_source), Default::default());
 
         let mut hint = Hint::new();
@@ -631,12 +631,12 @@ impl WavDecoder {
 /// takes `&self`, so we measure it once at construction time and
 /// cache it.
 struct DataTraitMediaSource {
-    inner: Box<dyn DataTrait>,
+    inner: Reader<Box<dyn DataTrait>>,
     byte_len: Option<u64>,
 }
 
 impl DataTraitMediaSource {
-    fn new(mut inner: Box<dyn DataTrait>) -> io::Result<Self> {
+    fn new(mut inner: Reader<Box<dyn DataTrait>>) -> io::Result<Self> {
         // Stash the cursor, seek to end to measure, restore. For a
         // file this is two `lseek`s; for an in-memory cursor it's
         // arithmetic on the slice length.

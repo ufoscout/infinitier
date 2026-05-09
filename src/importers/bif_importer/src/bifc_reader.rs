@@ -3,9 +3,7 @@ use log::{debug, error};
 
 use crate::{BIFCV1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
 use std::{
-    collections::VecDeque,
-    io::{BufRead, Read, Seek},
-    sync::Arc,
+    collections::VecDeque, io::{BufRead, Read, Seek}, sync::Arc
 };
 
 /// A BIFC V1.0 file importer
@@ -42,10 +40,8 @@ impl BifcParser {
                     // Throw away the first 12 bytes (signature + total_uncompressed_size)
                     let _signature_and_total_uncompressed_size = reader.read_string(12)?;
 
-                    let mut zip = Reader {
-                        charset: reader.charset,
-                        data: BifcCompressedReader::new(reader, total_uncompressed_size),
-                    };
+                    let charset = reader.charset;
+                    let mut zip = Reader::new( BifcCompressedReader::new(reader, total_uncompressed_size), charset);
                     zip.copy(&mut temp_file)?;
                     Ok(path)
                 },

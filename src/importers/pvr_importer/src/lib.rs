@@ -1,5 +1,7 @@
 // To decode PVR texture files check: https://crates.io/crates/texture2ddecoder
 
+use std::io::Read;
+
 use image::{ImageBuffer, Rgba};
 use infinitier_datasource::{DataSource, Importer};
 use log::{debug, error};

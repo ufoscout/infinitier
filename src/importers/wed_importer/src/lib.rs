@@ -1,4 +1,4 @@
-use std::io::SeekFrom;
+use std::io::{Seek, SeekFrom};
 
 use infinitier_common::ResourceType;
 use infinitier_datasource::{DataSource, Importer};
@@ -106,7 +106,7 @@ impl<'a> Importer for WedImporter<'a> {
 
         // Read Wall Groups
         // Derive count from section byte range, matching NearInfinity's approach.
-        let file_size = reader.data.seek(SeekFrom::End(0))?;
+        let file_size = reader.seek(SeekFrom::End(0))?;
         let mut section_ends = [
             overlays_offset,
             secondary_header_offset,

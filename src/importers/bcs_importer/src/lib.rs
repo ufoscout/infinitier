@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use std::{fmt::Write as _, io::Read};
 
 use infinitier_datasource::{DataSource, Importer};
 use log::debug;

@@ -1,5 +1,6 @@
 #![doc = include_str!("../readme.md")]
 
+pub mod reader_new;
 use std::{
     fs::File,
     io::{BufRead, BufReader, Cursor, Read, Seek, Take},
@@ -228,33 +229,48 @@ impl DataSource {
 
 /// A reader that reads a byte array with a specific encoding
 pub struct Reader<T> {
-    pub data: T,
+    data: T,
     pub charset: &'static Encoding,
 }
 
-impl<T: Read> Reader<T> {
-    /// Skips `size` bytes and returns the number of bytes skipped.
-    /// This operation has cost O(n), if the Reader is Seekable, use `seek` instead.
-    pub fn skip(&mut self, size: u64) -> std::io::Result<u64> {
-        std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())
+impl<T> Reader<T> {
+
+    /// Creates a new reader
+    pub fn new(data: T, charset: &'static Encoding) -> Self {
+        Reader { data, charset }
     }
 
-    /// Reads a byte array from the current position and returns the number of bytes read
-    pub fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.data.read(buf)
+    /// with charset
+    pub fn with_charset(mut self, charset: &'static Encoding) -> Self {
+        self.charset = charset;
+        self
     }
+
+    /// set charset
+    pub fn set_charset(&mut self, charset: &'static Encoding) {
+        self.charset = charset;
+    }
+}
+
+impl<T: Read> Reader<T> {
+
+    // /// Skips `size` bytes and returns the number of bytes skipped.
+    // /// This operation has cost O(n), if the Reader is Seekable, use `seek` instead.
+    // pub fn skip(&mut self, size: u64) -> std::io::Result<u64> {
+    //     std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())
+    // }
 
     /// Reads exactly `N` bytes from the current position and returns them as a byte array.
     ///
     /// If the end of the file is reached before `N` bytes could be read, an `io::Error` is returned.
-    pub fn read_exact<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
+    pub fn read_exact_to_array<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
         let mut buf = [0u8; N];
         self.data.read_exact(&mut buf)?;
         Ok(buf)
     }
 
     /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
-    pub fn read_at_most<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
+    pub fn read_at_most_to_array<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
         let mut buf = [0u8; N];
         let n = self.data.read(&mut buf)?;
         Ok((buf, n))
@@ -279,11 +295,6 @@ impl<T: Read> Reader<T> {
         Ok(buf)
     }
 
-    /// Read the first `n_bytes` bytes from a byte array and fill a buffer with them.
-    pub fn read_to_end(&mut self, buf: &mut Vec<u8>) -> std::io::Result<usize> {
-        self.data.read_to_end(buf)
-    }
-
     /// Read the first `n_chars` characters from a byte array interpreted
     /// with the Reader `charset`, and return them as a `String`.
     pub fn read_string(&mut self, size: u64) -> std::io::Result<String> {
@@ -306,38 +317,38 @@ impl<T: Read> Reader<T> {
 
     /// Reads a i16 from the current position
     pub fn read_i16(&mut self) -> std::io::Result<i16> {
-        Ok(i16::from_le_bytes(self.read_exact::<2>()?))
+        Ok(i16::from_le_bytes(self.read_exact_to_array::<2>()?))
     }
 
     /// Reads a i32 from the current position
     pub fn read_i32(&mut self) -> std::io::Result<i32> {
-        Ok(i32::from_le_bytes(self.read_exact::<4>()?))
+        Ok(i32::from_le_bytes(self.read_exact_to_array::<4>()?))
     }
 
     /// Reads a u32 from the current position
     pub fn read_u32(&mut self) -> std::io::Result<u32> {
-        Ok(u32::from_le_bytes(self.read_exact::<4>()?))
+        Ok(u32::from_le_bytes(self.read_exact_to_array::<4>()?))
     }
 
     /// Reads a u64 from the current position
     pub fn read_u64(&mut self) -> std::io::Result<u64> {
-        Ok(u64::from_le_bytes(self.read_exact::<8>()?))
+        Ok(u64::from_le_bytes(self.read_exact_to_array::<8>()?))
     }
 
     /// Reads a u16 from the current position
     pub fn read_u16(&mut self) -> std::io::Result<u16> {
-        Ok(u16::from_le_bytes(self.read_exact::<2>()?))
+        Ok(u16::from_le_bytes(self.read_exact_to_array::<2>()?))
     }
 
     /// Reads a u8 from the current position
     #[inline]
     pub fn read_u8(&mut self) -> std::io::Result<u8> {
-        Ok(u8::from_le_bytes(self.read_exact::<1>()?))
+        Ok(u8::from_le_bytes(self.read_exact_to_array::<1>()?))
     }
 
     /// Reads a i8 from the current position
     pub fn read_i8(&mut self) -> std::io::Result<i8> {
-        Ok(i8::from_le_bytes(self.read_exact::<1>()?))
+        Ok(i8::from_le_bytes(self.read_exact_to_array::<1>()?))
     }
 
     /// Copy data from the reader to the writer
@@ -416,6 +427,13 @@ impl<T: BufRead + Seek> Reader<T> {
 }
 
 impl<R: BufRead> Reader<ZlibDecoder<R>> {
+
+    /// Skips `size` bytes and returns the number of bytes skipped.
+    /// This operation has cost O(n), if the Reader is Seekable, use `seek` instead.
+    pub fn skip(&mut self, size: u64) -> std::io::Result<u64> {
+        std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())
+    }
+
     /// Decodes the entire zlib stream into memory
     pub fn decode_all(&mut self) -> std::io::Result<Reader<std::io::Cursor<Vec<u8>>>> {
         let mut data = Vec::new();
@@ -431,7 +449,40 @@ impl<T: Read> Read for Reader<T> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.data.read(buf)
     }
+
+//     fn read_to_string(&mut self, buf: &mut String) -> std::io::Result<usize> {
+        
+//     }
+
+//     fn take(self, limit: u64) -> Take<Self>
+//     where
+//         Self: Sized,
+//     {
+        
+//     }
 }
+
+impl<T: BufRead> BufRead for Reader<T> {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        self.data.fill_buf()
+    }
+
+    fn consume(&mut self, amount: usize) {
+        self.data.consume(amount)
+    }
+
+    // fn read_line(&mut self, buf: &mut String) -> std::io::Result<usize> {
+        
+    // }
+}
+
+impl<T: Seek> Seek for Reader<T> {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.data.seek(pos)
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {

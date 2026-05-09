@@ -49,7 +49,7 @@ impl BamV1Parser {
         let palette = {
             // Find the nearest section offset after palette_offset to determine palette size,
             // regardless of which section (frames or lookup table) comes after it.
-            let file_end = reader.data.seek(std::io::SeekFrom::End(0))?;
+            let file_end = reader.seek(std::io::SeekFrom::End(0))?;
             let next_offset = [frames_offset, lookup_offset, file_end]
                 .into_iter()
                 .filter(|&o| o > palette_offset)

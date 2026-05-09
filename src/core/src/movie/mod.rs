@@ -33,10 +33,10 @@ pub type StreamingMveDecoder = MveDecoder<Box<dyn DataTrait>>;
 /// Type alias for the boxed-trait-object Bink streaming decoder. Bink's
 /// per-frame index uses `Read + Seek` directly (no `Reader` wrapper)
 /// because it doesn't need encoding-aware string parsing.
-pub type StreamingBikDecoder = BikStreamingDecoder<Box<dyn DataTrait>>;
+pub type StreamingBikDecoder = BikStreamingDecoder<Reader<Box<dyn DataTrait>>>;
 /// Type alias for the boxed-trait-object WBM streaming decoder. Like
 /// BIK, the Matroska demuxer underneath only needs `Read + Seek`.
-pub type StreamingWbmDecoder = WbmStreamingDecoder<Box<dyn DataTrait>>;
+pub type StreamingWbmDecoder = WbmStreamingDecoder<Reader<Box<dyn DataTrait>>>;
 
 /// Container of the underlying movie stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,7 +100,7 @@ impl MovieSource {
     pub fn open(&self) -> Result<MovieDecoder, MovieOpenError> {
         let mut probe_reader = self.datasource.reader()?;
         let mut probe = [0u8; 4];
-        probe_reader.data.read_exact(&mut probe)?;
+        probe_reader.read_exact(&mut probe)?;
         let format = MovieFormat::from_magic(&probe)?;
         // Drop the probe reader so the underlying file handle is
         // released before we open a fresh one positioned at byte 0.
@@ -108,24 +108,20 @@ impl MovieSource {
 
         match format {
             MovieFormat::Mve => {
-                let inner = self.datasource.reader()?;
-                let reader = Reader {
-                    data: inner.data,
-                    charset: inner.charset,
-                };
+                let reader = self.datasource.reader()?;
                 Ok(MovieDecoder::Mve(Box::new(MveDecoder::new(
                     reader, &self.name,
                 )?)))
             }
             MovieFormat::Bik => {
                 let inner = self.datasource.reader()?;
-                let dec = BikStreamingDecoder::new(inner.data, &self.name)?
+                let dec = BikStreamingDecoder::new(inner, &self.name)?
                     .with_output_format(BikOutputFormat::Rgba);
                 Ok(MovieDecoder::Bik(Box::new(dec)))
             }
             MovieFormat::Wbm => {
                 let inner = self.datasource.reader()?;
-                let dec = WbmStreamingDecoder::new(inner.data, &self.name)?
+                let dec = WbmStreamingDecoder::new(inner, &self.name)?
                     .with_output_format(WbmOutputFormat::Rgba);
                 Ok(MovieDecoder::Wbm(Box::new(dec)))
             }
