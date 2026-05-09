@@ -295,23 +295,41 @@ mod tests {
     #[test]
     fn test_from_extension_known() {
         assert_eq!(ResourceType::from_extension("bmp"), Some(ResourceType::Bmp));
-        assert_eq!(ResourceType::from_extension("2da"), Some(ResourceType::TwoDA));
+        assert_eq!(
+            ResourceType::from_extension("2da"),
+            Some(ResourceType::TwoDA)
+        );
         assert_eq!(ResourceType::from_extension("acm"), Some(ResourceType::Acm));
-        assert_eq!(ResourceType::from_extension("pvrz"), Some(ResourceType::Pvrz));
+        assert_eq!(
+            ResourceType::from_extension("pvrz"),
+            Some(ResourceType::Pvrz)
+        );
     }
 
     #[test]
     fn test_from_extension_case_insensitive() {
         assert_eq!(ResourceType::from_extension("BMP"), Some(ResourceType::Bmp));
         assert_eq!(ResourceType::from_extension("Wav"), Some(ResourceType::Wav));
-        assert_eq!(ResourceType::from_extension("2DA"), Some(ResourceType::TwoDA));
-        assert_eq!(ResourceType::from_extension("MeNu"), Some(ResourceType::Menu));
+        assert_eq!(
+            ResourceType::from_extension("2DA"),
+            Some(ResourceType::TwoDA)
+        );
+        assert_eq!(
+            ResourceType::from_extension("MeNu"),
+            Some(ResourceType::Menu)
+        );
     }
 
     #[test]
     fn test_from_extension_strips_leading_dot() {
-        assert_eq!(ResourceType::from_extension(".bmp"), Some(ResourceType::Bmp));
-        assert_eq!(ResourceType::from_extension(".2DA"), Some(ResourceType::TwoDA));
+        assert_eq!(
+            ResourceType::from_extension(".bmp"),
+            Some(ResourceType::Bmp)
+        );
+        assert_eq!(
+            ResourceType::from_extension(".2DA"),
+            Some(ResourceType::TwoDA)
+        );
     }
 
     #[test]

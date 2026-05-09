@@ -73,10 +73,7 @@ impl CaseInsensitiveFS {
     /// Like [`get_path_opt`](Self::get_path_opt) but returns an `io::Error` when missing.
     pub fn get_path(&self, path: &str) -> io::Result<CiPath> {
         self.get_path_opt(path).ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("File not found: {path}"),
-            )
+            io::Error::new(io::ErrorKind::NotFound, format!("File not found: {path}"))
         })
     }
 
@@ -104,12 +101,7 @@ impl CaseInsensitiveFS {
     /// The path is matched case insensitively. When `recursive` is
     /// false, only direct children of `path` are returned; otherwise
     /// the whole subtree under `path` is walked.
-    pub fn list_files(
-        &self,
-        path: &str,
-        extension: Option<&str>,
-        recursive: bool,
-    ) -> Vec<CiPath> {
+    pub fn list_files(&self, path: &str, extension: Option<&str>, recursive: bool) -> Vec<CiPath> {
         let needle = CiPath::normalize(path);
         let mut results = vec![];
         for (key, value) in self.paths.iter() {
@@ -165,7 +157,6 @@ pub struct CiPath {
 }
 
 impl CiPath {
-
     /// Normalizes a raw path string into the canonical lookup key form:
     /// trimmed, lowercased, with `\` and `:` replaced by `/` and any
     /// leading `/` stripped.
@@ -209,10 +200,7 @@ impl CiPath {
     /// - `foo/bar/` -> ``
     /// - `/foo/bar.exe` -> `.exe`
     pub fn extension(&self) -> Option<&str> {
-        self.path
-            .split('.')
-            .nth(1)
-            .filter(|ext| !ext.is_empty())
+        self.path.split('.').nth(1).filter(|ext| !ext.is_empty())
     }
 
     /// Returns the base name of the path without the extension.
@@ -405,10 +393,7 @@ mod tests {
 
     #[test]
     fn test_ci_path_base_name_without_extension() {
-        assert_eq!(
-            ci_path("/foo/bar.exe").base_name_without_extension(),
-            "bar"
-        );
+        assert_eq!(ci_path("/foo/bar.exe").base_name_without_extension(), "bar");
         assert_eq!(
             ci_path("/data/AR3603.cbf").base_name_without_extension(),
             "ar3603"
@@ -433,31 +418,13 @@ mod tests {
 
     #[test]
     fn test_basename() {
-        assert_eq!(
-            ci_path("/data/AR3603.cbf").base_name(),
-            "ar3603.cbf"
-        );
-        assert_eq!(
-            ci_path("/data/target").base_name(),
-            "target"
-        );
-        assert_eq!(
-            ci_path("data/AR3603.cbf").base_name(),
-            "ar3603.cbf"
-        );
-        assert_eq!(
-            ci_path("data/target").base_name(),
-            "target"
-        );
-        assert_eq!(
-            ci_path("/AR3603.cbf").base_name(),
-            "ar3603.cbf"
-        );
+        assert_eq!(ci_path("/data/AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(ci_path("/data/target").base_name(), "target");
+        assert_eq!(ci_path("data/AR3603.cbf").base_name(), "ar3603.cbf");
+        assert_eq!(ci_path("data/target").base_name(), "target");
+        assert_eq!(ci_path("/AR3603.cbf").base_name(), "ar3603.cbf");
         assert_eq!(ci_path("/target").base_name(), "target");
-        assert_eq!(
-            ci_path("AR3603.cbf").base_name(),
-            "ar3603.cbf"
-        );
+        assert_eq!(ci_path("AR3603.cbf").base_name(), "ar3603.cbf");
         assert_eq!(ci_path("target").base_name(), "target");
         assert_eq!(ci_path("").base_name(), "");
         assert_eq!(ci_path("/").base_name(), "");

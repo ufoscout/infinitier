@@ -315,72 +315,64 @@ impl GameDataBuilder {
             let name = resource.resource_name;
             let r#type = resource.r#type;
 
-                if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
-                    let bif_ds = bif.datasource.clone();
-                    let bif_ds_clone = bif_ds.clone();
-                    let bif_source: Arc<dyn Fn(u64, u64) -> DataSource + Send + Sync> =
-                        Arc::new(move |offset, size| {
-                            bif_ds_clone.clone().with_offset(offset, Some(size))
-                        });
+            if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
+                let bif_ds = bif.datasource.clone();
+                let bif_ds_clone = bif_ds.clone();
+                let bif_source: Arc<dyn Fn(u64, u64) -> DataSource + Send + Sync> =
+                    Arc::new(move |offset, size| {
+                        bif_ds_clone.clone().with_offset(offset, Some(size))
+                    });
 
-                    let key_locator = resource.bif_resource_locator;
-                    let bif_resource = if resource.r#type == ResourceType::Tis {
-                        bif.resources.iter().find(|r| {
-                            matches!(r,
-                                BifEmbeddedResource::Tileset { locator, .. }
-                                if (*locator & 0xFC000) == (key_locator & 0xFC000)
-                            )
-                        })
-                    } else {
-                        bif.resources.iter().find(|r| {
-                            matches!(r,
-                                BifEmbeddedResource::File { locator, .. }
-                                if (*locator & 0x3FFF) == (key_locator & 0x3FFF)
-                            )
-                        })
-                    };
-                    if let Some(bif_resource) = bif_resource {
-                        debug!("Resource {}.{:?} found in bif {:?}", name, r#type, bif_ds);
-
-                        let (datasource, file_size) = match bif_resource {
-                            BifEmbeddedResource::File {
-                                locator: _,
-                                size,
-                                offset,
-                                r#type: _,
-                            } => (bif_source(*offset, *size as u64), *size as u64),
-                            BifEmbeddedResource::Tileset {
-                                locator: _,
-                                size,
-                                count: _,
-                                offset,
-                                r#type: _,
-                            } => (bif_source(*offset, *size as u64), *size as u64),
-                        };
-
-                        game_data.add_resource(GameResource {
-                            game_type: self.game_type,
-                            name,
-                            r#type,
-                            file_size: Some(file_size),
-                            datasource: Some(datasource),
-                            data_origin: DataOrigin::Bif {
-                                name: bif.name.clone(),
-                            },
-                        });
-                    } else {
-                        warn!("Resource {}.{:?} not found in bif {:?}", name, r#type, bif_ds);
-                        game_data.add_resource(GameResource {
-                            game_type: self.game_type,
-                            name,
-                            r#type,
-                            file_size: None,
-                            datasource: None,
-                            data_origin: DataOrigin::Missing,
-                        });
-                    }
+                let key_locator = resource.bif_resource_locator;
+                let bif_resource = if resource.r#type == ResourceType::Tis {
+                    bif.resources.iter().find(|r| {
+                        matches!(r,
+                            BifEmbeddedResource::Tileset { locator, .. }
+                            if (*locator & 0xFC000) == (key_locator & 0xFC000)
+                        )
+                    })
                 } else {
-                    warn!("Resource {}.{:?} not found", name, r#type);
+                    bif.resources.iter().find(|r| {
+                        matches!(r,
+                            BifEmbeddedResource::File { locator, .. }
+                            if (*locator & 0x3FFF) == (key_locator & 0x3FFF)
+                        )
+                    })
+                };
+                if let Some(bif_resource) = bif_resource {
+                    debug!("Resource {}.{:?} found in bif {:?}", name, r#type, bif_ds);
+
+                    let (datasource, file_size) = match bif_resource {
+                        BifEmbeddedResource::File {
+                            locator: _,
+                            size,
+                            offset,
+                            r#type: _,
+                        } => (bif_source(*offset, *size as u64), *size as u64),
+                        BifEmbeddedResource::Tileset {
+                            locator: _,
+                            size,
+                            count: _,
+                            offset,
+                            r#type: _,
+                        } => (bif_source(*offset, *size as u64), *size as u64),
+                    };
+
+                    game_data.add_resource(GameResource {
+                        game_type: self.game_type,
+                        name,
+                        r#type,
+                        file_size: Some(file_size),
+                        datasource: Some(datasource),
+                        data_origin: DataOrigin::Bif {
+                            name: bif.name.clone(),
+                        },
+                    });
+                } else {
+                    warn!(
+                        "Resource {}.{:?} not found in bif {:?}",
+                        name, r#type, bif_ds
+                    );
                     game_data.add_resource(GameResource {
                         game_type: self.game_type,
                         name,
@@ -390,27 +382,87 @@ impl GameDataBuilder {
                         data_origin: DataOrigin::Missing,
                     });
                 }
+            } else {
+                warn!("Resource {}.{:?} not found", name, r#type);
+                game_data.add_resource(GameResource {
+                    game_type: self.game_type,
+                    name,
+                    r#type,
+                    file_size: None,
+                    datasource: None,
+                    data_origin: DataOrigin::Missing,
+                });
+            }
         }
 
-        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Bio.get_extension(), false)?;
-        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Chr.get_extension(), false)?;
-        self.add_resources_from_dir(&mut game_data, "data", ResourceType::Mve.get_extension(), false)?;
-        self.add_resources_from_dir(&mut game_data, "movies", ResourceType::Wbm.get_extension(), false)?;
-        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Acm.get_extension(), true)?;
-        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Mus.get_extension(), false)?;
-        self.add_resources_from_dir(&mut game_data, "scripts", ResourceType::Bs.get_extension(), false)?;
-        self.add_resources_from_dir(&mut game_data, "sounds", ResourceType::Wav.get_extension(), false)?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "characters",
+            ResourceType::Bio.get_extension(),
+            false,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "characters",
+            ResourceType::Chr.get_extension(),
+            false,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "data",
+            ResourceType::Mve.get_extension(),
+            false,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "movies",
+            ResourceType::Wbm.get_extension(),
+            false,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "music",
+            ResourceType::Acm.get_extension(),
+            true,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "music",
+            ResourceType::Mus.get_extension(),
+            false,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "scripts",
+            ResourceType::Bs.get_extension(),
+            false,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "sounds",
+            ResourceType::Wav.get_extension(),
+            false,
+        )?;
         self.add_resources_from_dir(&mut game_data, "override", None, false)?;
 
         Ok(game_data)
     }
 
-    fn add_resources_from_dir(&self, game: &mut GameData, dir_name: &str, extension: Option<&str>, recursive: bool) -> io::Result<()> {
+    fn add_resources_from_dir(
+        &self,
+        game: &mut GameData,
+        dir_name: &str,
+        extension: Option<&str>,
+        recursive: bool,
+    ) -> io::Result<()> {
         debug!("Searching for resources in {}/{:?}", dir_name, extension);
         for resource in self.fs.list_files(dir_name, extension, recursive) {
             let real = resource.path();
             let name = resource.base_name_without_extension().to_string();
-            let r#type = resource.extension().and_then(|ext| ResourceType::from_extension(ext)).unwrap_or(ResourceType::Unknown(0));
+            let r#type = resource
+                .extension()
+                .and_then(ResourceType::from_extension)
+                .unwrap_or(ResourceType::Unknown(0));
             let file_size = Some(real.metadata()?.len());
             let datasource = Some(DataSource::new(real));
 
@@ -429,9 +481,7 @@ impl GameDataBuilder {
         }
         Ok(())
     }
-
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -577,11 +627,7 @@ mod tests {
         );
     }
 
-    fn make_resource(
-        name: &str,
-        r#type: ResourceType,
-        origin: DataOrigin,
-    ) -> GameResource {
+    fn make_resource(name: &str, r#type: ResourceType, origin: DataOrigin) -> GameResource {
         GameResource {
             game_type: Game::Bg2,
             name: name.to_string(),
@@ -715,15 +761,21 @@ mod tests {
 
         assert_eq!(game_data.len(), 3);
 
-        let foo = game_data.get_by_name_and_type("foo", ResourceType::Bam).unwrap();
+        let foo = game_data
+            .get_by_name_and_type("foo", ResourceType::Bam)
+            .unwrap();
         assert_eq!(foo.name, "foo");
         assert_eq!(foo.r#type, ResourceType::Bam);
 
-        let bar = game_data.get_by_name_and_type("bar", ResourceType::Wed).unwrap();
+        let bar = game_data
+            .get_by_name_and_type("bar", ResourceType::Wed)
+            .unwrap();
         assert_eq!(bar.name, "bar");
         assert_eq!(bar.r#type, ResourceType::Wed);
 
-        let baz = game_data.get_by_name_and_type("baz", ResourceType::Unknown(0)).unwrap();
+        let baz = game_data
+            .get_by_name_and_type("baz", ResourceType::Unknown(0))
+            .unwrap();
         assert_eq!(baz.name, "baz");
         assert_eq!(baz.r#type, ResourceType::Unknown(0));
     }

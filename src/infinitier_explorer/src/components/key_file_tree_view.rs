@@ -73,7 +73,9 @@ impl KeyFileTreeView {
 mod tests {
     use super::*;
     use infinitier_core::{
-        fs::CaseInsensitiveFS, game::{DataOrigin, GameData, GameResource}, resource::{Game, key::ResourceType}
+        fs::CaseInsensitiveFS,
+        game::{DataOrigin, GameData, GameResource},
+        resource::{Game, key::ResourceType},
     };
 
     fn make_game_data(entries: Vec<(&str, ResourceType)>) -> GameData {
@@ -153,7 +155,6 @@ mod tests {
 
     #[test]
     fn test_override_label() {
-
         let fs = CaseInsensitiveFS::new("./").unwrap();
         let path = fs.list_files("", None, false)[0].clone();
 

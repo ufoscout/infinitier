@@ -85,7 +85,10 @@ fn test_import_all_resources() {
             if let Err(e) = result
                 && !expected_failures(resource)
             {
-                dir_failures.push(format!("  {} — {e}", resource.resource_name_with_extension()));
+                dir_failures.push(format!(
+                    "  {} — {e}",
+                    resource.resource_name_with_extension()
+                ));
             }
         }
 
