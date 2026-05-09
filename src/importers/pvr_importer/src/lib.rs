@@ -3,7 +3,7 @@
 use std::io::Read;
 
 use image::{ImageBuffer, Rgba};
-use infinitier_datasource::{DataSource, Importer};
+use infinitier_datasource::{DataSource, Importer, ReadExt};
 use log::{debug, error};
 
 /// A PVRZ file importer

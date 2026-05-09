@@ -4,7 +4,7 @@ use log::{debug, error};
 use thiserror::Error as ThisError;
 
 use hound::WavWriter;
-use infinitier_datasource::{DataSource, DataTrait, Reader};
+use infinitier_datasource::{DataSource, DataTrait, ReadExt, Reader};
 
 const ACM_ID: u32 = 0x032897;
 const WAVC_ID: u32 = 0x564157; // 'WAV' little-endian

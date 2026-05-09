@@ -2,7 +2,7 @@ use std::io::{self, BufRead, Seek};
 
 use serde::{Deserialize, Serialize};
 
-use infinitier_datasource::{DataSource, Importer, Reader};
+use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 pub use infinitier_common::ResourceType;

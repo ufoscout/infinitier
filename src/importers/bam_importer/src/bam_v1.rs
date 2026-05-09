@@ -1,7 +1,7 @@
 use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
-use infinitier_datasource::Reader;
+use infinitier_datasource::{ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 use crate::{Type, common::Rgb};

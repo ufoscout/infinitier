@@ -1,7 +1,7 @@
 use std::io::{BufRead, Seek};
 
 use image::{ImageBuffer, Rgba};
-use infinitier_datasource::{DataSource, Importer, Reader};
+use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};

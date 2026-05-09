@@ -14,7 +14,7 @@ use symphonia::core::probe::Hint;
 use thiserror::Error as ThisError;
 
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
-use infinitier_datasource::{DataSource, DataTrait, Reader};
+use infinitier_datasource::{DataSource, DataTrait, ReadExt, Reader};
 
 pub type Result<T> = std::result::Result<T, WavError>;
 

@@ -234,7 +234,6 @@ pub struct Reader<T> {
 }
 
 impl<T> Reader<T> {
-
     /// Creates a new reader
     pub fn new(data: T, charset: &'static Encoding) -> Self {
         Reader { data, charset }
@@ -253,46 +252,12 @@ impl<T> Reader<T> {
 }
 
 impl<T: Read> Reader<T> {
-
-    // /// Skips `size` bytes and returns the number of bytes skipped.
-    // /// This operation has cost O(n), if the Reader is Seekable, use `seek` instead.
-    // pub fn skip(&mut self, size: u64) -> std::io::Result<u64> {
-    //     std::io::copy(&mut (&mut self.data).take(size), &mut std::io::sink())
-    // }
-
-    /// Reads exactly `N` bytes from the current position and returns them as a byte array.
-    ///
-    /// If the end of the file is reached before `N` bytes could be read, an `io::Error` is returned.
-    pub fn read_exact_to_array<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
-        let mut buf = [0u8; N];
-        self.data.read_exact(&mut buf)?;
-        Ok(buf)
-    }
-
-    /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
-    pub fn read_at_most_to_array<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
-        let mut buf = [0u8; N];
-        let n = self.data.read(&mut buf)?;
-        Ok((buf, n))
-    }
-
     /// Creates a Reader which will read at most limit bytes from it.
-    pub fn take(&mut self, bytes: u64) -> Reader<Take<&mut T>> {
+    pub fn take_as_reader(&mut self, bytes: u64) -> Reader<Take<&mut T>> {
         Reader {
             data: (&mut self.data).take(bytes),
             charset: self.charset,
         }
-    }
-
-    /// Reads up to `N` bytes from the current position and returns them as a `Vec<u8>`.
-    ///
-    /// If the end of the file is reached before `N` bytes could be read, the returned
-    /// `Vec<u8>` will contain less than `N` elements.
-    pub fn take_to_vec(&mut self, bytes: u64) -> std::io::Result<Vec<u8>> {
-        let mut buf = vec![];
-        let mut chunk = (&mut self.data).take(bytes);
-        chunk.read_to_end(&mut buf)?;
-        Ok(buf)
     }
 
     /// Read the first `n_chars` characters from a byte array interpreted
@@ -314,86 +279,121 @@ impl<T: Read> Reader<T> {
             .trim_end_matches(char::from(0))
             .to_owned())
     }
+}
+
+impl<T: Read + Seek> Reader<T> {
+    /// Reads a string from the offset position
+    pub fn read_string_at(&mut self, offset: u64, size: u64) -> std::io::Result<String> {
+        self.seek(std::io::SeekFrom::Start(offset))?;
+        self.read_string(size)
+    }
+}
+
+pub trait ReadExt: Read + Sized {
+    /// Reads exactly `N` bytes from the current position and returns them as a byte array.
+    ///
+    /// If the end of the file is reached before `N` bytes could be read, an `io::Error` is returned.
+    fn read_exact_to_array<const N: usize>(&mut self) -> std::io::Result<[u8; N]> {
+        let mut buf = [0u8; N];
+        self.read_exact(&mut buf)?;
+        Ok(buf)
+    }
+
+    /// Reads up to `N` bytes from the current position and returns them as a tuple of a byte array and the number of bytes read.
+    fn read_at_most_to_array<const N: usize>(&mut self) -> std::io::Result<([u8; N], usize)> {
+        let mut buf = [0u8; N];
+        let n = self.read(&mut buf)?;
+        Ok((buf, n))
+    }
+
+    /// Reads up to `N` bytes from the current position and returns them as a `Vec<u8>`.
+    ///
+    /// If the end of the file is reached before `N` bytes could be read, the returned
+    /// `Vec<u8>` will contain less than `N` elements.
+    fn take_to_vec(&mut self, bytes: u64) -> std::io::Result<Vec<u8>> {
+        let mut buf = vec![];
+        let mut chunk = (self).take(bytes);
+        chunk.read_to_end(&mut buf)?;
+        Ok(buf)
+    }
 
     /// Reads a i16 from the current position
-    pub fn read_i16(&mut self) -> std::io::Result<i16> {
+    fn read_i16(&mut self) -> std::io::Result<i16> {
         Ok(i16::from_le_bytes(self.read_exact_to_array::<2>()?))
     }
 
     /// Reads a i32 from the current position
-    pub fn read_i32(&mut self) -> std::io::Result<i32> {
+    fn read_i32(&mut self) -> std::io::Result<i32> {
         Ok(i32::from_le_bytes(self.read_exact_to_array::<4>()?))
     }
 
     /// Reads a u32 from the current position
-    pub fn read_u32(&mut self) -> std::io::Result<u32> {
+    fn read_u32(&mut self) -> std::io::Result<u32> {
         Ok(u32::from_le_bytes(self.read_exact_to_array::<4>()?))
     }
 
     /// Reads a u64 from the current position
-    pub fn read_u64(&mut self) -> std::io::Result<u64> {
+    fn read_u64(&mut self) -> std::io::Result<u64> {
         Ok(u64::from_le_bytes(self.read_exact_to_array::<8>()?))
     }
 
     /// Reads a u16 from the current position
-    pub fn read_u16(&mut self) -> std::io::Result<u16> {
+    fn read_u16(&mut self) -> std::io::Result<u16> {
         Ok(u16::from_le_bytes(self.read_exact_to_array::<2>()?))
     }
 
     /// Reads a u8 from the current position
     #[inline]
-    pub fn read_u8(&mut self) -> std::io::Result<u8> {
+    fn read_u8(&mut self) -> std::io::Result<u8> {
         Ok(u8::from_le_bytes(self.read_exact_to_array::<1>()?))
     }
 
     /// Reads a i8 from the current position
-    pub fn read_i8(&mut self) -> std::io::Result<i8> {
+    fn read_i8(&mut self) -> std::io::Result<i8> {
         Ok(i8::from_le_bytes(self.read_exact_to_array::<1>()?))
     }
 
     /// Copy data from the reader to the writer
-    pub fn copy(&mut self, writer: &mut impl std::io::Write) -> std::io::Result<u64> {
-        std::io::copy(&mut self.data, writer)
+    fn copy(&mut self, writer: &mut impl std::io::Write) -> std::io::Result<u64> {
+        std::io::copy(self, writer)
     }
 }
 
-impl<T: Read + Seek> Reader<T> {
+impl<T: Read> ReadExt for T {}
+
+pub trait SeekExt: Seek + Read + Sized {
     /// Returns the current position of the cursor.
     /// The position is relative to the Reader offset
-    pub fn position(&mut self) -> std::io::Result<u64> {
-        self.data.stream_position()
+    fn position(&mut self) -> std::io::Result<u64> {
+        self.stream_position()
     }
 
     /// Sets the position of the cursor.
     /// The position is relative to the Reader offset.
-    pub fn set_position(&mut self, pos: u64) -> std::io::Result<u64> {
-        self.data.seek(std::io::SeekFrom::Start(pos)) //.map(|pos| pos - self.offset)
-    }
-
-    /// Reads a string from the offset position
-    pub fn read_string_at(&mut self, offset: u64, size: u64) -> std::io::Result<String> {
-        self.set_position(offset)?;
-        self.read_string(size)
+    fn set_position(&mut self, pos: u64) -> std::io::Result<u64> {
+        self.seek(std::io::SeekFrom::Start(pos)) //.map(|pos| pos - self.offset)
     }
 
     /// Reads a u32 from the offset position
-    pub fn read_u32_at(&mut self, offset: u64) -> std::io::Result<u32> {
+    fn read_u32_at(self: &mut Self, offset: u64) -> std::io::Result<u32> {
         self.set_position(offset)?;
         self.read_u32()
     }
 
     /// Reads a i32 from the offset position
-    pub fn read_i32_at(&mut self, offset: u64) -> std::io::Result<i32> {
+    fn read_i32_at(&mut self, offset: u64) -> std::io::Result<i32> {
         self.set_position(offset)?;
         self.read_i32()
     }
 
     /// Reads a u16 from the offset position
-    pub fn read_u16_at(&mut self, offset: u64) -> std::io::Result<u16> {
+    fn read_u16_at(&mut self, offset: u64) -> std::io::Result<u16> {
         self.set_position(offset)?;
         self.read_u16()
     }
 }
+
+impl<T: Seek + Read> SeekExt for T {}
 
 impl<T: BufRead> Reader<T> {
     /// Returns a zip reader
@@ -427,7 +427,6 @@ impl<T: BufRead + Seek> Reader<T> {
 }
 
 impl<R: BufRead> Reader<ZlibDecoder<R>> {
-
     /// Skips `size` bytes and returns the number of bytes skipped.
     /// This operation has cost O(n), if the Reader is Seekable, use `seek` instead.
     pub fn skip(&mut self, size: u64) -> std::io::Result<u64> {
@@ -450,16 +449,22 @@ impl<T: Read> Read for Reader<T> {
         self.data.read(buf)
     }
 
-//     fn read_to_string(&mut self, buf: &mut String) -> std::io::Result<usize> {
-        
-//     }
-
-//     fn take(self, limit: u64) -> Take<Self>
-//     where
-//         Self: Sized,
-//     {
-        
-//     }
+    /// Reads all bytes until EOF and appends them to `buf`, decoding through the
+    /// reader's charset (which may not be UTF-8). Returns the number of bytes
+    /// appended to `buf`. On decoding error, `buf` is left unchanged.
+    fn read_to_string(&mut self, buf: &mut String) -> std::io::Result<usize> {
+        let mut bytes = Vec::new();
+        self.data.read_to_end(&mut bytes)?;
+        let (decoded, _, had_errors) = self.charset.decode(&bytes);
+        if had_errors {
+            return Err(std::io::Error::other(
+                "Decoding error: input is not valid for this charset",
+            ));
+        }
+        let n = decoded.len();
+        buf.push_str(&decoded);
+        Ok(n)
+    }
 }
 
 impl<T: BufRead> BufRead for Reader<T> {
@@ -471,9 +476,23 @@ impl<T: BufRead> BufRead for Reader<T> {
         self.data.consume(amount)
     }
 
-    // fn read_line(&mut self, buf: &mut String) -> std::io::Result<usize> {
-        
-    // }
+    /// Reads bytes up to and including the next `\n`, decodes them through the
+    /// reader's charset (which may not be UTF-8), and appends the result to
+    /// `buf`. Returns the number of bytes appended to `buf`. On decoding error,
+    /// `buf` is left unchanged.
+    fn read_line(&mut self, buf: &mut String) -> std::io::Result<usize> {
+        let mut bytes = Vec::new();
+        self.data.read_until(b'\n', &mut bytes)?;
+        let (decoded, _, had_errors) = self.charset.decode(&bytes);
+        if had_errors {
+            return Err(std::io::Error::other(
+                "Decoding error: input is not valid for this charset",
+            ));
+        }
+        let n = decoded.len();
+        buf.push_str(&decoded);
+        Ok(n)
+    }
 }
 
 impl<T: Seek> Seek for Reader<T> {
@@ -481,8 +500,6 @@ impl<T: Seek> Seek for Reader<T> {
         self.data.seek(pos)
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -584,6 +601,137 @@ mod tests {
         let reader = DataSource::new(&[0x01, 0x02]);
         let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_i16().unwrap(), 0x0201);
+    }
+
+    #[test]
+    fn test_read_to_string_utf8() {
+        let reader = DataSource::new("Hello, world!".as_bytes());
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::new();
+        let n = reader.read_to_string(&mut buf).unwrap();
+        assert_eq!(buf, "Hello, world!");
+        assert_eq!(n, "Hello, world!".len());
+    }
+
+    #[test]
+    fn test_read_to_string_with_windows_1252_encoding() {
+        // 0xE9 in WINDOWS-1252 is 'é' (U+00E9) - not valid UTF-8 on its own
+        let bytes: &[u8] = &[0x48, 0xE9, 0x6C, 0x6C, 0x6F];
+        let reader = DataSource::new(bytes);
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::new();
+        reader.read_to_string(&mut buf).unwrap();
+        assert_eq!(buf, "Héllo");
+    }
+
+    #[test]
+    fn test_read_to_string_appends_to_existing_buffer() {
+        let reader = DataSource::new("world!".as_bytes());
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::from("Hello, ");
+        reader.read_to_string(&mut buf).unwrap();
+        assert_eq!(buf, "Hello, world!");
+    }
+
+    #[test]
+    fn test_read_to_string_with_invalid_utf8_returns_error() {
+        use encoding_rs::UTF_8;
+        let bytes: &[u8] = &[0xFF, 0xFE, 0xFD];
+        let reader = DataSource::new(bytes).with_encoding(UTF_8);
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::from("untouched");
+        let result = reader.read_to_string(&mut buf);
+        assert!(result.is_err());
+        assert_eq!(buf, "untouched");
+    }
+
+    #[test]
+    fn test_read_to_string_respects_offset_and_limit() {
+        let reader =
+            DataSource::new_with_offset("Hello, world! Hello, world!".as_bytes(), 5, Some(7));
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::new();
+        reader.read_to_string(&mut buf).unwrap();
+        assert_eq!(buf, ", world");
+    }
+
+    #[test]
+    fn test_bufread_read_line_utf8() {
+        let reader = DataSource::new("Hello\nWorld\n".as_bytes());
+        let mut reader = reader.reader().unwrap();
+
+        let mut buf = String::new();
+        let n = BufRead::read_line(&mut reader, &mut buf).unwrap();
+        assert_eq!(buf, "Hello\n");
+        assert_eq!(n, "Hello\n".len());
+
+        buf.clear();
+        BufRead::read_line(&mut reader, &mut buf).unwrap();
+        assert_eq!(buf, "World\n");
+
+        buf.clear();
+        let n = BufRead::read_line(&mut reader, &mut buf).unwrap();
+        assert_eq!(n, 0);
+        assert_eq!(buf, "");
+    }
+
+    #[test]
+    fn test_bufread_read_line_without_trailing_newline() {
+        let reader = DataSource::new("only line".as_bytes());
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::new();
+        BufRead::read_line(&mut reader, &mut buf).unwrap();
+        assert_eq!(buf, "only line");
+    }
+
+    #[test]
+    fn test_bufread_read_line_with_windows_1252_encoding() {
+        // 0xE9 = 'é', 0xE0 = 'à' in WINDOWS-1252
+        let bytes: &[u8] = &[0x48, 0xE9, 0x6C, b'\n', 0x57, 0xE0, 0x72];
+        let reader = DataSource::new(bytes);
+        let mut reader = reader.reader().unwrap();
+
+        let mut buf = String::new();
+        BufRead::read_line(&mut reader, &mut buf).unwrap();
+        assert_eq!(buf, "Hél\n");
+
+        buf.clear();
+        BufRead::read_line(&mut reader, &mut buf).unwrap();
+        assert_eq!(buf, "Wàr");
+    }
+
+    #[test]
+    fn test_bufread_read_line_appends_to_existing_buffer() {
+        let reader = DataSource::new("second\n".as_bytes());
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::from("first ");
+        BufRead::read_line(&mut reader, &mut buf).unwrap();
+        assert_eq!(buf, "first second\n");
+    }
+
+    #[test]
+    fn test_bufread_read_line_with_invalid_utf8_returns_error() {
+        use encoding_rs::UTF_8;
+        let bytes: &[u8] = &[0xFF, 0xFE, b'\n', b'o', b'k'];
+        let reader = DataSource::new(bytes).with_encoding(UTF_8);
+        let mut reader = reader.reader().unwrap();
+        let mut buf = String::from("untouched");
+        let result = BufRead::read_line(&mut reader, &mut buf);
+        assert!(result.is_err());
+        assert_eq!(buf, "untouched");
+    }
+
+    #[test]
+    fn test_read_take_uses_default_impl() {
+        // The default Read::take wraps Self in std::io::Take and delegates
+        // to our read impl, so the limit must be honored even though we
+        // don't override take.
+        let reader = DataSource::new("Hello, world!".as_bytes());
+        let reader = reader.reader().unwrap();
+        let mut limited = Read::take(reader, 5);
+        let mut buf = Vec::new();
+        limited.read_to_end(&mut buf).unwrap();
+        assert_eq!(buf, b"Hello");
     }
 
     #[test]

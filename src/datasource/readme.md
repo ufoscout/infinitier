@@ -9,13 +9,13 @@ A `DataSource` can point at a whole file, a raw byte slice, or a sub-region of a
 ### Read from a file
 
 ```rust,no_run
-use infinitier_datasource::DataSource;
+use infinitier_datasource::{DataSource, ReadExt};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new("data.bin");
     let mut reader = source.reader()?;
-    let signature = reader.read_exact::<4>()?;
-    let version   = reader.read_exact::<4>()?;
+    let signature = reader.read_exact_to_array::<4>()?;
+    let version   = reader.read_exact_to_array::<4>()?;
     let count     = reader.read_u32()?;
     println!("signature: {:?}, count: {}", signature, count);
     Ok(())
@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Read from in-memory bytes
 
 ```rust
-use infinitier_datasource::DataSource;
+use infinitier_datasource::{DataSource, ReadExt};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = DataSource::new(b"\x01\x00\x02\x00" as &[u8]);
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Read a sub-region (embedded resource inside an archive)
 
 ```rust,no_run
-use infinitier_datasource::DataSource;
+use infinitier_datasource::{DataSource, ReadExt};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let offset: u64 = 1024;

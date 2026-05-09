@@ -1,6 +1,6 @@
 use std::io::BufRead;
 
-use infinitier_datasource::Reader;
+use infinitier_datasource::{ReadExt, Reader};
 use log::{debug, error};
 
 use crate::{Bam, BamImporter, Type};

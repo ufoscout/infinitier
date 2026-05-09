@@ -1,7 +1,7 @@
 use std::io::{Seek, SeekFrom};
 
 use infinitier_common::ResourceType;
-use infinitier_datasource::{DataSource, Importer};
+use infinitier_datasource::{DataSource, Importer, ReadExt, SeekExt};
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
 

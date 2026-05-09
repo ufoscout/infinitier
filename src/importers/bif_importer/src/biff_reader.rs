@@ -1,6 +1,6 @@
 use std::io::{Read, Seek};
 
-use infinitier_datasource::{DataSource, Reader};
+use infinitier_datasource::{DataSource, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 use crate::{

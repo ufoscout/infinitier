@@ -1,9 +1,11 @@
-use infinitier_datasource::{Data, DataSource, Reader, TempFileGenerator};
+use infinitier_datasource::{Data, DataSource, ReadExt, Reader, TempFileGenerator};
 use log::{debug, error};
 
 use crate::{BIFCV1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
 use std::{
-    collections::VecDeque, io::{BufRead, Read, Seek}, sync::Arc
+    collections::VecDeque,
+    io::{BufRead, Read, Seek},
+    sync::Arc,
 };
 
 /// A BIFC V1.0 file importer
@@ -41,7 +43,10 @@ impl BifcParser {
                     let _signature_and_total_uncompressed_size = reader.read_string(12)?;
 
                     let charset = reader.charset;
-                    let mut zip = Reader::new( BifcCompressedReader::new(reader, total_uncompressed_size), charset);
+                    let mut zip = Reader::new(
+                        BifcCompressedReader::new(reader, total_uncompressed_size),
+                        charset,
+                    );
                     zip.copy(&mut temp_file)?;
                     Ok(path)
                 },
@@ -101,7 +106,7 @@ impl<'a, R: BufRead + Seek> BifcCompressedReader<'a, R> {
         let _uncompressed_size = self.reader.read_u32()? as u64;
         let compressed_size = self.reader.read_u32()? as u64;
 
-        let mut take = self.reader.take(compressed_size);
+        let mut take = self.reader.take_as_reader(compressed_size);
         let mut reader = take.as_zip_reader();
 
         {

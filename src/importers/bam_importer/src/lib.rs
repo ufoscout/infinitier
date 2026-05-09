@@ -1,6 +1,6 @@
 use std::io::{BufRead, Read, Seek};
 
-use infinitier_datasource::{Importer, Reader};
+use infinitier_datasource::{Importer, Reader, SeekExt};
 use log::{debug, error};
 
 use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
