@@ -59,7 +59,7 @@ The goal is to implement pure Rust readers for all file formats used by the Infi
 | VVC | Looping visual component | |
 | WAVC | Compressed WAV audio | Done |
 | WAV | Audio | Done |
-| WBM | WebM video | |
+| WBM | WebM video | Done |
 | WED | Area geometry and layout | Done |
 | WFX | Sound effects configuration | |
 | WMAP | World map | |

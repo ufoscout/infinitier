@@ -58,7 +58,7 @@ pub enum ImportedResource {
     Ttf,
     Vef,
     Vvc,
-    Wbm,
+    Wbm(MovieSource),
     Wfx,
     Wmp,
     Unknown(u16),

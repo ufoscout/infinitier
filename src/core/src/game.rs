@@ -206,7 +206,10 @@ impl GameResource {
             ResourceType::Ttf => Ok(ImportedResource::Ttf),
             ResourceType::Vef => Ok(ImportedResource::Vef),
             ResourceType::Vvc => Ok(ImportedResource::Vvc),
-            ResourceType::Wbm => Ok(ImportedResource::Wbm),
+            ResourceType::Wbm => Ok(ImportedResource::Wbm(crate::movie::MovieSource::new(
+                ds.clone(),
+                &self.name,
+            ))),
             ResourceType::Wfx => Ok(ImportedResource::Wfx),
             ResourceType::Wmp => Ok(ImportedResource::Wmp),
             ResourceType::Unknown(id) => Ok(ImportedResource::Unknown(id)),
@@ -465,6 +468,24 @@ impl GameDataBuilder {
                 datasource: Some(DataSource::new(resource.as_path())),
                 game_type: self.game_type,
                 r#type: ResourceType::Mve,
+                name: resource.file_stem().unwrap().to_str().unwrap().to_string(),
+                filename: resource.file_name().unwrap().to_str().unwrap().to_string(),
+            });
+        }
+
+                for resource in
+            self.fs
+                .search_files_by_extension(&CaseInsensitivePath::new("movies"), "wbm", false)
+        {
+            let _TODO: &str = "REMOVE UNWRAP AND COMPLETE THIS";
+            result.push(GameResource {
+                data_origin: DataOrigin::Override {
+                    path: resource.clone(),
+                },
+                file_size: Some(resource.metadata()?.len()),
+                datasource: Some(DataSource::new(resource.as_path())),
+                game_type: self.game_type,
+                r#type: ResourceType::Wbm,
                 name: resource.file_stem().unwrap().to_str().unwrap().to_string(),
                 filename: resource.file_name().unwrap().to_str().unwrap().to_string(),
             });

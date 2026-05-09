@@ -51,7 +51,6 @@ mod two_da;
 mod unknown;
 mod vef;
 mod vvc;
-mod wbm;
 mod wed;
 mod wfx;
 mod wmp;
@@ -100,7 +99,6 @@ use two_da::TwoDAViewer;
 use unknown::UnknownViewer;
 use vef::VefViewer;
 use vvc::VvcViewer;
-use wbm::WbmViewer;
 use wed::WedViewer;
 use wfx::WfxViewer;
 use wmp::WmpViewer;
@@ -190,7 +188,7 @@ impl ResourceViewer {
                                 ImportedResource::Ttf => Box::new(TtfViewer::new()),
                                 ImportedResource::Vef => Box::new(VefViewer::new()),
                                 ImportedResource::Vvc => Box::new(VvcViewer::new()),
-                                ImportedResource::Wbm => Box::new(WbmViewer::new()),
+                                ImportedResource::Wbm(src) => Box::new(MovieViewer::new(src)),
                                 ImportedResource::Wfx => Box::new(WfxViewer::new()),
                                 ImportedResource::Wmp => Box::new(WmpViewer::new()),
                                 ImportedResource::Unknown(_) => Box::new(UnknownViewer::new()),
