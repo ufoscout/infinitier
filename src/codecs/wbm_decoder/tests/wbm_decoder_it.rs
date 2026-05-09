@@ -12,11 +12,10 @@
 //!   inter-prediction, so a strict per-frame SHA-256 comparison is
 //!   the strongest correctness signal we can record.
 //!
-//! * `audio.total_samples` is recorded as our pipeline (`lewton`)
-//!   produces, *not* libvorbis: the two implementations end up at
-//!   slightly different totals because `lewton::audio::read_audio_packet`
-//!   is fed raw Vorbis packets out of a Matroska container — it never
-//!   sees the Ogg `granule_pos` that libvorbis uses to trim the
+//! * `audio.total_samples` is recorded as our pipeline (symphonia's
+//!   `VorbisDecoder` fed raw Matroska blocks) produces, *not*
+//!   libvorbis: the two end up at slightly different totals because we
+//!   never see the Ogg `granule_pos` that libvorbis uses to trim the
 //!   stream-end overlap window. The audio is otherwise audibly
 //!   identical (±1 LSB IMDCT FP rounding scatter, ~50% of samples).
 //!   No PCM hash is recorded for the same reason.
@@ -125,9 +124,8 @@ fn logo_wbm_matches_fixture() {
     let mut audio_rate: Option<u32> = None;
 
     while let Some(frame) = decoder.next_frame().expect("decode error") {
-        // Capture audio metadata as we see it — lewton initialises
-        // these from the Vorbis ident header, so values are stable
-        // across all chunks.
+        // Capture audio metadata as we see it — both values come from
+        // the Vorbis ident header, so they're stable across all chunks.
         for chunk in &frame.audio {
             audio_channels.get_or_insert(chunk.channels);
             audio_rate.get_or_insert(chunk.sample_rate);
@@ -182,7 +180,11 @@ fn logo_wbm_matches_fixture() {
         );
         let actual_format = format!(
             "PCM 16-bit {} at {} Hz",
-            if exp_audio.channels == 2 { "stereo" } else { "mono" },
+            if exp_audio.channels == 2 {
+                "stereo"
+            } else {
+                "mono"
+            },
             exp_audio.sample_rate,
         );
         assert_eq!(actual_format, exp_audio.format, "audio.format");
@@ -192,16 +194,19 @@ fn logo_wbm_matches_fixture() {
         // whether the implementation produces the trailing window. We
         // accept ±1 packet's worth of slack (Vorbis typically emits
         // ~1024 samples per channel per packet at this bitrate).
-        // ffmpeg + lewton both happen to land on the same per-channel
-        // count for this fixture, so the assertion is exact today.
+        // ffmpeg + symphonia both happen to land on the same
+        // per-channel count for this fixture, so the assertion is
+        // exact today.
         assert_eq!(
-            audio_total_samples,
-            exp_audio.total_samples,
+            audio_total_samples, exp_audio.total_samples,
             "audio.total_samples (channels={})",
             exp_audio.channels,
         );
     } else {
-        assert!(audio_channels.is_none(), "fixture says no audio but decoder produced some");
+        assert!(
+            audio_channels.is_none(),
+            "fixture says no audio but decoder produced some"
+        );
     }
 }
 

@@ -473,7 +473,7 @@ impl GameDataBuilder {
             });
         }
 
-                for resource in
+        for resource in
             self.fs
                 .search_files_by_extension(&CaseInsensitivePath::new("movies"), "wbm", false)
         {
@@ -567,7 +567,6 @@ mod tests {
         // Test that the data can be read
         // WedImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
     }
-
 
     #[test]
     fn test_resource_found_in_override() {

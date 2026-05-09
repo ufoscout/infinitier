@@ -1,5 +1,5 @@
 //! High-level streaming decoder over `matroska-demuxer` +
-//! `oxideav-vp8` + `lewton`.
+//! `oxideav-vp8` + `symphonia` (Vorbis).
 //!
 //! Mirrors the shape of [`infinitier_bik_decoder::BikStreamingDecoder`]
 //! — `new(reader, name)` once, `next_frame()` until you get
@@ -11,8 +11,8 @@
 use std::io::{Read, Seek};
 
 use matroska_demuxer::{Frame as MkvFrame, MatroskaFile, TrackType};
-use oxideav_core::{CodecId, Frame as OxFrame, Packet, TimeBase};
 use oxideav_core::registry::codec::Decoder as OxDecoder;
+use oxideav_core::{CodecId, Frame as OxFrame, Packet, TimeBase};
 use oxideav_vp8::Vp8Decoder;
 
 use crate::error::{WbmError, WbmResult};
@@ -274,7 +274,12 @@ impl<R: Read + Seek> WbmStreamingDecoder<R> {
                 && self.scratch.track == state.track
             {
                 let pcm = state.driver.decode(&self.scratch.data)?;
-                push_audio(&mut self.pending_audio, pcm, state.driver.channels, state.driver.sample_rate);
+                push_audio(
+                    &mut self.pending_audio,
+                    pcm,
+                    state.driver.channels,
+                    state.driver.sample_rate,
+                );
             }
             // Tracks we don't care about (subs, chapters, …) are
             // implicitly skipped by falling through.

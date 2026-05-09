@@ -1,5 +1,5 @@
-//! Vorbis driver: Xiph-laced `CodecPrivate` parsing + lewton's inline
-//! `audio::read_audio_packet` API.
+//! Vorbis driver: Xiph-laced `CodecPrivate` parsing + symphonia's
+//! `VorbisDecoder`.
 //!
 //! Matroska doesn't store the three Vorbis init headers (`identification`,
 //! `comment`, `setup`) inside Ogg pages — it bakes them into a single
@@ -12,53 +12,117 @@
 //! bytes p..:     header 1 || header 2 || header 3 (length implicit)
 //! ```
 //!
-//! After extraction the three headers go through lewton's parser, then
-//! every Matroska audio packet is fed verbatim into
-//! [`lewton::audio::read_audio_packet`] which returns the decoded
-//! per-channel samples.
+//! `VorbisDecoder::try_new` wants `extra_data = ident || setup` (no
+//! length prefixes, no comment header), so we sniff channels/sample-rate
+//! out of the ident header for our public surface, drop the comment
+//! header on the floor, and feed the concatenation in. Each Matroska
+//! audio block is then handed verbatim to `Decoder::decode` as a fresh
+//! `Packet` with zero ts/dur — symphonia's Vorbis decoder doesn't use
+//! either field.
 
-use lewton::{
-    audio::{PreviousWindowRight, read_audio_packet},
-    header::{IdentHeader, SetupHeader, read_header_comment, read_header_ident, read_header_setup},
-};
+use symphonia::core::audio::{AudioBuffer, AudioBufferRef, Signal, SignalSpec};
+use symphonia::core::codecs::{CODEC_TYPE_VORBIS, CodecParameters, Decoder, DecoderOptions};
+use symphonia::core::formats::Packet;
+use symphonia::default::codecs::VorbisDecoder;
 
 use crate::error::{WbmError, WbmResult};
 
 pub(crate) struct VorbisDriver {
-    ident: IdentHeader,
-    setup: SetupHeader,
-    pwr: PreviousWindowRight,
+    decoder: VorbisDecoder,
+    /// Reusable i16 buffer for the per-packet f32 → i16 conversion;
+    /// grown lazily to fit the largest packet we've seen.
+    scratch_i16: Option<AudioBuffer<i16>>,
     pub channels: u8,
     pub sample_rate: u32,
 }
 
 impl VorbisDriver {
     pub fn from_codec_private(buf: &[u8]) -> WbmResult<Self> {
-        let (h1, h2, h3) = parse_xiph_lacing(buf)?;
-        let ident = read_header_ident(&h1)?;
-        let _comment = read_header_comment(&h2)?;
-        let setup = read_header_setup(
-            &h3,
-            ident.audio_channels,
-            (ident.blocksize_0, ident.blocksize_1),
-        )?;
-        let channels = ident.audio_channels;
-        let sample_rate = ident.audio_sample_rate;
+        let (ident, _comment, setup) = parse_xiph_lacing(buf)?;
+        let (channels, sample_rate) = sniff_ident(&ident)?;
+
+        let mut extra_data = Vec::with_capacity(ident.len() + setup.len());
+        extra_data.extend_from_slice(&ident);
+        extra_data.extend_from_slice(&setup);
+
+        let mut params = CodecParameters::new();
+        params
+            .for_codec(CODEC_TYPE_VORBIS)
+            .with_extra_data(extra_data.into_boxed_slice());
+
+        let decoder = VorbisDecoder::try_new(&params, &DecoderOptions::default())
+            .map_err(WbmError::Vorbis)?;
+
         Ok(Self {
-            ident,
-            setup,
-            pwr: PreviousWindowRight::new(),
+            decoder,
+            scratch_i16: None,
             channels,
             sample_rate,
         })
     }
 
     /// Decode one Matroska audio block. Returns one `Vec<i16>` per
-    /// channel (lewton's native shape).
+    /// channel.
     pub fn decode(&mut self, packet: &[u8]) -> WbmResult<Vec<Vec<i16>>> {
-        let pcm = read_audio_packet(&self.ident, &self.setup, packet, &mut self.pwr)?;
-        Ok(pcm)
+        let pkt = Packet::new_from_slice(0, 0, 0, packet);
+        let buf_ref = self.decoder.decode(&pkt).map_err(WbmError::Vorbis)?;
+        Ok(audio_buffer_to_i16_planes(buf_ref, &mut self.scratch_i16))
     }
+}
+
+/// Sniff `audio_channels` and `audio_sample_rate` straight out of the
+/// Vorbis identification header. Layout (Vorbis I §4.2.2):
+///
+/// ```text
+/// 0      packet_type = 0x01
+/// 1..=6  "vorbis"
+/// 7..11  vorbis_version (u32 LE)  — must be 0
+/// 11     audio_channels (u8)
+/// 12..16 audio_sample_rate (u32 LE)
+/// ```
+fn sniff_ident(buf: &[u8]) -> WbmResult<(u8, u32)> {
+    if buf.len() < 16 || buf[0] != 0x01 || &buf[1..7] != b"vorbis" {
+        return Err(WbmError::BadXiphLacing(
+            "ident header missing 0x01 'vorbis' preamble".into(),
+        ));
+    }
+    let channels = buf[11];
+    let sample_rate = u32::from_le_bytes([buf[12], buf[13], buf[14], buf[15]]);
+    Ok((channels, sample_rate))
+}
+
+/// Convert an `AudioBufferRef` (any sample type — symphonia's Vorbis
+/// decoder happens to emit `f32`, but we keep this generic) to one
+/// `Vec<i16>` per channel. Reuses `scratch` across calls to avoid the
+/// per-packet allocation.
+fn audio_buffer_to_i16_planes(
+    buf: AudioBufferRef<'_>,
+    scratch: &mut Option<AudioBuffer<i16>>,
+) -> Vec<Vec<i16>> {
+    let n_frames = buf.frames();
+    let spec: SignalSpec = *buf.spec();
+    let n_channels = spec.channels.count();
+
+    if n_frames == 0 {
+        return vec![Vec::new(); n_channels];
+    }
+
+    // Grow (or allocate) the scratch buffer to fit `n_frames`. Symphonia's
+    // `AudioBuffer::convert` requires `dest.capacity >= src.capacity`,
+    // and Vorbis packets cap at the codec's max blocksize, so this
+    // settles after the first long packet.
+    let need_realloc = match scratch.as_ref() {
+        Some(b) => b.capacity() < buf.capacity() || *b.spec() != spec,
+        None => true,
+    };
+    if need_realloc {
+        *scratch = Some(buf.make_equivalent::<i16>());
+    }
+    let dest = scratch.as_mut().expect("scratch initialised above");
+    dest.clear();
+    buf.convert::<i16>(dest);
+
+    (0..n_channels).map(|c| dest.chan(c).to_vec()).collect()
 }
 
 /// Split the Xiph-laced `CodecPrivate` blob into its three constituent
@@ -143,5 +207,18 @@ mod tests {
     fn xiph_lacing_rejects_bad_count() {
         let buf = vec![1u8, 0, 0];
         assert!(parse_xiph_lacing(&buf).is_err());
+    }
+
+    #[test]
+    fn sniff_ident_extracts_channels_and_rate() {
+        // 0x01 || "vorbis" || version=0 || channels=2 || rate=48000
+        let mut buf = vec![0x01];
+        buf.extend_from_slice(b"vorbis");
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.push(2u8);
+        buf.extend_from_slice(&48_000u32.to_le_bytes());
+        let (ch, sr) = sniff_ident(&buf).unwrap();
+        assert_eq!(ch, 2);
+        assert_eq!(sr, 48_000);
     }
 }

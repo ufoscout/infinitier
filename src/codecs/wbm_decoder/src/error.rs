@@ -19,11 +19,8 @@ pub enum WbmError {
     #[error("vp8 decode error: {0}")]
     Vp8(oxideav_core::Error),
 
-    #[error("vorbis header error: {0}")]
-    VorbisHeader(#[from] lewton::header::HeaderReadError),
-
     #[error("vorbis decode error: {0}")]
-    VorbisDecode(#[from] lewton::audio::AudioReadError),
+    Vorbis(symphonia::core::errors::Error),
 
     #[error("missing VP8 video track in WBM container")]
     NoVideoTrack,

@@ -12,7 +12,7 @@ layer over three pure-Rust dependencies:
 |---|---|
 | EBML / Matroska / WebM demux | `matroska-demuxer` |
 | VP8 video decode | `oxideav-vp8` |
-| Vorbis audio decode | `lewton` |
+| Vorbis audio decode | `symphonia` |
 
 No FFI, no `libvpx`, no `libvorbis`.
 

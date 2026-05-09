@@ -290,8 +290,7 @@ mod tests {
 
     #[test]
     fn test_parse_bam_v2_should_fail_if_wrong_signature() {
-        let data =
-            DataSource::new(get_assets_path().join("BAM_V1/01/1chan03B_compressed.BAM"));
+        let data = DataSource::new(get_assets_path().join("BAM_V1/01/1chan03B_compressed.BAM"));
 
         let mut reader = data.reader().unwrap();
         let res = BamV2Parser::import(&mut reader);

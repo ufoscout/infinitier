@@ -198,8 +198,7 @@ fn test_decode_wavc() {
     dec.decode_to_file(temp.path()).unwrap();
 
     let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
-    let wav_hash =
-        Sha256::digest(fs::read(get_assets_path().join("WAV/1GROMG09.WAV")).unwrap());
+    let wav_hash = Sha256::digest(fs::read(get_assets_path().join("WAV/1GROMG09.WAV")).unwrap());
 
     assert_eq!(created_wav_hash, wav_hash);
 }

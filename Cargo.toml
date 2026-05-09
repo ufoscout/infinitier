@@ -59,7 +59,7 @@ image = { version = "0.25", default-features = false, features = ["bmp", "png"] 
 itertools = "0.14"
 log = "0.4"
 parking_lot = "0.12"
-rand = "0.9"
+rand = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
@@ -76,11 +76,11 @@ rodio = { version = "0.22", default-features = false, features = ["playback", "s
 
 # WBM (= WebM) decode pipeline. See src/codecs/wbm_decoder. The
 # `oxideav-vp8` crate is pre-1.0 and moves quickly; pin exact until
-# upstream stabilises.
+# upstream stabilises. Vorbis audio decode reuses the workspace
+# `symphonia` dependency above.
 matroska-demuxer = "0.7"
 oxideav-vp8 = "0.1.12"
 oxideav-core = "0.1"
-lewton = "0.10"
 
 # UI
 eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow
