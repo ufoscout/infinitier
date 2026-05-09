@@ -6,12 +6,12 @@ use infinitier_core::{
 };
 
 pub struct WedViewer {
-    wed: Wed,
+    _wed: Wed,
 }
 
 impl WedViewer {
-    pub fn new(wed: Wed) -> Self {
-        Self { wed }
+    pub fn new(_wed: Wed) -> Self {
+        Self { _wed }
     }
 }
 

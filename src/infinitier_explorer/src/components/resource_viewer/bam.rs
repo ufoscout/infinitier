@@ -6,12 +6,12 @@ use infinitier_core::{
 };
 
 pub struct BamViewer {
-    bam: Bam,
+    _bam: Bam,
 }
 
 impl BamViewer {
     pub fn new(bam: Bam) -> Self {
-        Self { bam }
+        Self { _bam: bam }
     }
 }
 

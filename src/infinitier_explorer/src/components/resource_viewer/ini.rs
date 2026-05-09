@@ -6,12 +6,12 @@ use infinitier_core::{
 };
 
 pub struct IniViewer {
-    ini: Ini,
+    _ini: Ini,
 }
 
 impl IniViewer {
-    pub fn new(ini: Ini) -> Self {
-        Self { ini }
+    pub fn new(_ini: Ini) -> Self {
+        Self { _ini }
     }
 }
 

@@ -6,12 +6,12 @@ use infinitier_core::{
 };
 
 pub struct PvrzViewer {
-    prvz: PvrzHeader,
+    _prvz: PvrzHeader,
 }
 
 impl PvrzViewer {
-    pub fn new(prvz: PvrzHeader) -> Self {
-        Self { prvz }
+    pub fn new(_prvz: PvrzHeader) -> Self {
+        Self { _prvz }
     }
 }
 

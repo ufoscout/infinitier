@@ -9,6 +9,27 @@ The goal is to implement pure Rust readers for all file formats used by the Infi
 - Planescape: Torment (standard and Enhanced Edition)
 - Icewind Dale I & II (standard and Enhanced Editions)
 
+## Building
+
+Requirements:
+
+- A recent Rust toolchain. The workspace uses `edition = "2024"` and `resolver = "3"`, so Rust **1.85** or newer is required. Install via [rustup](https://rustup.rs/) and keep it on `stable`.
+- [`just`](https://github.com/casey/just) — (optional) a simple build tool that can be used as the task runner. Run `just` with no arguments to list available recipes.
+
+- On Ubuntu/Debian, the audio backend (`rodio` / ALSA) needs the ALSA development headers:
+
+  ```sh
+  sudo apt-get install -y libasound2-dev
+  ```
+
+Common recipes:
+
+```sh
+just build       # build the workspace
+just test        # run the test suite
+just check_code  # rustfmt + clippy
+```
+
 ## File Format Status
 
 | Format | Description | Implementation |

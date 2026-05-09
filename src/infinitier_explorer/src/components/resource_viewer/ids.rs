@@ -6,12 +6,12 @@ use infinitier_core::{
 };
 
 pub struct IdsViewer {
-    ids: Ids,
+    _ids: Ids,
 }
 
 impl IdsViewer {
-    pub fn new(ids: Ids) -> Self {
-        Self { ids }
+    pub fn new(_ids: Ids) -> Self {
+        Self { _ids }
     }
 }
 

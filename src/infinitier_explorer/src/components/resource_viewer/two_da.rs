@@ -6,12 +6,12 @@ use infinitier_core::{
 };
 
 pub struct TwoDAViewer {
-    twoda: TwoDA,
+    _twoda: TwoDA,
 }
 
 impl TwoDAViewer {
-    pub fn new(twoda: TwoDA) -> Self {
-        Self { twoda }
+    pub fn new(_twoda: TwoDA) -> Self {
+        Self { _twoda }
     }
 }
 
