@@ -73,8 +73,7 @@ impl KeyFileTreeView {
 mod tests {
     use super::*;
     use infinitier_core::{
-        game::{DataOrigin, GameData, GameResource},
-        resource::{Game, key::ResourceType},
+        fs::CaseInsensitiveFS, game::{DataOrigin, GameData, GameResource}, resource::{Game, key::ResourceType}
     };
 
     fn make_game_data(entries: Vec<(&str, ResourceType)>) -> GameData {
@@ -154,7 +153,10 @@ mod tests {
 
     #[test]
     fn test_override_label() {
-        use infinitier_core::fs::CiPath;
+
+        let fs = CaseInsensitiveFS::new("./").unwrap();
+        let path = fs.list_files("", None, false)[0].clone();
+
         let game_data = make_game_data_with_origins(vec![
             ("CCHAN05", ResourceType::Bmp, DataOrigin::Missing),
             (
@@ -162,7 +164,7 @@ mod tests {
                 ResourceType::Bmp,
                 DataOrigin::Dir {
                     name: "override".to_string(),
-                    path: CiPath::new("override/MINSCM.bmp"),
+                    path,
                 },
             ),
         ]);

@@ -165,22 +165,11 @@ pub struct CiPath {
 }
 
 impl CiPath {
-    /// Creates a `CiPath` from a raw path string. The path is normalized
-    /// (trimmed, lowercased, separators unified) and stored as the lookup
-    /// key. The `real_path` is left empty; this constructor is intended for
-    /// test fixtures and ad-hoc lookups where the on-disk path is unknown.
-    /// `CiPath`s returned by [`CaseInsensitiveFS`] always carry a real path.
-    pub fn new(path: &str) -> Self {
-        CiPath {
-            path: Self::normalize(path),
-            real_path: PathBuf::new(),
-        }
-    }
 
     /// Normalizes a raw path string into the canonical lookup key form:
     /// trimmed, lowercased, with `\` and `:` replaced by `/` and any
     /// leading `/` stripped.
-    pub(crate) fn normalize(path: &str) -> String {
+    fn normalize(path: &str) -> String {
         let mut path = path
             .trim()
             .to_lowercase()
@@ -352,81 +341,92 @@ mod tests {
         );
     }
 
+    /// Test-only helper that builds a `CiPath` from a raw string by reusing
+    /// the same normalization the real lookup path uses, but skipping the
+    /// filesystem round-trip so we can exercise the accessor methods in
+    /// isolation.
+    fn ci_path(path: &str) -> CiPath {
+        CiPath {
+            path: CiPath::normalize(path),
+            real_path: PathBuf::new(),
+        }
+    }
+
     #[test]
-    fn test_ci_path_new_normalizes() {
+    fn test_normalize() {
         // Lowercases
-        assert_eq!(CiPath::new("Foo/Bar.EXE").as_str(), "foo/bar.exe");
+        assert_eq!(CiPath::normalize("Foo/Bar.EXE"), "foo/bar.exe");
         // Trims surrounding whitespace
-        assert_eq!(CiPath::new("  data/file  ").as_str(), "data/file");
+        assert_eq!(CiPath::normalize("  data/file  "), "data/file");
         // Backslashes become forward slashes
-        assert_eq!(CiPath::new("data\\sub\\file").as_str(), "data/sub/file");
+        assert_eq!(CiPath::normalize("data\\sub\\file"), "data/sub/file");
         // Colons become forward slashes (the `\` after `C:` is also replaced,
         // and since the colon swap happens after the backslash swap, the two
         // adjacent separators in `C:\` collapse to `//` rather than a single `/`).
-        assert_eq!(CiPath::new("C:\\Windows\\file").as_str(), "c//windows/file");
+        assert_eq!(CiPath::normalize("C:\\Windows\\file"), "c//windows/file");
         // A standalone colon without an adjacent backslash yields a single `/`.
-        assert_eq!(CiPath::new("C:foo").as_str(), "c/foo");
+        assert_eq!(CiPath::normalize("C:foo"), "c/foo");
         // Leading slashes are stripped (all of them)
-        assert_eq!(CiPath::new("/data/file").as_str(), "data/file");
-        assert_eq!(CiPath::new("///data/file").as_str(), "data/file");
+        assert_eq!(CiPath::normalize("/data/file"), "data/file");
+        assert_eq!(CiPath::normalize("///data/file"), "data/file");
         // Empty input stays empty
-        assert_eq!(CiPath::new("").as_str(), "");
-        assert_eq!(CiPath::new("   ").as_str(), "");
+        assert_eq!(CiPath::normalize(""), "");
+        assert_eq!(CiPath::normalize("   "), "");
         // Bare slash collapses to empty
-        assert_eq!(CiPath::new("/").as_str(), "");
+        assert_eq!(CiPath::normalize("/"), "");
         // Combined: trim + lowercase + backslash + leading slash
-        assert_eq!(CiPath::new("  \\Foo\\Bar  ").as_str(), "foo/bar");
+        assert_eq!(CiPath::normalize("  \\Foo\\Bar  "), "foo/bar");
     }
 
     #[test]
     fn test_ci_path_as_str() {
-        let p = CiPath::new("/Data/AR3603.CBF");
+        let p = ci_path("/Data/AR3603.CBF");
         assert_eq!(p.as_str(), "data/ar3603.cbf");
 
         // Round-trip: as_str returns the same value used by base_name etc.
-        let p = CiPath::new("foo/bar");
+        let p = ci_path("foo/bar");
         assert_eq!(p.as_str(), "foo/bar");
     }
 
     #[test]
     fn test_ci_path_extension() {
-        assert_eq!(CiPath::new("/foo/bar.exe").extension(), Some("exe"));
-        assert_eq!(CiPath::new("file.JSON").extension(), Some("json"));
+        assert_eq!(ci_path("/foo/bar.exe").extension(), Some("exe"));
+        assert_eq!(ci_path("file.JSON").extension(), Some("json"));
         // Empty extension after the dot returns None
-        assert_eq!(CiPath::new("file.").extension(), None);
+        assert_eq!(ci_path("file.").extension(), None);
         // No dot at all
-        assert_eq!(CiPath::new("foo/bar").extension(), None);
-        assert_eq!(CiPath::new("target").extension(), None);
+        assert_eq!(ci_path("foo/bar").extension(), None);
+        assert_eq!(ci_path("target").extension(), None);
         // Trailing slash without dot
-        assert_eq!(CiPath::new("foo/bar/").extension(), None);
+        assert_eq!(ci_path("foo/bar/").extension(), None);
         // Empty path
-        assert_eq!(CiPath::new("").extension(), None);
+        assert_eq!(ci_path("").extension(), None);
     }
 
     #[test]
     fn test_ci_path_base_name_without_extension() {
         assert_eq!(
-            CiPath::new("/foo/bar.exe").base_name_without_extension(),
+            ci_path("/foo/bar.exe").base_name_without_extension(),
             "bar"
         );
         assert_eq!(
-            CiPath::new("/data/AR3603.cbf").base_name_without_extension(),
+            ci_path("/data/AR3603.cbf").base_name_without_extension(),
             "ar3603"
         );
         // No extension
         assert_eq!(
-            CiPath::new("/foo/target").base_name_without_extension(),
+            ci_path("/foo/target").base_name_without_extension(),
             "target"
         );
-        assert_eq!(CiPath::new("target").base_name_without_extension(), "target");
+        assert_eq!(ci_path("target").base_name_without_extension(), "target");
         // Trailing slash: base_name is "", so stem is ""
-        assert_eq!(CiPath::new("foo/bar/").base_name_without_extension(), "");
+        assert_eq!(ci_path("foo/bar/").base_name_without_extension(), "");
         // Empty path
-        assert_eq!(CiPath::new("").base_name_without_extension(), "");
-        assert_eq!(CiPath::new("/").base_name_without_extension(), "");
+        assert_eq!(ci_path("").base_name_without_extension(), "");
+        assert_eq!(ci_path("/").base_name_without_extension(), "");
         // Multi-dot file: stem is everything before the first dot in the base_name
         assert_eq!(
-            CiPath::new("/foo/archive.tar.gz").base_name_without_extension(),
+            ci_path("/foo/archive.tar.gz").base_name_without_extension(),
             "archive"
         );
     }
@@ -434,33 +434,33 @@ mod tests {
     #[test]
     fn test_basename() {
         assert_eq!(
-            CiPath::new("/data/AR3603.cbf").base_name(),
+            ci_path("/data/AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
         assert_eq!(
-            CiPath::new("/data/target").base_name(),
+            ci_path("/data/target").base_name(),
             "target"
         );
         assert_eq!(
-            CiPath::new("data/AR3603.cbf").base_name(),
+            ci_path("data/AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
         assert_eq!(
-            CiPath::new("data/target").base_name(),
+            ci_path("data/target").base_name(),
             "target"
         );
         assert_eq!(
-            CiPath::new("/AR3603.cbf").base_name(),
+            ci_path("/AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
-        assert_eq!(CiPath::new("/target").base_name(), "target");
+        assert_eq!(ci_path("/target").base_name(), "target");
         assert_eq!(
-            CiPath::new("AR3603.cbf").base_name(),
+            ci_path("AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
-        assert_eq!(CiPath::new("target").base_name(), "target");
-        assert_eq!(CiPath::new("").base_name(), "");
-        assert_eq!(CiPath::new("/").base_name(), "");
+        assert_eq!(ci_path("target").base_name(), "target");
+        assert_eq!(ci_path("").base_name(), "");
+        assert_eq!(ci_path("/").base_name(), "");
     }
 
     #[test]
