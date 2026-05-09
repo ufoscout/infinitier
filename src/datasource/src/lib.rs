@@ -374,7 +374,7 @@ pub trait SeekExt: Seek + Read + Sized {
     }
 
     /// Reads a u32 from the offset position
-    fn read_u32_at(self: &mut Self, offset: u64) -> std::io::Result<u32> {
+    fn read_u32_at(&mut self, offset: u64) -> std::io::Result<u32> {
         self.set_position(offset)?;
         self.read_u32()
     }

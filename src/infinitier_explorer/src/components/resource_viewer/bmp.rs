@@ -58,7 +58,7 @@ impl ResourceViewerTrait for BmpViewer {
                         ui.label(format!("BIF: {name}"));
                     }
                     DataOrigin::Dir { name, path } => {
-                        ui.label(format!("{name}: {}", path.display()));
+                        ui.label(format!("{name}: {}", path.path().display()));
                     }
                     DataOrigin::Missing => {
                         ui.label("Missing");

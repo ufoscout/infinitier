@@ -25,8 +25,6 @@ pub struct GameData {
     game_type: Game,
     /// All resources
     resources: Vec<GameResource>,
-    /// A map from filename to resource id
-    filename_index: HashMap<String, ResourceId>,
     /// A map from (name, type) to resource id
     name_type_index: HashMap<(String, ResourceType), ResourceId>,
 }
@@ -57,13 +55,6 @@ impl GameData {
         self.resources.get(id)
     }
 
-    /// Get a resource by filename
-    pub fn get_by_filename(&self, filename: &str) -> Option<&GameResource> {
-        self.filename_index
-            .get(filename)
-            .and_then(|&id| self.resources.get(id))
-    }
-
     /// Get a resource by name and type
     pub fn get_by_name_and_type(&self, name: &str, r#type: ResourceType) -> Option<&GameResource> {
         self.name_type_index
@@ -76,7 +67,6 @@ impl GameData {
         let mut game_data = GameData {
             game_type,
             resources: Vec::new(),
-            filename_index: HashMap::new(),
             name_type_index: HashMap::new(),
         };
         for resource in resources {
@@ -90,16 +80,9 @@ impl GameData {
     fn add_resource(&mut self, resource: GameResource) {
         let key = (resource.name.clone(), resource.r#type);
         if let Some(&existing_id) = self.name_type_index.get(&key) {
-            let old_filename = self.resources[existing_id].filename.clone();
-            if old_filename != resource.filename {
-                self.filename_index.remove(&old_filename);
-                self.filename_index
-                    .insert(resource.filename.clone(), existing_id);
-            }
             self.resources[existing_id] = resource;
         } else {
             let id = self.resources.len();
-            self.filename_index.insert(resource.filename.clone(), id);
             self.name_type_index.insert(key, id);
             self.resources.push(resource);
         }
@@ -115,8 +98,6 @@ pub struct GameResource {
     pub name: String,
     /// Resource type.
     pub r#type: ResourceType,
-    /// Filename: `name.extension`
-    pub filename: String,
     /// File size
     pub file_size: Option<u64>,
     /// Data source
@@ -125,10 +106,20 @@ pub struct GameResource {
     pub data_origin: DataOrigin,
 }
 
+impl GameResource {
+    pub fn resource_name_with_extension(&self) -> String {
+        if let Some(extension) = self.r#type.get_extension() {
+            format!("{}.{}", self.name, extension)
+        } else {
+            self.name.clone()
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum DataOrigin {
     Bif { name: String },
-    Dir { name: String, path: PathBuf },
+    Dir { name: String, path: CiPath },
     Missing,
 }
 
@@ -293,31 +284,25 @@ impl GameDataBuilder {
         let mut game_data = GameData {
             game_type: self.game_type,
             resources: vec![],
-            filename_index: HashMap::new(),
             name_type_index: HashMap::new(),
         };
 
-        let key_path = self
-            .fs
-            .get_path(&CiPath::new(&self.key_file))?;
+        let key_path = self.fs.get_path(&self.key_file)?;
         let key = KeyImporter {
             name: &self.key_file,
         }
-        .import(&DataSource::new(key_path.as_path()))?;
+        .import(&DataSource::new(key_path.path()))?;
 
         // Additional resources are loaded from hardcoded paths (i.e. Scripts, Musics, etc.)
 
         // preload all bif files
         let mut bif_all = vec![];
         for bif_entry in key.bif_entries {
-            if let Some(bif_path) = self
-                .fs
-                .search_path_opt(&CiPath::new(&bif_entry.file_name))
-            {
+            if let Some(bif_path) = self.fs.search_path_opt(&bif_entry.file_name) {
                 let bif = BifImporter {
                     name: &bif_entry.file_name,
                 }
-                .import(&DataSource::new(bif_path.as_path()))
+                .import(&DataSource::new(bif_path.path()))
                 .unwrap();
                 bif_all.push(Some(bif));
             } else {
@@ -329,13 +314,6 @@ impl GameDataBuilder {
         for resource in key.resource_entries {
             let name = resource.resource_name;
             let r#type = resource.r#type;
-            let filename = match r#type.get_extension() {
-                Some(ext) => &format!("{}.{}", name, ext),
-                None => &name,
-            };
-            let cs_path = CiPath::new(filename);
-            let filename = cs_path.base_name().to_string();
-
 
                 if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
                     let bif_ds = bif.datasource.clone();
@@ -362,7 +340,7 @@ impl GameDataBuilder {
                         })
                     };
                     if let Some(bif_resource) = bif_resource {
-                        debug!("Resource {} found in bif {:?}", filename, bif_ds);
+                        debug!("Resource {}.{:?} found in bif {:?}", name, r#type, bif_ds);
 
                         let (datasource, file_size) = match bif_resource {
                             BifEmbeddedResource::File {
@@ -384,7 +362,6 @@ impl GameDataBuilder {
                             game_type: self.game_type,
                             name,
                             r#type,
-                            filename,
                             file_size: Some(file_size),
                             datasource: Some(datasource),
                             data_origin: DataOrigin::Bif {
@@ -392,24 +369,22 @@ impl GameDataBuilder {
                             },
                         });
                     } else {
-                        warn!("Resource {} not found in bif {:?}", filename, bif_ds);
+                        warn!("Resource {}.{:?} not found in bif {:?}", name, r#type, bif_ds);
                         game_data.add_resource(GameResource {
                             game_type: self.game_type,
                             name,
                             r#type,
-                            filename,
                             file_size: None,
                             datasource: None,
                             data_origin: DataOrigin::Missing,
                         });
                     }
                 } else {
-                    warn!("Resource {} not found", filename);
+                    warn!("Resource {}.{:?} not found", name, r#type);
                     game_data.add_resource(GameResource {
                         game_type: self.game_type,
                         name,
                         r#type,
-                        filename,
                         file_size: None,
                         datasource: None,
                         data_origin: DataOrigin::Missing,
@@ -432,25 +407,24 @@ impl GameDataBuilder {
 
     fn add_resources_from_dir(&self, game: &mut GameData, dir_name: &str, extension: Option<&str>, recursive: bool) -> io::Result<()> {
         debug!("Searching for resources in {}/{:?}", dir_name, extension);
-        for resource in
-            self.fs
-                .list_files(&CiPath::new(dir_name), extension, recursive)
-        {
-            let name = resource.file_stem().unwrap_or_default().to_str().unwrap_or_default().to_lowercase();
-            let extension = resource.extension().unwrap_or_default().to_str().unwrap_or_default().to_lowercase();
+        for resource in self.fs.list_files(dir_name, extension, recursive) {
+            let real = resource.path();
+            let name = resource.base_name_without_extension().to_string();
+            let r#type = resource.extension().and_then(|ext| ResourceType::from_extension(ext)).unwrap_or(ResourceType::Unknown(0));
+            let file_size = Some(real.metadata()?.len());
+            let datasource = Some(DataSource::new(real));
 
-            debug!("Found resource {}", resource.display());
+            debug!("Found resource {}", real.display());
             game.add_resource(GameResource {
                 data_origin: DataOrigin::Dir {
                     name: dir_name.to_owned(),
-                    path: resource.clone(),
+                    path: resource,
                 },
-                file_size: Some(resource.metadata()?.len()),
-                datasource: Some(DataSource::new(resource.as_path())),
+                file_size,
+                datasource,
                 game_type: self.game_type,
-                r#type: ResourceType::from_extension(&extension).unwrap_or(ResourceType::Unknown(0)),
+                r#type,
                 name,
-                filename: resource.file_name().unwrap_or_default().to_str().unwrap_or_default().to_lowercase(),
             });
         }
         Ok(())
@@ -540,11 +514,15 @@ mod tests {
         let resource = game_data
             .get_by_name_and_type("abclasrq", ResourceType::TwoDA)
             .unwrap();
-        let path = get_assets_path()
+        let expected_path = get_assets_path()
             .join("KEY")
             .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
-        assert_eq!(DataOrigin::Dir { name: "override".to_owned(), path }, resource.data_origin);
+        let DataOrigin::Dir { name, path } = &resource.data_origin else {
+            panic!("expected DataOrigin::Dir, got {:?}", resource.data_origin);
+        };
+        assert_eq!(name, "override");
+        assert_eq!(path.path(), expected_path.as_path());
 
         // Test that the override datasource can be read
         TwoDAImporter { name: "abclasrq" }
@@ -558,13 +536,17 @@ mod tests {
         let resource = game_data.get_by_id(0).unwrap();
         assert_eq!(resource.name, "abclasrq");
         assert_eq!(resource.r#type, ResourceType::TwoDA);
-        assert_eq!(resource.filename, "abclasrq.2da");
+        assert_eq!(resource.resource_name_with_extension(), "abclasrq.2da");
 
-        let path = get_assets_path()
+        let expected_path = get_assets_path()
             .join("KEY")
             .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
-        assert_eq!(DataOrigin::Dir { name: "override".to_owned(), path }, resource.data_origin);
+        let DataOrigin::Dir { name, path } = &resource.data_origin else {
+            panic!("expected DataOrigin::Dir, got {:?}", resource.data_origin);
+        };
+        assert_eq!(name, "override");
+        assert_eq!(path.path(), expected_path.as_path());
     }
 
     #[test]
@@ -574,26 +556,12 @@ mod tests {
     }
 
     #[test]
-    fn test_get_by_filename_found() {
-        let game_data = build_bg2();
-        let resource = game_data.get_by_filename("abclasrq.2da").unwrap();
-        assert_eq!(resource.name, "abclasrq");
-        assert_eq!(resource.r#type, ResourceType::TwoDA);
-    }
-
-    #[test]
-    fn test_get_by_filename_not_found() {
-        let game_data = build_bg2();
-        assert!(game_data.get_by_filename("nonexistent.bam").is_none());
-    }
-
-    #[test]
     fn test_get_by_name_and_type_found() {
         let game_data = build_bg2();
         let resource = game_data
             .get_by_name_and_type("abdcdsrq", ResourceType::TwoDA)
             .unwrap();
-        assert_eq!(resource.filename, "abdcdsrq.2da");
+        assert_eq!(resource.resource_name_with_extension(), "abdcdsrq.2da");
         assert!(resource.datasource.is_none());
         assert!(resource.file_size.is_none());
         assert_eq!(DataOrigin::Missing, resource.data_origin);
@@ -612,14 +580,12 @@ mod tests {
     fn make_resource(
         name: &str,
         r#type: ResourceType,
-        filename: &str,
         origin: DataOrigin,
     ) -> GameResource {
         GameResource {
             game_type: Game::Bg2,
             name: name.to_string(),
             r#type,
-            filename: filename.to_string(),
             file_size: None,
             datasource: None,
             data_origin: origin,
@@ -633,7 +599,6 @@ mod tests {
         game_data.add_resource(make_resource(
             "TEST",
             ResourceType::Bam,
-            "test.bam",
             DataOrigin::Bif {
                 name: "first.bif".to_string(),
             },
@@ -641,7 +606,6 @@ mod tests {
         game_data.add_resource(make_resource(
             "TEST",
             ResourceType::Bam,
-            "test.bam",
             DataOrigin::Bif {
                 name: "second.bif".to_string(),
             },
@@ -659,14 +623,6 @@ mod tests {
             }
         );
 
-        let by_filename = game_data.get_by_filename("test.bam").unwrap();
-        assert_eq!(
-            by_filename.data_origin,
-            DataOrigin::Bif {
-                name: "second.bif".to_string()
-            }
-        );
-
         let by_id = game_data.get_by_id(0).unwrap();
         assert_eq!(
             by_id.data_origin,
@@ -677,42 +633,17 @@ mod tests {
     }
 
     #[test]
-    fn test_add_resource_replace_updates_filename_index_when_filename_differs() {
-        let mut game_data = GameData::new(vec![], Game::Bg2);
-
-        game_data.add_resource(make_resource(
-            "TEST",
-            ResourceType::Bam,
-            "old.bam",
-            DataOrigin::Missing,
-        ));
-        game_data.add_resource(make_resource(
-            "TEST",
-            ResourceType::Bam,
-            "new.bam",
-            DataOrigin::Missing,
-        ));
-
-        assert_eq!(game_data.len(), 1);
-        assert!(game_data.get_by_filename("old.bam").is_none());
-        let by_filename = game_data.get_by_filename("new.bam").unwrap();
-        assert_eq!(by_filename.name, "TEST");
-    }
-
-    #[test]
     fn test_add_resource_keeps_existing_when_type_differs() {
         let mut game_data = GameData::new(vec![], Game::Bg2);
 
         game_data.add_resource(make_resource(
             "TEST",
             ResourceType::Bam,
-            "test.bam",
             DataOrigin::Missing,
         ));
         game_data.add_resource(make_resource(
             "TEST",
             ResourceType::Wed,
-            "test.wed",
             DataOrigin::Missing,
         ));
 
@@ -757,18 +688,11 @@ mod tests {
         ] {
             let lower_filename = orig_filename.to_ascii_lowercase();
             let resource = game_data
-                .get_by_filename(&lower_filename)
+                .get_by_name_and_type(expected_name, ResourceType::Mus)
                 .unwrap_or_else(|| panic!("resource {lower_filename} not found"));
             assert_eq!(resource.name, expected_name);
-            assert_eq!(resource.filename, lower_filename);
+            assert_eq!(resource.resource_name_with_extension(), lower_filename);
             assert_eq!(resource.r#type, ResourceType::Mus);
-
-            // get_by_name_and_type uses the stored (lowercased) name
-            assert!(
-                game_data
-                    .get_by_name_and_type(expected_name, ResourceType::Mus)
-                    .is_some()
-            );
         }
     }
 
@@ -791,15 +715,15 @@ mod tests {
 
         assert_eq!(game_data.len(), 3);
 
-        let foo = game_data.get_by_filename("foo.bam").unwrap();
+        let foo = game_data.get_by_name_and_type("foo", ResourceType::Bam).unwrap();
         assert_eq!(foo.name, "foo");
         assert_eq!(foo.r#type, ResourceType::Bam);
 
-        let bar = game_data.get_by_filename("bar.wed").unwrap();
+        let bar = game_data.get_by_name_and_type("bar", ResourceType::Wed).unwrap();
         assert_eq!(bar.name, "bar");
         assert_eq!(bar.r#type, ResourceType::Wed);
 
-        let baz = game_data.get_by_filename("baz.unknownext").unwrap();
+        let baz = game_data.get_by_name_and_type("baz", ResourceType::Unknown(0)).unwrap();
         assert_eq!(baz.name, "baz");
         assert_eq!(baz.r#type, ResourceType::Unknown(0));
     }
@@ -811,13 +735,11 @@ mod tests {
         game_data.add_resource(make_resource(
             "TEST1",
             ResourceType::Bam,
-            "test1.bam",
             DataOrigin::Missing,
         ));
         game_data.add_resource(make_resource(
             "TEST2",
             ResourceType::Bam,
-            "test2.bam",
             DataOrigin::Missing,
         ));
 

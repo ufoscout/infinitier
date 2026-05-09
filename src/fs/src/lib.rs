@@ -58,34 +58,42 @@ impl CaseInsensitiveFS {
         &self.root
     }
 
-    /// Returns the absolute path of the file or directory with the given path relative to root.
-    /// The path is matched case insensitively
-    pub fn get_path_opt(&self, path: &CiPath) -> Option<PathBuf> {
-        self.paths.get(path.as_str()).cloned()
+    /// Returns a `CiPath` for the file or directory at the given path relative to root.
+    /// The path is matched case insensitively. The returned `CiPath` carries both
+    /// the lowercased relative key and the canonical absolute path on disk.
+    pub fn get_path_opt(&self, path: &str) -> Option<CiPath> {
+        let key = CiPath::normalize(path);
+        let real_path = self.paths.get(&key)?.clone();
+        Some(CiPath {
+            path: key,
+            real_path,
+        })
     }
 
-    /// Tries to get the absolute path of the file or directory with the given path relative to root.
-    /// The path is matched case insensitively. If the path is not found, an `io::Error` is returned.
-    pub fn get_path(&self, path: &CiPath) -> io::Result<PathBuf> {
-        match self.get_path_opt(path) {
-            Some(path) => Ok(path),
-            None => Err(io::Error::new(
+    /// Like [`get_path_opt`](Self::get_path_opt) but returns an `io::Error` when missing.
+    pub fn get_path(&self, path: &str) -> io::Result<CiPath> {
+        self.get_path_opt(path).ok_or_else(|| {
+            io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("File not found: {}", path.path),
-            )),
-        }
+                format!("File not found: {path}"),
+            )
+        })
     }
 
-    /// Searches for a path in the root directory, if it does not exists, it search in a set of predefined folders
-    pub fn search_path_opt(&self, path: &CiPath) -> Option<PathBuf> {
-        if let Some(path) = self.get_path_opt(path) {
-            return Some(path);
+    /// Searches for a path in the root directory, then in each of the configured
+    /// fallback folders. Returns the first match as a `CiPath`.
+    pub fn search_path_opt(&self, path: &str) -> Option<CiPath> {
+        if let Some(found) = self.get_path_opt(path) {
+            return Some(found);
         }
-
+        let normalized = CiPath::normalize(path);
         for dir in self.fallbacks.iter() {
-            let search_name = format!("{}/{}", dir, path.path);
-            if let Some(path) = self.paths.get(&search_name) {
-                return Some(path.to_owned());
+            let key = CiPath::normalize(&format!("{dir}/{normalized}"));
+            if let Some(real_path) = self.paths.get(&key) {
+                return Some(CiPath {
+                    path: key,
+                    real_path: real_path.clone(),
+                });
             }
         }
         None
@@ -98,11 +106,11 @@ impl CaseInsensitiveFS {
     /// the whole subtree under `path` is walked.
     pub fn list_files(
         &self,
-        path: &CiPath,
+        path: &str,
         extension: Option<&str>,
         recursive: bool,
-    ) -> Vec<PathBuf> {
-        let needle = path.path.to_lowercase();
+    ) -> Vec<CiPath> {
+        let needle = CiPath::normalize(path);
         let mut results = vec![];
         for (key, value) in self.paths.iter() {
             let in_scope = if needle.is_empty() {
@@ -125,15 +133,19 @@ impl CaseInsensitiveFS {
             if !value.is_file() {
                 continue;
             }
+            let push = || CiPath {
+                path: key.clone(),
+                real_path: value.clone(),
+            };
             match extension {
                 Some(ext_filter) => {
                     if let Some(ext) = value.extension()
                         && ext.eq_ignore_ascii_case(ext_filter)
                     {
-                        results.push(value.to_owned());
+                        results.push(push());
                     }
                 }
-                None => results.push(value.to_owned()),
+                None => results.push(push()),
             }
         }
         results
@@ -141,14 +153,34 @@ impl CaseInsensitiveFS {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-/// A path that is case insensitive
+/// A path that has been resolved through a [`CaseInsensitiveFS`].
+///
+/// Carries both the lowercased path relative to the FS root (used as the
+/// case-insensitive lookup key) and the canonical absolute path on disk.
+/// Instances are produced by [`CaseInsensitiveFS`]; external callers
+/// cannot construct a `CiPath` directly.
 pub struct CiPath {
     path: String,
+    real_path: PathBuf,
 }
 
 impl CiPath {
-    /// Creates a new `CiPath` from the given path
+    /// Creates a `CiPath` from a raw path string. The path is normalized
+    /// (trimmed, lowercased, separators unified) and stored as the lookup
+    /// key. The `real_path` is left empty; this constructor is intended for
+    /// test fixtures and ad-hoc lookups where the on-disk path is unknown.
+    /// `CiPath`s returned by [`CaseInsensitiveFS`] always carry a real path.
     pub fn new(path: &str) -> Self {
+        CiPath {
+            path: Self::normalize(path),
+            real_path: PathBuf::new(),
+        }
+    }
+
+    /// Normalizes a raw path string into the canonical lookup key form:
+    /// trimmed, lowercased, with `\` and `:` replaced by `/` and any
+    /// leading `/` stripped.
+    pub(crate) fn normalize(path: &str) -> String {
         let mut path = path
             .trim()
             .to_lowercase()
@@ -157,10 +189,15 @@ impl CiPath {
         while path.starts_with("/") {
             path = path[1..].to_string();
         }
-        CiPath { path }
+        path
     }
 
-    /// Returns the path relative to the root
+    /// Returns the absolute on-disk path.
+    pub fn path(&self) -> &Path {
+        &self.real_path
+    }
+
+    /// Returns the lowercased path relative to the FS root.
     pub fn as_str(&self) -> &str {
         &self.path
     }
@@ -265,32 +302,14 @@ mod tests {
             .unwrap()
             .to_path_buf();
         let fs = CaseInsensitiveFS::new(current_path).unwrap();
-        assert!(
-            fs.get_path_opt(&CiPath::new("cargo.toml"))
-                .is_some()
-        );
-        assert!(
-            fs.get_path_opt(&CiPath::new("Cargo.TOML"))
-                .is_some()
-        );
-        assert!(
-            fs.get_path_opt(&CiPath::new("/cargo.TOML"))
-                .is_some()
-        );
-        assert!(
-            fs.get_path_opt(&CiPath::new("/src/core/cargo.TOML"))
-                .is_some()
-        );
-        assert!(
-            fs.get_path_opt(&CiPath::new("/Target"))
-                .is_some()
-        );
+        assert!(fs.get_path_opt("cargo.toml").is_some());
+        assert!(fs.get_path_opt("Cargo.TOML").is_some());
+        assert!(fs.get_path_opt("/cargo.TOML").is_some());
+        assert!(fs.get_path_opt("/src/core/cargo.TOML").is_some());
+        assert!(fs.get_path_opt("/Target").is_some());
 
-        assert!(
-            fs.get_path(&CiPath::new("/src/core/cargo.TOML"))
-                .is_ok()
-        );
-        assert!(fs.get_path(&CiPath::new("/Targets")).is_err());
+        assert!(fs.get_path("/src/core/cargo.TOML").is_ok());
+        assert!(fs.get_path("/Targets").is_err());
     }
 
     #[test]
@@ -298,18 +317,17 @@ mod tests {
         let fs =
             CaseInsensitiveFS::new(get_assets_path().join("KEY").join(BG_RESOURCES_DIR.0)).unwrap();
 
-        let path = fs.search_path_opt(&CiPath::new("/chitin.key"));
+        let path = fs.search_path_opt("/chitin.key").unwrap();
 
         assert_eq!(
-            path,
-            Some(
-                get_assets_path()
-                    .join("KEY")
-                    .join(BG_RESOURCES_DIR.0)
-                    .join("Chitin.key")
-                    .canonicalize()
-                    .unwrap()
-            )
+            path.path(),
+            get_assets_path()
+                .join("KEY")
+                .join(BG_RESOURCES_DIR.0)
+                .join("Chitin.key")
+                .canonicalize()
+                .unwrap()
+                .as_path()
         );
     }
 
@@ -321,17 +339,16 @@ mod tests {
         )
         .unwrap();
 
-        let path = fs.search_path_opt(&CiPath::new("/DATA/AR3603.cbf"));
+        let path = fs.search_path_opt("/DATA/AR3603.cbf").unwrap();
         assert_eq!(
-            path,
-            Some(
-                get_assets_path()
-                    .join("KEY")
-                    .join(IWD_RESOURCES_DIR.0)
-                    .join("CD2/Data/AR3603.cbf")
-                    .canonicalize()
-                    .unwrap()
-            )
+            path.path(),
+            get_assets_path()
+                .join("KEY")
+                .join(IWD_RESOURCES_DIR.0)
+                .join("CD2/Data/AR3603.cbf")
+                .canonicalize()
+                .unwrap()
+                .as_path()
         );
     }
 
@@ -490,168 +507,112 @@ mod tests {
 
         let fs = CaseInsensitiveFS::new(root).unwrap();
 
+        fn has(files: &[CiPath], p: PathBuf) -> bool {
+            files.iter().any(|f| f.path() == p)
+        }
+
         // Act - recursive - 1
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "".to_owned(),
-                },
-                Some("json"),
-                true,
-            );
+            let files = fs.list_files("", Some("json"), true);
 
             // Assert
             assert_eq!(files.len(), 4);
-            assert!(files.contains(&root.join("file1.json")));
-            assert!(files.contains(&root.join("file2.json")));
-            assert!(files.contains(&root.join("ini/file1.Json")));
-            assert!(files.contains(&root.join("INNER/file1.json")));
+            assert!(has(&files, root.join("file1.json")));
+            assert!(has(&files, root.join("file2.json")));
+            assert!(has(&files, root.join("ini/file1.Json")));
+            assert!(has(&files, root.join("INNER/file1.json")));
         }
 
         // Act - recursive - 2
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "INNER".to_owned(),
-                },
-                Some("json"),
-                true,
-            );
+            let files = fs.list_files("INNER", Some("json"), true);
 
             // Assert
             assert_eq!(files.len(), 1);
-            assert!(files.contains(&root.join("INNER/file1.json")));
+            assert!(has(&files, root.join("INNER/file1.json")));
         }
 
         // Act - recursive - 3
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "INNER".to_owned(),
-                },
-                Some("ini"),
-                true,
-            );
+            let files = fs.list_files("INNER", Some("ini"), true);
 
             // Assert
             assert_eq!(files.len(), 1);
-            assert!(files.contains(&root.join("INNER/inner/file1.ini")));
+            assert!(has(&files, root.join("INNER/inner/file1.ini")));
         }
 
         // Act - recursive - 4
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "INNER/inner".to_owned(),
-                },
-                Some("ini"),
-                true,
-            );
+            let files = fs.list_files("INNER/inner", Some("ini"), true);
 
             // Assert
             assert_eq!(files.len(), 1);
-            assert!(files.contains(&root.join("INNER/inner/file1.ini")));
+            assert!(has(&files, root.join("INNER/inner/file1.ini")));
         }
 
         // Act - not recursive - 1
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "".to_owned(),
-                },
-                Some("json"),
-                false,
-            );
+            let files = fs.list_files("", Some("json"), false);
 
             // Assert
             assert_eq!(files.len(), 2);
-            assert!(files.contains(&root.join("file1.json")));
-            assert!(files.contains(&root.join("file2.json")));
+            assert!(has(&files, root.join("file1.json")));
+            assert!(has(&files, root.join("file2.json")));
         }
 
         // Act - not recursive - 2
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "ini".to_owned(),
-                },
-                Some("json"),
-                false,
-            );
+            let files = fs.list_files("ini", Some("json"), false);
 
             // Assert
             assert_eq!(files.len(), 1);
-            assert!(files.contains(&root.join("ini/file1.Json")));
+            assert!(has(&files, root.join("ini/file1.Json")));
         }
 
         // Act - no extension filter, recursive - returns all files in tree
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "".to_owned(),
-                },
-                None,
-                true,
-            );
+            let files = fs.list_files("", None, true);
 
             // Assert
             assert_eq!(files.len(), 7);
-            assert!(files.contains(&root.join("file1.json")));
-            assert!(files.contains(&root.join("file2.json")));
-            assert!(files.contains(&root.join("file1.INI")));
-            assert!(files.contains(&root.join("ini/file1.ini")));
-            assert!(files.contains(&root.join("ini/file1.Json")));
-            assert!(files.contains(&root.join("INNER/file1.json")));
-            assert!(files.contains(&root.join("INNER/inner/file1.ini")));
+            assert!(has(&files, root.join("file1.json")));
+            assert!(has(&files, root.join("file2.json")));
+            assert!(has(&files, root.join("file1.INI")));
+            assert!(has(&files, root.join("ini/file1.ini")));
+            assert!(has(&files, root.join("ini/file1.Json")));
+            assert!(has(&files, root.join("INNER/file1.json")));
+            assert!(has(&files, root.join("INNER/inner/file1.ini")));
         }
 
         // Act - no extension filter, non-recursive - returns only root-level files
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "".to_owned(),
-                },
-                None,
-                false,
-            );
+            let files = fs.list_files("", None, false);
 
             // Assert
             assert_eq!(files.len(), 3);
-            assert!(files.contains(&root.join("file1.json")));
-            assert!(files.contains(&root.join("file2.json")));
-            assert!(files.contains(&root.join("file1.INI")));
+            assert!(has(&files, root.join("file1.json")));
+            assert!(has(&files, root.join("file2.json")));
+            assert!(has(&files, root.join("file1.INI")));
         }
 
         // Act - no extension filter, scoped subdir, non-recursive
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "ini".to_owned(),
-                },
-                None,
-                false,
-            );
+            let files = fs.list_files("ini", None, false);
 
             // Assert
             assert_eq!(files.len(), 2);
-            assert!(files.contains(&root.join("ini/file1.ini")));
-            assert!(files.contains(&root.join("ini/file1.Json")));
+            assert!(has(&files, root.join("ini/file1.ini")));
+            assert!(has(&files, root.join("ini/file1.Json")));
         }
 
         // Act - no extension filter, scoped subdir, recursive
         {
-            let files = fs.list_files(
-                &CiPath {
-                    path: "INNER".to_owned(),
-                },
-                None,
-                true,
-            );
+            let files = fs.list_files("INNER", None, true);
 
             // Assert
             assert_eq!(files.len(), 2);
-            assert!(files.contains(&root.join("INNER/file1.json")));
-            assert!(files.contains(&root.join("INNER/inner/file1.ini")));
+            assert!(has(&files, root.join("INNER/file1.json")));
+            assert!(has(&files, root.join("INNER/inner/file1.ini")));
         }
     }
 }

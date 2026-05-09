@@ -25,9 +25,9 @@ impl KeyFileTreeView {
         for (i, entry) in game_data.resources().iter().enumerate() {
             let ext = entry.r#type.get_extension().unwrap_or("unknown");
             let leaf_label = if matches!(entry.data_origin, DataOrigin::Dir { .. }) {
-                format!("{} (O)", entry.filename)
+                format!("{} (O)", entry.resource_name_with_extension())
             } else {
-                entry.filename.clone()
+                entry.resource_name_with_extension()
             };
             let entries = groups.entry(ext).or_default();
             entries.insert(leaf_label, i);
@@ -90,17 +90,13 @@ mod tests {
         GameData::new(
             entries
                 .into_iter()
-                .map(|(name, r#type, data_origin)| {
-                    let ext = r#type.get_extension().unwrap_or("unknown");
-                    GameResource {
-                        game_type: Game::Bg2,
-                        filename: format!("{}.{}", name, ext),
-                        name: name.to_string(),
-                        r#type,
-                        file_size: None,
-                        datasource: None,
-                        data_origin,
-                    }
+                .map(|(name, r#type, data_origin)| GameResource {
+                    game_type: Game::Bg2,
+                    name: name.to_string(),
+                    r#type,
+                    file_size: None,
+                    datasource: None,
+                    data_origin,
                 })
                 .collect(),
             Game::Bg2,
@@ -148,7 +144,7 @@ mod tests {
         // ── unknown ──────────────────────────────────────────────────────────
         let entries = view.groups.get("unknown").unwrap();
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries["UNKNOWN.unknown"], 6);
+        assert_eq!(entries["UNKNOWN"], 6);
 
         // ── wed ──────────────────────────────────────────────────────────────
         let entries = view.groups.get("wed").unwrap();
@@ -158,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_override_label() {
-        use std::path::PathBuf;
+        use infinitier_core::fs::CiPath;
         let game_data = make_game_data_with_origins(vec![
             ("CCHAN05", ResourceType::Bmp, DataOrigin::Missing),
             (
@@ -166,7 +162,7 @@ mod tests {
                 ResourceType::Bmp,
                 DataOrigin::Dir {
                     name: "override".to_string(),
-                    path: PathBuf::from("override/MINSCM.bmp"),
+                    path: CiPath::new("override/MINSCM.bmp"),
                 },
             ),
         ]);

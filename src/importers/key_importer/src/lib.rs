@@ -229,7 +229,7 @@ impl ResourceEntry {
 
 #[cfg(test)]
 mod tests {
-    use infinitier_fs::{CaseInsensitiveFS, CiPath};
+    use infinitier_fs::CaseInsensitiveFS;
     use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path, parse_json_file};
 
     use super::*;
@@ -258,15 +258,15 @@ mod tests {
             let dir = get_assets_path().join("KEY").join(dir);
             let key_path = CaseInsensitiveFS::new(&dir)
                 .unwrap()
-                .get_path(&CiPath::new("/CHITIN.KEY"))
+                .get_path("/CHITIN.KEY")
                 .unwrap();
-            let json_path = key_path.parent().unwrap().join("chitin.json");
+            let json_path = key_path.path().parent().unwrap().join("chitin.json");
 
             let expected: Key = parse_json_file(&json_path);
 
             let actual = KeyImporter { name: "key_test" }
-                .import(&DataSource::new(key_path.as_path()))
-                .unwrap_or_else(|e| panic!("cannot import {}: {e}", key_path.display()));
+                .import(&DataSource::new(key_path.path()))
+                .unwrap_or_else(|e| panic!("cannot import {}: {e}", key_path.path().display()));
 
             assert_eq!(actual, expected, "key mismatch for {}", dir.display());
         }
