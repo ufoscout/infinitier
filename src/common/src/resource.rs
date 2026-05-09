@@ -162,6 +162,63 @@ impl ResourceType {
         }
     }
 
+    /// Returns the `ResourceType` matching the given file extension,
+    /// or `None` if no known type matches. Matching is case-insensitive
+    /// and ignores a leading `.`.
+    pub fn from_extension(ext: &str) -> Option<ResourceType> {
+        let ext = ext.trim_start_matches('.').to_ascii_lowercase();
+        match ext.as_str() {
+            "bmp" => Some(ResourceType::Bmp),
+            "mve" => Some(ResourceType::Mve),
+            "wav" => Some(ResourceType::Wav),
+            "wfx" => Some(ResourceType::Wfx),
+            "plt" => Some(ResourceType::Plt),
+            "tga" => Some(ResourceType::Tga),
+            "bam" => Some(ResourceType::Bam),
+            "wed" => Some(ResourceType::Wed),
+            "chu" => Some(ResourceType::Chu),
+            "tis" => Some(ResourceType::Tis),
+            "mos" => Some(ResourceType::Mos),
+            "itm" => Some(ResourceType::Itm),
+            "spl" => Some(ResourceType::Spl),
+            "bcs" => Some(ResourceType::Bcs),
+            "ids" => Some(ResourceType::Ids),
+            "cre" => Some(ResourceType::Cre),
+            "are" => Some(ResourceType::Are),
+            "dlg" => Some(ResourceType::Dlg),
+            "2da" => Some(ResourceType::TwoDA),
+            "gam" => Some(ResourceType::Gam),
+            "sto" => Some(ResourceType::Sto),
+            "wmp" => Some(ResourceType::Wmp),
+            "eff" => Some(ResourceType::Eff),
+            "bs" => Some(ResourceType::Bs),
+            "chr" => Some(ResourceType::Chr),
+            "vvc" => Some(ResourceType::Vvc),
+            "vef" => Some(ResourceType::Vef),
+            "pro" => Some(ResourceType::Pro),
+            "bio" => Some(ResourceType::Bio),
+            "wbm" => Some(ResourceType::Wbm),
+            "fnt" => Some(ResourceType::Fnt),
+            "gui" => Some(ResourceType::Gui),
+            "sql" => Some(ResourceType::Sql),
+            "pvrz" => Some(ResourceType::Pvrz),
+            "glsl" => Some(ResourceType::Glsl),
+            "tot" => Some(ResourceType::Tot),
+            "toh" => Some(ResourceType::Toh),
+            "menu" => Some(ResourceType::Menu),
+            "lua" => Some(ResourceType::Lua),
+            "ttf" => Some(ResourceType::Ttf),
+            "png" => Some(ResourceType::Png),
+            "bah" => Some(ResourceType::Bah),
+            "ini" => Some(ResourceType::Ini),
+            "src" => Some(ResourceType::Src),
+            "maze" => Some(ResourceType::Maze),
+            "mus" => Some(ResourceType::Mus),
+            "acm" => Some(ResourceType::Acm),
+            _ => None,
+        }
+    }
+
     /// Returns the extension of the `ResourceType` enum variant as a string, or `None` if it is unknown.
     pub fn get_extension(&self) -> Option<&'static str> {
         match self {
@@ -233,5 +290,52 @@ mod tests {
         assert_eq!(ResourceType::TwoDA.get_extension(), Some("2da"));
         assert_eq!(ResourceType::Unknown(0).get_extension(), None);
         assert_eq!(ResourceType::Bmp.get_extension(), Some("bmp"));
+    }
+
+    #[test]
+    fn test_from_extension_known() {
+        assert_eq!(ResourceType::from_extension("bmp"), Some(ResourceType::Bmp));
+        assert_eq!(ResourceType::from_extension("2da"), Some(ResourceType::TwoDA));
+        assert_eq!(ResourceType::from_extension("acm"), Some(ResourceType::Acm));
+        assert_eq!(ResourceType::from_extension("pvrz"), Some(ResourceType::Pvrz));
+    }
+
+    #[test]
+    fn test_from_extension_case_insensitive() {
+        assert_eq!(ResourceType::from_extension("BMP"), Some(ResourceType::Bmp));
+        assert_eq!(ResourceType::from_extension("Wav"), Some(ResourceType::Wav));
+        assert_eq!(ResourceType::from_extension("2DA"), Some(ResourceType::TwoDA));
+        assert_eq!(ResourceType::from_extension("MeNu"), Some(ResourceType::Menu));
+    }
+
+    #[test]
+    fn test_from_extension_strips_leading_dot() {
+        assert_eq!(ResourceType::from_extension(".bmp"), Some(ResourceType::Bmp));
+        assert_eq!(ResourceType::from_extension(".2DA"), Some(ResourceType::TwoDA));
+    }
+
+    #[test]
+    fn test_from_extension_unknown() {
+        assert_eq!(ResourceType::from_extension(""), None);
+        assert_eq!(ResourceType::from_extension("xyz"), None);
+        assert_eq!(ResourceType::from_extension("unknown"), None);
+        // No partial / fuzzy matches
+        assert_eq!(ResourceType::from_extension("bm"), None);
+        assert_eq!(ResourceType::from_extension("bmpx"), None);
+    }
+
+    #[test]
+    fn test_from_extension_roundtrip_via_get_extension() {
+        for bit in 0..16u16.pow(3) {
+            let r#type = ResourceType::from(bit);
+            if let Some(ext) = r#type.get_extension() {
+                assert_eq!(
+                    ResourceType::from_extension(ext),
+                    Some(r#type),
+                    "extension {ext} did not round-trip for {:?}",
+                    r#type
+                );
+            }
+        }
     }
 }

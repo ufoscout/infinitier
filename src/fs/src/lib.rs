@@ -91,14 +91,15 @@ impl CaseInsensitiveFS {
         None
     }
 
-    /// Returns a list of all files in a folder with a specific extension.
+    /// Returns a list of files in a folder, optionally filtered by extension.
+    /// When `extension` is `None`, all files in scope are returned.
     /// The path is matched case insensitively. When `recursive` is
     /// false, only direct children of `path` are returned; otherwise
     /// the whole subtree under `path` is walked.
-    pub fn search_files_by_extension(
+    pub fn list_files_by_extension(
         &self,
         path: &CaseInsensitivePath,
-        extension: &str,
+        extension: Option<&str>,
         recursive: bool,
     ) -> Vec<PathBuf> {
         let needle = path.path.to_lowercase();
@@ -121,10 +122,18 @@ impl CaseInsensitiveFS {
             if !in_scope {
                 continue;
             }
-            if let Some(ext) = value.extension()
-                && ext.eq_ignore_ascii_case(extension)
-            {
-                results.push(value.to_owned());
+            if !value.is_file() {
+                continue;
+            }
+            match extension {
+                Some(ext_filter) => {
+                    if let Some(ext) = value.extension()
+                        && ext.eq_ignore_ascii_case(ext_filter)
+                    {
+                        results.push(value.to_owned());
+                    }
+                }
+                None => results.push(value.to_owned()),
             }
         }
         results
@@ -379,11 +388,11 @@ mod tests {
 
         // Act - recursive - 1
         {
-            let files = fs.search_files_by_extension(
+            let files = fs.list_files_by_extension(
                 &CaseInsensitivePath {
                     path: "".to_owned(),
                 },
-                "json",
+                Some("json"),
                 true,
             );
 
@@ -397,11 +406,11 @@ mod tests {
 
         // Act - recursive - 2
         {
-            let files = fs.search_files_by_extension(
+            let files = fs.list_files_by_extension(
                 &CaseInsensitivePath {
                     path: "INNER".to_owned(),
                 },
-                "json",
+                Some("json"),
                 true,
             );
 
@@ -412,11 +421,11 @@ mod tests {
 
         // Act - recursive - 3
         {
-            let files = fs.search_files_by_extension(
+            let files = fs.list_files_by_extension(
                 &CaseInsensitivePath {
                     path: "INNER".to_owned(),
                 },
-                "ini",
+                Some("ini"),
                 true,
             );
 
@@ -427,11 +436,11 @@ mod tests {
 
         // Act - recursive - 4
         {
-            let files = fs.search_files_by_extension(
+            let files = fs.list_files_by_extension(
                 &CaseInsensitivePath {
                     path: "INNER/inner".to_owned(),
                 },
-                "ini",
+                Some("ini"),
                 true,
             );
 
@@ -442,11 +451,11 @@ mod tests {
 
         // Act - not recursive - 1
         {
-            let files = fs.search_files_by_extension(
+            let files = fs.list_files_by_extension(
                 &CaseInsensitivePath {
                     path: "".to_owned(),
                 },
-                "json",
+                Some("json"),
                 false,
             );
 
@@ -458,17 +467,87 @@ mod tests {
 
         // Act - not recursive - 2
         {
-            let files = fs.search_files_by_extension(
+            let files = fs.list_files_by_extension(
                 &CaseInsensitivePath {
                     path: "ini".to_owned(),
                 },
-                "json",
+                Some("json"),
                 false,
             );
 
             // Assert
             assert_eq!(files.len(), 1);
             assert!(files.contains(&root.join("ini/file1.Json")));
+        }
+
+        // Act - no extension filter, recursive - returns all files in tree
+        {
+            let files = fs.list_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "".to_owned(),
+                },
+                None,
+                true,
+            );
+
+            // Assert
+            assert_eq!(files.len(), 7);
+            assert!(files.contains(&root.join("file1.json")));
+            assert!(files.contains(&root.join("file2.json")));
+            assert!(files.contains(&root.join("file1.INI")));
+            assert!(files.contains(&root.join("ini/file1.ini")));
+            assert!(files.contains(&root.join("ini/file1.Json")));
+            assert!(files.contains(&root.join("INNER/file1.json")));
+            assert!(files.contains(&root.join("INNER/inner/file1.ini")));
+        }
+
+        // Act - no extension filter, non-recursive - returns only root-level files
+        {
+            let files = fs.list_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "".to_owned(),
+                },
+                None,
+                false,
+            );
+
+            // Assert
+            assert_eq!(files.len(), 3);
+            assert!(files.contains(&root.join("file1.json")));
+            assert!(files.contains(&root.join("file2.json")));
+            assert!(files.contains(&root.join("file1.INI")));
+        }
+
+        // Act - no extension filter, scoped subdir, non-recursive
+        {
+            let files = fs.list_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "ini".to_owned(),
+                },
+                None,
+                false,
+            );
+
+            // Assert
+            assert_eq!(files.len(), 2);
+            assert!(files.contains(&root.join("ini/file1.ini")));
+            assert!(files.contains(&root.join("ini/file1.Json")));
+        }
+
+        // Act - no extension filter, scoped subdir, recursive
+        {
+            let files = fs.list_files_by_extension(
+                &CaseInsensitivePath {
+                    path: "INNER".to_owned(),
+                },
+                None,
+                true,
+            );
+
+            // Assert
+            assert_eq!(files.len(), 2);
+            assert!(files.contains(&root.join("INNER/file1.json")));
+            assert!(files.contains(&root.join("INNER/inner/file1.ini")));
         }
     }
 }

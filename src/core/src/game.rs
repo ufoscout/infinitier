@@ -432,21 +432,14 @@ impl GameDataBuilder {
             }
         }
 
-        // Resources from folders:
-        // music/      *.mus
-        //             *.acm
-        // ./          *.ini  (Special)
-        // override/   only files not already imported
-        // scripts/    *.bs
-        // sounds/     *.wav
-        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Bio, false)?;
-        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Chr, false)?;
-        self.add_resources_from_dir(&mut game_data, "data", ResourceType::Mve, false)?;
-        self.add_resources_from_dir(&mut game_data, "movies", ResourceType::Wbm, false)?;
-        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Acm, true)?;
-        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Mus, false)?;
-        self.add_resources_from_dir(&mut game_data, "scripts", ResourceType::Bs, false)?;
-        self.add_resources_from_dir(&mut game_data, "sounds", ResourceType::Wav, false)?;
+        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Bio.get_extension(), false)?;
+        self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Chr.get_extension(), false)?;
+        self.add_resources_from_dir(&mut game_data, "data", ResourceType::Mve.get_extension(), false)?;
+        self.add_resources_from_dir(&mut game_data, "movies", ResourceType::Wbm.get_extension(), false)?;
+        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Acm.get_extension(), true)?;
+        self.add_resources_from_dir(&mut game_data, "music", ResourceType::Mus.get_extension(), false)?;
+        self.add_resources_from_dir(&mut game_data, "scripts", ResourceType::Bs.get_extension(), false)?;
+        self.add_resources_from_dir(&mut game_data, "sounds", ResourceType::Wav.get_extension(), false)?;
 
         Ok(game_data)
     }
@@ -465,11 +458,11 @@ impl GameDataBuilder {
         None
     }
 
-    fn add_resources_from_dir(&self, game: &mut GameData, dir_name: &str, r#type: ResourceType, recursive: bool) -> io::Result<()> {
-        debug!("Searching for resources in {}/{:?}", dir_name, r#type.get_extension());
+    fn add_resources_from_dir(&self, game: &mut GameData, dir_name: &str, extension: Option<&str>, recursive: bool) -> io::Result<()> {
+        debug!("Searching for resources in {}/{:?}", dir_name, extension);
         for resource in
             self.fs
-                .search_files_by_extension(&CaseInsensitivePath::new(dir_name), r#type.get_extension().ok_or_else(|| io::Error::other("Unknown resource type"))?, recursive)
+                .list_files_by_extension(&CaseInsensitivePath::new(dir_name), extension, recursive)
         {
             debug!("Found resource {}", resource.display());
             game.add_resource(GameResource {
@@ -480,7 +473,7 @@ impl GameDataBuilder {
                 file_size: Some(resource.metadata()?.len()),
                 datasource: Some(DataSource::new(resource.as_path())),
                 game_type: self.game_type,
-                r#type,
+                r#type: ResourceType::from_extension(resource.extension().unwrap_or_default().to_str().unwrap_or_default()).unwrap_or(ResourceType::Unknown(0)),
                 name: resource.file_stem().unwrap_or_default().to_str().unwrap_or_default().to_string(),
                 filename: resource.file_name().unwrap_or_default().to_str().unwrap_or_default().to_string(),
             });
