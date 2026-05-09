@@ -204,7 +204,7 @@ impl ResourceEntry {
         reader: &mut Reader<R>,
         previous_entry: Option<&Self>,
     ) -> std::io::Result<ResourceEntry> {
-        let resource_name = reader.read_string(8)?.trim().to_string();
+        let resource_name = reader.read_string(8)?.trim().to_lowercase();
         let resource_type = reader.read_u16()?;
         let locator = reader.read_u32()?;
 
@@ -229,7 +229,7 @@ impl ResourceEntry {
 
 #[cfg(test)]
 mod tests {
-    use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+    use infinitier_fs::{CaseInsensitiveFS, CiPath};
     use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path, parse_json_file};
 
     use super::*;
@@ -258,7 +258,7 @@ mod tests {
             let dir = get_assets_path().join("KEY").join(dir);
             let key_path = CaseInsensitiveFS::new(&dir)
                 .unwrap()
-                .get_path(&CaseInsensitivePath::new("/CHITIN.KEY"))
+                .get_path(&CiPath::new("/CHITIN.KEY"))
                 .unwrap();
             let json_path = key_path.parent().unwrap().join("chitin.json");
 

@@ -15,7 +15,7 @@
 //! assert_eq!(detect_game(&fs), Some(Game::Bgee));
 //! ```
 
-use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+use infinitier_fs::{CaseInsensitiveFS, CiPath};
 
 pub use infinitier_common::{Engine, Game};
 use log::info;
@@ -70,7 +70,7 @@ pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
 }
 
 fn exists(fs: &CaseInsensitiveFS, path: &str) -> bool {
-    fs.get_path_opt(&CaseInsensitivePath::new(path)).is_some()
+    fs.get_path_opt(&CiPath::new(path)).is_some()
 }
 
 /// Reads `engine_mode` out of a PSTEE/EE-style `engine.lua` if present.
@@ -80,7 +80,7 @@ fn exists(fs: &CaseInsensitiveFS, path: &str) -> bool {
 /// value is returned with surrounding whitespace and trailing comments
 /// stripped (so `engine_mode = 3 -- foo` returns `"3"`).
 pub fn engine_lua_mode(fs: &CaseInsensitiveFS) -> Option<String> {
-    let path = fs.get_path_opt(&CaseInsensitivePath::new("engine.lua"))?;
+    let path = fs.get_path_opt(&CiPath::new("engine.lua"))?;
     let text = std::fs::read_to_string(path).ok()?;
     for line in text.lines() {
         let line = line.trim();

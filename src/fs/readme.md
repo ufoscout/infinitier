@@ -11,13 +11,13 @@ A case-insensitive filesystem abstraction for case-sensitive operating systems.
 ### Look up a file by case-insensitive path
 
 ```rust,no_run
-use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+use infinitier_fs::{CaseInsensitiveFS, CiPath};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fs = CaseInsensitiveFS::new("/some/root")?;
 
     // Resolves regardless of actual on-disk casing
-    let path = fs.get_path(&CaseInsensitivePath::new("Config.ini"))?;
+    let path = fs.get_path(&CiPath::new("Config.ini"))?;
     println!("{}", path.display());
     Ok(())
 }
@@ -28,12 +28,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 `search_path_opt` checks the root first, then `data/`, `cache/`, `cd1/`–`cd7/` automatically.
 
 ```rust,no_run
-use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+use infinitier_fs::{CaseInsensitiveFS, CiPath};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fs = CaseInsensitiveFS::new("/some/root")?;
 
-    let path = fs.search_path_opt(&CaseInsensitivePath::new("resources/archive.bin"));
+    let path = fs.search_path_opt(&CiPath::new("resources/archive.bin"));
     println!("{:?}", path);
     Ok(())
 }

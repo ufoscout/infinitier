@@ -60,13 +60,13 @@ impl CaseInsensitiveFS {
 
     /// Returns the absolute path of the file or directory with the given path relative to root.
     /// The path is matched case insensitively
-    pub fn get_path_opt(&self, path: &CaseInsensitivePath) -> Option<PathBuf> {
+    pub fn get_path_opt(&self, path: &CiPath) -> Option<PathBuf> {
         self.paths.get(path.as_str()).cloned()
     }
 
     /// Tries to get the absolute path of the file or directory with the given path relative to root.
     /// The path is matched case insensitively. If the path is not found, an `io::Error` is returned.
-    pub fn get_path(&self, path: &CaseInsensitivePath) -> io::Result<PathBuf> {
+    pub fn get_path(&self, path: &CiPath) -> io::Result<PathBuf> {
         match self.get_path_opt(path) {
             Some(path) => Ok(path),
             None => Err(io::Error::new(
@@ -77,7 +77,7 @@ impl CaseInsensitiveFS {
     }
 
     /// Searches for a path in the root directory, if it does not exists, it search in a set of predefined folders
-    pub fn search_path_opt(&self, path: &CaseInsensitivePath) -> Option<PathBuf> {
+    pub fn search_path_opt(&self, path: &CiPath) -> Option<PathBuf> {
         if let Some(path) = self.get_path_opt(path) {
             return Some(path);
         }
@@ -96,9 +96,9 @@ impl CaseInsensitiveFS {
     /// The path is matched case insensitively. When `recursive` is
     /// false, only direct children of `path` are returned; otherwise
     /// the whole subtree under `path` is walked.
-    pub fn list_files_by_extension(
+    pub fn list_files(
         &self,
-        path: &CaseInsensitivePath,
+        path: &CiPath,
         extension: Option<&str>,
         recursive: bool,
     ) -> Vec<PathBuf> {
@@ -142,12 +142,12 @@ impl CaseInsensitiveFS {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 /// A path that is case insensitive
-pub struct CaseInsensitivePath {
+pub struct CiPath {
     path: String,
 }
 
-impl CaseInsensitivePath {
-    /// Creates a new `CaseInsensitivePath` from the given path
+impl CiPath {
+    /// Creates a new `CiPath` from the given path
     pub fn new(path: &str) -> Self {
         let mut path = path
             .trim()
@@ -157,20 +157,45 @@ impl CaseInsensitivePath {
         while path.starts_with("/") {
             path = path[1..].to_string();
         }
-        CaseInsensitivePath { path }
+        CiPath { path }
     }
 
-    /// Returns the path as a string
+    /// Returns the path relative to the root
     pub fn as_str(&self) -> &str {
         &self.path
     }
 
-    /// Returns the base name of the path
+    /// Returns the base name of the path.
+    /// E.g.:
+    /// - `foo/bar` -> `bar`
+    /// - `foo/bar/` -> `bar`
+    /// - `/foo/bar.exe` -> `bar.exe`
     pub fn base_name(&self) -> &str {
         self.path
             .split('/')
             .next_back()
             .expect("Should always exists")
+    }
+
+    /// Returns the extension of the path.
+    /// E.g.:
+    /// - `foo/bar` -> ``
+    /// - `foo/bar/` -> ``
+    /// - `/foo/bar.exe` -> `.exe`
+    pub fn extension(&self) -> Option<&str> {
+        self.path
+            .split('.')
+            .nth(1)
+            .filter(|ext| !ext.is_empty())
+    }
+
+    /// Returns the base name of the path without the extension.
+    /// E.g.:
+    /// - `foo/bar` -> `bar`
+    /// - `foo/bar/` -> `bar`
+    /// - `/foo/bar.exe` -> `bar`
+    pub fn base_name_without_extension(&self) -> &str {
+        self.base_name().split('.').next().unwrap()
     }
 }
 
@@ -241,31 +266,31 @@ mod tests {
             .to_path_buf();
         let fs = CaseInsensitiveFS::new(current_path).unwrap();
         assert!(
-            fs.get_path_opt(&CaseInsensitivePath::new("cargo.toml"))
+            fs.get_path_opt(&CiPath::new("cargo.toml"))
                 .is_some()
         );
         assert!(
-            fs.get_path_opt(&CaseInsensitivePath::new("Cargo.TOML"))
+            fs.get_path_opt(&CiPath::new("Cargo.TOML"))
                 .is_some()
         );
         assert!(
-            fs.get_path_opt(&CaseInsensitivePath::new("/cargo.TOML"))
+            fs.get_path_opt(&CiPath::new("/cargo.TOML"))
                 .is_some()
         );
         assert!(
-            fs.get_path_opt(&CaseInsensitivePath::new("/src/core/cargo.TOML"))
+            fs.get_path_opt(&CiPath::new("/src/core/cargo.TOML"))
                 .is_some()
         );
         assert!(
-            fs.get_path_opt(&CaseInsensitivePath::new("/Target"))
+            fs.get_path_opt(&CiPath::new("/Target"))
                 .is_some()
         );
 
         assert!(
-            fs.get_path(&CaseInsensitivePath::new("/src/core/cargo.TOML"))
+            fs.get_path(&CiPath::new("/src/core/cargo.TOML"))
                 .is_ok()
         );
-        assert!(fs.get_path(&CaseInsensitivePath::new("/Targets")).is_err());
+        assert!(fs.get_path(&CiPath::new("/Targets")).is_err());
     }
 
     #[test]
@@ -273,7 +298,7 @@ mod tests {
         let fs =
             CaseInsensitiveFS::new(get_assets_path().join("KEY").join(BG_RESOURCES_DIR.0)).unwrap();
 
-        let path = fs.search_path_opt(&CaseInsensitivePath::new("/chitin.key"));
+        let path = fs.search_path_opt(&CiPath::new("/chitin.key"));
 
         assert_eq!(
             path,
@@ -296,7 +321,7 @@ mod tests {
         )
         .unwrap();
 
-        let path = fs.search_path_opt(&CaseInsensitivePath::new("/DATA/AR3603.cbf"));
+        let path = fs.search_path_opt(&CiPath::new("/DATA/AR3603.cbf"));
         assert_eq!(
             path,
             Some(
@@ -311,35 +336,114 @@ mod tests {
     }
 
     #[test]
+    fn test_ci_path_new_normalizes() {
+        // Lowercases
+        assert_eq!(CiPath::new("Foo/Bar.EXE").as_str(), "foo/bar.exe");
+        // Trims surrounding whitespace
+        assert_eq!(CiPath::new("  data/file  ").as_str(), "data/file");
+        // Backslashes become forward slashes
+        assert_eq!(CiPath::new("data\\sub\\file").as_str(), "data/sub/file");
+        // Colons become forward slashes (the `\` after `C:` is also replaced,
+        // and since the colon swap happens after the backslash swap, the two
+        // adjacent separators in `C:\` collapse to `//` rather than a single `/`).
+        assert_eq!(CiPath::new("C:\\Windows\\file").as_str(), "c//windows/file");
+        // A standalone colon without an adjacent backslash yields a single `/`.
+        assert_eq!(CiPath::new("C:foo").as_str(), "c/foo");
+        // Leading slashes are stripped (all of them)
+        assert_eq!(CiPath::new("/data/file").as_str(), "data/file");
+        assert_eq!(CiPath::new("///data/file").as_str(), "data/file");
+        // Empty input stays empty
+        assert_eq!(CiPath::new("").as_str(), "");
+        assert_eq!(CiPath::new("   ").as_str(), "");
+        // Bare slash collapses to empty
+        assert_eq!(CiPath::new("/").as_str(), "");
+        // Combined: trim + lowercase + backslash + leading slash
+        assert_eq!(CiPath::new("  \\Foo\\Bar  ").as_str(), "foo/bar");
+    }
+
+    #[test]
+    fn test_ci_path_as_str() {
+        let p = CiPath::new("/Data/AR3603.CBF");
+        assert_eq!(p.as_str(), "data/ar3603.cbf");
+
+        // Round-trip: as_str returns the same value used by base_name etc.
+        let p = CiPath::new("foo/bar");
+        assert_eq!(p.as_str(), "foo/bar");
+    }
+
+    #[test]
+    fn test_ci_path_extension() {
+        assert_eq!(CiPath::new("/foo/bar.exe").extension(), Some("exe"));
+        assert_eq!(CiPath::new("file.JSON").extension(), Some("json"));
+        // Empty extension after the dot returns None
+        assert_eq!(CiPath::new("file.").extension(), None);
+        // No dot at all
+        assert_eq!(CiPath::new("foo/bar").extension(), None);
+        assert_eq!(CiPath::new("target").extension(), None);
+        // Trailing slash without dot
+        assert_eq!(CiPath::new("foo/bar/").extension(), None);
+        // Empty path
+        assert_eq!(CiPath::new("").extension(), None);
+    }
+
+    #[test]
+    fn test_ci_path_base_name_without_extension() {
+        assert_eq!(
+            CiPath::new("/foo/bar.exe").base_name_without_extension(),
+            "bar"
+        );
+        assert_eq!(
+            CiPath::new("/data/AR3603.cbf").base_name_without_extension(),
+            "ar3603"
+        );
+        // No extension
+        assert_eq!(
+            CiPath::new("/foo/target").base_name_without_extension(),
+            "target"
+        );
+        assert_eq!(CiPath::new("target").base_name_without_extension(), "target");
+        // Trailing slash: base_name is "", so stem is ""
+        assert_eq!(CiPath::new("foo/bar/").base_name_without_extension(), "");
+        // Empty path
+        assert_eq!(CiPath::new("").base_name_without_extension(), "");
+        assert_eq!(CiPath::new("/").base_name_without_extension(), "");
+        // Multi-dot file: stem is everything before the first dot in the base_name
+        assert_eq!(
+            CiPath::new("/foo/archive.tar.gz").base_name_without_extension(),
+            "archive"
+        );
+    }
+
+    #[test]
     fn test_basename() {
         assert_eq!(
-            CaseInsensitivePath::new("/data/AR3603.cbf").base_name(),
+            CiPath::new("/data/AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
         assert_eq!(
-            CaseInsensitivePath::new("/data/target").base_name(),
+            CiPath::new("/data/target").base_name(),
             "target"
         );
         assert_eq!(
-            CaseInsensitivePath::new("data/AR3603.cbf").base_name(),
+            CiPath::new("data/AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
         assert_eq!(
-            CaseInsensitivePath::new("data/target").base_name(),
+            CiPath::new("data/target").base_name(),
             "target"
         );
         assert_eq!(
-            CaseInsensitivePath::new("/AR3603.cbf").base_name(),
+            CiPath::new("/AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
-        assert_eq!(CaseInsensitivePath::new("/target").base_name(), "target");
+        assert_eq!(CiPath::new("/target").base_name(), "target");
         assert_eq!(
-            CaseInsensitivePath::new("AR3603.cbf").base_name(),
+            CiPath::new("AR3603.cbf").base_name(),
             "ar3603.cbf"
         );
-        assert_eq!(CaseInsensitivePath::new("target").base_name(), "target");
-        assert_eq!(CaseInsensitivePath::new("").base_name(), "");
-        assert_eq!(CaseInsensitivePath::new("/").base_name(), "");
+        assert_eq!(CiPath::new("target").base_name(), "target");
+        assert_eq!(CiPath::new("").base_name(), "");
+        assert_eq!(CiPath::new("/").base_name(), "");
     }
 
     #[test]
@@ -388,8 +492,8 @@ mod tests {
 
         // Act - recursive - 1
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "".to_owned(),
                 },
                 Some("json"),
@@ -406,8 +510,8 @@ mod tests {
 
         // Act - recursive - 2
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "INNER".to_owned(),
                 },
                 Some("json"),
@@ -421,8 +525,8 @@ mod tests {
 
         // Act - recursive - 3
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "INNER".to_owned(),
                 },
                 Some("ini"),
@@ -436,8 +540,8 @@ mod tests {
 
         // Act - recursive - 4
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "INNER/inner".to_owned(),
                 },
                 Some("ini"),
@@ -451,8 +555,8 @@ mod tests {
 
         // Act - not recursive - 1
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "".to_owned(),
                 },
                 Some("json"),
@@ -467,8 +571,8 @@ mod tests {
 
         // Act - not recursive - 2
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "ini".to_owned(),
                 },
                 Some("json"),
@@ -482,8 +586,8 @@ mod tests {
 
         // Act - no extension filter, recursive - returns all files in tree
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "".to_owned(),
                 },
                 None,
@@ -503,8 +607,8 @@ mod tests {
 
         // Act - no extension filter, non-recursive - returns only root-level files
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "".to_owned(),
                 },
                 None,
@@ -520,8 +624,8 @@ mod tests {
 
         // Act - no extension filter, scoped subdir, non-recursive
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "ini".to_owned(),
                 },
                 None,
@@ -536,8 +640,8 @@ mod tests {
 
         // Act - no extension filter, scoped subdir, recursive
         {
-            let files = fs.list_files_by_extension(
-                &CaseInsensitivePath {
+            let files = fs.list_files(
+                &CiPath {
                     path: "INNER".to_owned(),
                 },
                 None,

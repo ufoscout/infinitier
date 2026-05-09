@@ -4,7 +4,7 @@ use image::{ImageBuffer, Rgba};
 use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
-use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+use infinitier_fs::{CaseInsensitiveFS, CiPath};
 use infinitier_pvr_importer::PvrzImporter;
 
 use crate::Type;
@@ -194,7 +194,7 @@ impl BamV2 {
 
         for block in data_blocks {
             let pvrz_path = fs
-                .search_path_opt(&CaseInsensitivePath::new(&block.pvrz_name()))
+                .search_path_opt(&CiPath::new(&block.pvrz_name()))
                 .ok_or(std::io::Error::other(format!(
                     "PVRZ file {} not found.",
                     block.pvrz_name()

@@ -120,7 +120,7 @@ fn parse_data_row(line: &str, columns: &[usize], default: &str) -> (String, Vec<
 mod tests {
     use std::collections::HashMap;
 
-    use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+    use infinitier_fs::{CaseInsensitiveFS, CiPath};
     use infinitier_test_utils::get_assets_path;
 
     use super::*;
@@ -284,7 +284,7 @@ mod tests {
     fn test_parse_2da_file() {
         let path = CaseInsensitiveFS::new(get_assets_path().join("KEY").join("bg2"))
             .unwrap()
-            .get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA"))
+            .get_path(&CiPath::new("override/AbClasRq.2DA"))
             .unwrap();
         let two_da = TwoDAImporter { name: "2da_test" }
             .import(&DataSource::new(path))

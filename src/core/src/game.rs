@@ -9,7 +9,7 @@ use infinitier_acm_decoder::AcmDecoder;
 use infinitier_bif_importer::{BifEmbeddedResource, BifImporter};
 use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
-use infinitier_fs::{CaseInsensitiveFS, CaseInsensitivePath};
+use infinitier_fs::{CaseInsensitiveFS, CiPath};
 use infinitier_key_importer::KeyImporter;
 use infinitier_wav_decoder::WavDecoder;
 use log::{debug, warn};
@@ -299,7 +299,7 @@ impl GameDataBuilder {
 
         let key_path = self
             .fs
-            .get_path(&CaseInsensitivePath::new(&self.key_file))?;
+            .get_path(&CiPath::new(&self.key_file))?;
         let key = KeyImporter {
             name: &self.key_file,
         }
@@ -312,7 +312,7 @@ impl GameDataBuilder {
         for bif_entry in key.bif_entries {
             if let Some(bif_path) = self
                 .fs
-                .search_path_opt(&CaseInsensitivePath::new(&bif_entry.file_name))
+                .search_path_opt(&CiPath::new(&bif_entry.file_name))
             {
                 let bif = BifImporter {
                     name: &bif_entry.file_name,
@@ -333,24 +333,10 @@ impl GameDataBuilder {
                 Some(ext) => &format!("{}.{}", name, ext),
                 None => &name,
             };
-            let cs_path = CaseInsensitivePath::new(filename);
+            let cs_path = CiPath::new(filename);
             let filename = cs_path.base_name().to_string();
 
-            if let Some(r#override) = self.search_override(&cs_path) {
-                // The resource has an override so we use the override instead of the bif file
-                debug!("Resource {} has an override", filename);
-                let file_size = Some(r#override.metadata()?.len());
-                let datasource = Some(DataSource::new(r#override.as_path()));
-                game_data.add_resource(GameResource {
-                    game_type: self.game_type,
-                    name,
-                    r#type,
-                    filename,
-                    file_size,
-                    datasource,
-                    data_origin: DataOrigin::Dir { name: "override".to_owned(), path: r#override },
-                });
-            } else {
+
                 if let Some(Some(bif)) = bif_all.get(resource.bif_entries_index as usize) {
                     let bif_ds = bif.datasource.clone();
                     let bif_ds_clone = bif_ds.clone();
@@ -429,7 +415,6 @@ impl GameDataBuilder {
                         data_origin: DataOrigin::Missing,
                     });
                 }
-            }
         }
 
         self.add_resources_from_dir(&mut game_data, "characters", ResourceType::Bio.get_extension(), false)?;
@@ -440,30 +425,20 @@ impl GameDataBuilder {
         self.add_resources_from_dir(&mut game_data, "music", ResourceType::Mus.get_extension(), false)?;
         self.add_resources_from_dir(&mut game_data, "scripts", ResourceType::Bs.get_extension(), false)?;
         self.add_resources_from_dir(&mut game_data, "sounds", ResourceType::Wav.get_extension(), false)?;
+        self.add_resources_from_dir(&mut game_data, "override", None, false)?;
 
         Ok(game_data)
-    }
-
-    /// Search for a resource override
-    fn search_override(&self, cs_path: &CaseInsensitivePath) -> Option<PathBuf> {
-        for r#override in self.overrides.iter() {
-            let search_name = format!("{}/{}", r#override, cs_path.base_name());
-            if let Some(path) = self
-                .fs
-                .search_path_opt(&CaseInsensitivePath::new(&search_name))
-            {
-                return Some(path);
-            }
-        }
-        None
     }
 
     fn add_resources_from_dir(&self, game: &mut GameData, dir_name: &str, extension: Option<&str>, recursive: bool) -> io::Result<()> {
         debug!("Searching for resources in {}/{:?}", dir_name, extension);
         for resource in
             self.fs
-                .list_files_by_extension(&CaseInsensitivePath::new(dir_name), extension, recursive)
+                .list_files(&CiPath::new(dir_name), extension, recursive)
         {
+            let name = resource.file_stem().unwrap_or_default().to_str().unwrap_or_default().to_lowercase();
+            let extension = resource.extension().unwrap_or_default().to_str().unwrap_or_default().to_lowercase();
+
             debug!("Found resource {}", resource.display());
             game.add_resource(GameResource {
                 data_origin: DataOrigin::Dir {
@@ -473,9 +448,9 @@ impl GameDataBuilder {
                 file_size: Some(resource.metadata()?.len()),
                 datasource: Some(DataSource::new(resource.as_path())),
                 game_type: self.game_type,
-                r#type: ResourceType::from_extension(resource.extension().unwrap_or_default().to_str().unwrap_or_default()).unwrap_or(ResourceType::Unknown(0)),
-                name: resource.file_stem().unwrap_or_default().to_str().unwrap_or_default().to_string(),
-                filename: resource.file_name().unwrap_or_default().to_str().unwrap_or_default().to_string(),
+                r#type: ResourceType::from_extension(&extension).unwrap_or(ResourceType::Unknown(0)),
+                name,
+                filename: resource.file_name().unwrap_or_default().to_str().unwrap_or_default().to_lowercase(),
             });
         }
         Ok(())
@@ -519,7 +494,7 @@ mod tests {
     fn test_resource_found() {
         let game_data = build_bg2();
         let resource = game_data
-            .get_by_name_and_type("AR0714", ResourceType::Wed)
+            .get_by_name_and_type("ar0714", ResourceType::Wed)
             .unwrap();
         assert_eq!(
             DataOrigin::Bif {
@@ -532,7 +507,7 @@ mod tests {
         assert!(resource.datasource.is_some());
 
         // Test that the data can be read
-        WedImporter { name: "AR0714" }
+        WedImporter { name: "ar0714" }
             .import(resource.datasource.as_ref().unwrap())
             .unwrap();
     }
@@ -541,7 +516,7 @@ mod tests {
     fn test_tis_resource_found() {
         let game_data = build_bg2();
         let resource = game_data
-            .get_by_name_and_type("AR0714", ResourceType::Tis)
+            .get_by_name_and_type("ar0714", ResourceType::Tis)
             .unwrap();
         assert_eq!(
             DataOrigin::Bif {
@@ -563,7 +538,7 @@ mod tests {
         let game_data = build_bg2();
 
         let resource = game_data
-            .get_by_name_and_type("ABCLASRQ", ResourceType::TwoDA)
+            .get_by_name_and_type("abclasrq", ResourceType::TwoDA)
             .unwrap();
         let path = get_assets_path()
             .join("KEY")
@@ -572,7 +547,7 @@ mod tests {
         assert_eq!(DataOrigin::Dir { name: "override".to_owned(), path }, resource.data_origin);
 
         // Test that the override datasource can be read
-        TwoDAImporter { name: "ABCLASRQ" }
+        TwoDAImporter { name: "abclasrq" }
             .import(resource.datasource.as_ref().unwrap())
             .unwrap();
     }
@@ -581,7 +556,7 @@ mod tests {
     fn test_get_by_id_found() {
         let game_data = build_bg2();
         let resource = game_data.get_by_id(0).unwrap();
-        assert_eq!(resource.name, "ABCLASRQ");
+        assert_eq!(resource.name, "abclasrq");
         assert_eq!(resource.r#type, ResourceType::TwoDA);
         assert_eq!(resource.filename, "abclasrq.2da");
 
@@ -602,7 +577,7 @@ mod tests {
     fn test_get_by_filename_found() {
         let game_data = build_bg2();
         let resource = game_data.get_by_filename("abclasrq.2da").unwrap();
-        assert_eq!(resource.name, "ABCLASRQ");
+        assert_eq!(resource.name, "abclasrq");
         assert_eq!(resource.r#type, ResourceType::TwoDA);
     }
 
@@ -616,7 +591,7 @@ mod tests {
     fn test_get_by_name_and_type_found() {
         let game_data = build_bg2();
         let resource = game_data
-            .get_by_name_and_type("ABDCDSRQ", ResourceType::TwoDA)
+            .get_by_name_and_type("abdcdsrq", ResourceType::TwoDA)
             .unwrap();
         assert_eq!(resource.filename, "abdcdsrq.2da");
         assert!(resource.datasource.is_none());
@@ -629,7 +604,7 @@ mod tests {
         let game_data = build_bg2();
         assert!(
             game_data
-                .get_by_name_and_type("ABCLASRQ", ResourceType::Bam)
+                .get_by_name_and_type("abclasrq", ResourceType::Bam)
                 .is_none()
         );
     }
@@ -752,6 +727,81 @@ mod tests {
                 .get_by_name_and_type("TEST", ResourceType::Wed)
                 .is_some()
         );
+    }
+
+    #[test]
+    fn test_add_resources_from_dir_lowercases_name_and_extension() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let root = temp_dir.path();
+
+        std::fs::create_dir(root.join("MUSIC")).unwrap();
+        std::fs::File::create(root.join("MUSIC/MyTune.MUS")).unwrap();
+        std::fs::File::create(root.join("MUSIC/Other.mus")).unwrap();
+        std::fs::File::create(root.join("MUSIC/THIRD.Mus")).unwrap();
+        // A non-matching extension to make sure the filter still works
+        std::fs::File::create(root.join("MUSIC/notes.txt")).unwrap();
+
+        let builder = GameDataBuilder::new(root, Game::Bg2).unwrap();
+        let mut game_data = GameData::new(vec![], Game::Bg2);
+
+        builder
+            .add_resources_from_dir(&mut game_data, "music", Some("mus"), false)
+            .unwrap();
+
+        assert_eq!(game_data.len(), 3);
+
+        for (orig_filename, expected_name) in [
+            ("MyTune.MUS", "mytune"),
+            ("Other.mus", "other"),
+            ("THIRD.Mus", "third"),
+        ] {
+            let lower_filename = orig_filename.to_ascii_lowercase();
+            let resource = game_data
+                .get_by_filename(&lower_filename)
+                .unwrap_or_else(|| panic!("resource {lower_filename} not found"));
+            assert_eq!(resource.name, expected_name);
+            assert_eq!(resource.filename, lower_filename);
+            assert_eq!(resource.r#type, ResourceType::Mus);
+
+            // get_by_name_and_type uses the stored (lowercased) name
+            assert!(
+                game_data
+                    .get_by_name_and_type(expected_name, ResourceType::Mus)
+                    .is_some()
+            );
+        }
+    }
+
+    #[test]
+    fn test_add_resources_from_dir_no_extension_filter_infers_type() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let root = temp_dir.path();
+
+        std::fs::create_dir(root.join("OVERRIDE")).unwrap();
+        std::fs::File::create(root.join("OVERRIDE/Foo.BAM")).unwrap();
+        std::fs::File::create(root.join("OVERRIDE/Bar.WED")).unwrap();
+        std::fs::File::create(root.join("OVERRIDE/Baz.UNKNOWNEXT")).unwrap();
+
+        let builder = GameDataBuilder::new(root, Game::Bg2).unwrap();
+        let mut game_data = GameData::new(vec![], Game::Bg2);
+
+        builder
+            .add_resources_from_dir(&mut game_data, "override", None, false)
+            .unwrap();
+
+        assert_eq!(game_data.len(), 3);
+
+        let foo = game_data.get_by_filename("foo.bam").unwrap();
+        assert_eq!(foo.name, "foo");
+        assert_eq!(foo.r#type, ResourceType::Bam);
+
+        let bar = game_data.get_by_filename("bar.wed").unwrap();
+        assert_eq!(bar.name, "bar");
+        assert_eq!(bar.r#type, ResourceType::Wed);
+
+        let baz = game_data.get_by_filename("baz.unknownext").unwrap();
+        assert_eq!(baz.name, "baz");
+        assert_eq!(baz.r#type, ResourceType::Unknown(0));
     }
 
     #[test]
