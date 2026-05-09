@@ -1,5 +1,6 @@
-//! Unified streaming video decoder over the engine's two cutscene
-//! formats: Interplay's MVE and RAD's Bink Video v1 (BIKi).
+//! Unified streaming video decoder over the engine's three cutscene
+//! formats: Interplay's MVE, RAD's Bink Video v1 (BIKi), and Beamdog's
+//! WBM (= WebM, VP8 + Vorbis).
 //!
 //! Mirrors the [`SoundDecoder`](crate::sound::SoundDecoder) pattern —
 //! [`MovieDecoder`] is an enum that wraps the per-format streaming
@@ -9,15 +10,19 @@
 //! consume one `MovieDecoder` regardless of which container the
 //! resource ships under.
 //!
-//! Both formats appear in the wild under the `.MVE` extension — IWD2
-//! ships its Bink cutscenes that way — so [`MovieSource::open`]
-//! sniffs the magic and dispatches accordingly.
+//! All three formats appear in the wild under varied extensions — IWD2
+//! ships its Bink cutscenes as `.MVE`, the Enhanced Editions ship VP8
+//! cutscenes as `.WBM` — so [`MovieSource::open`] sniffs the magic and
+//! dispatches accordingly.
 
 use std::io::{self, Read};
 
 use infinitier_bik_decoder::{BikError, BikOutputFormat, BikPixels, BikStreamingDecoder};
 use infinitier_datasource::{DataSource, DataTrait, Reader};
 use infinitier_mve_decoder::{Error as MveError, MveDecoder};
+use infinitier_wbm_decoder::{
+    EBML_MAGIC, WbmError, WbmOutputFormat, WbmPixels, WbmStreamingDecoder,
+};
 
 mod frame;
 
@@ -29,6 +34,9 @@ pub type StreamingMveDecoder = MveDecoder<Box<dyn DataTrait>>;
 /// per-frame index uses `Read + Seek` directly (no `Reader` wrapper)
 /// because it doesn't need encoding-aware string parsing.
 pub type StreamingBikDecoder = BikStreamingDecoder<Box<dyn DataTrait>>;
+/// Type alias for the boxed-trait-object WBM streaming decoder. Like
+/// BIK, the Matroska demuxer underneath only needs `Read + Seek`.
+pub type StreamingWbmDecoder = WbmStreamingDecoder<Box<dyn DataTrait>>;
 
 /// Container of the underlying movie stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,6 +46,8 @@ pub enum MovieFormat {
     /// RAD Bink Video v1 (`BIKi` / `BIKb` / `BIKf` / `BIKg` / `BIKh` /
     /// `BIKk` magic).
     Bik,
+    /// Beamdog WBM (= WebM, VP8 + Vorbis in an EBML/Matroska container).
+    Wbm,
 }
 
 impl std::fmt::Display for MovieFormat {
@@ -45,6 +55,7 @@ impl std::fmt::Display for MovieFormat {
         match self {
             MovieFormat::Mve => f.write_str("MVE"),
             MovieFormat::Bik => f.write_str("BIK"),
+            MovieFormat::Wbm => f.write_str("WBM"),
         }
     }
 }
@@ -112,6 +123,12 @@ impl MovieSource {
                     .with_output_format(BikOutputFormat::Rgba);
                 Ok(MovieDecoder::Bik(Box::new(dec)))
             }
+            MovieFormat::Wbm => {
+                let inner = self.datasource.reader()?;
+                let dec = WbmStreamingDecoder::new(inner.data, &self.name)?
+                    .with_output_format(WbmOutputFormat::Rgba);
+                Ok(MovieDecoder::Wbm(Box::new(dec)))
+            }
         }
     }
 }
@@ -119,7 +136,7 @@ impl MovieSource {
 impl MovieFormat {
     /// Match the first four bytes of a stream against the known
     /// cutscene magics. Returns [`MovieOpenError::UnknownFormat`] if
-    /// neither matches.
+    /// none matches.
     pub fn from_magic(magic: &[u8]) -> Result<Self, MovieOpenError> {
         // MVE: `Interplay MVE File…`. The leading "Inte" tag is unique
         // among the Infinity Engine resource set, so checking the first
@@ -136,6 +153,11 @@ impl MovieFormat {
         {
             return Ok(MovieFormat::Bik);
         }
+        // WBM: EBML header magic. Matroska / WebM files all start with
+        // these four bytes regardless of the inner DocType.
+        if magic.len() >= 4 && magic[..4] == EBML_MAGIC {
+            return Ok(MovieFormat::Wbm);
+        }
         let mut head = [0u8; 4];
         head.copy_from_slice(&magic[..magic.len().min(4)]);
         Err(MovieOpenError::UnknownFormat(head))
@@ -147,6 +169,7 @@ impl MovieFormat {
 pub enum MovieDecoder {
     Mve(Box<StreamingMveDecoder>),
     Bik(Box<StreamingBikDecoder>),
+    Wbm(Box<StreamingWbmDecoder>),
 }
 
 impl MovieDecoder {
@@ -155,13 +178,15 @@ impl MovieDecoder {
         match self {
             MovieDecoder::Mve(_) => MovieFormat::Mve,
             MovieDecoder::Bik(_) => MovieFormat::Bik,
+            MovieDecoder::Wbm(_) => MovieFormat::Wbm,
         }
     }
 
     /// Stream-level metadata. For MVE the `frame_duration_us` lives
     /// inside the first frame's timer chunk, so it is `0` here until
-    /// the first [`Self::next_frame`] has returned; for BIK it is
-    /// known from the header at construction time.
+    /// the first [`Self::next_frame`] has returned; for BIK and WBM
+    /// it is known at construction time (BIK reads it from the
+    /// header, WBM from the Matroska track's `DefaultDuration`).
     pub fn info(&self) -> MovieInfo {
         match self {
             MovieDecoder::Mve(d) => MovieInfo {
@@ -171,6 +196,12 @@ impl MovieDecoder {
                 total_duration_us: d.total_duration_us(),
             },
             MovieDecoder::Bik(d) => MovieInfo {
+                width: d.width() as u16,
+                height: d.height() as u16,
+                frame_duration_us: d.frame_duration_us(),
+                total_duration_us: d.total_duration_us(),
+            },
+            MovieDecoder::Wbm(d) => MovieInfo {
                 width: d.width() as u16,
                 height: d.height() as u16,
                 frame_duration_us: d.frame_duration_us(),
@@ -237,6 +268,34 @@ impl MovieDecoder {
                 }
                 None => Ok(None),
             },
+            MovieDecoder::Wbm(d) => match d.next_frame()? {
+                Some(frame) => {
+                    let pixels = match frame.video.pixels {
+                        WbmPixels::Rgba(p) => p,
+                        WbmPixels::Yuv(_) => {
+                            return Err(MovieDecodeError::UnexpectedYuvFromWbm);
+                        }
+                    };
+                    Ok(Some(MovieFrame {
+                        video: MovieVideoFrame {
+                            width: frame.video.width as u16,
+                            height: frame.video.height as u16,
+                            pixels,
+                            duration_us: frame.video.duration_us,
+                        },
+                        audio: frame
+                            .audio
+                            .into_iter()
+                            .map(|c| MovieAudioChunk {
+                                channels: c.channels,
+                                sample_rate: c.sample_rate,
+                                samples: c.samples,
+                            })
+                            .collect(),
+                    }))
+                }
+                None => Ok(None),
+            },
         }
     }
 }
@@ -259,6 +318,8 @@ pub enum MovieOpenError {
     Mve(#[from] MveError),
     #[error("bik error: {0}")]
     Bik(#[from] BikError),
+    #[error("wbm error: {0}")]
+    Wbm(#[from] WbmError),
     #[error("unknown movie format: magic = {0:?}")]
     UnknownFormat([u8; 4]),
 }
@@ -280,12 +341,17 @@ pub enum MovieDecodeError {
     Mve(#[from] MveError),
     #[error("bik decode error: {0}")]
     Bik(#[from] BikError),
+    #[error("wbm decode error: {0}")]
+    Wbm(#[from] WbmError),
     /// The Bink decoder returned YUV pixels from a [`MovieDecoder`]
     /// that should have been configured for RGBA. Indicates a bug in
     /// the dispatcher (i.e. someone constructed a `MovieDecoder::Bik`
     /// without calling `with_output_format(BikOutputFormat::Rgba)`).
     #[error("internal: BIK decoder delivered YUV pixels to MovieDecoder (expected RGBA)")]
     UnexpectedYuvFromBik,
+    /// Same as `UnexpectedYuvFromBik`, for the WBM dispatcher arm.
+    #[error("internal: WBM decoder delivered YUV pixels to MovieDecoder (expected RGBA)")]
+    UnexpectedYuvFromWbm,
 }
 
 impl From<MovieDecodeError> for io::Error {
@@ -293,7 +359,10 @@ impl From<MovieDecodeError> for io::Error {
         match val {
             MovieDecodeError::Mve(e) => e.into(),
             MovieDecodeError::Bik(e) => e.into(),
-            MovieDecodeError::UnexpectedYuvFromBik => io::Error::other(val),
+            MovieDecodeError::Wbm(e) => e.into(),
+            MovieDecodeError::UnexpectedYuvFromBik | MovieDecodeError::UnexpectedYuvFromWbm => {
+                io::Error::other(val)
+            }
         }
     }
 }

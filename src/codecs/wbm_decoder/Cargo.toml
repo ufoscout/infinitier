@@ -1,0 +1,25 @@
+[package]
+name = "infinitier_wbm_decoder"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Pure-Rust decoder for the WBM (= WebM) cutscenes shipped in the Beamdog Enhanced Editions of Baldur's Gate / Icewind Dale / Planescape: Torment"
+readme = "readme.md"
+keywords = ["video", "webm", "vp8", "vorbis", "infinity-engine"]
+
+[dependencies]
+log = { workspace = true }
+thiserror = { workspace = true }
+matroska-demuxer = { workspace = true }
+oxideav-vp8 = { workspace = true }
+oxideav-core = { workspace = true }
+lewton = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

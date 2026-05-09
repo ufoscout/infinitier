@@ -27,6 +27,7 @@ infinitier_bik_decoder = { path = "src/codecs/bik_decoder", version = "0.0.4"  }
 infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.4"  }
 infinitier_mve_encoder = { path = "src/codecs/mve_encoder", version = "0.0.4"  }
 infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.4"  }
+infinitier_wbm_decoder = { path = "src/codecs/wbm_decoder", version = "0.0.4"  }
 
 # Core
 infinitier_common = { path = "src/common", version = "0.0.4" }
@@ -73,6 +74,14 @@ texture2ddecoder = "0.1"
 # Audio playback
 rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }
 
+# WBM (= WebM) decode pipeline. See src/codecs/wbm_decoder. The
+# `oxideav-vp8` crate is pre-1.0 and moves quickly; pin exact until
+# upstream stabilises.
+matroska-demuxer = "0.7"
+oxideav-vp8 = "0.1.12"
+oxideav-core = "0.1"
+lewton = "0.10"
+
 # UI
 eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow
 egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
@@ -109,5 +118,12 @@ opt-level = 2
 [profile.dev.package.infinitier_mve_encoder]
 opt-level = 2
 [profile.dev.package.infinitier_wav_decoder]
+opt-level = 2
+[profile.dev.package.infinitier_wbm_decoder]
+opt-level = 2
+# The third-party VP8 decoder also runs per-pixel hot loops; force
+# opt-level 2 for it in dev/test for the same reason as the in-tree
+# codec crates.
+[profile.dev.package.oxideav-vp8]
 opt-level = 2
 

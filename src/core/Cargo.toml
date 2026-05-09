@@ -20,6 +20,7 @@ infinitier_acm_decoder = { workspace = true }
 infinitier_bik_decoder = { workspace = true }
 infinitier_mve_decoder = { workspace = true }
 infinitier_wav_decoder = { workspace = true }
+infinitier_wbm_decoder = { workspace = true }
 
 # Importers
 infinitier_bam_importer = { workspace = true }

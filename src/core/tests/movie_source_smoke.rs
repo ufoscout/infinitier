@@ -103,6 +103,52 @@ fn movie_source_opens_bundled_bik() {
 }
 
 #[test]
+fn movie_source_opens_bundled_wbm() {
+    let mut dec = open("resources/WBM/logo.wbm", "logo.wbm");
+    assert_eq!(dec.format(), MovieFormat::Wbm);
+    let info = dec.info();
+    println!(
+        "logo.wbm: {}x{}, frame_dur={}us, total={:?}us",
+        info.width, info.height, info.frame_duration_us, info.total_duration_us,
+    );
+    assert!(info.width > 0, "width must be non-zero");
+    assert!(info.height > 0, "height must be non-zero");
+    assert!(
+        info.frame_duration_us > 0,
+        "WebM track DefaultDuration must be present",
+    );
+
+    // Pull a handful of frames to exercise both the VP8 path (motion
+    // compensation kicks in after the first keyframe) and the Vorbis
+    // path through the unified dispatcher.
+    let mut decoded = 0usize;
+    let mut audio_chunks = 0usize;
+    let mut audio_samples = 0usize;
+    for _ in 0..16 {
+        match dec.next_frame().expect("next_frame") {
+            Some(frame) => {
+                assert_eq!(frame.video.width, info.width);
+                assert_eq!(frame.video.height, info.height);
+                assert_eq!(
+                    frame.video.pixels.len(),
+                    info.width as usize * info.height as usize * 4,
+                    "RGBA size must match w*h*4",
+                );
+                audio_chunks += frame.audio.len();
+                audio_samples += frame.audio.iter().map(|c| c.samples.len()).sum::<usize>();
+                decoded += 1;
+            }
+            None => break,
+        }
+    }
+    assert!(decoded > 0, "should decode at least one frame");
+    assert!(audio_chunks > 0, "WBM logo carries a Vorbis track");
+    println!(
+        "logo.wbm: decoded {decoded} frames, {audio_chunks} audio chunks, {audio_samples} samples",
+    );
+}
+
+#[test]
 fn movie_source_opens_bundled_bik_no_audio() {
     let mut dec = open("resources/BIK/logo_legal.bik", "logo_legal.bik");
     assert_eq!(dec.format(), MovieFormat::Bik);
