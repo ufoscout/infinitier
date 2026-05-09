@@ -1,4 +1,4 @@
-//! WBM corpus regression: decode the bundled `assets/resources/WBM/logo.wbm`
+//! WBM corpus regression: decode the bundled `assets/WBM/logo.wbm`
 //! and verify against the sibling `logo.json` fixture.
 //!
 //! ## How the fixture was produced
@@ -91,8 +91,8 @@ fn pack_yuv420p(
 
 #[test]
 fn logo_wbm_matches_fixture() {
-    let asset = get_assets_path().join("resources/WBM/logo.wbm");
-    let json = get_assets_path().join("resources/WBM/logo.json");
+    let asset = get_assets_path().join("WBM/logo.wbm");
+    let json = get_assets_path().join("WBM/logo.json");
     assert!(asset.is_file(), "missing {}", asset.display());
     assert!(json.is_file(), "missing {}", json.display());
 
@@ -209,7 +209,7 @@ fn logo_wbm_matches_fixture() {
 fn logo_wbm_rgba_output_shape() {
     // Sanity check the RGBA path: first frame must be `width*height*4`
     // bytes with all alpha channels = 255.
-    let asset = get_assets_path().join("resources/WBM/logo.wbm");
+    let asset = get_assets_path().join("WBM/logo.wbm");
     let f = BufReader::new(File::open(&asset).expect("open wbm"));
     let mut decoder = WbmStreamingDecoder::new(f, "logo.wbm")
         .expect("decoder")

@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn test_detect_biff_type() {
-        let data = DataSource::new(get_assets_path().join("pst/CS_0511.bif"));
+        let data = DataSource::new(get_assets_path().join("KEY/pst/CS_0511.bif"));
 
         let bif = BiffParser::import(&data, "the name").unwrap();
 
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_import_biff() {
-        let data = DataSource::new(get_assets_path().join("bg2_ee/data/area500c.bif"));
+        let data = DataSource::new(get_assets_path().join("KEY/bg2_ee/data/area500c.bif"));
 
         let bif = BiffParser::import(&data, "").unwrap();
 

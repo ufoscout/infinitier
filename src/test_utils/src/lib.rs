@@ -85,7 +85,7 @@ mod tests {
 
     #[test]
     fn test_parse_assets_folder_exists() {
-        let assets_path = get_assets_path().join(BG_RESOURCES_DIR.0);
+        let assets_path = get_assets_path().join("KEY").join(BG_RESOURCES_DIR.0);
         assert!(assets_path.is_dir());
     }
 }

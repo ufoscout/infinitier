@@ -1304,7 +1304,7 @@ impl IdsCaseInsensitive for infinitier_ids_importer::Ids {
 
 // ── Round-trip corpus tests ──────────────────────────────────────────────────
 //
-// For every BCS file in a real game's `extracted_resources/<game>/bcs/original/`,
+// For every BCS file in a real game's `extracted_<game>/bcs/original/`,
 // run BCS → BAF → BCS and assert byte-equality with the original. Same
 // per-game contexts as `baf::corpus_tests::baf_corpus_*`. Each game has its
 // own `#[test]` so failures stay attributable; tests skip silently when the

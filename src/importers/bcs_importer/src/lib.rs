@@ -841,7 +841,7 @@ mod tests {
 
     #[test]
     fn test_all_bcs_files() {
-        let bcs_folder = get_assets_path().join("resources/BCS");
+        let bcs_folder = get_assets_path().join("BCS");
         let paths = get_all_in_folder_by_extension(&bcs_folder, "bcs");
         assert!(!paths.is_empty(), "no BCS files found");
 

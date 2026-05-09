@@ -16,7 +16,7 @@ fn open(path_in_assets: &str, label: &str) -> MovieDecoder {
 
 #[test]
 fn movie_source_opens_bundled_mve() {
-    let dec = open("resources/MVE/8_bits/BILOGO.MVE", "BILOGO.MVE");
+    let dec = open("MVE/8_bits/BILOGO.MVE", "BILOGO.MVE");
     assert_eq!(dec.format(), MovieFormat::Mve);
     let info = dec.info();
     println!(
@@ -52,7 +52,7 @@ fn movie_source_opens_bundled_mve() {
 
 #[test]
 fn movie_source_opens_bundled_bik() {
-    let mut dec = open("resources/BIK/logo_lucas.bik", "logo_lucas.bik");
+    let mut dec = open("BIK/logo_lucas.bik", "logo_lucas.bik");
     assert_eq!(dec.format(), MovieFormat::Bik);
     // BIK has the timer up front in the header — no need to pull a
     // frame before reading info().
@@ -104,7 +104,7 @@ fn movie_source_opens_bundled_bik() {
 
 #[test]
 fn movie_source_opens_bundled_wbm() {
-    let mut dec = open("resources/WBM/logo.wbm", "logo.wbm");
+    let mut dec = open("WBM/logo.wbm", "logo.wbm");
     assert_eq!(dec.format(), MovieFormat::Wbm);
     let info = dec.info();
     println!(
@@ -150,7 +150,7 @@ fn movie_source_opens_bundled_wbm() {
 
 #[test]
 fn movie_source_opens_bundled_bik_no_audio() {
-    let mut dec = open("resources/BIK/logo_legal.bik", "logo_legal.bik");
+    let mut dec = open("BIK/logo_legal.bik", "logo_legal.bik");
     assert_eq!(dec.format(), MovieFormat::Bik);
     let info = dec.info();
     let frame = dec

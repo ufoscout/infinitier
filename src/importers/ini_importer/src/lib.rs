@@ -120,7 +120,7 @@ mod tests {
     use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, parse_json_file};
 
     fn ini_folder() -> std::path::PathBuf {
-        get_assets_path().join("resources/INI")
+        get_assets_path().join("INI")
     }
 
     fn parse(src: &str) -> Ini {

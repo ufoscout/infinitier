@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn test_search_path_in_exact_path() {
-        let fs = CaseInsensitiveFS::new(get_assets_path().join(BG_RESOURCES_DIR.0)).unwrap();
+        let fs = CaseInsensitiveFS::new(get_assets_path().join("KEY").join(BG_RESOURCES_DIR.0)).unwrap();
 
         let path = fs.search_path_opt(&CaseInsensitivePath::new("/chitin.key"));
 
@@ -269,6 +269,7 @@ mod tests {
             path,
             Some(
                 get_assets_path()
+                .join("KEY")
                     .join(BG_RESOURCES_DIR.0)
                     .join("Chitin.key")
                     .canonicalize()
@@ -280,7 +281,7 @@ mod tests {
     #[test]
     fn test_search_path_in_fallbacks() {
         let fs = CaseInsensitiveFS::new_with_fallback(
-            get_assets_path().join(IWD_RESOURCES_DIR.0),
+            get_assets_path().join("KEY").join(IWD_RESOURCES_DIR.0),
             vec!["cd1".to_string(), "cd2".to_string()],
         )
         .unwrap();
@@ -290,6 +291,7 @@ mod tests {
             path,
             Some(
                 get_assets_path()
+                    .join("KEY")
                     .join(IWD_RESOURCES_DIR.0)
                     .join("CD2/Data/AR3603.cbf")
                     .canonicalize()

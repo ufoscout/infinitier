@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_parse_wed_file() {
-        let path = get_assets_path().join("bg2").join("override");
+        let path = get_assets_path().join("KEY/bg2").join("override");
         let web_path = path.join("ar0072.WED");
         let json_path = path.join("ar0072.json");
 

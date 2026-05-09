@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 /// Test that can decode WAVC files
 #[test]
 fn test_decode_wavc() {
-    let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAVC");
+    let wavc_path = get_assets_path().join("WAV/1GROMG09.WAVC");
     let data = DataSource::new(wavc_path);
     let mut dec = WavDecoder::open(&data, "1GROMG09").unwrap();
 
@@ -28,7 +28,7 @@ fn test_decode_wavc() {
 
     let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
     let wav_hash =
-        Sha256::digest(fs::read(get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
+        Sha256::digest(fs::read(get_assets_path().join("WAV/1GROMG09.WAV")).unwrap());
 
     assert_eq!(created_wav_hash, wav_hash);
 }
@@ -36,7 +36,7 @@ fn test_decode_wavc() {
 /// Test that can decode WAV files
 #[test]
 fn test_decode_wav() {
-    let wavc_path = get_assets_path().join("resources/WAV/1GROMG09.WAV");
+    let wavc_path = get_assets_path().join("WAV/1GROMG09.WAV");
     let data = DataSource::new(wavc_path);
     let mut dec = WavDecoder::open(&data, "1GROMG09").unwrap();
 
@@ -56,7 +56,7 @@ fn test_decode_wav() {
 
     let created_wav_hash = Sha256::digest(fs::read(temp.path()).unwrap());
     let wav_hash =
-        Sha256::digest(fs::read(get_assets_path().join("resources/WAV/1GROMG09.WAV")).unwrap());
+        Sha256::digest(fs::read(get_assets_path().join("WAV/1GROMG09.WAV")).unwrap());
 
     assert_eq!(created_wav_hash, wav_hash);
 }
@@ -67,10 +67,10 @@ fn test_decode_wav() {
 /// parser ignores the bogus block_align and decodes the full stream.
 /// Lives under `broken/` so non-recursive folder-scan tests in other
 /// crates (`acm_encoder`'s round-trips) don't randomly pick it up.
-/// See `assets/resources/WAV/broken/AFT_M01.md` for the full diagnosis.
+/// See `assets/WAV/broken/AFT_M01.md` for the full diagnosis.
 #[test]
 fn test_decode_wav_inconsistent_block_align() {
-    let wav_path = get_assets_path().join("resources/WAV/broken/AFT_M01.WAV");
+    let wav_path = get_assets_path().join("WAV/broken/AFT_M01.WAV");
     let data = DataSource::new(wav_path);
     let mut dec = WavDecoder::open(&data, "AFT_M01").unwrap();
 
@@ -92,7 +92,7 @@ fn test_decode_wav_inconsistent_block_align() {
 /// 8-bit mono PCM (e.g. BG's CHANT.WAV) — gemrb supports it, and so do we.
 #[test]
 fn test_decode_wav_8bit() {
-    let wav_path = get_assets_path().join("resources/WAV/CHANT.WAV");
+    let wav_path = get_assets_path().join("WAV/CHANT.WAV");
     let data = DataSource::new(wav_path);
     let mut dec = WavDecoder::open(&data, "CHANT").unwrap();
 
@@ -118,7 +118,7 @@ fn test_decode_wav_8bit() {
 #[test]
 fn test_decoded_wavc_infos_match() {
     let mut wavc = {
-        let wavc_path = get_assets_path().join("resources/WAV/POQU_22.WAVC");
+        let wavc_path = get_assets_path().join("WAV/POQU_22.WAVC");
         let data = DataSource::new(wavc_path);
         let dec = WavDecoder::open(&data, "POQU_22.WAVC").unwrap();
         assert_eq!(dec.format(), WavFormat::Wavc);
@@ -126,7 +126,7 @@ fn test_decoded_wavc_infos_match() {
     };
 
     let mut wav = {
-        let wav_path = get_assets_path().join("resources/WAV/POQU_22.WAV");
+        let wav_path = get_assets_path().join("WAV/POQU_22.WAV");
         let data = DataSource::new(wav_path);
         let dec = WavDecoder::open(&data, "POQU_22.WAV").unwrap();
         assert_eq!(dec.format(), WavFormat::Wav);
@@ -140,7 +140,7 @@ fn test_decoded_wavc_infos_match() {
 #[test]
 fn test_decoded_ogg_infos_match() {
     let mut ogg = {
-        let ogg_path = get_assets_path().join("resources/WAV/FIREE05.OGG");
+        let ogg_path = get_assets_path().join("WAV/FIREE05.OGG");
         let data = DataSource::new(ogg_path);
         let dec = WavDecoder::open(&data, "FIREE05.OGG").unwrap();
         assert_eq!(dec.format(), WavFormat::Ogg);
@@ -148,7 +148,7 @@ fn test_decoded_ogg_infos_match() {
     };
 
     let mut wav = {
-        let wav_path = get_assets_path().join("resources/WAV/FIREE05.WAV");
+        let wav_path = get_assets_path().join("WAV/FIREE05.WAV");
         let data = DataSource::new(wav_path);
         let dec = WavDecoder::open(&data, "FIREE05.WAV").unwrap();
         assert_eq!(dec.format(), WavFormat::Wav);

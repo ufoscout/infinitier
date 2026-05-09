@@ -1281,7 +1281,7 @@ mod tests {
 }
 
 /// Integration tests that decompile every BCS / BS file in a real game's
-/// `extracted_resources/<game>/bcs/original/` and verify byte-exact equality
+/// `extracted_<game>/bcs/original/` and verify byte-exact equality
 /// against NearInfinity's reference `bcs/source/<stem>.baf`. Each game has
 /// its own `#[test]` so failures stay attributable; tests transparently skip
 /// when the game's directory is not present (since the corpus lives outside

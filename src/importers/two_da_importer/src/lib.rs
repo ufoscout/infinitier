@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn test_parse_2da_file() {
-        let path = CaseInsensitiveFS::new(get_assets_path().join("bg2"))
+        let path = CaseInsensitiveFS::new(get_assets_path().join("KEY").join("bg2"))
             .unwrap()
             .get_path(&CaseInsensitivePath::new("override/AbClasRq.2DA"))
             .unwrap();

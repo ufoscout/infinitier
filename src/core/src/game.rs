@@ -504,7 +504,7 @@ mod tests {
     use super::*;
 
     fn build_bg2() -> GameData {
-        let bg_root = get_assets_path().join(BG2_RESOURCES_DIR.0);
+        let bg_root = get_assets_path().join("KEY").join(BG2_RESOURCES_DIR.0);
         GameDataBuilder::new(bg_root, Game::Bg2)
             .unwrap()
             .build()
@@ -517,6 +517,7 @@ mod tests {
         let key = KeyImporter { name: "chitin.key" }
             .import(&DataSource::new(
                 get_assets_path()
+                    .join("KEY")
                     .join(BG2_RESOURCES_DIR.0)
                     .join("CHITIN.KEY"),
             ))
@@ -567,6 +568,7 @@ mod tests {
         // WedImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
     }
 
+
     #[test]
     fn test_resource_found_in_override() {
         let game_data = build_bg2();
@@ -575,6 +577,7 @@ mod tests {
             .get_by_name_and_type("ABCLASRQ", ResourceType::TwoDA)
             .unwrap();
         let path = get_assets_path()
+            .join("KEY")
             .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);
@@ -594,6 +597,7 @@ mod tests {
         assert_eq!(resource.filename, "abclasrq.2da");
 
         let path = get_assets_path()
+            .join("KEY")
             .join(BG2_RESOURCES_DIR.0)
             .join("override/AbClasRq.2DA");
         assert_eq!(DataOrigin::Override { path }, resource.data_origin);

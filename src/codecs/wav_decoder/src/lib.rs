@@ -117,7 +117,7 @@ enum WavInner {
     /// `block_align` and `byte_rate` are redundant fields, fully
     /// derivable from `channels × bits_per_sample`, so we recompute them
     /// instead of believing the file. See
-    /// `assets/resources/WAV/broken/AFT_M01.md` for a real-world example.
+    /// `assets/WAV/broken/AFT_M01.md` for a real-world example.
     Wav(RiffPcmReader),
     Wavc(AcmDecoder),
     /// Streaming Ogg/Vorbis decoder via Symphonia. The format reader's
@@ -292,7 +292,7 @@ impl RiffPcmReader {
 /// (derivable from `channels × bits_per_sample × sample_rate`) and some
 /// in-the-wild assets ship them with bogus values that would break
 /// strict parsers like hound or symphonia. See
-/// `assets/resources/WAV/broken/AFT_M01.md` for a worked example.
+/// `assets/WAV/broken/AFT_M01.md` for a worked example.
 fn open_riff_pcm(mut reader: Reader<Box<dyn DataTrait>>) -> Result<(WavInfo, RiffPcmReader)> {
     let head: [u8; 12] = reader.read_exact()?;
     if &head[0..4] != RIFF_MAGIC {

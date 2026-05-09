@@ -17,7 +17,7 @@ use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
 fn game_dirs() -> Vec<(std::path::PathBuf, Option<Game>)> {
     let mut dirs: Vec<_> = ALL_RESOURCES_DIRS
         .iter()
-        .map(|d| (get_assets_path().join(d.0), Some(d.1)))
+        .map(|d| (get_assets_path().join("KEY").join(d.0), Some(d.1)))
         .filter(|p| p.0.is_dir())
         .collect();
 

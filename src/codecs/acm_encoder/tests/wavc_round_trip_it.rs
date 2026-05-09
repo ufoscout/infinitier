@@ -162,7 +162,7 @@ fn wavc_rejects_invalid_channels() {
     assert!(matches!(err, AcmEncodeError::InvalidChannels(0)));
 }
 
-/// Pull a real `.WAV` from `assets/resources/WAV`, run it through
+/// Pull a real `.WAV` from `assets/WAV`, run it through
 /// the WAVC encoders, and check the output round-trips through
 /// `WavDecoder`.
 fn read_wav_samples(path: &std::path::Path) -> (Vec<i16>, hound::WavSpec) {
@@ -178,7 +178,7 @@ fn read_wav_samples(path: &std::path::Path) -> (Vec<i16>, hound::WavSpec) {
 
 #[test]
 fn encode_wav_wavc_round_trips_bundled_fixture() {
-    let wav_root = get_assets_path().join("resources/WAV");
+    let wav_root = get_assets_path().join("WAV");
     let all_wavs = get_all_in_folder_by_extension(&wav_root, "wav");
     assert!(
         !all_wavs.is_empty(),

@@ -134,9 +134,9 @@ mod tests {
 
     #[test]
     fn test_parse_bmp_01() {
-        let data = DataSource::new(get_assets_path().join("resources/BMP/CCHAN05.BMP"));
+        let data = DataSource::new(get_assets_path().join("BMP/CCHAN05.BMP"));
 
-        let original = image::open(get_assets_path().join("resources/BMP/CCHAN05.BMP")).unwrap();
+        let original = image::open(get_assets_path().join("BMP/CCHAN05.BMP")).unwrap();
 
         let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
 
@@ -145,9 +145,9 @@ mod tests {
 
     #[test]
     fn test_parse_bmp_02() {
-        let data = DataSource::new(get_assets_path().join("resources/BMP/MINSCM.BMP"));
+        let data = DataSource::new(get_assets_path().join("BMP/MINSCM.BMP"));
 
-        let original = image::open(get_assets_path().join("resources/BMP/MINSCM.BMP")).unwrap();
+        let original = image::open(get_assets_path().join("BMP/MINSCM.BMP")).unwrap();
 
         let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
 
@@ -156,14 +156,14 @@ mod tests {
 
     #[test]
     fn metadata_for_32bpp_bmp() {
-        let data = DataSource::new(get_assets_path().join("resources/BMP/CCHAN05.BMP"));
+        let data = DataSource::new(get_assets_path().join("BMP/CCHAN05.BMP"));
         let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
         assert_eq!(bmp.bit_count, 32);
     }
 
     #[test]
     fn metadata_for_24bpp_bmp() {
-        let data = DataSource::new(get_assets_path().join("resources/BMP/MINSCM.BMP"));
+        let data = DataSource::new(get_assets_path().join("BMP/MINSCM.BMP"));
         let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
         assert_eq!(bmp.bit_count, 24);
         assert_eq!(bmp.compression, BmpCompression::Rgb);

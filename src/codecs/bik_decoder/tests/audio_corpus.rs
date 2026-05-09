@@ -1,4 +1,4 @@
-//! Audio-corpus validation against `assets/resources/BIK/`.
+//! Audio-corpus validation against `assets/BIK/`.
 //!
 //! For every Bink file with audio, decode the full audio stream, hash
 //! the interleaved s16le PCM with SHA-256, and assert it matches the

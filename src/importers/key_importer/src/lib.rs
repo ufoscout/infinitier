@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn test_read_key_file() {
         for (dir, _game) in ALL_RESOURCES_DIRS {
-            let dir = get_assets_path().join(dir);
+            let dir = get_assets_path().join("KEY").join(dir);
             let key_path = CaseInsensitiveFS::new(&dir)
                 .unwrap()
                 .get_path(&CaseInsensitivePath::new("/CHITIN.KEY"))

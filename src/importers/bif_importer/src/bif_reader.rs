@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn test_detect_bif_type() {
-        let data = DataSource::new(get_assets_path().join("iwd/CD2/Data/AR3603.cbf"));
+        let data = DataSource::new(get_assets_path().join("KEY/iwd/CD2/Data/AR3603.cbf"));
 
         let bif = BifParser::import(&data, "bif_name").unwrap();
 

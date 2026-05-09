@@ -1,5 +1,5 @@
 //! Regenerate the JSON fixtures next to every `.bik` / `.mve` file under
-//! `assets/resources/BIK/`. Each fixture records:
+//! `assets/BIK/`. Each fixture records:
 //!
 //! * `video.codec_tag`, dimensions, frame count, frame duration, and the
 //!   per-frame SHA-256 of the tightly-packed YUV420p output.
@@ -25,7 +25,7 @@ use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-const BIK_FOLDER: &str = "resources/BIK";
+const BIK_FOLDER: &str = "BIK";
 
 #[derive(Serialize)]
 struct CorpusFixture {

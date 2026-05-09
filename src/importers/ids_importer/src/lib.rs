@@ -257,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_all_ids_files() {
-        let ids_folder = get_assets_path().join("resources/IDS");
+        let ids_folder = get_assets_path().join("IDS");
         let paths = get_all_in_folder_by_extension(&ids_folder, "IDS");
         assert!(!paths.is_empty(), "no IDS files found");
 

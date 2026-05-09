@@ -1,10 +1,10 @@
 //! Shared helpers for the asset-corpus tests.
 //!
-//! All Bink fixtures live under `assets/resources/BIK/` next to a
+//! All Bink fixtures live under `assets/BIK/` next to a
 //! `<stem>.json` manifest produced by this crate's `gen_fixtures`
 //! example (run via `cargo run --example gen_fixtures --release`). The
 //! schema is a near-clone of the MVE fixture at
-//! `assets/resources/MVE/16_bits/BISLOGO.json`, with `codec_tag`
+//! `assets/MVE/16_bits/BISLOGO.json`, with `codec_tag`
 //! replacing the MVE-only `palette_bits` field.
 
 #![allow(dead_code)] // each consumer test pulls a different subset.
@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, parse_json_file};
 use serde::{Deserialize, Serialize};
 
-/// Folder name under `assets/resources/` that holds the Bink corpus.
-const BIK_FOLDER: &str = "resources/BIK";
+/// Folder name under `assets/` that holds the Bink corpus.
+const BIK_FOLDER: &str = "BIK";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CorpusFixture {
@@ -68,7 +68,7 @@ impl CorpusEntry {
     }
 }
 
-/// Walk `assets/resources/BIK/` and return one entry per Bink file. Pairs
+/// Walk `assets/BIK/` and return one entry per Bink file. Pairs
 /// each binary with its sibling `<stem>.json`. Recognised extensions:
 /// `.bik` and `.mve` (case-insensitive).
 pub fn corpus() -> Vec<CorpusEntry> {

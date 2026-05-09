@@ -1,4 +1,4 @@
-//! Video-corpus validation against `assets/resources/BIK/`.
+//! Video-corpus validation against `assets/BIK/`.
 //!
 //! For every Bink file in the corpus, decode every frame, hash the
 //! tightly-packed YUV420p output, and assert the hash matches the
