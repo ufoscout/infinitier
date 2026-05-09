@@ -85,13 +85,24 @@ impl GameData {
         game_data
     }
 
-    /// Add a resource to the data structure
+    /// Add a resource to the data structure.
+    /// If a resource with the same name and type already exists, it is replaced.
     fn add_resource(&mut self, resource: GameResource) {
-        let id = self.resources.len();
-        self.filename_index.insert(resource.filename.clone(), id);
-        self.name_type_index
-            .insert((resource.name.clone(), resource.r#type), id);
-        self.resources.push(resource);
+        let key = (resource.name.clone(), resource.r#type);
+        if let Some(&existing_id) = self.name_type_index.get(&key) {
+            let old_filename = self.resources[existing_id].filename.clone();
+            if old_filename != resource.filename {
+                self.filename_index.remove(&old_filename);
+                self.filename_index
+                    .insert(resource.filename.clone(), existing_id);
+            }
+            self.resources[existing_id] = resource;
+        } else {
+            let id = self.resources.len();
+            self.filename_index.insert(resource.filename.clone(), id);
+            self.name_type_index.insert(key, id);
+            self.resources.push(resource);
+        }
     }
 }
 
@@ -507,7 +518,8 @@ mod tests {
                     .join("CHITIN.KEY"),
             ))
             .unwrap();
-        assert_eq!(game_data.resources.len(), key.resource_entries.len());
+        assert!(!game_data.is_empty());
+        assert!(game_data.resources.len() <= key.resource_entries.len());
     }
 
     #[test]
@@ -626,6 +638,156 @@ mod tests {
             game_data
                 .get_by_name_and_type("ABCLASRQ", ResourceType::Bam)
                 .is_none()
+        );
+    }
+
+    fn make_resource(
+        name: &str,
+        r#type: ResourceType,
+        filename: &str,
+        origin: DataOrigin,
+    ) -> GameResource {
+        GameResource {
+            game_type: Game::Bg2,
+            name: name.to_string(),
+            r#type,
+            filename: filename.to_string(),
+            file_size: None,
+            datasource: None,
+            data_origin: origin,
+        }
+    }
+
+    #[test]
+    fn test_add_resource_replaces_when_name_and_type_match() {
+        let mut game_data = GameData::new(vec![], Game::Bg2);
+
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            "test.bam",
+            DataOrigin::Bif {
+                name: "first.bif".to_string(),
+            },
+        ));
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            "test.bam",
+            DataOrigin::Bif {
+                name: "second.bif".to_string(),
+            },
+        ));
+
+        assert_eq!(game_data.len(), 1);
+
+        let by_name = game_data
+            .get_by_name_and_type("TEST", ResourceType::Bam)
+            .unwrap();
+        assert_eq!(
+            by_name.data_origin,
+            DataOrigin::Bif {
+                name: "second.bif".to_string()
+            }
+        );
+
+        let by_filename = game_data.get_by_filename("test.bam").unwrap();
+        assert_eq!(
+            by_filename.data_origin,
+            DataOrigin::Bif {
+                name: "second.bif".to_string()
+            }
+        );
+
+        let by_id = game_data.get_by_id(0).unwrap();
+        assert_eq!(
+            by_id.data_origin,
+            DataOrigin::Bif {
+                name: "second.bif".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_add_resource_replace_updates_filename_index_when_filename_differs() {
+        let mut game_data = GameData::new(vec![], Game::Bg2);
+
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            "old.bam",
+            DataOrigin::Missing,
+        ));
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            "new.bam",
+            DataOrigin::Missing,
+        ));
+
+        assert_eq!(game_data.len(), 1);
+        assert!(game_data.get_by_filename("old.bam").is_none());
+        let by_filename = game_data.get_by_filename("new.bam").unwrap();
+        assert_eq!(by_filename.name, "TEST");
+    }
+
+    #[test]
+    fn test_add_resource_keeps_existing_when_type_differs() {
+        let mut game_data = GameData::new(vec![], Game::Bg2);
+
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            "test.bam",
+            DataOrigin::Missing,
+        ));
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Wed,
+            "test.wed",
+            DataOrigin::Missing,
+        ));
+
+        assert_eq!(game_data.len(), 2);
+        assert!(
+            game_data
+                .get_by_name_and_type("TEST", ResourceType::Bam)
+                .is_some()
+        );
+        assert!(
+            game_data
+                .get_by_name_and_type("TEST", ResourceType::Wed)
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn test_add_resource_keeps_existing_when_name_differs() {
+        let mut game_data = GameData::new(vec![], Game::Bg2);
+
+        game_data.add_resource(make_resource(
+            "TEST1",
+            ResourceType::Bam,
+            "test1.bam",
+            DataOrigin::Missing,
+        ));
+        game_data.add_resource(make_resource(
+            "TEST2",
+            ResourceType::Bam,
+            "test2.bam",
+            DataOrigin::Missing,
+        ));
+
+        assert_eq!(game_data.len(), 2);
+        assert!(
+            game_data
+                .get_by_name_and_type("TEST1", ResourceType::Bam)
+                .is_some()
+        );
+        assert!(
+            game_data
+                .get_by_name_and_type("TEST2", ResourceType::Bam)
+                .is_some()
         );
     }
 }
