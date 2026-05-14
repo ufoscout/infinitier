@@ -411,8 +411,8 @@ mod tests {
             let f = &bam.frames[idx];
             assert!(-f.center_x >= rect.x);
             assert!(-f.center_y >= rect.y);
-            assert!(f.width as i32 - f.center_x <= rect.x + rect.width as i32 - 1);
-            assert!(f.height as i32 - f.center_y <= rect.y + rect.height as i32 - 1);
+            assert!(f.width as i32 - f.center_x < rect.x + rect.width as i32);
+            assert!(f.height as i32 - f.center_y < rect.y + rect.height as i32);
         }
 
         assert_eq!(bam.frames.len(), 15);

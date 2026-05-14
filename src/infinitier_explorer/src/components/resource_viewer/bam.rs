@@ -70,7 +70,10 @@ impl BamV1View {
     /// frame index in `bam.frames`.
     fn current_global_frame_index(&self) -> Option<usize> {
         let cycle = self.bam.cycles.get(self.selected_cycle)?;
-        cycle.frame_indices.get(self.selected_frame_in_cycle).copied()
+        cycle
+            .frame_indices
+            .get(self.selected_frame_in_cycle)
+            .copied()
     }
 
     /// Re-upload the current frame to the GPU texture if the selection
@@ -210,11 +213,12 @@ fn show_v1(view: &mut BamV1View, ui: &mut egui::Ui, resource: &GameResource) {
         ui.horizontal(|ui| {
             let is_playing = view.playback.is_some();
             let can_play = view.frames_in_selected_cycle() > 1;
-            let label = if is_playing { "⏸  Pause" } else { "▶  Play" };
-            if ui
-                .add_enabled(can_play, egui::Button::new(label))
-                .clicked()
-            {
+            let label = if is_playing {
+                "⏸  Pause"
+            } else {
+                "▶  Play"
+            };
+            if ui.add_enabled(can_play, egui::Button::new(label)).clicked() {
                 toggle_play = true;
             }
 
@@ -305,7 +309,8 @@ fn show_v1(view: &mut BamV1View, ui: &mut egui::Ui, resource: &GameResource) {
 
     // Keep repainting while playing so frames advance on schedule.
     if view.playback.is_some() {
-        ui.ctx().request_repaint_after(BamV1::DEFAULT_FRAME_DURATION);
+        ui.ctx()
+            .request_repaint_after(BamV1::DEFAULT_FRAME_DURATION);
     }
 
     // ── Central area: the rendered frame ──────────────────────────────────
