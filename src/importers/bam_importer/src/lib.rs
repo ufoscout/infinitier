@@ -5,7 +5,7 @@ use log::{debug, error};
 
 use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
 
-pub use bam_v1::BamV1;
+pub use bam_v1::{BamV1, SharedRect};
 pub use bam_v2::BamV2;
 
 mod bam_v1;

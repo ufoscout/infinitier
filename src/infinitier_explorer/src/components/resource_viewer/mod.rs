@@ -143,7 +143,9 @@ impl ResourceViewer {
                     if let Some(resource) = state.game_data.get_by_id(resource_id) {
                         match resource.import() {
                             Ok(imported) => match imported {
-                                ImportedResource::Bam(bam) => Box::new(BamViewer::new(bam)),
+                                ImportedResource::Bam(bam) => {
+                                    Box::new(BamViewer::new(bam, ui, resource_id))
+                                }
                                 ImportedResource::Bmp(bmp) => {
                                     Box::new(BmpViewer::new(bmp, ui, resource_id))
                                 }
