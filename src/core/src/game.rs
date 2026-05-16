@@ -124,7 +124,10 @@ pub enum DataOrigin {
 }
 
 impl GameResource {
-    pub fn import(&self, game_data: &GameData) -> io::Result<crate::imported_resource::ImportedResource> {
+    pub fn import(
+        &self,
+        game_data: &GameData,
+    ) -> io::Result<crate::imported_resource::ImportedResource> {
         use crate::imported_resource::{ImportedResource, bam::ImportedBam};
         use infinitier_bam_importer::BamImporter;
         use infinitier_bmp_importer::BmpImporter;

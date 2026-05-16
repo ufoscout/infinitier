@@ -100,9 +100,7 @@ fn load_v1(bam: BamV1) -> io::Result<ImportedBam> {
         .map(|frame| -> io::Result<BamFrame> {
             // BamV1Frame::to_image never actually fails — it always
             // returns Ok — but the signature is fallible so we forward.
-            let image = frame
-                .to_image(&bam.palette)
-                .map_err(io::Error::other)?;
+            let image = frame.to_image(&bam.palette).map_err(io::Error::other)?;
             Ok(BamFrame {
                 width: frame.width,
                 height: frame.height,
@@ -203,7 +201,7 @@ fn get_or_load_pvrz<'cache>(
     block: &BamV2DataBlock,
     game_data: &GameData,
 ) -> io::Result<(&'cache PvrzHeader, &'cache ImageBuffer<Rgba<u8>, Vec<u8>>)> {
-    if !cache.contains_key(&block.pvrz_page) {
+    if let std::collections::hash_map::Entry::Vacant(e) = cache.entry(block.pvrz_page) {
         // GameData stores names without extension, lowercased.
         let name = format!("mos{:04}", block.pvrz_page);
         let resource = game_data
@@ -214,13 +212,14 @@ fn get_or_load_pvrz<'cache>(
                     block.pvrz_name(),
                 ))
             })?;
-        let ds = resource.datasource.as_ref().ok_or_else(|| {
-            io::Error::other(format!("PVRZ resource {} has no datasource", name))
-        })?;
+        let ds = resource
+            .datasource
+            .as_ref()
+            .ok_or_else(|| io::Error::other(format!("PVRZ resource {} has no datasource", name)))?;
         let importer = PvrzImporter { name: &name };
         let header = importer.import(ds)?;
         let image = PvrzImporter::to_image(&header, ds).map_err(io::Error::other)?;
-        cache.insert(block.pvrz_page, (header, image));
+        e.insert((header, image));
     }
     let entry = cache.get(&block.pvrz_page).expect("just inserted");
     Ok((&entry.0, &entry.1))
@@ -452,10 +451,9 @@ mod tests {
 
         // Every per-frame image must match its reference PNG.
         for (i, frame) in imported.frames.iter().enumerate() {
-            let reference = image::open(
-                get_assets_path().join(format!("BAM_V1/02/SPHEART000{i:02}.PNG")),
-            )
-            .unwrap();
+            let reference =
+                image::open(get_assets_path().join(format!("BAM_V1/02/SPHEART000{i:02}.PNG")))
+                    .unwrap();
             assert_images_are_equal(&reference, &frame.image.clone().into());
         }
     }

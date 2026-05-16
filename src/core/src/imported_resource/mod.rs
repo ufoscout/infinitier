@@ -5,9 +5,9 @@ use infinitier_pvr_importer::PvrzHeader;
 use infinitier_two_da_importer::TwoDA;
 use infinitier_wed_importer::Wed;
 
+use crate::sound::SoundDecoder;
 use bam::ImportedBam;
 use movie::MovieSource;
-use crate::sound::SoundDecoder;
 
 pub mod bam;
 pub mod movie;
