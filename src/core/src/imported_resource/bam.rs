@@ -131,10 +131,13 @@ fn load_v1(bam: BamV1) -> io::Result<ImportedBam> {
     })
 }
 
+type PvrzCache = HashMap<u32, (PvrzHeader, ImageBuffer<Rgba<u8>, Vec<u8>>)>;
+type PvrzEntry<'a> = (&'a PvrzHeader, &'a ImageBuffer<Rgba<u8>, Vec<u8>>);
+
 fn load_v2(bam: BamV2, game_data: &GameData) -> io::Result<ImportedBam> {
     // PVRZ pages are shared across many BAM frames; decode each page
     // (DXT1/DXT5 decompression + zlib) at most once.
-    let mut pvrz_cache: HashMap<u32, (PvrzHeader, ImageBuffer<Rgba<u8>, Vec<u8>>)> = HashMap::new();
+    let mut pvrz_cache = PvrzCache::new();
 
     let frames = bam
         .frames
@@ -196,11 +199,11 @@ fn load_v2(bam: BamV2, game_data: &GameData) -> io::Result<ImportedBam> {
 
 /// Decode the PVRZ page referenced by `block`, caching the result so
 /// later frames sharing the same atlas don't re-decode.
-fn get_or_load_pvrz<'cache>(
-    cache: &'cache mut HashMap<u32, (PvrzHeader, ImageBuffer<Rgba<u8>, Vec<u8>>)>,
+fn get_or_load_pvrz<'a>(
+    cache: &'a mut PvrzCache,
     block: &BamV2DataBlock,
     game_data: &GameData,
-) -> io::Result<(&'cache PvrzHeader, &'cache ImageBuffer<Rgba<u8>, Vec<u8>>)> {
+) -> io::Result<PvrzEntry<'a>> {
     if let std::collections::hash_map::Entry::Vacant(e) = cache.entry(block.pvrz_page) {
         // GameData stores names without extension, lowercased.
         let name = format!("mos{:04}", block.pvrz_page);
