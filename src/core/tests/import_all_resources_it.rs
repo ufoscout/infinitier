@@ -62,7 +62,7 @@ fn test_import_all_resources() {
             if matches!(resource.data_origin, DataOrigin::Missing) {
                 continue;
             }
-            let result: std::io::Result<()> = match resource.import() {
+            let result: std::io::Result<()> = match resource.import(&game_data) {
                 Ok(res) => match res {
                     ImportedResource::Sound(mut sound_decoder) => {
                         sound_decoder.decode_all().map(|_| ())

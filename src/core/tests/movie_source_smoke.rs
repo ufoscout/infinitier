@@ -2,7 +2,7 @@
 //! bundled MVE and BIK corpus assets. We open one of each, pull a few
 //! frames, and assert the format dispatch and metadata are sane.
 
-use infinitier_core::movie::{MovieDecoder, MovieFormat, MovieSource};
+use infinitier_core::imported_resource::movie::{MovieDecoder, MovieFormat, MovieSource};
 use infinitier_datasource::DataSource;
 use infinitier_test_utils::get_assets_path;
 

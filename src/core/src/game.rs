@@ -14,7 +14,7 @@ use infinitier_key_importer::KeyImporter;
 use infinitier_wav_decoder::WavDecoder;
 use log::{debug, warn};
 
-use crate::sound::SoundDecoder;
+use crate::{imported_resource::movie, sound::SoundDecoder};
 
 pub type ResourceId = usize;
 
@@ -124,8 +124,8 @@ pub enum DataOrigin {
 }
 
 impl GameResource {
-    pub fn import(&self) -> io::Result<crate::imported_resource::ImportedResource> {
-        use crate::imported_resource::ImportedResource;
+    pub fn import(&self, game_data: &GameData) -> io::Result<crate::imported_resource::ImportedResource> {
+        use crate::imported_resource::{ImportedResource, bam::ImportedBam};
         use infinitier_bam_importer::BamImporter;
         use infinitier_bmp_importer::BmpImporter;
         use infinitier_ids_importer::IdsImporter;
@@ -151,6 +151,7 @@ impl GameResource {
                 .map(ImportedResource::Sound)?),
             ResourceType::Bam => BamImporter { name: &self.name }
                 .import(ds)
+                .and_then(|bam| ImportedBam::load(bam, game_data))
                 .map(ImportedResource::Bam),
             ResourceType::Bmp => BmpImporter { name: &self.name }
                 .import(ds)
@@ -190,7 +191,7 @@ impl GameResource {
             ResourceType::Menu => Ok(ImportedResource::Menu),
             ResourceType::Mos => Ok(ImportedResource::Mos),
             ResourceType::Mus => Ok(ImportedResource::Mus),
-            ResourceType::Mve => Ok(ImportedResource::Mve(crate::movie::MovieSource::new(
+            ResourceType::Mve => Ok(ImportedResource::Mve(movie::MovieSource::new(
                 ds.clone(),
                 &self.name,
             ))),
@@ -208,7 +209,7 @@ impl GameResource {
             ResourceType::Ttf => Ok(ImportedResource::Ttf),
             ResourceType::Vef => Ok(ImportedResource::Vef),
             ResourceType::Vvc => Ok(ImportedResource::Vvc),
-            ResourceType::Wbm => Ok(ImportedResource::Wbm(crate::movie::MovieSource::new(
+            ResourceType::Wbm => Ok(ImportedResource::Wbm(movie::MovieSource::new(
                 ds.clone(),
                 &self.name,
             ))),

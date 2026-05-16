@@ -5,8 +5,8 @@ use log::{debug, error};
 
 use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
 
-pub use bam_v1::{BamV1, SharedRect};
-pub use bam_v2::BamV2;
+pub use bam_v1::{BamV1, BamV1Cycle, BamV1Frame, SharedRect};
+pub use bam_v2::{BamV2, BamV2Cycle, BamV2DataBlock, BamV2Frame};
 
 mod bam_v1;
 mod bam_v2;

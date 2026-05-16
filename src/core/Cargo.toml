@@ -33,6 +33,7 @@ infinitier_pvr_importer = { workspace = true }
 infinitier_two_da_importer = { workspace = true }
 infinitier_wed_importer = { workspace = true }
 
+image = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 

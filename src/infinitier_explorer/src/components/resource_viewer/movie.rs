@@ -2,7 +2,7 @@ use super::ResourceViewerTrait;
 use eframe::egui;
 use infinitier_core::{
     game::{GameResource, ResourceId},
-    movie::{MovieDecoder, MovieFormat, MovieSource, MovieVideoFrame},
+    imported_resource::movie::{MovieDecoder, MovieFormat, MovieSource, MovieVideoFrame},
 };
 use log::error;
 use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};

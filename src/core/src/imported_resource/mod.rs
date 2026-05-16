@@ -1,4 +1,3 @@
-use infinitier_bam_importer::Bam;
 use infinitier_bmp_importer::Bmp;
 use infinitier_ids_importer::Ids;
 use infinitier_ini_importer::Ini;
@@ -6,13 +5,17 @@ use infinitier_pvr_importer::PvrzHeader;
 use infinitier_two_da_importer::TwoDA;
 use infinitier_wed_importer::Wed;
 
-use crate::movie::MovieSource;
+use bam::ImportedBam;
+use movie::MovieSource;
 use crate::sound::SoundDecoder;
+
+pub mod bam;
+pub mod movie;
 
 #[derive(Debug)]
 pub enum ImportedResource {
     // Types with importers
-    Bam(Bam),
+    Bam(ImportedBam),
     Bmp(Bmp),
     Ids(Ids),
     Ini(Ini),

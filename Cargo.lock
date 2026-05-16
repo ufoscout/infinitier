@@ -1963,6 +1963,7 @@ dependencies = [
 name = "infinitier_core"
 version = "0.0.4"
 dependencies = [
+ "image",
  "infinitier_acm_decoder",
  "infinitier_bam_importer",
  "infinitier_bif_importer",

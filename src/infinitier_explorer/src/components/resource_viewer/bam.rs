@@ -3,21 +3,13 @@ use bytesize::ByteSize;
 use eframe::egui::{self, TextureHandle};
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
-    resource::bam::{Bam, BamV1},
+    imported_resource::bam::ImportedBam,
+    resource::bam::{BamV1, Type},
 };
 use std::time::Instant;
 
 pub struct BamViewer {
-    inner: BamViewerInner,
-}
-
-enum BamViewerInner {
-    V1(BamV1View),
-    V2,
-}
-
-struct BamV1View {
-    bam: BamV1,
+    bam: ImportedBam,
     texture: TextureHandle,
     selected_cycle: usize,
     selected_frame_in_cycle: usize,
@@ -37,17 +29,7 @@ struct Playback {
 }
 
 impl BamViewer {
-    pub fn new(bam: Bam, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
-        let inner = match bam {
-            Bam::V1(bam) => BamViewerInner::V1(BamV1View::new(bam, ui, resource_id)),
-            Bam::V2(_) => BamViewerInner::V2,
-        };
-        Self { inner }
-    }
-}
-
-impl BamV1View {
-    fn new(bam: BamV1, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
+    pub fn new(bam: ImportedBam, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
         let texture = ui.ctx().load_texture(
             format!("bam_{resource_id}"),
             egui::ColorImage::from_rgba_unmultiplied([1, 1], &[0, 0, 0, 0]),
@@ -145,197 +127,190 @@ impl BamV1View {
 
 impl ResourceViewerTrait for BamViewer {
     fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
-        match &mut self.inner {
-            BamViewerInner::V1(view) => show_v1(view, ui, resource),
-            BamViewerInner::V2 => {
-                ui.label("BAM V2 viewer not implemented yet");
-            }
-        }
-    }
-}
+        // Advance the frame counter from the playback clock before drawing.
+        self.tick_playback();
 
-fn show_v1(view: &mut BamV1View, ui: &mut egui::Ui, resource: &GameResource) {
-    // Advance the frame counter from the playback clock before drawing.
-    view.tick_playback();
+        // ── Bottom info bar ───────────────────────────────────────────────────
+        let global_idx = self.current_global_frame_index();
+        let current_frame = global_idx.and_then(|i| self.bam.frames.get(i));
+        let (frame_w, frame_h, center_x, center_y) = match current_frame {
+            Some(f) => (f.width, f.height, f.center_x, f.center_y),
+            None => (0, 0, 0, 0),
+        };
+        let frames_count = self.bam.frames.len();
+        let cycles_count = self.bam.cycles.len();
+        let bam_type_label = match self.bam.bam_type {
+            Type::BamV1 => "BAM V1",
+            Type::BamV2 => "BAM V2",
+            Type::BamC => "BAMC",
+        };
 
-    // ── Bottom info bar ───────────────────────────────────────────────────
-    let global_idx = view.current_global_frame_index();
-    let current_frame = global_idx.and_then(|i| view.bam.frames.get(i));
-    let (frame_w, frame_h, center_x, center_y) = match current_frame {
-        Some(f) => (f.width, f.height, f.center_x, f.center_y),
-        None => (0, 0, 0, 0),
-    };
-    let frames_count = view.bam.frames.len();
-    let cycles_count = view.bam.cycles.len();
-    let palette_len = view.bam.palette.len();
-
-    egui::Panel::bottom("bam_info_panel").show_inside(ui, |ui| {
-        ui.horizontal(|ui| {
-            ui.label(format!("{frame_w} × {frame_h} px"));
-            ui.separator();
-            ui.label(format!("center ({center_x}, {center_y})"));
-            ui.separator();
-            match resource.file_size {
-                Some(size) => {
-                    ui.label(ByteSize(size).to_string());
-                }
-                None => {
-                    ui.label("? B");
-                }
-            }
-            ui.separator();
-            ui.label("BAM V1");
-            ui.separator();
-            ui.label(format!("{frames_count} frames"));
-            ui.separator();
-            ui.label(format!("{cycles_count} cycles"));
-            ui.separator();
-            ui.label(format!("{palette_len} colors"));
-            ui.separator();
-            match &resource.data_origin {
-                DataOrigin::Bif { name } => {
-                    ui.label(format!("BIF: {name}"));
-                }
-                DataOrigin::Dir { name, path } => {
-                    ui.label(format!("{name}: {}", path.path().display()));
-                }
-                DataOrigin::Missing => {
-                    ui.label("Missing");
-                }
-            }
-        });
-    });
-
-    // ── Selector bar (above the info bar) ─────────────────────────────────
-    let mut toggle_play = false;
-    egui::Panel::bottom("bam_selector_panel").show_inside(ui, |ui| {
-        ui.add_space(4.0);
-        ui.horizontal(|ui| {
-            let is_playing = view.playback.is_some();
-            let can_play = view.frames_in_selected_cycle() > 1;
-            let label = if is_playing {
-                "⏸  Pause"
-            } else {
-                "▶  Play"
-            };
-            if ui.add_enabled(can_play, egui::Button::new(label)).clicked() {
-                toggle_play = true;
-            }
-
-            ui.separator();
-
-            ui.label("Cycle:");
-            let cycles_count = view.bam.cycles.len();
-            let cycle_label = if cycles_count == 0 {
-                "—".to_string()
-            } else {
-                let frames_in_cycle = view
-                    .bam
-                    .cycles
-                    .get(view.selected_cycle)
-                    .map(|c| c.frame_indices.len())
-                    .unwrap_or(0);
-                format!(
-                    "{} / {} ({} frames)",
-                    view.selected_cycle, cycles_count, frames_in_cycle
-                )
-            };
-            let mut cycle_changed = false;
-            egui::ComboBox::from_id_salt("bam_cycle_combo")
-                .selected_text(cycle_label)
-                .show_ui(ui, |ui| {
-                    for (i, cycle) in view.bam.cycles.iter().enumerate() {
-                        let label = format!("{} ({} frames)", i, cycle.frame_indices.len());
-                        if ui
-                            .selectable_label(view.selected_cycle == i, label)
-                            .clicked()
-                        {
-                            view.selected_cycle = i;
-                            let len = cycle.frame_indices.len();
-                            if len == 0 {
-                                view.selected_frame_in_cycle = 0;
-                            } else if view.selected_frame_in_cycle >= len {
-                                view.selected_frame_in_cycle = len - 1;
-                            }
-                            cycle_changed = true;
-                        }
-                    }
-                });
-            if cycle_changed {
-                view.rebase_playback();
-            }
-
-            ui.separator();
-
-            ui.label("Frame:");
-            let frames_in_cycle = view.frames_in_selected_cycle();
-            if frames_in_cycle > 1 {
-                let max = frames_in_cycle - 1;
-                let response = ui.add(
-                    egui::Slider::new(&mut view.selected_frame_in_cycle, 0..=max)
-                        .text(format!("/ {max}")),
-                );
-                if response.changed() {
-                    view.rebase_playback();
-                }
-            } else if frames_in_cycle == 1 {
-                view.selected_frame_in_cycle = 0;
-                ui.label("0 / 0");
-            } else {
-                ui.label("—");
-            }
-
-            if let Some(idx) = view.current_global_frame_index() {
+        egui::Panel::bottom("bam_info_panel").show_inside(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(format!("{frame_w} × {frame_h} px"));
                 ui.separator();
-                ui.label(format!("(frame #{idx})"));
-            }
-        });
-        ui.add_space(4.0);
-    });
-
-    if toggle_play {
-        if view.playback.is_some() {
-            view.playback = None;
-        } else if view.frames_in_selected_cycle() > 1 {
-            view.playback = Some(Playback {
-                epoch: Instant::now(),
-                anchor_frame: view.selected_frame_in_cycle,
+                ui.label(format!("center ({center_x}, {center_y})"));
+                ui.separator();
+                match resource.file_size {
+                    Some(size) => {
+                        ui.label(ByteSize(size).to_string());
+                    }
+                    None => {
+                        ui.label("? B");
+                    }
+                }
+                ui.separator();
+                ui.label(bam_type_label);
+                ui.separator();
+                ui.label(format!("{frames_count} frames"));
+                ui.separator();
+                ui.label(format!("{cycles_count} cycles"));
+                ui.separator();
+                match &resource.data_origin {
+                    DataOrigin::Bif { name } => {
+                        ui.label(format!("BIF: {name}"));
+                    }
+                    DataOrigin::Dir { name, path } => {
+                        ui.label(format!("{name}: {}", path.path().display()));
+                    }
+                    DataOrigin::Missing => {
+                        ui.label("Missing");
+                    }
+                }
             });
-        }
-    }
-
-    // Re-render if the selection changed this tick.
-    view.refresh_texture();
-
-    // Keep repainting while playing so frames advance on schedule.
-    if view.playback.is_some() {
-        ui.ctx()
-            .request_repaint_after(BamV1::DEFAULT_FRAME_DURATION);
-    }
-
-    // ── Central area: the rendered frame ──────────────────────────────────
-    if view.current_global_frame_index().is_none() {
-        ui.centered_and_justified(|ui| {
-            ui.label("No frames to display");
         });
-        return;
-    }
 
-    let available = ui.available_size();
-    let natural = view.texture.size_vec2();
-    if natural.x <= 0.0 || natural.y <= 0.0 {
-        return;
-    }
-    let scale = (available.x / natural.x)
-        .min(available.y / natural.y)
-        .min(1.0);
-    let display = natural * scale;
+        // ── Selector bar (above the info bar) ─────────────────────────────────
+        let mut toggle_play = false;
+        egui::Panel::bottom("bam_selector_panel").show_inside(ui, |ui| {
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                let is_playing = self.playback.is_some();
+                let can_play = self.frames_in_selected_cycle() > 1;
+                let label = if is_playing {
+                    "⏸  Pause"
+                } else {
+                    "▶  Play"
+                };
+                if ui.add_enabled(can_play, egui::Button::new(label)).clicked() {
+                    toggle_play = true;
+                }
 
-    let y_offset = ((available.y - display.y) / 2.0).max(0.0);
-    if y_offset > 0.0 {
-        ui.add_space(y_offset);
+                ui.separator();
+
+                ui.label("Cycle:");
+                let cycles_count = self.bam.cycles.len();
+                let cycle_label = if cycles_count == 0 {
+                    "—".to_string()
+                } else {
+                    let frames_in_cycle = self
+                        .bam
+                        .cycles
+                        .get(self.selected_cycle)
+                        .map(|c| c.frame_indices.len())
+                        .unwrap_or(0);
+                    format!(
+                        "{} / {} ({} frames)",
+                        self.selected_cycle, cycles_count, frames_in_cycle
+                    )
+                };
+                let mut cycle_changed = false;
+                egui::ComboBox::from_id_salt("bam_cycle_combo")
+                    .selected_text(cycle_label)
+                    .show_ui(ui, |ui| {
+                        for (i, cycle) in self.bam.cycles.iter().enumerate() {
+                            let label = format!("{} ({} frames)", i, cycle.frame_indices.len());
+                            if ui
+                                .selectable_label(self.selected_cycle == i, label)
+                                .clicked()
+                            {
+                                self.selected_cycle = i;
+                                let len = cycle.frame_indices.len();
+                                if len == 0 {
+                                    self.selected_frame_in_cycle = 0;
+                                } else if self.selected_frame_in_cycle >= len {
+                                    self.selected_frame_in_cycle = len - 1;
+                                }
+                                cycle_changed = true;
+                            }
+                        }
+                    });
+                if cycle_changed {
+                    self.rebase_playback();
+                }
+
+                ui.separator();
+
+                ui.label("Frame:");
+                let frames_in_cycle = self.frames_in_selected_cycle();
+                if frames_in_cycle > 1 {
+                    let max = frames_in_cycle - 1;
+                    let response = ui.add(
+                        egui::Slider::new(&mut self.selected_frame_in_cycle, 0..=max)
+                            .text(format!("/ {max}")),
+                    );
+                    if response.changed() {
+                        self.rebase_playback();
+                    }
+                } else if frames_in_cycle == 1 {
+                    self.selected_frame_in_cycle = 0;
+                    ui.label("0 / 0");
+                } else {
+                    ui.label("—");
+                }
+
+                if let Some(idx) = self.current_global_frame_index() {
+                    ui.separator();
+                    ui.label(format!("(frame #{idx})"));
+                }
+            });
+            ui.add_space(4.0);
+        });
+
+        if toggle_play {
+            if self.playback.is_some() {
+                self.playback = None;
+            } else if self.frames_in_selected_cycle() > 1 {
+                self.playback = Some(Playback {
+                    epoch: Instant::now(),
+                    anchor_frame: self.selected_frame_in_cycle,
+                });
+            }
+        }
+
+        // Re-render if the selection changed this tick.
+        self.refresh_texture();
+
+        // Keep repainting while playing so frames advance on schedule.
+        if self.playback.is_some() {
+            ui.ctx()
+                .request_repaint_after(BamV1::DEFAULT_FRAME_DURATION);
+        }
+
+        // ── Central area: the rendered frame ──────────────────────────────────
+        if self.current_global_frame_index().is_none() {
+            ui.centered_and_justified(|ui| {
+                ui.label("No frames to display");
+            });
+            return;
+        }
+
+        let available = ui.available_size();
+        let natural = self.texture.size_vec2();
+        if natural.x <= 0.0 || natural.y <= 0.0 {
+            return;
+        }
+        let scale = (available.x / natural.x)
+            .min(available.y / natural.y)
+            .min(1.0);
+        let display = natural * scale;
+
+        let y_offset = ((available.y - display.y) / 2.0).max(0.0);
+        if y_offset > 0.0 {
+            ui.add_space(y_offset);
+        }
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.add(egui::Image::new(&self.texture).fit_to_exact_size(display));
+        });
     }
-    ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-        ui.add(egui::Image::new(&view.texture).fit_to_exact_size(display));
-    });
 }
