@@ -10,6 +10,7 @@ use crate::state::AppState;
 mod are;
 mod bah;
 mod bam;
+mod baf_highlight;
 mod bcs;
 mod bio;
 mod bmp;
