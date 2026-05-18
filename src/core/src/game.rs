@@ -67,10 +67,7 @@ impl GameData {
     /// Return every resource of `r#type`. Lookup is constant-time via
     /// the pre-built type index; iteration is then linear in the number
     /// of matches. Yields nothing when no resource of that type exists.
-    pub fn get_all_by_type(
-        &self,
-        r#type: ResourceType,
-    ) -> impl Iterator<Item = &GameResource> {
+    pub fn get_all_by_type(&self, r#type: ResourceType) -> impl Iterator<Item = &GameResource> {
         self.type_index
             .get(&r#type)
             .into_iter()
