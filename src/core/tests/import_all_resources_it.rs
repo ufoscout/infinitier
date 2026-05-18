@@ -5,48 +5,51 @@ use infinitier_core::{
     imported_resource::ImportedResource,
 };
 use infinitier_fs::CaseInsensitiveFS;
-use infinitier_test_utils::{constants::ALL_RESOURCES_DIRS, get_assets_path};
 
-/// Returns the list of game directories to test.
-///
-/// Always includes asset dirs that contain a chitin.key.
-/// Otherwise, directories can be provided via the `INFINITIER_GAME_DIRS`
-/// environment variable as a colon-separated list of absolute paths, e.g.:
+/// Returns the list of game directories to test, read from the
+/// `INFINITIER_GAME_DIRS` environment variable as a colon-separated
+/// list of absolute paths:
 ///
 ///   INFINITIER_GAME_DIRS=/games/bg2:/games/bgee cargo test -p infinitier_core
-fn game_dirs() -> Vec<(std::path::PathBuf, Option<Game>)> {
-    let mut dirs: Vec<_> = ALL_RESOURCES_DIRS
-        .iter()
-        .map(|d| (get_assets_path().join("KEY").join(d.0), Some(d.1)))
-        .filter(|p| p.0.is_dir())
+///
+/// Returns `None` when the env var is not set, so the caller can emit
+/// a clear skip message instead of silently passing or pulling in
+/// partial repo fixtures (which would produce noisy false negatives
+/// because shipped BIFs are deliberately incomplete).
+fn game_dirs() -> Option<Vec<std::path::PathBuf>> {
+    let raw = std::env::var("INFINITIER_GAME_DIRS").ok()?;
+    let dirs: Vec<std::path::PathBuf> = raw
+        .split(':')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.is_dir())
         .collect();
-
-    if let Ok(env) = std::env::var("INFINITIER_GAME_DIRS") {
-        dirs.clear();
-        for raw in env.split(':') {
-            let p = std::path::PathBuf::from(raw.trim());
-            if p.is_dir() {
-                dirs.push((p, None));
-            }
-        }
-    }
-
-    dirs
+    Some(dirs)
 }
 
 #[test]
 fn test_import_all_resources() {
     // start_logger();
 
-    let dirs = game_dirs();
-    assert!(!dirs.is_empty(), "No game directories found");
+    let Some(dirs) = game_dirs() else {
+        eprintln!(
+            "skipping test_import_all_resources: set INFINITIER_GAME_DIRS=/path/to/game1:/path/to/game2 to run it against full game installs"
+        );
+        return;
+    };
+    assert!(
+        !dirs.is_empty(),
+        "INFINITIER_GAME_DIRS is set but no listed directory exists"
+    );
 
     let mut all_failures: Vec<String> = vec![];
 
-    for (dir, game) in &dirs {
-        let game = game.unwrap_or_else(|| {
-            detect_game(&CaseInsensitiveFS::new(dir).unwrap()).expect("Cannot detect game type")
-        });
+    for dir in &dirs {
+        // The env var only carries paths, so the engine is always
+        // detected from the directory contents.
+        let game = detect_game(&CaseInsensitiveFS::new(dir).unwrap())
+            .expect("Cannot detect game type");
         let game_data = match GameDataBuilder::new(dir, game).and_then(|b| b.build()) {
             Ok(gd) => gd,
             Err(e) => {
@@ -80,23 +83,6 @@ fn test_import_all_resources() {
                     _ => Ok(()),
                 },
                 Err(e) => Err(e),
-            };
-
-            // BCS/BS decompilation goes through TRIGGER.IDS / ACTION.IDS
-            // via `ImportedBcs::load`. The partial test fixtures don't
-            // ship those BIFs, so the IDS sub-import surfaces a generic
-            // "no datasource available" error against the BCS itself.
-            // Treat that as a fixture limitation (same intent as
-            // `DataOrigin::Missing` skipping) rather than a real bug.
-            let result = match result {
-                Err(e)
-                    if matches!(resource.r#type, ResourceType::Bcs | ResourceType::Bs)
-                        && e.kind() == std::io::ErrorKind::NotFound
-                        && e.to_string().contains("no datasource available") =>
-                {
-                    Ok(())
-                }
-                other => other,
             };
 
             if let Err(e) = result
