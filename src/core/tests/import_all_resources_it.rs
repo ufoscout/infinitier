@@ -48,8 +48,8 @@ fn test_import_all_resources() {
     for dir in &dirs {
         // The env var only carries paths, so the engine is always
         // detected from the directory contents.
-        let game = detect_game(&CaseInsensitiveFS::new(dir).unwrap())
-            .expect("Cannot detect game type");
+        let game =
+            detect_game(&CaseInsensitiveFS::new(dir).unwrap()).expect("Cannot detect game type");
         let game_data = match GameDataBuilder::new(dir, game).and_then(|b| b.build()) {
             Ok(gd) => gd,
             Err(e) => {

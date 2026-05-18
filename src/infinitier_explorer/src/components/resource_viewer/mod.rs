@@ -8,9 +8,9 @@ use log::*;
 use crate::state::AppState;
 
 mod are;
+mod baf_highlight;
 mod bah;
 mod bam;
-mod baf_highlight;
 mod bcs;
 mod bio;
 mod bmp;

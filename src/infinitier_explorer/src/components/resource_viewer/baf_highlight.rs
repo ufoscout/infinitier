@@ -210,9 +210,7 @@ mod tokenizer {
             let b = bytes[i];
             let token = match b {
                 b' ' | b'\t' | b'\n' | b'\r' => {
-                    while i < bytes.len()
-                        && matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r')
-                    {
+                    while i < bytes.len() && matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r') {
                         i += 1;
                     }
                     Token {
@@ -458,9 +456,7 @@ mod tokenizer {
         fn end_keyword_resets_section() {
             // After `END` we are back to the outside section, so the
             // next call-position identifier is not coloured as an action.
-            let toks = kinds_and_slices(
-                "IF\nTHEN\n    Foo()\nEND\nBar()",
-            );
+            let toks = kinds_and_slices("IF\nTHEN\n    Foo()\nEND\nBar()");
             assert_eq!(
                 toks.iter().find(|(_, s)| *s == "Foo").unwrap().0,
                 TokenKind::Action
