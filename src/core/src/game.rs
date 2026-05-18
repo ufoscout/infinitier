@@ -27,6 +27,8 @@ pub struct GameData {
     resources: Vec<GameResource>,
     /// A map from (name, type) to resource id
     name_type_index: HashMap<(String, ResourceType), ResourceId>,
+    /// A map from type to every resource id of that type.
+    type_index: HashMap<ResourceType, Vec<ResourceId>>,
 }
 
 impl GameData {
@@ -62,12 +64,26 @@ impl GameData {
             .and_then(|&id| self.resources.get(id))
     }
 
+    /// Return every resource of `r#type`. Lookup is constant-time via
+    /// the pre-built type index; iteration is then linear in the number
+    /// of matches. Yields nothing when no resource of that type exists.
+    pub fn get_all_by_type(
+        &self,
+        r#type: ResourceType,
+    ) -> impl Iterator<Item = &GameResource> {
+        self.type_index
+            .get(&r#type)
+            .into_iter()
+            .flat_map(move |ids| ids.iter().filter_map(move |&id| self.resources.get(id)))
+    }
+
     /// Creates a GameData from a list of resources
     pub fn new(resources: Vec<GameResource>, game_type: Game) -> Self {
         let mut game_data = GameData {
             game_type,
             resources: Vec::new(),
             name_type_index: HashMap::new(),
+            type_index: HashMap::new(),
         };
         for resource in resources {
             game_data.add_resource(resource);
@@ -80,10 +96,13 @@ impl GameData {
     fn add_resource(&mut self, resource: GameResource) {
         let key = (resource.name.clone(), resource.r#type);
         if let Some(&existing_id) = self.name_type_index.get(&key) {
+            // Same (name, type) → replacing in place. The id is already
+            // present in `type_index[type]`, no index update needed.
             self.resources[existing_id] = resource;
         } else {
             let id = self.resources.len();
             self.name_type_index.insert(key, id);
+            self.type_index.entry(resource.r#type).or_default().push(id);
             self.resources.push(resource);
         }
     }
@@ -293,6 +312,7 @@ impl GameDataBuilder {
             game_type: self.game_type,
             resources: vec![],
             name_type_index: HashMap::new(),
+            type_index: HashMap::new(),
         };
 
         let key_path = self.fs.get_path(&self.key_file)?;
@@ -814,5 +834,48 @@ mod tests {
                 .get_by_name_and_type("TEST2", ResourceType::Bam)
                 .is_some()
         );
+    }
+
+    #[test]
+    fn test_get_all_by_type() {
+        let mut game_data = GameData::new(vec![], Game::Bg2);
+        game_data.add_resource(make_resource("A", ResourceType::Bam, DataOrigin::Missing));
+        game_data.add_resource(make_resource("B", ResourceType::Wed, DataOrigin::Missing));
+        game_data.add_resource(make_resource("C", ResourceType::Bam, DataOrigin::Missing));
+        // Same name+type → replaces "A", does not duplicate the index entry.
+        game_data.add_resource(make_resource(
+            "A",
+            ResourceType::Bam,
+            DataOrigin::Bif {
+                name: "data/replacement.bif".to_string(),
+            },
+        ));
+
+        let bam_names: Vec<&str> = game_data
+            .get_all_by_type(ResourceType::Bam)
+            .map(|r| r.name.as_str())
+            .collect();
+        assert_eq!(bam_names, vec!["A", "C"]);
+
+        let wed_names: Vec<&str> = game_data
+            .get_all_by_type(ResourceType::Wed)
+            .map(|r| r.name.as_str())
+            .collect();
+        assert_eq!(wed_names, vec!["B"]);
+
+        // The replacement must be observable through the type index.
+        let a = game_data
+            .get_all_by_type(ResourceType::Bam)
+            .find(|r| r.name == "A")
+            .unwrap();
+        assert_eq!(
+            a.data_origin,
+            DataOrigin::Bif {
+                name: "data/replacement.bif".to_string(),
+            }
+        );
+
+        // Unknown type → empty.
+        assert_eq!(game_data.get_all_by_type(ResourceType::Tga).count(), 0);
     }
 }

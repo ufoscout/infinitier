@@ -2,10 +2,10 @@ use std::io;
 
 use infinitier_bcs_importer::{Bcs, baf::BafContext, signatures::Signatures};
 use infinitier_common::ResourceType;
-use infinitier_datasource::Importer;
-use infinitier_ids_importer::{Ids, IdsImporter};
+use infinitier_ids_importer::Ids;
 
 use crate::game::GameData;
+use crate::imported_resource::ImportedResource;
 
 /// A preloaded BCS script: the parsed bytecode plus its decompiled BAF
 /// source.
@@ -39,28 +39,12 @@ impl ImportedBcs {
         // explorer viewer than the default `\t`.
         let mut ctx = BafContext::new(triggers, actions, game).with_indent("    ");
 
-        // Layer in every other IDS file we can find. The decompiler queries
-        // `OBJECT` (object nesting), the engine-specific target-specifier
-        // names (EA / GENERAL / RACE / …) and individual `*IdsRef` lookups
-        // referenced by trigger / action signatures — none of which are
-        // listed centrally, so the simplest robust strategy is to register
-        // them all. Any IDS that fails to import is skipped so a single
-        // malformed file doesn't sink the whole decompile.
-        for resource in game_data.resources() {
-            if resource.r#type != ResourceType::Ids {
-                continue;
-            }
+        // Layer in every other IDS file we can find.
+        for resource in game_data.get_all_by_type(ResourceType::Ids) {
             if resource.name == "trigger" || resource.name == "action" {
                 continue;
             }
-            let Some(ds) = resource.datasource.as_ref() else {
-                continue;
-            };
-            if let Ok(ids) = (IdsImporter {
-                name: &resource.name,
-            })
-            .import(ds)
-            {
+            if let Ok(ImportedResource::Ids(ids)) = resource.import(game_data) {
                 ctx = ctx.with_ids(&resource.name, ids);
             }
         }
@@ -78,10 +62,12 @@ fn load_ids(game_data: &GameData, name: &str) -> io::Result<Ids> {
                 "IDS resource '{name}' not found in GameData (required to decompile BCS to BAF)"
             ))
         })?;
-    let ds = resource.datasource.as_ref().ok_or_else(|| {
-        io::Error::other(format!("IDS resource '{name}' has no datasource"))
-    })?;
-    IdsImporter { name }.import(ds)
+    match resource.import(game_data)? {
+        ImportedResource::Ids(ids) => Ok(ids),
+        _ => Err(io::Error::other(format!(
+            "resource '{name}' is not an IDS resource"
+        ))),
+    }
 }
 
 #[cfg(test)]
@@ -90,7 +76,7 @@ mod tests {
 
     use infinitier_bcs_importer::BcsImporter;
     use infinitier_common::Game;
-    use infinitier_datasource::DataSource;
+    use infinitier_datasource::{DataSource, Importer};
     use infinitier_test_utils::get_assets_path;
 
     use crate::game::{DataOrigin, GameResource};
