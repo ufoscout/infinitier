@@ -134,7 +134,7 @@ pub struct PvrzHeader {
     pub metadata_size: u32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PvrDataCompression {
     /// DXT1 aka BC1 compressed texture
     DXT1,

@@ -145,10 +145,7 @@ mod tests {
         let header = PvrzImporter { name: "test_pvr" }.import(&ds).unwrap();
         // Capture header values before `from_pvrz` takes ownership.
         let (w, h) = (header.width, header.height);
-        let pixel_format = match header.pixel_format {
-            PvrDataCompression::DXT1 => PvrDataCompression::DXT1,
-            PvrDataCompression::DXT5 => PvrDataCompression::DXT5,
-        };
+        let pixel_format = header.pixel_format;
 
         let img = ImportedImage::from_pvrz(header, &ds).unwrap();
 
