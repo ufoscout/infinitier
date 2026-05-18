@@ -1304,11 +1304,10 @@ impl IdsCaseInsensitive for infinitier_ids_importer::Ids {
 
 // ── Round-trip corpus tests ──────────────────────────────────────────────────
 //
-// For every BCS file in a real game's `extracted_<game>/bcs/original/`,
-// run BCS → BAF → BCS and assert byte-equality with the original. Same
-// per-game contexts as `baf::corpus_tests::baf_corpus_*`. Each game has its
-// own `#[test]` so failures stay attributable; tests skip silently when the
-// game folder is absent. Override the corpus root with `EXTRACTED_RESOURCES`.
+// For every BCS file in `assets/BCS/source/`, run BCS → BAF → BCS and
+// assert byte-equality with the original. The corpus and the
+// TRIGGER.IDS / ACTION.IDS used to build the BafContext are committed
+// alongside the tests, so this runs on any clone without external setup.
 
 #[cfg(test)]
 mod roundtrip_tests {
@@ -1318,46 +1317,63 @@ mod roundtrip_tests {
     use infinitier_common::Game;
     use infinitier_datasource::{DataSource, Importer};
     use infinitier_ids_importer::IdsImporter;
+    use infinitier_test_utils::get_assets_path;
     use std::path::{Path, PathBuf};
 
-    fn extracted_root() -> PathBuf {
-        let raw = std::env::var("EXTRACTED_RESOURCES").unwrap_or_else(|_| {
-            "/home/ufo/workspaces/github_ufoscout/baldurs_gate/extracted_resources".to_string()
-        });
-        PathBuf::from(raw)
-    }
-
-    fn find_ids(ids_dir: &Path, stem: &str) -> Option<PathBuf> {
-        for ext in ["IDS", "ids", "Ids"] {
-            let p = ids_dir.join(format!("{}.{}", stem, ext));
-            if p.is_file() {
-                return Some(p);
-            }
-            let p = ids_dir.join(format!("{}.{}", stem.to_ascii_lowercase(), ext));
-            if p.is_file() {
-                return Some(p);
-            }
-        }
-        None
-    }
-
     fn load_signatures(ids_dir: &Path, stem: &str) -> Signatures {
-        let path = find_ids(ids_dir, stem)
-            .unwrap_or_else(|| panic!("missing IDS {}.IDS in {}", stem, ids_dir.display()));
+        let path = ids_dir.join(format!("{stem}.IDS"));
         let ids = IdsImporter { name: stem }
             .import(&DataSource::new(path.as_path()))
             .unwrap_or_else(|e| panic!("cannot parse {}: {e}", path.display()));
         Signatures::from_ids(&ids)
     }
 
+    /// Build a context with the same shape used by `baf::corpus_tests` —
+    /// 4-space indent + every available `*.IDS` layered in — so the
+    /// `BCS → BAF → BCS` round-trip exercises the full symbol-resolution
+    /// path the decompiler actually uses in production.
     fn build_context(game: Game, ids_dir: &Path) -> BafContext {
         let triggers = load_signatures(ids_dir, "TRIGGER");
         let actions = load_signatures(ids_dir, "ACTION");
-        BafContext::new(triggers, actions, game)
+        let mut ctx = BafContext::new(triggers, actions, game).with_indent("    ");
+        for entry in std::fs::read_dir(ids_dir).expect("read ids dir") {
+            let Ok(entry) = entry else { continue };
+            let path = entry.path();
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .map(|s| s.to_ascii_uppercase());
+            let ext = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.to_ascii_lowercase());
+            let (Some(stem), Some(ext)) = (stem, ext) else {
+                continue;
+            };
+            if ext != "ids" {
+                continue;
+            }
+            if stem == "TRIGGER" || stem == "ACTION" {
+                continue;
+            }
+            if let Ok(ids) = (IdsImporter { name: &stem }).import(&DataSource::new(path.as_path()))
+            {
+                ctx = ctx.with_ids(&stem, ids);
+            }
+        }
+        ctx
     }
 
-    /// Round-trips every `*.bcs` / `*.bs` file under `<corpus_dir>/original`
-    /// through `BCS → BAF → BCS` and asserts byte-equality with the original.
+    /// Round-trips every `*.BCS` / `*.bs` file directly inside
+    /// `corpus_dir` through `BCS → BAF → BCS` and asserts byte-equality
+    /// with the original.
+    ///
+    /// Files listed in `excluded` are skipped — the corpus mixes engines
+    /// (IWD has its own combined-string ids, PST has trigger-point and
+    /// region slots that BG2 lacks) and we currently only build a
+    /// `Game::Bg2` context. Reaching full coverage means adding per-file
+    /// engine detection plus an IDS set for each engine; until then the
+    /// excluded files are documented next to the call site.
     ///
     /// A small minority of files in real game extracts can't survive the
     /// round-trip — e.g. junk bytes in unused trigger/action slots that the
@@ -1367,11 +1383,9 @@ mod roundtrip_tests {
     /// **idempotence** check: BCS → BAF → BCS → BAF → BCS must equal
     /// BCS → BAF → BCS, which still proves the compile/decompile pair is
     /// internally consistent even when the original bytes are lossy.
-    fn assert_roundtrip(corpus_dir: &Path, ctx: &BafContext) {
-        let original_dir = corpus_dir.join("original");
-        assert!(original_dir.is_dir(), "missing {}", original_dir.display());
-        let mut paths: Vec<PathBuf> = std::fs::read_dir(&original_dir)
-            .expect("read original")
+    fn assert_roundtrip(corpus_dir: &Path, ctx: &BafContext, excluded: &[&str]) {
+        let mut paths: Vec<PathBuf> = std::fs::read_dir(corpus_dir)
+            .expect("read corpus dir")
             .filter_map(|e| e.ok())
             .map(|e| e.path())
             .filter(|p| {
@@ -1380,12 +1394,20 @@ mod roundtrip_tests {
                     .map(|e| matches!(e.to_ascii_lowercase().as_str(), "bcs" | "bs"))
                     .unwrap_or(false)
             })
+            .filter(|p| {
+                let name = p
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.to_ascii_uppercase())
+                    .unwrap_or_default();
+                !excluded.iter().any(|e| e.to_ascii_uppercase() == name)
+            })
             .collect();
         paths.sort();
         assert!(
             !paths.is_empty(),
             "no BCS/BS files in {}",
-            original_dir.display()
+            corpus_dir.display()
         );
 
         let mut failures: Vec<String> = Vec::new();
@@ -1499,65 +1521,16 @@ mod roundtrip_tests {
         }
     }
 
-    fn run_game(dir: &str, game: Game) {
-        let root = extracted_root();
-        let game_dir = root.join(dir);
-        let corpus = game_dir.join("bcs");
-        let ids_dir = game_dir.join("ids");
-        if !corpus.is_dir() || !ids_dir.is_dir() {
-            eprintln!(
-                "skip roundtrip test for {}: missing {}",
-                dir,
-                game_dir.display()
-            );
-            return;
-        }
-        let ctx = build_context(game, &ids_dir);
-        assert_roundtrip(&corpus, &ctx);
-    }
-
     #[test]
-    fn roundtrip_bg() {
-        run_game("bg", Game::Bg);
-    }
-
-    #[test]
-    fn roundtrip_bgee() {
-        run_game("bgee", Game::Bgee);
-    }
-
-    #[test]
-    fn roundtrip_bg2() {
-        run_game("bg2", Game::Bg2);
-    }
-
-    #[test]
-    fn roundtrip_bg2ee() {
-        run_game("bg2ee", Game::Bg2ee);
-    }
-
-    #[test]
-    fn roundtrip_iwd() {
-        run_game("iwd", Game::Iwd);
-    }
-
-    #[test]
-    fn roundtrip_iwdee() {
-        run_game("iwdee", Game::Iwdee);
-    }
-
-    #[test]
-    fn roundtrip_iwd2() {
-        run_game("iwd2", Game::Iwd2);
-    }
-
-    #[test]
-    fn roundtrip_pst() {
-        run_game("pst", Game::Pst);
-    }
-
-    #[test]
-    fn roundtrip_pstee() {
-        run_game("pstee", Game::Pstee);
+    fn roundtrip_assets() {
+        let corpus_dir = get_assets_path().join("BCS").join("source");
+        let ctx = build_context(Game::Bg2, &corpus_dir);
+        // `WTGORG.BCS` is an Icewind Dale script whose `0x40A5 BitGlobal`
+        // / `0x40A6 GlobalBitGlobal` combined-string ids don't exist in
+        // BG2's encoding map. Decompiling it under the BG2 context
+        // packs strings the wrong way and the recompiled BAF fails to
+        // re-parse. Excluded until we wire per-file engine detection.
+        let excluded = ["WTGORG.BCS"];
+        assert_roundtrip(&corpus_dir, &ctx, &excluded);
     }
 }

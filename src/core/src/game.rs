@@ -128,8 +128,9 @@ impl GameResource {
         &self,
         game_data: &GameData,
     ) -> io::Result<crate::imported_resource::ImportedResource> {
-        use crate::imported_resource::{ImportedResource, bam::ImportedBam};
+        use crate::imported_resource::{ImportedResource, bam::ImportedBam, bcs::ImportedBcs};
         use infinitier_bam_importer::BamImporter;
+        use infinitier_bcs_importer::BcsImporter;
         use infinitier_bmp_importer::BmpImporter;
         use infinitier_ids_importer::IdsImporter;
         use infinitier_ini_importer::IniImporter;
@@ -176,7 +177,10 @@ impl GameResource {
                 .map(ImportedResource::Wed),
             ResourceType::Are => Ok(ImportedResource::Are),
             ResourceType::Bah => Ok(ImportedResource::Bah),
-            ResourceType::Bcs => Ok(ImportedResource::Bcs),
+            ResourceType::Bcs => BcsImporter { name: &self.name }
+                .import(ds)
+                .and_then(|bcs| ImportedBcs::load(bcs, game_data))
+                .map(ImportedResource::Bcs),
             ResourceType::Bio => Ok(ImportedResource::Bio),
             ResourceType::Bs => Ok(ImportedResource::Bs),
             ResourceType::Chr => Ok(ImportedResource::Chr),

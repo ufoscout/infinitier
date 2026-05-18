@@ -21,6 +21,9 @@ pub use infinitier_common::*;
 pub mod bam {
     pub use infinitier_bam_importer::*;
 }
+pub mod bcs {
+    pub use infinitier_bcs_importer::*;
+}
 pub mod bif {
     pub use infinitier_bif_importer::*;
 }

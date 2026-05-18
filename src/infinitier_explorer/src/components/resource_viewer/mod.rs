@@ -157,7 +157,7 @@ impl ResourceViewer {
                                 ImportedResource::Sound(sd) => Box::new(SoundViewer::new(sd)),
                                 ImportedResource::Are => Box::new(AreViewer::new()),
                                 ImportedResource::Bah => Box::new(BahViewer::new()),
-                                ImportedResource::Bcs => Box::new(BcsViewer::new()),
+                                ImportedResource::Bcs(bcs) => Box::new(BcsViewer::new(bcs)),
                                 ImportedResource::Bio => Box::new(BioViewer::new()),
                                 ImportedResource::Bs => Box::new(BsViewer::new()),
                                 ImportedResource::Chr => Box::new(ChrViewer::new()),

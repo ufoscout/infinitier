@@ -7,15 +7,18 @@ use infinitier_wed_importer::Wed;
 
 use crate::sound::SoundDecoder;
 use bam::ImportedBam;
+use bcs::ImportedBcs;
 use movie::MovieSource;
 
 pub mod bam;
+pub mod bcs;
 pub mod movie;
 
 #[derive(Debug)]
 pub enum ImportedResource {
     // Types with importers
     Bam(ImportedBam),
+    Bcs(ImportedBcs),
     Bmp(Bmp),
     Ids(Ids),
     Ini(Ini),
@@ -28,7 +31,6 @@ pub enum ImportedResource {
     // Types without importers
     Are,
     Bah,
-    Bcs,
     Bio,
     Bs,
     Chr,

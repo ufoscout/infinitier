@@ -24,6 +24,7 @@ infinitier_wbm_decoder = { workspace = true }
 
 # Importers
 infinitier_bam_importer = { workspace = true }
+infinitier_bcs_importer = { workspace = true }
 infinitier_bif_importer = { workspace = true }
 infinitier_bmp_importer = { workspace = true }
 infinitier_ids_importer = { workspace = true }
