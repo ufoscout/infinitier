@@ -14,7 +14,7 @@ use infinitier_key_importer::KeyImporter;
 use infinitier_wav_decoder::WavDecoder;
 use log::{debug, warn};
 
-use crate::{imported_resource::movie, sound::SoundDecoder};
+use crate::imported_resource::{movie, sound::SoundDecoder};
 
 pub type ResourceId = usize;
 
@@ -144,7 +144,9 @@ impl GameResource {
         &self,
         game_data: &GameData,
     ) -> io::Result<crate::imported_resource::ImportedResource> {
-        use crate::imported_resource::{ImportedResource, bam::ImportedBam, bcs::ImportedBcs};
+        use crate::imported_resource::{
+            ImportedResource, bam::ImportedBam, bcs::ImportedBcs, image::ImportedImage,
+        };
         use infinitier_bam_importer::BamImporter;
         use infinitier_bcs_importer::BcsImporter;
         use infinitier_bmp_importer::BmpImporter;
@@ -173,18 +175,24 @@ impl GameResource {
                 .import(ds)
                 .and_then(|bam| ImportedBam::load(bam, game_data))
                 .map(ImportedResource::Bam),
+            // BMP and PVRZ both feed into the unified `ImportedImage`
+            // wrapper so the explorer can render them through one
+            // `ImageViewer`. Adding new raster formats here only needs a
+            // new `ImportedImage::from_*` constructor.
             ResourceType::Bmp => BmpImporter { name: &self.name }
                 .import(ds)
-                .map(ImportedResource::Bmp),
+                .map(ImportedImage::from_bmp)
+                .map(ImportedResource::Image),
+            ResourceType::Pvrz => PvrzImporter { name: &self.name }
+                .import(ds)
+                .and_then(|header| ImportedImage::from_pvrz(header, ds))
+                .map(ImportedResource::Image),
             ResourceType::Ids => IdsImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Ids),
             ResourceType::Ini => IniImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Ini),
-            ResourceType::Pvrz => PvrzImporter { name: &self.name }
-                .import(ds)
-                .map(ImportedResource::Pvrz),
             ResourceType::TwoDA => TwoDAImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::TwoDA),

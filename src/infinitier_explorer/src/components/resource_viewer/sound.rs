@@ -2,7 +2,7 @@ use super::ResourceViewerTrait;
 use eframe::egui;
 use infinitier_core::{
     game::{GameResource, ResourceId},
-    sound::{SoundDecoder, SoundFormat, SoundInfo},
+    imported_resource::sound::{SoundDecoder, SoundFormat, SoundInfo},
 };
 use log::error;
 use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};

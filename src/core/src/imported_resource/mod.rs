@@ -1,28 +1,30 @@
-use infinitier_bmp_importer::Bmp;
 use infinitier_ids_importer::Ids;
 use infinitier_ini_importer::Ini;
-use infinitier_pvr_importer::PvrzHeader;
 use infinitier_two_da_importer::TwoDA;
 use infinitier_wed_importer::Wed;
 
-use crate::sound::SoundDecoder;
 use bam::ImportedBam;
 use bcs::ImportedBcs;
+use image::ImportedImage;
 use movie::MovieSource;
+use sound::SoundDecoder;
 
 pub mod bam;
 pub mod bcs;
+pub mod image;
 pub mod movie;
+pub mod sound;
 
 #[derive(Debug)]
 pub enum ImportedResource {
     // Types with importers
     Bam(ImportedBam),
     Bcs(ImportedBcs),
-    Bmp(Bmp),
     Ids(Ids),
+    /// Unified image wrapper for every raster format (BMP / PVRZ for
+    /// now; TGA / PNG / MOS / TIS later).
+    Image(ImportedImage),
     Ini(Ini),
-    Pvrz(PvrzHeader),
     /// ACM and WAV/WAVC resources both decode to PCM via the unified
     /// streaming [`SoundDecoder`].
     Sound(SoundDecoder),

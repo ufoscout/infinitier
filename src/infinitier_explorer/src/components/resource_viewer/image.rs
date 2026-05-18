@@ -3,39 +3,47 @@ use bytesize::ByteSize;
 use eframe::egui::{self, TextureHandle};
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
-    resource::bmp::{Bmp, BmpCompression},
+    imported_resource::image::ImportedImage,
 };
 
-pub struct BmpViewer {
+/// One viewer for every raster image type that lands in
+/// [`crate::imported_resource::ImportedResource::Image`] — BMP and PVRZ
+/// today, more later. The constructor uploads the RGBA8 buffer to a GPU
+/// texture once; subsequent frames only paint.
+pub struct ImageViewer {
     cached: TextureHandle,
-    bit_count: u16,
-    compression: BmpCompression,
+    /// Short uppercase label of the source format (e.g. `"BMP"`),
+    /// rendered as one cell of the info bar.
+    format_label: &'static str,
+    /// Human-readable detail line (bit depth / compression / DXT
+    /// variant), rendered as the next info-bar cell.
+    format_description: String,
 }
 
-impl BmpViewer {
-    pub fn new(bmp: Bmp, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
-        let w = bmp.image.width() as usize;
-        let h = bmp.image.height() as usize;
-        let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], bmp.image.as_raw());
-        let handle = ui.ctx().load_texture(
-            format!("bmp_{resource_id}"),
+impl ImageViewer {
+    pub fn new(img: ImportedImage, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
+        let w = img.width() as usize;
+        let h = img.height() as usize;
+        let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], img.image.as_raw());
+        let cached = ui.ctx().load_texture(
+            format!("image_{resource_id}"),
             color_image,
             egui::TextureOptions::default(),
         );
 
         Self {
-            cached: handle,
-            bit_count: bmp.bit_count,
-            compression: bmp.compression,
+            cached,
+            format_label: img.format_label(),
+            format_description: img.format_description(),
         }
     }
 }
 
-impl ResourceViewerTrait for BmpViewer {
+impl ResourceViewerTrait for ImageViewer {
     fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
         let texture = &self.cached;
 
-        egui::Panel::bottom("bmp_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("image_info_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
                 let [w, h] = texture.size();
                 ui.label(format!("{w} × {h} px"));
@@ -49,9 +57,9 @@ impl ResourceViewerTrait for BmpViewer {
                     }
                 }
                 ui.separator();
-                ui.label(format!("{} bpp", self.bit_count));
+                ui.label(self.format_label);
                 ui.separator();
-                ui.label(self.compression.to_string());
+                ui.label(&self.format_description);
                 ui.separator();
                 match &resource.data_origin {
                     DataOrigin::Bif { name } => {

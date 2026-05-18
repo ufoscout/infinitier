@@ -13,7 +13,6 @@ mod bah;
 mod bam;
 mod bcs;
 mod bio;
-mod bmp;
 mod chr;
 mod chu;
 mod cre;
@@ -25,6 +24,7 @@ mod gam;
 mod glsl;
 mod gui;
 mod ids;
+mod image;
 mod ini;
 mod itm;
 mod lua;
@@ -36,7 +36,6 @@ mod mus;
 mod plt;
 mod png;
 mod pro;
-mod pvrz;
 mod sound;
 mod spl;
 mod sql;
@@ -60,7 +59,6 @@ use bah::BahViewer;
 use bam::BamViewer;
 use bcs::BcsViewer;
 use bio::BioViewer;
-use bmp::BmpViewer;
 use chr::ChrViewer;
 use chu::ChuViewer;
 use cre::CreViewer;
@@ -72,6 +70,7 @@ use gam::GamViewer;
 use glsl::GlslViewer;
 use gui::GuiViewer;
 use ids::IdsViewer;
+use image::ImageViewer;
 use ini::IniViewer;
 use itm::ItmViewer;
 use lua::LuaViewer;
@@ -83,7 +82,6 @@ use mus::MusViewer;
 use plt::PltViewer;
 use png::PngViewer;
 use pro::ProViewer;
-use pvrz::PvrzViewer;
 use sound::SoundViewer;
 use spl::SplViewer;
 use sql::SqlViewer;
@@ -145,12 +143,11 @@ impl ResourceViewer {
                                 ImportedResource::Bam(bam) => {
                                     Box::new(BamViewer::new(bam, ui, resource_id))
                                 }
-                                ImportedResource::Bmp(bmp) => {
-                                    Box::new(BmpViewer::new(bmp, ui, resource_id))
-                                }
                                 ImportedResource::Ids(ids) => Box::new(IdsViewer::new(ids)),
+                                ImportedResource::Image(img) => {
+                                    Box::new(ImageViewer::new(img, ui, resource_id))
+                                }
                                 ImportedResource::Ini(ini) => Box::new(IniViewer::new(ini)),
-                                ImportedResource::Pvrz(prvz) => Box::new(PvrzViewer::new(prvz)),
                                 ImportedResource::TwoDA(twoda) => Box::new(TwoDAViewer::new(twoda)),
                                 ImportedResource::Wed(wed) => Box::new(WedViewer::new(wed)),
                                 ImportedResource::Sound(sd) => Box::new(SoundViewer::new(sd)),
