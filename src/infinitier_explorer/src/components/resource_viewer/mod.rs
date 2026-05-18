@@ -14,7 +14,6 @@ mod baf_highlight;
 mod bcs;
 mod bio;
 mod bmp;
-mod bs;
 mod chr;
 mod chu;
 mod cre;
@@ -62,7 +61,6 @@ use bam::BamViewer;
 use bcs::BcsViewer;
 use bio::BioViewer;
 use bmp::BmpViewer;
-use bs::BsViewer;
 use chr::ChrViewer;
 use chu::ChuViewer;
 use cre::CreViewer;
@@ -160,7 +158,6 @@ impl ResourceViewer {
                                 ImportedResource::Bah => Box::new(BahViewer::new()),
                                 ImportedResource::Bcs(bcs) => Box::new(BcsViewer::new(bcs)),
                                 ImportedResource::Bio => Box::new(BioViewer::new()),
-                                ImportedResource::Bs => Box::new(BsViewer::new()),
                                 ImportedResource::Chr => Box::new(ChrViewer::new()),
                                 ImportedResource::Chu => Box::new(ChuViewer::new()),
                                 ImportedResource::Cre => Box::new(CreViewer::new()),

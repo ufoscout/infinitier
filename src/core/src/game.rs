@@ -193,12 +193,15 @@ impl GameResource {
                 .map(ImportedResource::Wed),
             ResourceType::Are => Ok(ImportedResource::Are),
             ResourceType::Bah => Ok(ImportedResource::Bah),
-            ResourceType::Bcs => BcsImporter { name: &self.name }
+            // BCS and BS share the same bytecode format — BS is just the
+            // saved-game flavour with a different extension. Route both
+            // through the same importer + `ImportedBcs::load` pipeline so
+            // the explorer's `BcsViewer` renders them identically.
+            ResourceType::Bcs | ResourceType::Bs => BcsImporter { name: &self.name }
                 .import(ds)
                 .and_then(|bcs| ImportedBcs::load(bcs, game_data))
                 .map(ImportedResource::Bcs),
             ResourceType::Bio => Ok(ImportedResource::Bio),
-            ResourceType::Bs => Ok(ImportedResource::Bs),
             ResourceType::Chr => Ok(ImportedResource::Chr),
             ResourceType::Chu => Ok(ImportedResource::Chu),
             ResourceType::Cre => Ok(ImportedResource::Cre),

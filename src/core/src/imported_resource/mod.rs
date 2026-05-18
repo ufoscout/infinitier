@@ -32,7 +32,6 @@ pub enum ImportedResource {
     Are,
     Bah,
     Bio,
-    Bs,
     Chr,
     Chu,
     Cre,
