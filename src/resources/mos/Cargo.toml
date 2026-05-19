@@ -1,0 +1,19 @@
+[package]
+name = "infinitier_mos_resource"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Reader for the MOS / MOSC tiled image format used in Infinity Engine games"
+readme = "readme.md"
+keywords = ["mos", "mosc", "tile", "image", "infinity-engine", "baldurs-gate"]
+
+[dependencies]
+image = { workspace = true }
+infinitier_datasource = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }

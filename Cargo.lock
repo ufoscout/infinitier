@@ -2058,6 +2058,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_mos_resource"
+version = "0.0.4"
+dependencies = [
+ "image",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
+]
+
+[[package]]
 name = "infinitier_mve_decoder"
 version = "0.0.4"
 dependencies = [
