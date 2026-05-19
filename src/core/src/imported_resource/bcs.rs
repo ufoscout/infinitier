@@ -1,6 +1,6 @@
 use std::io;
 
-use infinitier_bcs_importer::{Bcs, baf::BafContext, signatures::Signatures};
+use infinitier_bcs_resource::{Bcs, baf::BafContext, signatures::Signatures};
 use infinitier_common::ResourceType;
 use infinitier_ids_importer::Ids;
 
@@ -74,7 +74,7 @@ fn load_ids(game_data: &GameData, name: &str) -> io::Result<Ids> {
 mod tests {
     use std::path::Path;
 
-    use infinitier_bcs_importer::BcsImporter;
+    use infinitier_bcs_resource::BcsImporter;
     use infinitier_common::Game;
     use infinitier_datasource::{DataSource, Importer};
     use infinitier_test_utils::get_assets_path;

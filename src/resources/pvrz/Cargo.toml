@@ -1,12 +1,12 @@
 [package]
-name = "infinitier_pvr_importer"
+name = "infinitier_pvrz_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Reader for the PVRZ compressed texture format used in Infinity Engine Enhanced Editions"
+description = "Reader and writer for the PVRZ compressed texture format used in Infinity Engine Enhanced Editions"
 readme = "readme.md"
 keywords = ["pvrz", "pvr", "texture", "infinity-engine", "baldurs-gate"]
 

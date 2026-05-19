@@ -14,7 +14,7 @@ keywords = ["bam", "animation", "bitmap", "infinity-engine", "baldurs-gate"]
 image = { workspace = true }
 infinitier_datasource = { workspace = true }
 infinitier_fs = { workspace = true }
-infinitier_pvr_importer = { workspace = true }
+infinitier_pvrz_resource = { workspace = true }
 log = { workspace = true }
 
 [dev-dependencies]

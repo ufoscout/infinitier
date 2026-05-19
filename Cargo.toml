@@ -8,6 +8,7 @@ members = [
     "src/fs",
     "src/test_utils",
     "src/importers/*",
+    "src/resources/*",
 ]
 resolver = "3"
 
@@ -38,15 +39,17 @@ infinitier_test_utils = { path = "src/test_utils" }
 
 # Importers
 infinitier_bam_importer = { path = "src/importers/bam_importer", version = "0.0.4"  }
-infinitier_bcs_importer = { path = "src/importers/bcs_importer", version = "0.0.4"  }
 infinitier_bif_importer = { path = "src/importers/bif_importer", version = "0.0.4"  }
 infinitier_bmp_importer = { path = "src/importers/bmp_importer", version = "0.0.4"  }
 infinitier_ids_importer = { path = "src/importers/ids_importer", version = "0.0.4"  }
 infinitier_ini_importer = { path = "src/importers/ini_importer", version = "0.0.4"  }
 infinitier_key_importer = { path = "src/importers/key_importer", version = "0.0.4"  }
-infinitier_pvr_importer = { path = "src/importers/pvr_importer", version = "0.0.4"  }
 infinitier_two_da_importer = { path = "src/importers/two_da_importer", version = "0.0.4"  }
 infinitier_wed_importer = { path = "src/importers/wed_importer", version = "0.0.4"  }
+
+# Resources (read + write)
+infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.4"  }
+infinitier_pvrz_resource = { path = "src/resources/pvrz", version = "0.0.4"  }
 
 bitflags = { version = "2", features = ["serde"] }
 bytesize = "2"

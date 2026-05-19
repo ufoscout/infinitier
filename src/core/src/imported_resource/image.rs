@@ -9,7 +9,7 @@ use std::io;
 use image::{ImageBuffer, Rgba};
 use infinitier_bmp_importer::{Bmp, BmpCompression};
 use infinitier_datasource::DataSource;
-use infinitier_pvr_importer::{PvrDataCompression, PvrzHeader, PvrzImporter};
+use infinitier_pvrz_resource::{PvrDataCompression, PvrzHeader, PvrzImporter};
 
 /// A preloaded image plus the metadata of the format it came from.
 /// Pixel data is always RGBA8 regardless of source — callers don't need

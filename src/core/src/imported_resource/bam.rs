@@ -5,7 +5,7 @@ use image::{ImageBuffer, Rgba};
 use infinitier_bam_importer::{Bam, BamV1, BamV2, BamV2DataBlock, SharedRect, Type};
 use infinitier_common::ResourceType;
 use infinitier_datasource::Importer;
-use infinitier_pvr_importer::{PvrzHeader, PvrzImporter};
+use infinitier_pvrz_resource::{PvrzHeader, PvrzImporter};
 
 use crate::game::GameData;
 

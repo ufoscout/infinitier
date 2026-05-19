@@ -22,7 +22,7 @@ pub mod bam {
     pub use infinitier_bam_importer::*;
 }
 pub mod bcs {
-    pub use infinitier_bcs_importer::*;
+    pub use infinitier_bcs_resource::*;
 }
 pub mod bif {
     pub use infinitier_bif_importer::*;
@@ -43,7 +43,7 @@ pub mod key {
     pub use infinitier_key_importer::*;
 }
 pub mod pvr {
-    pub use infinitier_pvr_importer::*;
+    pub use infinitier_pvrz_resource::*;
 }
 pub mod two_da {
     pub use infinitier_two_da_importer::*;

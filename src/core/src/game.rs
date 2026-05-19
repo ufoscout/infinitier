@@ -148,11 +148,11 @@ impl GameResource {
             ImportedResource, bam::ImportedBam, bcs::ImportedBcs, image::ImportedImage,
         };
         use infinitier_bam_importer::BamImporter;
-        use infinitier_bcs_importer::BcsImporter;
+        use infinitier_bcs_resource::BcsImporter;
         use infinitier_bmp_importer::BmpImporter;
         use infinitier_ids_importer::IdsImporter;
         use infinitier_ini_importer::IniImporter;
-        use infinitier_pvr_importer::PvrzImporter;
+        use infinitier_pvrz_resource::PvrzImporter;
         use infinitier_two_da_importer::TwoDAImporter;
         use infinitier_wed_importer::WedImporter;
 

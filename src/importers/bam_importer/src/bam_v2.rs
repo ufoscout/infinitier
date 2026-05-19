@@ -5,7 +5,7 @@ use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 use infinitier_fs::CaseInsensitiveFS;
-use infinitier_pvr_importer::PvrzImporter;
+use infinitier_pvrz_resource::PvrzImporter;
 
 use crate::Type;
 

@@ -1,12 +1,12 @@
 [package]
-name = "infinitier_bcs_importer"
+name = "infinitier_bcs_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Reader for the BCS script format used in Infinity Engine games"
+description = "Reader and writer for the BCS script format used in Infinity Engine games"
 readme = "readme.md"
 keywords = ["bcs", "infinity-engine", "baldurs-gate"]
 
