@@ -2,7 +2,7 @@ use std::io;
 
 use infinitier_bcs_resource::{Bcs, baf::BafContext, signatures::Signatures};
 use infinitier_common::ResourceType;
-use infinitier_ids_importer::Ids;
+use infinitier_ids_resource::Ids;
 
 use crate::game::GameData;
 use crate::imported_resource::ImportedResource;

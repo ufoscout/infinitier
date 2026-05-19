@@ -1904,7 +1904,7 @@ version = "0.0.4"
 dependencies = [
  "infinitier_common",
  "infinitier_datasource",
- "infinitier_ids_importer",
+ "infinitier_ids_resource",
  "infinitier_test_utils",
  "log",
  "serde",
@@ -1969,8 +1969,8 @@ dependencies = [
  "infinitier_common",
  "infinitier_datasource",
  "infinitier_fs",
- "infinitier_ids_importer",
- "infinitier_ini_importer",
+ "infinitier_ids_resource",
+ "infinitier_ini_resource",
  "infinitier_key_importer",
  "infinitier_mve_decoder",
  "infinitier_pvrz_resource",
@@ -2018,17 +2018,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "infinitier_ids_importer"
+name = "infinitier_ids_resource"
 version = "0.0.4"
 dependencies = [
  "infinitier_datasource",
  "infinitier_test_utils",
  "log",
  "serde",
+ "tempfile",
 ]
 
 [[package]]
-name = "infinitier_ini_importer"
+name = "infinitier_ini_resource"
 version = "0.0.4"
 dependencies = [
  "infinitier_datasource",
@@ -2036,6 +2037,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

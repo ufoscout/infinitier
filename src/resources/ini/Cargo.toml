@@ -1,12 +1,12 @@
 [package]
-name = "infinitier_ini_importer"
+name = "infinitier_ini_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Reader for the INI file format used in Infinity Engine games"
+description = "Reader and writer for the INI file format used in Infinity Engine games"
 readme = "readme.md"
 keywords = ["ini", "infinity-engine", "baldurs-gate"]
 
@@ -18,3 +18,4 @@ serde = { workspace = true }
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }

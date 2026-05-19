@@ -1,8 +1,7 @@
-#![doc = include_str!("../readme.md")]
-
 use infinitier_datasource::{DataSource, Importer};
 use log::debug;
-use serde::{Deserialize, Serialize};
+
+use crate::{Ini, IniEntry, IniSection};
 
 /// An INI file importer.
 ///
@@ -16,7 +15,7 @@ pub struct IniImporter<'a> {
     pub name: &'a str,
 }
 
-impl<'a> Importer for IniImporter<'a> {
+impl Importer for IniImporter<'_> {
     type T = Ini;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Ini> {
@@ -70,55 +69,9 @@ impl<'a> Importer for IniImporter<'a> {
     }
 }
 
-/// A parsed INI file: an ordered list of sections.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct Ini {
-    pub sections: Vec<IniSection>,
-}
-
-/// A single section inside an INI file.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct IniSection {
-    pub name: String,
-    pub entries: Vec<IniEntry>,
-}
-
-/// A single key=value entry inside a section.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub struct IniEntry {
-    pub key: String,
-    /// Raw string value; empty when the file had `key=` with nothing after it.
-    pub value: String,
-}
-
-impl Ini {
-    /// Find a section by name (case-insensitive).
-    pub fn section(&self, name: &str) -> Option<&IniSection> {
-        self.sections
-            .iter()
-            .find(|s| s.name.eq_ignore_ascii_case(name))
-    }
-
-    /// Retrieve a value by section and key (both case-insensitive).
-    pub fn get(&self, section: &str, key: &str) -> Option<&str> {
-        self.section(section)?.get(key)
-    }
-}
-
-impl IniSection {
-    /// Find a value by key (case-insensitive).
-    pub fn get(&self, key: &str) -> Option<&str> {
-        self.entries
-            .iter()
-            .find(|e| e.key.eq_ignore_ascii_case(key))
-            .map(|e| e.value.as_str())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_datasource::DataSource;
     use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, parse_json_file};
 
     fn ini_folder() -> std::path::PathBuf {
@@ -176,13 +129,6 @@ mod tests {
     }
 
     #[test]
-    fn test_whitespace_trimmed_from_key_and_value() {
-        let ini = parse("[s]\n  key  =  value  \n");
-        assert_eq!(ini.sections[0].entries[0].key, "key");
-        assert_eq!(ini.sections[0].entries[0].value, "value");
-    }
-
-    #[test]
     fn test_case_insensitive_section_lookup() {
         let ini = parse("[Section]\nk=v\n");
         assert!(ini.section("section").is_some());
@@ -195,6 +141,13 @@ mod tests {
         let ini = parse("[s]\nMyKey=hello\n");
         assert_eq!(ini.get("s", "mykey"), Some("hello"));
         assert_eq!(ini.get("s", "MYKEY"), Some("hello"));
+    }
+
+    #[test]
+    fn test_whitespace_trimmed_from_key_and_value() {
+        let ini = parse("[s]\n  key  =  value  \n");
+        assert_eq!(ini.sections[0].entries[0].key, "key");
+        assert_eq!(ini.sections[0].entries[0].value, "value");
     }
 
     #[test]

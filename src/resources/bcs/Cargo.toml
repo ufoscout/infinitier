@@ -13,7 +13,7 @@ keywords = ["bcs", "infinity-engine", "baldurs-gate"]
 [dependencies]
 infinitier_common = { workspace = true }
 infinitier_datasource = { workspace = true }
-infinitier_ids_importer = { workspace = true }
+infinitier_ids_resource = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }
 

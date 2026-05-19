@@ -1,1 +1,1 @@
-# infinitier_ids_importer
+# infinitier_ids_resource

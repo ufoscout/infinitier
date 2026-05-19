@@ -34,10 +34,10 @@ pub mod common {
     pub use infinitier_bam_importer::common::*;
 }
 pub mod ids {
-    pub use infinitier_ids_importer::*;
+    pub use infinitier_ids_resource::*;
 }
 pub mod ini {
-    pub use infinitier_ini_importer::*;
+    pub use infinitier_ini_resource::*;
 }
 pub mod key {
     pub use infinitier_key_importer::*;

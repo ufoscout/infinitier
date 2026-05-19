@@ -1191,7 +1191,7 @@ impl ObjectAccum {
 
 fn resolve_object_identifier(
     sym: &str,
-    object_ids: Option<&infinitier_ids_importer::Ids>,
+    object_ids: Option<&infinitier_ids_resource::Ids>,
 ) -> std::io::Result<i32> {
     if let Some(rest) = sym.strip_prefix("UnknownObject") {
         return rest.parse::<i32>().map_err(|e| {
@@ -1292,7 +1292,7 @@ trait IdsCaseInsensitive {
     fn of_value_str_ci(&self, name: &str) -> Option<i32>;
 }
 
-impl IdsCaseInsensitive for infinitier_ids_importer::Ids {
+impl IdsCaseInsensitive for infinitier_ids_resource::Ids {
     fn of_value_str_ci(&self, name: &str) -> Option<i32> {
         let needle = name.to_ascii_lowercase();
         self.entries
@@ -1316,7 +1316,7 @@ mod roundtrip_tests {
     use crate::{Bcs, BcsImporter};
     use infinitier_common::Game;
     use infinitier_datasource::{DataSource, Importer};
-    use infinitier_ids_importer::IdsImporter;
+    use infinitier_ids_resource::IdsImporter;
     use infinitier_test_utils::get_assets_path;
     use std::path::{Path, PathBuf};
 

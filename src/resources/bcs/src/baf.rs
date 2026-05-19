@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 
 use infinitier_common::{Engine, Game};
-use infinitier_ids_importer::Ids;
+use infinitier_ids_resource::Ids;
 
 use crate::signatures::{Function, ParamKind, Signatures};
 use crate::{Action, Bcs, BcsObject, Trigger};
@@ -1131,7 +1131,7 @@ mod tests {
     use crate::{
         Bcs, BcsObject, BcsRegion, Condition, ConditionResponse, Response, ResponseSet, Trigger,
     };
-    use infinitier_ids_importer::{Ids, IdsEntry};
+    use infinitier_ids_resource::{Ids, IdsEntry};
 
     fn ids_from(entries: &[(i32, &str)]) -> Ids {
         Ids {

@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use infinitier_ids_importer::Ids;
+use infinitier_ids_resource::Ids;
 
 /// Parsed signatures for a function table (TRIGGER.IDS or ACTION.IDS).
 ///
@@ -206,7 +206,7 @@ fn parse_params(s: &str) -> Vec<Parameter> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_ids_importer::IdsEntry;
+    use infinitier_ids_resource::IdsEntry;
 
     fn ids(entries: &[(i32, &str, &str)]) -> Ids {
         Ids {
