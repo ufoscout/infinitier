@@ -1975,6 +1975,7 @@ dependencies = [
  "infinitier_ids_resource",
  "infinitier_ini_resource",
  "infinitier_key_resource",
+ "infinitier_mos_resource",
  "infinitier_mve_decoder",
  "infinitier_pvrz_resource",
  "infinitier_test_utils",

@@ -152,6 +152,7 @@ impl GameResource {
         use infinitier_bmp_resource::BmpImporter;
         use infinitier_ids_resource::IdsImporter;
         use infinitier_ini_resource::IniImporter;
+        use infinitier_mos_resource::MosImporter;
         use infinitier_pvrz_resource::PvrzImporter;
         use infinitier_two_da_resource::TwoDAImporter;
         use infinitier_wed_resource::WedImporter;
@@ -175,10 +176,10 @@ impl GameResource {
                 .import(ds)
                 .and_then(|bam| ImportedBam::load(bam, game_data))
                 .map(ImportedResource::Bam),
-            // BMP and PVRZ both feed into the unified `ImportedImage`
-            // wrapper so the explorer can render them through one
-            // `ImageViewer`. Adding new raster formats here only needs a
-            // new `ImportedImage::from_*` constructor.
+            // BMP, PVRZ, and MOS all feed into the unified
+            // `ImportedImage` wrapper so the explorer can render them
+            // through one `ImageViewer`. Adding new raster formats here
+            // only needs a new `ImportedImage::from_*` constructor.
             ResourceType::Bmp => BmpImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedImage::from_bmp)
@@ -186,6 +187,10 @@ impl GameResource {
             ResourceType::Pvrz => PvrzImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedImage::from_pvrz)
+                .map(ImportedResource::Image),
+            ResourceType::Mos => MosImporter { name: &self.name }
+                .import(ds)
+                .and_then(|mos| ImportedImage::from_mos(mos, game_data))
                 .map(ImportedResource::Image),
             ResourceType::Ids => IdsImporter { name: &self.name }
                 .import(ds)
@@ -223,7 +228,6 @@ impl GameResource {
             ResourceType::Lua => Ok(ImportedResource::Lua),
             ResourceType::Maze => Ok(ImportedResource::Maze),
             ResourceType::Menu => Ok(ImportedResource::Menu),
-            ResourceType::Mos => Ok(ImportedResource::Mos),
             ResourceType::Mus => Ok(ImportedResource::Mus),
             ResourceType::Mve => Ok(ImportedResource::Mve(movie::MovieSource::new(
                 ds.clone(),

@@ -21,8 +21,8 @@ pub enum ImportedResource {
     Bam(ImportedBam),
     Bcs(ImportedBcs),
     Ids(Ids),
-    /// Unified image wrapper for every raster format (BMP / PVRZ for
-    /// now; TGA / PNG / MOS / TIS later).
+    /// Unified image wrapper for every raster format (BMP / PVRZ / MOS
+    /// for now; TGA / PNG / TIS later).
     Image(ImportedImage),
     Ini(Ini),
     /// ACM and WAV/WAVC resources both decode to PCM via the unified
@@ -47,7 +47,6 @@ pub enum ImportedResource {
     Lua,
     Maze,
     Menu,
-    Mos,
     Mus,
     Mve(MovieSource),
     Plt,

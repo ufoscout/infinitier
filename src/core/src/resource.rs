@@ -1,5 +1,4 @@
 // Codecs
-
 pub mod acm {
     pub use infinitier_acm_decoder::*;
 }
@@ -16,8 +15,7 @@ pub mod wav {
 // Common
 pub use infinitier_common::*;
 
-// Importers
-
+// Resources
 pub mod bam {
     pub use infinitier_bam_resource::*;
 }
@@ -42,7 +40,10 @@ pub mod ini {
 pub mod key {
     pub use infinitier_key_resource::*;
 }
-pub mod pvr {
+pub mod mos {
+    pub use infinitier_mos_resource::*;
+}
+pub mod pvrz {
     pub use infinitier_pvrz_resource::*;
 }
 pub mod two_da {

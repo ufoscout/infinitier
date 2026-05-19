@@ -30,7 +30,6 @@ mod itm;
 mod lua;
 mod maze;
 mod menu;
-mod mos;
 mod movie;
 mod mus;
 mod plt;
@@ -76,7 +75,6 @@ use itm::ItmViewer;
 use lua::LuaViewer;
 use maze::MazeViewer;
 use menu::MenuViewer;
-use mos::MosViewer;
 use movie::MovieViewer;
 use mus::MusViewer;
 use plt::PltViewer;
@@ -168,7 +166,6 @@ impl ResourceViewer {
                                 ImportedResource::Lua => Box::new(LuaViewer::new()),
                                 ImportedResource::Maze => Box::new(MazeViewer::new()),
                                 ImportedResource::Menu => Box::new(MenuViewer::new()),
-                                ImportedResource::Mos => Box::new(MosViewer::new()),
                                 ImportedResource::Mus => Box::new(MusViewer::new()),
                                 ImportedResource::Mve(src) => Box::new(MovieViewer::new(src)),
                                 ImportedResource::Plt => Box::new(PltViewer::new()),
