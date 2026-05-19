@@ -7,7 +7,7 @@
 use std::io;
 
 use image::{ImageBuffer, Rgba};
-use infinitier_bmp_importer::{Bmp, BmpCompression};
+use infinitier_bmp_resource::{Bmp, BmpCompression};
 use infinitier_datasource::DataSource;
 use infinitier_pvrz_resource::{PvrDataCompression, PvrzHeader, PvrzImporter};
 
@@ -106,7 +106,7 @@ impl ImportedImage {
 
 #[cfg(test)]
 mod tests {
-    use infinitier_bmp_importer::BmpImporter;
+    use infinitier_bmp_resource::BmpImporter;
     use infinitier_datasource::Importer;
     use infinitier_test_utils::get_assets_path;
 

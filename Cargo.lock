@@ -1939,7 +1939,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "infinitier_bmp_importer"
+name = "infinitier_bmp_resource"
 version = "0.0.4"
 dependencies = [
  "image",
@@ -1965,7 +1965,7 @@ dependencies = [
  "infinitier_bcs_resource",
  "infinitier_bif_importer",
  "infinitier_bik_decoder",
- "infinitier_bmp_importer",
+ "infinitier_bmp_resource",
  "infinitier_common",
  "infinitier_datasource",
  "infinitier_fs",

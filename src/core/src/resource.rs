@@ -28,7 +28,7 @@ pub mod bif {
     pub use infinitier_bif_importer::*;
 }
 pub mod bmp {
-    pub use infinitier_bmp_importer::*;
+    pub use infinitier_bmp_resource::*;
 }
 pub mod common {
     pub use infinitier_bam_importer::common::*;
