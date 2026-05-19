@@ -20,18 +20,16 @@
 //! `Packet` with zero ts/dur — symphonia's Vorbis decoder doesn't use
 //! either field.
 
-use symphonia::core::audio::{AudioBuffer, AudioBufferRef, Signal, SignalSpec};
-use symphonia::core::codecs::{CODEC_TYPE_VORBIS, CodecParameters, Decoder, DecoderOptions};
-use symphonia::core::formats::Packet;
+use symphonia::core::codecs::audio::well_known::CODEC_ID_VORBIS;
+use symphonia::core::codecs::audio::{AudioCodecParameters, AudioDecoder, AudioDecoderOptions};
+use symphonia::core::packet::PacketRef;
+use symphonia::core::units::{Duration, Timestamp};
 use symphonia::default::codecs::VorbisDecoder;
 
 use crate::error::{WbmError, WbmResult};
 
 pub(crate) struct VorbisDriver {
     decoder: VorbisDecoder,
-    /// Reusable i16 buffer for the per-packet f32 → i16 conversion;
-    /// grown lazily to fit the largest packet we've seen.
-    scratch_i16: Option<AudioBuffer<i16>>,
     pub channels: u8,
     pub sample_rate: u32,
 }
@@ -45,17 +43,16 @@ impl VorbisDriver {
         extra_data.extend_from_slice(&ident);
         extra_data.extend_from_slice(&setup);
 
-        let mut params = CodecParameters::new();
+        let mut params = AudioCodecParameters::new();
         params
-            .for_codec(CODEC_TYPE_VORBIS)
+            .for_codec(CODEC_ID_VORBIS)
             .with_extra_data(extra_data.into_boxed_slice());
 
-        let decoder = VorbisDecoder::try_new(&params, &DecoderOptions::default())
+        let decoder = VorbisDecoder::try_new(&params, &AudioDecoderOptions::default())
             .map_err(WbmError::Vorbis)?;
 
         Ok(Self {
             decoder,
-            scratch_i16: None,
             channels,
             sample_rate,
         })
@@ -64,9 +61,11 @@ impl VorbisDriver {
     /// Decode one Matroska audio block. Returns one `Vec<i16>` per
     /// channel.
     pub fn decode(&mut self, packet: &[u8]) -> WbmResult<Vec<Vec<i16>>> {
-        let pkt = Packet::new_from_slice(0, 0, 0, packet);
-        let buf_ref = self.decoder.decode(&pkt).map_err(WbmError::Vorbis)?;
-        Ok(audio_buffer_to_i16_planes(buf_ref, &mut self.scratch_i16))
+        let pkt = PacketRef::new(0, Timestamp::new(0), Duration::new(0), packet);
+        let buf_ref = self.decoder.decode_ref(&pkt).map_err(WbmError::Vorbis)?;
+        let mut planes: Vec<Vec<i16>> = Vec::new();
+        buf_ref.copy_to_vecs_planar::<i16>(&mut planes);
+        Ok(planes)
     }
 }
 
@@ -89,40 +88,6 @@ fn sniff_ident(buf: &[u8]) -> WbmResult<(u8, u32)> {
     let channels = buf[11];
     let sample_rate = u32::from_le_bytes([buf[12], buf[13], buf[14], buf[15]]);
     Ok((channels, sample_rate))
-}
-
-/// Convert an `AudioBufferRef` (any sample type — symphonia's Vorbis
-/// decoder happens to emit `f32`, but we keep this generic) to one
-/// `Vec<i16>` per channel. Reuses `scratch` across calls to avoid the
-/// per-packet allocation.
-fn audio_buffer_to_i16_planes(
-    buf: AudioBufferRef<'_>,
-    scratch: &mut Option<AudioBuffer<i16>>,
-) -> Vec<Vec<i16>> {
-    let n_frames = buf.frames();
-    let spec: SignalSpec = *buf.spec();
-    let n_channels = spec.channels.count();
-
-    if n_frames == 0 {
-        return vec![Vec::new(); n_channels];
-    }
-
-    // Grow (or allocate) the scratch buffer to fit `n_frames`. Symphonia's
-    // `AudioBuffer::convert` requires `dest.capacity >= src.capacity`,
-    // and Vorbis packets cap at the codec's max blocksize, so this
-    // settles after the first long packet.
-    let need_realloc = match scratch.as_ref() {
-        Some(b) => b.capacity() < buf.capacity() || *b.spec() != spec,
-        None => true,
-    };
-    if need_realloc {
-        *scratch = Some(buf.make_equivalent::<i16>());
-    }
-    let dest = scratch.as_mut().expect("scratch initialised above");
-    dest.clear();
-    buf.convert::<i16>(dest);
-
-    (0..n_channels).map(|c| dest.chan(c).to_vec()).collect()
 }
 
 /// Split the Xiph-laced `CodecPrivate` blob into its three constituent

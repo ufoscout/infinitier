@@ -63,7 +63,7 @@ rand = "0.10"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-symphonia = { version = "0.5", default-features = false, features = ["ogg", "vorbis"] }
+symphonia = { version = "0.6", default-features = false, features = ["ogg", "vorbis"] }
 tempfile = "3"
 thiserror = "2"
 
@@ -78,10 +78,7 @@ texpresso = "2"
 # Audio playback
 rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }
 
-# WBM (= WebM) decode pipeline. See src/codecs/wbm_decoder. The
-# `oxideav-vp8` crate is pre-1.0 and moves quickly; pin exact until
-# upstream stabilises. Vorbis audio decode reuses the workspace
-# `symphonia` dependency above.
+# WBM (= WebM) decode pipeline. See src/codecs/wbm_decoder.
 matroska-demuxer = "0.7"
 oxideav-vp8 = "0.1.12"
 oxideav-core = "0.1"

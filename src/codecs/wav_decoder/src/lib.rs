@@ -4,13 +4,12 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::path::Path;
 
 use log::debug;
-use symphonia::core::audio::SampleBuffer;
-use symphonia::core::codecs::{Decoder, DecoderOptions};
+use symphonia::core::codecs::audio::{AudioDecoder, AudioDecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
-use symphonia::core::formats::{FormatOptions, FormatReader};
+use symphonia::core::formats::probe::Hint;
+use symphonia::core::formats::{FormatOptions, FormatReader, TrackType};
 use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
-use symphonia::core::probe::Hint;
 use thiserror::Error as ThisError;
 
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
@@ -130,25 +129,17 @@ enum WavInner {
 
 struct OggState {
     format: Box<dyn FormatReader>,
-    decoder: Box<dyn Decoder>,
+    decoder: Box<dyn AudioDecoder>,
     track_id: u32,
     /// Decoded samples not yet handed out via `read_samples`. Stored
     /// as `Vec<i16>` + a cursor instead of `VecDeque<i16>` because the
     /// access pattern is "fill once per packet, drain linearly" — a
-    /// flat Vec gives better cache locality, lets us `extend_from_slice`
-    /// the whole packet in one `memcpy`, and avoids `pop_front` overhead.
+    /// flat Vec gives better cache locality, lets us copy the
+    /// whole packet in one `memcpy`, and avoids `pop_front` overhead.
     pending: Vec<i16>,
     /// Index of the next unconsumed sample inside `pending`. When
     /// `consumed == pending.len()` the buffer is reset to empty.
     consumed: usize,
-    /// Reused interleaved-i16 buffer for `copy_interleaved_ref`. Held
-    /// across packets so we don't allocate a fresh `SampleBuffer` (and
-    /// its internal `cap × channels` i16 storage) on every Vorbis
-    /// packet. Symphonia's `SampleBuffer` doesn't expose its capacity,
-    /// so we track it ourselves and rebuild the buffer only when a
-    /// packet's capacity outgrows the previous one.
-    sample_buf: Option<SampleBuffer<i16>>,
-    sample_buf_cap: u64,
     /// Set once `next_packet` returned a clean end-of-stream so we
     /// stop polling the format reader on subsequent calls.
     eos: bool,
@@ -178,8 +169,8 @@ impl OggState {
 
             // Refill the buffer from the next packet.
             let packet = match self.format.next_packet() {
-                Ok(p) => p,
-                Err(SymphoniaError::IoError(e)) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                Ok(Some(p)) => p,
+                Ok(None) => {
                     self.eos = true;
                     break;
                 }
@@ -191,26 +182,15 @@ impl OggState {
                 }
                 Err(e) => return Err(e.into()),
             };
-            if packet.track_id() != self.track_id {
+            if packet.track_id != self.track_id {
                 continue;
             }
             match self.decoder.decode(&packet) {
                 Ok(decoded) => {
-                    let spec = *decoded.spec();
-                    let cap = decoded.capacity() as u64;
-                    // Re-use the SampleBuffer across packets; only
-                    // rebuild when a packet outgrows the previous
-                    // capacity.
-                    let sb = match self.sample_buf.as_mut() {
-                        Some(sb) if cap <= self.sample_buf_cap => sb,
-                        _ => {
-                            self.sample_buf = Some(SampleBuffer::<i16>::new(cap, spec));
-                            self.sample_buf_cap = cap;
-                            self.sample_buf.as_mut().unwrap()
-                        }
-                    };
-                    sb.copy_interleaved_ref(decoded);
-                    self.pending.extend_from_slice(sb.samples());
+                    let n_samples = decoded.samples_interleaved();
+                    let prev_len = self.pending.len();
+                    self.pending.resize(prev_len + n_samples, 0);
+                    decoded.copy_to_slice_interleaved::<i16, _>(&mut self.pending[prev_len..]);
                 }
                 Err(SymphoniaError::DecodeError(_)) => {
                     // Bad packet — Symphonia recommends skipping and
@@ -478,34 +458,40 @@ impl WavDecoder {
         let mut hint = Hint::new();
         hint.with_extension("ogg");
 
-        let probed = symphonia::default::get_probe().format(
+        let format = symphonia::default::get_probe().probe(
             &hint,
             mss,
-            &FormatOptions::default(),
-            &MetadataOptions::default(),
+            FormatOptions::default(),
+            MetadataOptions::default(),
         )?;
-        let format = probed.format;
 
         let track = format
-            .default_track()
-            .ok_or(WavError::OggMetadata("no default track"))?;
+            .default_track(TrackType::Audio)
+            .ok_or(WavError::OggMetadata("no default audio track"))?;
         let track_id = track.id;
-        let codec_params = track.codec_params.clone();
 
-        let channels = codec_params
+        let frames_per_channel = track.num_frames.unwrap_or(0);
+        let audio_params = track
+            .codec_params
+            .as_ref()
+            .and_then(|cp| cp.audio())
+            .ok_or(WavError::OggMetadata("missing audio codec params"))?
+            .clone();
+
+        let channels = audio_params
             .channels
+            .as_ref()
             .map(|c| c.count() as u16)
             .ok_or(WavError::OggMetadata("missing channel count"))?;
-        let sample_rate = codec_params
+        let sample_rate = audio_params
             .sample_rate
             .ok_or(WavError::OggMetadata("missing sample rate"))?;
-        let frames_per_channel = codec_params.n_frames.unwrap_or(0);
         let total_values_u64 = frames_per_channel.saturating_mul(channels as u64);
         let total_values =
             u32::try_from(total_values_u64).map_err(|_| WavError::OggTooLong(total_values_u64))?;
 
-        let decoder =
-            symphonia::default::get_codecs().make(&codec_params, &DecoderOptions::default())?;
+        let decoder = symphonia::default::get_codecs()
+            .make_audio_decoder(&audio_params, &AudioDecoderOptions::default())?;
 
         let info = WavInfo {
             channels,
@@ -529,8 +515,6 @@ impl WavDecoder {
                 track_id,
                 pending: Vec::new(),
                 consumed: 0,
-                sample_buf: None,
-                sample_buf_cap: 0,
                 eos: false,
             }),
         })
