@@ -80,8 +80,7 @@ mod tests {
         assert_eq!(a.cycles, b.cycles, "cycles");
         assert_eq!(a.palette, b.palette, "palette");
         assert_eq!(
-            a.rle_compressed_color_index,
-            b.rle_compressed_color_index,
+            a.rle_compressed_color_index, b.rle_compressed_color_index,
             "rle_compressed_color_index"
         );
     }
@@ -152,12 +151,18 @@ mod tests {
     fn test_export_to_file_roundtrip() {
         let path = get_assets_path().join("BAM_V1/03/SPWI524D_decompressed.BAM");
         let source = DataSource::new(path.as_path());
-        let original = BamImporter { name: "bam_file_rt" }.import(&source).unwrap();
+        let original = BamImporter {
+            name: "bam_file_rt",
+        }
+        .import(&source)
+        .unwrap();
         let tmp = tempfile::NamedTempFile::new().unwrap();
         BamExporter.export_to_file(&original, tmp.path()).unwrap();
-        let re_imported = BamImporter { name: "bam_file_rt2" }
-            .import(&DataSource::new(tmp.path().to_path_buf()))
-            .unwrap();
+        let re_imported = BamImporter {
+            name: "bam_file_rt2",
+        }
+        .import(&DataSource::new(tmp.path().to_path_buf()))
+        .unwrap();
         match (&original, &re_imported) {
             (Bam::V1(a), Bam::V1(b)) => assert_bam_v1_content_equal(a, b),
             _ => panic!("expected Bam::V1"),
