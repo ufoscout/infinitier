@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 use std::collections::HashMap;
 
 use itertools::{Itertools, chain};

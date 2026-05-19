@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 mod bif_reader;
 mod bifc_reader;
 mod biff_reader;

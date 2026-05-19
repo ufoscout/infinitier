@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 use std::{fmt::Write as _, io::Read};
 
 use infinitier_datasource::{DataSource, Importer};

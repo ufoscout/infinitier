@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 use std::io::{Seek, SeekFrom};
 
 use infinitier_common::ResourceType;

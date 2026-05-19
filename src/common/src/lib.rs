@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 mod game;
 pub mod resource;
 

@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 use std::io::{BufRead, Read, Seek};
 
 use infinitier_datasource::{Importer, Reader, SeekExt};

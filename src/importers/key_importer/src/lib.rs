@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 use std::io::{self, BufRead, Seek};
 
 use serde::{Deserialize, Serialize};

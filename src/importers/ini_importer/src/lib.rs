@@ -1,3 +1,5 @@
+#![doc = include_str!("../readme.md")]
+
 use infinitier_datasource::{DataSource, Importer};
 use log::debug;
 use serde::{Deserialize, Serialize};
