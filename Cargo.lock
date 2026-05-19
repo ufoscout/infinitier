@@ -2155,6 +2155,8 @@ dependencies = [
  "infinitier_test_utils",
  "log",
  "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

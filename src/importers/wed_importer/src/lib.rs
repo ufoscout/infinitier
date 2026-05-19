@@ -1,201 +1,20 @@
 #![doc = include_str!("../readme.md")]
 
-use std::io::{Seek, SeekFrom};
-
 use infinitier_common::ResourceType;
-use infinitier_datasource::{DataSource, Importer, ReadExt, SeekExt};
-use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
-/// A Wed file importer
-pub struct WedImporter<'a> {
-    pub name: &'a str,
-}
+mod exporter;
+mod importer;
 
-impl<'a> Importer for WedImporter<'a> {
-    type T = Wed;
-
-    fn import(&self, source: &DataSource) -> std::io::Result<Wed> {
-        let mut reader = source.reader()?;
-
-        let signature = reader.read_string(8)?;
-
-        if signature != "WED V1.3" {
-            error!(
-                "Not a WED V1.3 file ({}): signature={:?}",
-                self.name, signature
-            );
-            return Err(std::io::Error::other("Wrong file type"));
-        }
-
-        let overlays_size = reader.read_u32()? as usize;
-        let doors_size = reader.read_u32()? as usize;
-        let overlays_offset = reader.read_u32()? as u64;
-        let secondary_header_offset = reader.read_u32()? as u64;
-        let doors_offset = reader.read_u32()? as u64;
-        let door_tiles_offset = reader.read_u32()? as u64;
-
-        // Read overlays
-        let mut overlays = Vec::with_capacity(overlays_size);
-        {
-            reader.set_position(overlays_offset)?;
-            for _ in 0..overlays_size {
-                overlays.push(WedOverlay {
-                    width: reader.read_u16()?,
-                    height: reader.read_u16()?,
-                    name: ResourceReference {
-                        name: reader.read_string(8)?,
-                        r#type: ResourceType::Tis,
-                    },
-                    unique_tiles_count: reader.read_u16()?,
-                    movement_type: reader.read_u16()?,
-                    tilemap_offset: reader.read_u32()? as u64,
-                    tile_index_lookup_offset: reader.read_u32()? as u64,
-                });
-            }
-        }
-
-        // Read secondary Header
-
-        reader.set_position(secondary_header_offset)?;
-        let wall_polygons_count = reader.read_u32()? as usize;
-        let polygons_offset = reader.read_u32()? as u64;
-        let verticles_offset = reader.read_u32()? as u64;
-        let wall_groups_offset = reader.read_u32()? as u64;
-        let polytable_offset = reader.read_u32()? as u64;
-
-        // Read Doors
-        let mut doors = Vec::with_capacity(doors_size);
-        let mut door_tile_cells_count = 0;
-        {
-            reader.set_position(doors_offset)?;
-            for _ in 0..doors_size {
-                let door = WedDoor {
-                    name: reader.read_string(8)?,
-                    state: WedDoorState::from_u16(reader.read_u16()?)?,
-                    door_tile_cell_index: reader.read_u16()?,
-                    door_tile_cell_count: reader.read_u16()?,
-                    polygon_open_state_count: reader.read_u16()?,
-                    polygon_closed_state_count: reader.read_u16()?,
-                    polygon_open_state_offset: reader.read_u32()? as u64,
-                    polygon_closed_state_offset: reader.read_u32()? as u64,
-                };
-                door_tile_cells_count += door.door_tile_cell_count as usize;
-                doors.push(door);
-            }
-        }
-
-        // Read Polygons
-        let mut polygons = Vec::with_capacity(wall_polygons_count);
-        let mut verticles_count = 0;
-        {
-            reader.set_position(polygons_offset)?;
-            for _ in 0..wall_polygons_count {
-                let polygon = WedPolygon {
-                    vertex_index: reader.read_u32()?,
-                    vertex_count: reader.read_u32()?,
-                    flags: WedPolygonFlag::from_bits_truncate(reader.read_u8()?),
-                    height: reader.read_i8()?,
-                    min_x: reader.read_i16()?,
-                    max_x: reader.read_i16()?,
-                    min_y: reader.read_i16()?,
-                    max_y: reader.read_i16()?,
-                };
-                verticles_count += polygon.vertex_count as usize;
-                polygons.push(polygon);
-            }
-        }
-
-        // Read Wall Groups
-        // Derive count from section byte range, matching NearInfinity's approach.
-        let file_size = reader.seek(SeekFrom::End(0))?;
-        let mut section_ends = [
-            overlays_offset,
-            secondary_header_offset,
-            doors_offset,
-            door_tiles_offset,
-            polygons_offset,
-            verticles_offset,
-            wall_groups_offset,
-            polytable_offset,
-            file_size,
-        ];
-        section_ends.sort();
-        let wall_group_count = section_ends
-            .iter()
-            .find(|&&o| o > wall_groups_offset)
-            .map(|&next| ((next - wall_groups_offset) / 4) as usize)
-            .unwrap_or(0);
-        let mut wall_groups = Vec::with_capacity(wall_group_count);
-        let mut polytable_count = 0;
-        {
-            reader.set_position(wall_groups_offset)?;
-            for _ in 0..wall_group_count {
-                let wall = WedWallGroup {
-                    polygon_index: reader.read_u16()?,
-                    polygon_count: reader.read_u16()?,
-                };
-                polytable_count =
-                    polytable_count.max(wall.polygon_count as usize + wall.polygon_index as usize);
-                wall_groups.push(wall);
-            }
-        }
-
-        // Read Polytable
-        let mut wall_polygon_indexes = Vec::with_capacity(polytable_count);
-        {
-            reader.set_position(polytable_offset)?;
-            for _ in 0..polytable_count {
-                wall_polygon_indexes.push(reader.read_u16()?);
-            }
-        }
-
-        // Read Verticles
-        let mut verticles = Vec::with_capacity(verticles_count);
-        {
-            reader.set_position(verticles_offset)?;
-            for _ in 0..verticles_count {
-                verticles.push(WedVertex {
-                    x: reader.read_i16()?,
-                    y: reader.read_i16()?,
-                });
-            }
-        }
-
-        // Read Door Tile Cells
-        let mut door_tile_cells = Vec::with_capacity(door_tile_cells_count);
-        {
-            reader.set_position(door_tiles_offset)?;
-            for _ in 0..door_tile_cells_count {
-                door_tile_cells.push(reader.read_u16()?);
-            }
-        }
-
-        debug!(
-            "Loaded {} [WED]: {} overlays, {} doors, {} polygons",
-            self.name,
-            overlays.len(),
-            doors.len(),
-            polygons.len()
-        );
-        Ok(Wed {
-            overlays,
-            doors,
-            polygons,
-            wall_groups,
-            wall_polygon_indexes,
-            verticles,
-            door_tile_cells,
-        })
-    }
-}
+pub use exporter::WedExporter;
+pub use importer::WedImporter;
 
 /// Represents a Wed file.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Wed {
     pub overlays: Vec<WedOverlay>,
     pub doors: Vec<WedDoor>,
-    pub polygons: Vec<WedPolygon>,
+    pub wall_polygons: Vec<WedPolygon>,
     pub wall_groups: Vec<WedWallGroup>,
     pub wall_polygon_indexes: Vec<u16>,
     pub verticles: Vec<WedVertex>,
@@ -218,8 +37,30 @@ pub struct WedOverlay {
     // Only used in Enhanced Editions
     // Values: ["Default", "Disable rendering", "Alternate rendering"]
     pub movement_type: u16,
-    pub tilemap_offset: u64,
-    pub tile_index_lookup_offset: u64,
+    /// One entry per overlay cell: `width * height` entries when the overlay
+    /// is used, empty for the unused secondary overlay slots that fill out
+    /// the 5-slot fixed table.
+    pub tilemap: Vec<WedTilemapEntry>,
+    /// Flat table of TIS tile indices referenced by [`WedTilemapEntry`]s of
+    /// this overlay through `start_index_in_lookup` / `count_in_lookup`.
+    pub tile_index_lookup: Vec<u16>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WedTilemapEntry {
+    /// Start index into the owning overlay's `tile_index_lookup`.
+    pub start_index_in_lookup: u16,
+    /// Number of consecutive lookup entries that belong to this cell
+    /// (animation frames cycle through them).
+    pub count_in_lookup: u16,
+    /// TIS tile index used as the alternate state for this cell
+    /// (e.g. lit/night), or `-1` when there is none.
+    pub secondary_tile_index: i16,
+    /// Bitmask of overlays drawn on top of this cell.
+    pub overlay_mask: u8,
+    /// Three trailing bytes the engine treats as unknown/padding. Preserved
+    /// verbatim so round-tripping is byte-exact.
+    pub unknown: [u8; 3],
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -228,10 +69,8 @@ pub struct WedDoor {
     pub state: WedDoorState,
     pub door_tile_cell_index: u16,
     pub door_tile_cell_count: u16,
-    pub polygon_open_state_count: u16,
-    pub polygon_closed_state_count: u16,
-    pub polygon_open_state_offset: u64,
-    pub polygon_closed_state_offset: u64,
+    pub open_polygons: Vec<WedPolygon>,
+    pub closed_polygons: Vec<WedPolygon>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -246,6 +85,13 @@ impl WedDoorState {
             0 => Ok(WedDoorState::Open),
             1 => Ok(WedDoorState::Closed),
             val => Err(std::io::Error::other(format!("Invalid door state: {val}"))),
+        }
+    }
+
+    pub fn to_u16(&self) -> u16 {
+        match self {
+            WedDoorState::Open => 0,
+            WedDoorState::Closed => 1,
         }
     }
 }
@@ -289,7 +135,6 @@ pub struct WedVertex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_test_utils::{get_assets_path, parse_json_file};
 
     #[test]
     fn test_wed_poligon_flag() {
@@ -317,28 +162,5 @@ mod tests {
             WedPolygonFlag::CoverAnimations.union(WedPolygonFlag::ShadeWall),
             WedPolygonFlag::from_bits_truncate(9)
         );
-    }
-
-    #[test]
-    fn test_parse_wed_file() {
-        let path = get_assets_path().join("KEY/bg2").join("override");
-        let web_path = path.join("ar0072.WED");
-        let json_path = path.join("ar0072.json");
-
-        let expected: Wed = parse_json_file(&json_path);
-
-        let actual = WedImporter { name: "wed_test" }
-            .import(&DataSource::new(web_path.as_path()))
-            .unwrap();
-
-        assert_eq!(actual.overlays.len(), 5);
-        assert_eq!(actual.doors.len(), 2);
-        assert_eq!(actual.polygons.len(), 94);
-        assert_eq!(actual.wall_groups.len(), 16);
-        assert_eq!(actual.wall_polygon_indexes.len(), 125);
-        assert_eq!(actual.verticles.len(), 2191);
-        assert_eq!(actual.door_tile_cells.len(), 11);
-
-        assert_eq!(actual, expected, "wed mismatch for ar0072.WED");
     }
 }
