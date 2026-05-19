@@ -45,11 +45,11 @@ infinitier_ids_importer = { path = "src/importers/ids_importer", version = "0.0.
 infinitier_ini_importer = { path = "src/importers/ini_importer", version = "0.0.4"  }
 infinitier_key_importer = { path = "src/importers/key_importer", version = "0.0.4"  }
 infinitier_two_da_importer = { path = "src/importers/two_da_importer", version = "0.0.4"  }
-infinitier_wed_importer = { path = "src/importers/wed_importer", version = "0.0.4"  }
 
 # Resources (read + write)
 infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.4"  }
 infinitier_pvrz_resource = { path = "src/resources/pvrz", version = "0.0.4"  }
+infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.4"  }
 
 bitflags = { version = "2", features = ["serde"] }
 bytesize = "2"

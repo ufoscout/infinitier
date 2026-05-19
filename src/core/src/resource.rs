@@ -49,5 +49,5 @@ pub mod two_da {
     pub use infinitier_two_da_importer::*;
 }
 pub mod wed {
-    pub use infinitier_wed_importer::*;
+    pub use infinitier_wed_resource::*;
 }

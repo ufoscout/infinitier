@@ -30,11 +30,11 @@ infinitier_ids_importer = { workspace = true }
 infinitier_ini_importer = { workspace = true }
 infinitier_key_importer = { workspace = true }
 infinitier_two_da_importer = { workspace = true }
-infinitier_wed_importer = { workspace = true }
 
 # Resources
 infinitier_bcs_resource = { workspace = true }
 infinitier_pvrz_resource = { workspace = true }
+infinitier_wed_resource = { workspace = true }
 
 image = { workspace = true }
 log = { workspace = true }

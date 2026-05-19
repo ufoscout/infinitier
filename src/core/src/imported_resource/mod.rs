@@ -1,7 +1,7 @@
 use infinitier_ids_importer::Ids;
 use infinitier_ini_importer::Ini;
 use infinitier_two_da_importer::TwoDA;
-use infinitier_wed_importer::Wed;
+use infinitier_wed_resource::Wed;
 
 use bam::ImportedBam;
 use bcs::ImportedBcs;

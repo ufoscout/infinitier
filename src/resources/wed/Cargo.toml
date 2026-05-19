@@ -1,5 +1,5 @@
 [package]
-name = "infinitier_wed_importer"
+name = "infinitier_wed_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true

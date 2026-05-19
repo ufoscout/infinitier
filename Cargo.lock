@@ -1978,7 +1978,7 @@ dependencies = [
  "infinitier_two_da_importer",
  "infinitier_wav_decoder",
  "infinitier_wbm_decoder",
- "infinitier_wed_importer",
+ "infinitier_wed_resource",
  "log",
  "tempfile",
  "thiserror 2.0.18",
@@ -2146,7 +2146,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "infinitier_wed_importer"
+name = "infinitier_wed_resource"
 version = "0.0.4"
 dependencies = [
  "bitflags 2.11.1",
