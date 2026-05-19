@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io;
 
 use image::{ImageBuffer, Rgba};
-use infinitier_bam_importer::{Bam, BamV1, BamV2, BamV2DataBlock, SharedRect, Type};
+use infinitier_bam_resource::{Bam, BamV1, BamV2, BamV2DataBlock, SharedRect, Type};
 use infinitier_common::ResourceType;
 use infinitier_datasource::Importer;
 use infinitier_pvrz_resource::{PvrzHeader, PvrzImporter};
@@ -39,7 +39,7 @@ pub struct BamCycle {
     /// Indices into [`ImportedBam::frames`] that make up this animation.
     pub frame_indices: Vec<usize>,
     /// Bounding box that fits every frame in the cycle when each is
-    /// positioned by its anchor — see [`infinitier_bam_importer::SharedRect`].
+    /// positioned by its anchor — see [`infinitier_bam_resource::SharedRect`].
     pub shared_rect: SharedRect,
 }
 
@@ -334,7 +334,7 @@ fn cycle_shared_rect(frame_indices: &[usize], frames: &[BamFrame]) -> SharedRect
 mod tests {
     use std::path::Path;
 
-    use infinitier_bam_importer::BamImporter;
+    use infinitier_bam_resource::BamImporter;
     use infinitier_common::Game;
     use infinitier_datasource::DataSource;
     use infinitier_test_utils::{assert_images_are_equal, get_assets_path};
@@ -425,8 +425,10 @@ mod tests {
 
     #[test]
     fn test_load_bam_v1_compressed() {
-        // BAMC is decompressed during import and surfaces as Bam::V1, so
-        // the loaded result must be identical to the decompressed copy.
+        // BAMC is decompressed during import and surfaces as Bam::V1 with
+        // its tag set to Type::BamC (so the exporter can round-trip back
+        // to BAMC); the decoded content must still match the corresponding
+        // plain BAM V1 file.
         let game_data = GameData::new(vec![], Game::Bg2);
         let bam = import_bam(&get_assets_path().join("BAM_V1/01/1chan03B_compressed.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
@@ -434,7 +436,8 @@ mod tests {
         let bam_dec = import_bam(&get_assets_path().join("BAM_V1/01/1chan03B_decompressed.BAM"));
         let imported_dec = ImportedBam::load(bam_dec, &game_data).unwrap();
 
-        assert_eq!(imported.bam_type, Type::BamV1);
+        assert_eq!(imported.bam_type, Type::BamC);
+        assert_eq!(imported_dec.bam_type, Type::BamV1);
         assert_eq!(imported.frames, imported_dec.frames);
         assert_eq!(imported.cycles, imported_dec.cycles);
     }

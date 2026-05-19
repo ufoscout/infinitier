@@ -19,7 +19,7 @@ pub use infinitier_common::*;
 // Importers
 
 pub mod bam {
-    pub use infinitier_bam_importer::*;
+    pub use infinitier_bam_resource::*;
 }
 pub mod bcs {
     pub use infinitier_bcs_resource::*;
@@ -31,7 +31,7 @@ pub mod bmp {
     pub use infinitier_bmp_resource::*;
 }
 pub mod common {
-    pub use infinitier_bam_importer::common::*;
+    pub use infinitier_bam_resource::common::*;
 }
 pub mod ids {
     pub use infinitier_ids_resource::*;

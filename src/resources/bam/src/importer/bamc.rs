@@ -3,13 +3,15 @@ use std::io::BufRead;
 use infinitier_datasource::{ReadExt, Reader};
 use log::{debug, error};
 
-use crate::{Bam, BamImporter, Type};
+use crate::{Bam, Type};
+
+use super::BamImporter;
 
 /// A BAMC file importer
 pub struct BamcParser;
 
 impl BamcParser {
-    /// Imports a BAMC file
+    /// Imports a BAMC file.
     pub fn import<R: BufRead>(reader: &mut Reader<R>) -> std::io::Result<Bam> {
         let signature = reader.read_string(8)?;
 
@@ -26,7 +28,14 @@ impl BamcParser {
         debug!("Decompressing BAMC data");
         let mut uncompressed_reader = reader.as_zip_reader().decode_all()?;
 
-        BamImporter::from_reader(&mut uncompressed_reader)
+        let inner = BamImporter::from_reader(&mut uncompressed_reader)?;
+        Ok(match inner {
+            Bam::V1(mut v1) => {
+                v1.r#type = Type::BamC;
+                Bam::V1(v1)
+            }
+            Bam::V2(v2) => Bam::V2(v2),
+        })
     }
 }
 
@@ -35,7 +44,7 @@ mod tests {
     use infinitier_datasource::DataSource;
     use infinitier_test_utils::get_assets_path;
 
-    use crate::bam_v1::BamV1Parser;
+    use super::super::v1::BamV1Parser;
 
     use super::*;
 
@@ -65,7 +74,21 @@ mod tests {
             BamcParser::import(&mut reader).unwrap()
         };
 
-        assert_eq!(Bam::V1(bam_from_decompressed), bam_from_compressed);
+        // BAMC and the corresponding plain BAM V1 differ only in the
+        // wrapper tag (`Type::BamC` vs `Type::BamV1`); their decoded
+        // content must match field-for-field.
+        let Bam::V1(bam_from_compressed) = bam_from_compressed else {
+            panic!("expected Bam::V1 from BAMC parser")
+        };
+        assert_eq!(bam_from_compressed.r#type, Type::BamC);
+        assert_eq!(bam_from_decompressed.r#type, Type::BamV1);
+        assert_eq!(bam_from_compressed.frames, bam_from_decompressed.frames);
+        assert_eq!(bam_from_compressed.cycles, bam_from_decompressed.cycles);
+        assert_eq!(bam_from_compressed.palette, bam_from_decompressed.palette);
+        assert_eq!(
+            bam_from_compressed.rle_compressed_color_index,
+            bam_from_decompressed.rle_compressed_color_index
+        );
     }
 
     #[test]
@@ -85,7 +108,21 @@ mod tests {
             BamcParser::import(&mut reader).unwrap()
         };
 
-        assert_eq!(Bam::V1(bam_from_decompressed), bam_from_compressed);
+        // BAMC and the corresponding plain BAM V1 differ only in the
+        // wrapper tag (`Type::BamC` vs `Type::BamV1`); their decoded
+        // content must match field-for-field.
+        let Bam::V1(bam_from_compressed) = bam_from_compressed else {
+            panic!("expected Bam::V1 from BAMC parser")
+        };
+        assert_eq!(bam_from_compressed.r#type, Type::BamC);
+        assert_eq!(bam_from_decompressed.r#type, Type::BamV1);
+        assert_eq!(bam_from_compressed.frames, bam_from_decompressed.frames);
+        assert_eq!(bam_from_compressed.cycles, bam_from_decompressed.cycles);
+        assert_eq!(bam_from_compressed.palette, bam_from_decompressed.palette);
+        assert_eq!(
+            bam_from_compressed.rle_compressed_color_index,
+            bam_from_decompressed.rle_compressed_color_index
+        );
     }
 
     #[test]
@@ -105,6 +142,20 @@ mod tests {
             BamcParser::import(&mut reader).unwrap()
         };
 
-        assert_eq!(Bam::V1(bam_from_decompressed), bam_from_compressed);
+        // BAMC and the corresponding plain BAM V1 differ only in the
+        // wrapper tag (`Type::BamC` vs `Type::BamV1`); their decoded
+        // content must match field-for-field.
+        let Bam::V1(bam_from_compressed) = bam_from_compressed else {
+            panic!("expected Bam::V1 from BAMC parser")
+        };
+        assert_eq!(bam_from_compressed.r#type, Type::BamC);
+        assert_eq!(bam_from_decompressed.r#type, Type::BamV1);
+        assert_eq!(bam_from_compressed.frames, bam_from_decompressed.frames);
+        assert_eq!(bam_from_compressed.cycles, bam_from_decompressed.cycles);
+        assert_eq!(bam_from_compressed.palette, bam_from_decompressed.palette);
+        assert_eq!(
+            bam_from_compressed.rle_compressed_color_index,
+            bam_from_decompressed.rle_compressed_color_index
+        );
     }
 }

@@ -1887,15 +1887,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "infinitier_bam_importer"
+name = "infinitier_bam_resource"
 version = "0.0.4"
 dependencies = [
+ "flate2",
  "image",
  "infinitier_datasource",
  "infinitier_fs",
  "infinitier_pvrz_resource",
  "infinitier_test_utils",
  "log",
+ "tempfile",
 ]
 
 [[package]]
@@ -1962,7 +1964,7 @@ version = "0.0.4"
 dependencies = [
  "image",
  "infinitier_acm_decoder",
- "infinitier_bam_importer",
+ "infinitier_bam_resource",
  "infinitier_bcs_resource",
  "infinitier_bif_resource",
  "infinitier_bik_decoder",

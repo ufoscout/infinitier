@@ -1,26 +1,24 @@
-#![doc = include_str!("../readme.md")]
-
 use std::io::{BufRead, Read, Seek};
 
 use infinitier_datasource::{Importer, Reader, SeekExt};
 use log::{debug, error};
 
-use crate::{bam_v1::BamV1Parser, bam_v2::BamV2Parser, bamc::BamcParser};
+use crate::{BAM_V1_SIGNATURE, BAM_V2_SIGNATURE, BAMC_SIGNATURE, Bam, Type};
 
-pub use bam_v1::{BamV1, BamV1Cycle, BamV1Frame, SharedRect};
-pub use bam_v2::{BamV2, BamV2Cycle, BamV2DataBlock, BamV2Frame};
+pub(crate) mod bamc;
+pub(crate) mod v1;
+pub(crate) mod v2;
 
-mod bam_v1;
-mod bam_v2;
-mod bamc;
-pub mod common;
+use bamc::BamcParser;
+use v1::BamV1Parser;
+use v2::BamV2Parser;
 
 /// A BAM file importer
 pub struct BamImporter<'a> {
     pub name: &'a str,
 }
 
-impl<'a> Importer for BamImporter<'a> {
+impl Importer for BamImporter<'_> {
     type T = Bam;
 
     fn import(&self, source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
@@ -53,35 +51,8 @@ impl BamImporter<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Type {
-    BamC,  // BAM Compressed V1
-    BamV1, // BAM V1
-    BamV2, // BAM V2
-}
-
-pub const BAM_V1_SIGNATURE: &str = "BAM V1  ";
-pub const BAM_V2_SIGNATURE: &str = "BAM V2  ";
-pub const BAMC_SIGNATURE: &str = "BAMCV1  ";
-
-impl Type {
-    pub fn signature(&self) -> &'static str {
-        match self {
-            Type::BamV1 => BAM_V1_SIGNATURE,
-            Type::BamV2 => BAM_V2_SIGNATURE,
-            Type::BamC => BAMC_SIGNATURE,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Bam {
-    V1(BamV1),
-    V2(BamV2),
-}
-
 /// Detects the type of a BAM file
-fn detect_bam_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
+pub fn detect_bam_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type> {
     let value = reader.read_string(8)?;
 
     match value.as_str() {

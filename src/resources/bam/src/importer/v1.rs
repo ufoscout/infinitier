@@ -5,7 +5,8 @@ use image::{ImageBuffer, Rgba};
 use infinitier_datasource::{ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
-use crate::{Type, common::Rgb};
+use crate::Type;
+use crate::common::Rgb;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BamV1 {

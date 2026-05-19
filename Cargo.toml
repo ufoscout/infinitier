@@ -7,7 +7,6 @@ members = [
     "src/infinitier_explorer",
     "src/fs",
     "src/test_utils",
-    "src/importers/*",
     "src/resources/*",
 ]
 resolver = "3"
@@ -37,9 +36,8 @@ infinitier_datasource = { path = "src/datasource", version = "0.0.4"  }
 infinitier_fs = { path = "src/fs", version = "0.0.4"  }
 infinitier_test_utils = { path = "src/test_utils" }
 
-# Importers
-infinitier_bam_importer = { path = "src/importers/bam_importer", version = "0.0.4"  }
 # Resources
+infinitier_bam_resource = { path = "src/resources/bam", version = "0.0.4"  }
 infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.4"  }
 infinitier_bif_resource = { path = "src/resources/bif", version = "0.0.4"  }
 infinitier_bmp_resource = { path = "src/resources/bmp", version = "0.0.4"  }

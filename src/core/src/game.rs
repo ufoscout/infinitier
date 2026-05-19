@@ -147,7 +147,7 @@ impl GameResource {
         use crate::imported_resource::{
             ImportedResource, bam::ImportedBam, bcs::ImportedBcs, image::ImportedImage,
         };
-        use infinitier_bam_importer::BamImporter;
+        use infinitier_bam_resource::BamImporter;
         use infinitier_bcs_resource::BcsImporter;
         use infinitier_bmp_resource::BmpImporter;
         use infinitier_ids_resource::IdsImporter;

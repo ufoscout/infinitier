@@ -22,10 +22,8 @@ infinitier_mve_decoder = { workspace = true }
 infinitier_wav_decoder = { workspace = true }
 infinitier_wbm_decoder = { workspace = true }
 
-# Importers
-infinitier_bam_importer = { workspace = true }
-
 # Resources
+infinitier_bam_resource = { workspace = true }
 infinitier_bcs_resource = { workspace = true }
 infinitier_bif_resource = { workspace = true }
 infinitier_bmp_resource = { workspace = true }
