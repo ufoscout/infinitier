@@ -33,11 +33,7 @@ pub fn get_assets_path() -> std::path::PathBuf {
 ///
 /// `tolerance` is the max allowed absolute per-channel delta (any R/G/B/A
 /// channel of any pixel). `None` means strict bytewise equality.
-pub fn assert_images_are_equal(
-    img_a: &DynamicImage,
-    img_b: &DynamicImage,
-    tolerance: Option<u8>,
-) {
+pub fn assert_images_are_equal(img_a: &DynamicImage, img_b: &DynamicImage, tolerance: Option<u8>) {
     if img_a.dimensions() != img_b.dimensions() {
         panic!("Images dimensions are different");
     }

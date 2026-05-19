@@ -31,8 +31,7 @@ impl PvrzExporter {
             PvrDataCompression::DXT1 => texpresso::Format::Bc1,
             PvrDataCompression::DXT5 => texpresso::Format::Bc3,
         };
-        let mut compressed =
-            vec![0u8; tex_format.compressed_size(width as usize, height as usize)];
+        let mut compressed = vec![0u8; tex_format.compressed_size(width as usize, height as usize)];
         tex_format.compress(
             image.as_raw(),
             width as usize,
