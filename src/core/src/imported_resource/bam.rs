@@ -5,7 +5,7 @@ use image::{ImageBuffer, Rgba};
 use infinitier_bam_resource::{Bam, BamV1, BamV2, BamV2DataBlock, SharedRect, Type};
 use infinitier_common::ResourceType;
 use infinitier_datasource::Importer;
-use infinitier_pvrz_resource::{PvrzHeader, PvrzImporter};
+use infinitier_pvrz_resource::{Pvrz, PvrzImporter};
 
 use crate::game::GameData;
 
@@ -131,8 +131,7 @@ fn load_v1(bam: BamV1) -> io::Result<ImportedBam> {
     })
 }
 
-type PvrzCache = HashMap<u32, (PvrzHeader, ImageBuffer<Rgba<u8>, Vec<u8>>)>;
-type PvrzEntry<'a> = (&'a PvrzHeader, &'a ImageBuffer<Rgba<u8>, Vec<u8>>);
+type PvrzCache = HashMap<u32, Pvrz>;
 
 fn load_v2(bam: BamV2, game_data: &GameData) -> io::Result<ImportedBam> {
     // PVRZ pages are shared across many BAM frames; decode each page
@@ -161,8 +160,8 @@ fn load_v2(bam: BamV2, game_data: &GameData) -> io::Result<ImportedBam> {
 
             let mut image = ImageBuffer::<Rgba<u8>, Vec<u8>>::new(frame.width, frame.height);
             for block in blocks {
-                let (header, source) = get_or_load_pvrz(&mut pvrz_cache, block, game_data)?;
-                paste_block(block, header, source, frame.width, image.as_mut());
+                let pvrz = get_or_load_pvrz(&mut pvrz_cache, block, game_data)?;
+                paste_block(block, pvrz, frame.width, image.as_mut());
             }
 
             Ok(BamFrame {
@@ -203,7 +202,7 @@ fn get_or_load_pvrz<'a>(
     cache: &'a mut PvrzCache,
     block: &BamV2DataBlock,
     game_data: &GameData,
-) -> io::Result<PvrzEntry<'a>> {
+) -> io::Result<&'a Pvrz> {
     if let std::collections::hash_map::Entry::Vacant(e) = cache.entry(block.pvrz_page) {
         // GameData stores names without extension, lowercased.
         let name = format!("mos{:04}", block.pvrz_page);
@@ -219,13 +218,10 @@ fn get_or_load_pvrz<'a>(
             .datasource
             .as_ref()
             .ok_or_else(|| io::Error::other(format!("PVRZ resource {} has no datasource", name)))?;
-        let importer = PvrzImporter { name: &name };
-        let header = importer.import(ds)?;
-        let image = PvrzImporter::to_image(&header, ds).map_err(io::Error::other)?;
-        e.insert((header, image));
+        let pvrz = PvrzImporter { name: &name }.import(ds)?;
+        e.insert(pvrz);
     }
-    let entry = cache.get(&block.pvrz_page).expect("just inserted");
-    Ok((&entry.0, &entry.1))
+    Ok(cache.get(&block.pvrz_page).expect("just inserted"))
 }
 
 /// Copy one BAM V2 data block out of a decoded PVRZ page and into the
@@ -234,34 +230,35 @@ fn get_or_load_pvrz<'a>(
 /// behaviour so malformed files don't crash.
 fn paste_block(
     block: &BamV2DataBlock,
-    source_header: &PvrzHeader,
-    source: &ImageBuffer<Rgba<u8>, Vec<u8>>,
+    source_pvrz: &Pvrz,
     target_width: u32,
     target_buffer: &mut [u8],
 ) {
     let mut w = block.width;
     let mut h = block.height;
-    if block.source_x_coordinate + w > source_header.width {
+    if block.source_x_coordinate + w > source_pvrz.header.width {
         log::warn!(
             "PVRZ {} texture width out of bounds: src_x={} w={} texture_w={}",
             block.pvrz_name(),
             block.source_x_coordinate,
             w,
-            source_header.width
+            source_pvrz.header.width
         );
-        w = source_header
+        w = source_pvrz
+            .header
             .width
             .saturating_sub(block.source_x_coordinate);
     }
-    if block.source_y_coordinate + h > source_header.height {
+    if block.source_y_coordinate + h > source_pvrz.header.height {
         log::warn!(
             "PVRZ {} texture height out of bounds: src_y={} h={} texture_h={}",
             block.pvrz_name(),
             block.source_y_coordinate,
             h,
-            source_header.height
+            source_pvrz.header.height
         );
-        h = source_header
+        h = source_pvrz
+            .header
             .height
             .saturating_sub(block.source_y_coordinate);
     }
@@ -269,13 +266,14 @@ fn paste_block(
         return;
     }
 
-    let source_raw = source.as_raw();
+    let source_raw = source_pvrz.image.as_raw();
     for row in 0..h {
         let block_source_row = block.source_y_coordinate + row;
         let block_destination_row = block.target_y_coordinate + row;
 
-        let source_start =
-            ((block_source_row * source_header.width + block.source_x_coordinate) * 4) as usize;
+        let source_start = ((block_source_row * source_pvrz.header.width
+            + block.source_x_coordinate)
+            * 4) as usize;
         let source_end = source_start + (w * 4) as usize;
 
         let target_start =

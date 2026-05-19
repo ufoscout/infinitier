@@ -185,7 +185,7 @@ impl GameResource {
                 .map(ImportedResource::Image),
             ResourceType::Pvrz => PvrzImporter { name: &self.name }
                 .import(ds)
-                .and_then(|header| ImportedImage::from_pvrz(header, ds))
+                .map(ImportedImage::from_pvrz)
                 .map(ImportedResource::Image),
             ResourceType::Ids => IdsImporter { name: &self.name }
                 .import(ds)

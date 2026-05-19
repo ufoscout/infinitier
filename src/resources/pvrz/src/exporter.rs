@@ -86,20 +86,20 @@ mod tests {
     #[test]
     fn test_export_dxt1_roundtrip() {
         let data = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
-        let pvrz_header = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
-        let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
+        let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let mut buf: Vec<u8> = Vec::new();
         PvrzExporter {
-            format: pvrz_header.pixel_format,
+            format: pvrz.header.pixel_format,
         }
-        .export(&image, &mut buf)
+        .export(&pvrz.image, &mut buf)
         .unwrap();
 
-        let data2 = DataSource::new(buf);
-        let header2 = PvrzImporter { name: "rt" }.import(&data2).unwrap();
+        let pvrz2 = PvrzImporter { name: "rt" }
+            .import(&DataSource::new(buf))
+            .unwrap();
         assert_eq!(
-            header2,
+            pvrz2.header,
             PvrzHeader {
                 version: 0x03525650,
                 flags: 0,
@@ -116,28 +116,27 @@ mod tests {
             }
         );
 
-        let image2 = PvrzImporter::to_image(&header2, &data2).unwrap();
         // BC1 is lossy but losses on this asset stay within a few levels.
-        assert_images_are_equal(&image.into(), &image2.into(), Some(8));
+        assert_images_are_equal(&pvrz.image.into(), &pvrz2.image.into(), Some(8));
     }
 
     #[test]
     fn test_export_dxt5_roundtrip() {
         let data = DataSource::new(get_assets_path().join("PVR_DXT5/MOS0000.PVRZ"));
-        let pvrz_header = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
-        let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
+        let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let mut buf: Vec<u8> = Vec::new();
         PvrzExporter {
-            format: pvrz_header.pixel_format,
+            format: pvrz.header.pixel_format,
         }
-        .export(&image, &mut buf)
+        .export(&pvrz.image, &mut buf)
         .unwrap();
 
-        let data2 = DataSource::new(buf);
-        let header2 = PvrzImporter { name: "rt" }.import(&data2).unwrap();
+        let pvrz2 = PvrzImporter { name: "rt" }
+            .import(&DataSource::new(buf))
+            .unwrap();
         assert_eq!(
-            header2,
+            pvrz2.header,
             PvrzHeader {
                 version: 0x03525650,
                 flags: 0,
@@ -154,32 +153,30 @@ mod tests {
             }
         );
 
-        let image2 = PvrzImporter::to_image(&header2, &data2).unwrap();
         // BC3's 8-bit alpha block quantizes far more coarsely than the
         // 565 color block, so alpha needs a much wider tolerance.
-        assert_images_are_equal(&image.into(), &image2.into(), Some(40));
+        assert_images_are_equal(&pvrz.image.into(), &pvrz2.image.into(), Some(40));
     }
 
     #[test]
     fn test_export_to_file_roundtrip() {
         let data = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
-        let pvrz_header = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
-        let image = PvrzImporter::to_image(&pvrz_header, &data).unwrap();
+        let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let tmp = tempfile::NamedTempFile::new().unwrap();
         PvrzExporter {
-            format: pvrz_header.pixel_format,
+            format: pvrz.header.pixel_format,
         }
-        .export_to_file(&image, tmp.path())
+        .export_to_file(&pvrz.image, tmp.path())
         .unwrap();
 
-        let data2 = DataSource::new(tmp.path().to_path_buf());
-        let header2 = PvrzImporter { name: "rt" }.import(&data2).unwrap();
-        assert_eq!(header2.width, image.width());
-        assert_eq!(header2.height, image.height());
-        assert_eq!(header2.pixel_format, PvrDataCompression::DXT1);
+        let pvrz2 = PvrzImporter { name: "rt" }
+            .import(&DataSource::new(tmp.path().to_path_buf()))
+            .unwrap();
+        assert_eq!(pvrz2.header.width, pvrz.image.width());
+        assert_eq!(pvrz2.header.height, pvrz.image.height());
+        assert_eq!(pvrz2.header.pixel_format, PvrDataCompression::DXT1);
 
-        let image2 = PvrzImporter::to_image(&header2, &data2).unwrap();
-        assert_images_are_equal(&image.into(), &image2.into(), Some(8));
+        assert_images_are_equal(&pvrz.image.into(), &pvrz2.image.into(), Some(8));
     }
 }

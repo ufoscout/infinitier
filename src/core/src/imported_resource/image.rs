@@ -4,12 +4,9 @@
 //! format's bespoke importer output, so adding a new image format is a
 //! single new constructor here rather than a fresh viewer.
 
-use std::io;
-
 use image::{ImageBuffer, Rgba};
 use infinitier_bmp_resource::{Bmp, BmpCompression};
-use infinitier_datasource::DataSource;
-use infinitier_pvrz_resource::{PvrDataCompression, PvrzHeader, PvrzImporter};
+use infinitier_pvrz_resource::{PvrDataCompression, Pvrz};
 
 /// A preloaded image plus the metadata of the format it came from.
 /// Pixel data is always RGBA8 regardless of source — callers don't need
@@ -56,18 +53,15 @@ impl ImportedImage {
         }
     }
 
-    /// Decode a PVRZ from its parsed header plus the data source the
-    /// header was read from. The pixel data is decompressed eagerly
-    /// (DXT1 or DXT5 → RGBA8) so the returned image is ready to upload
-    /// to the GPU.
-    pub fn from_pvrz(header: PvrzHeader, source: &DataSource) -> io::Result<Self> {
-        let image = PvrzImporter::to_image(&header, source).map_err(io::Error::other)?;
-        Ok(Self {
-            image,
+    /// Adopt an already-decoded [`Pvrz`]. The pixel buffer is moved into
+    /// the new wrapper, no allocation.
+    pub fn from_pvrz(pvrz: Pvrz) -> Self {
+        Self {
+            image: pvrz.image,
             source: ImageSource::Pvr {
-                pixel_format: header.pixel_format,
+                pixel_format: pvrz.header.pixel_format,
             },
-        })
+        }
     }
 
     /// Image width in pixels. Mirrors `self.image.width()`.
@@ -107,7 +101,8 @@ impl ImportedImage {
 #[cfg(test)]
 mod tests {
     use infinitier_bmp_resource::BmpImporter;
-    use infinitier_datasource::Importer;
+    use infinitier_datasource::{DataSource, Importer};
+    use infinitier_pvrz_resource::PvrzImporter;
     use infinitier_test_utils::get_assets_path;
 
     use super::*;
@@ -142,12 +137,12 @@ mod tests {
     #[test]
     fn test_from_pvrz_dxt1() {
         let ds = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
-        let header = PvrzImporter { name: "test_pvr" }.import(&ds).unwrap();
+        let pvrz = PvrzImporter { name: "test_pvr" }.import(&ds).unwrap();
         // Capture header values before `from_pvrz` takes ownership.
-        let (w, h) = (header.width, header.height);
-        let pixel_format = header.pixel_format;
+        let (w, h) = (pvrz.header.width, pvrz.header.height);
+        let pixel_format = pvrz.header.pixel_format;
 
-        let img = ImportedImage::from_pvrz(header, &ds).unwrap();
+        let img = ImportedImage::from_pvrz(pvrz);
 
         assert_eq!(img.width(), w);
         assert_eq!(img.height(), h);
@@ -164,8 +159,8 @@ mod tests {
     #[test]
     fn test_from_pvrz_dxt5() {
         let ds = DataSource::new(get_assets_path().join("PVR_DXT5/MOS0000.PVRZ"));
-        let header = PvrzImporter { name: "test_pvr" }.import(&ds).unwrap();
-        let img = ImportedImage::from_pvrz(header, &ds).unwrap();
+        let pvrz = PvrzImporter { name: "test_pvr" }.import(&ds).unwrap();
+        let img = ImportedImage::from_pvrz(pvrz);
 
         assert_eq!(img.format_label(), "PVR");
         // Sanity: PVR_DXT5 fixture has DXT5 pixel format.

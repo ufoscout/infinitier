@@ -203,36 +203,37 @@ impl BamV2 {
             let datasource = DataSource::new(pvrz_path.path());
 
             // TODO: Suboptimal: PVRZ images should be cached
-            let source_header = PvrzImporter {
+            let source_pvrz = PvrzImporter {
                 name: &block.pvrz_name(),
             }
             .import(&datasource)?;
-            let source_image = PvrzImporter::to_image(&source_header, &datasource)?;
-            let source_image_buffer = source_image.as_raw();
+            let source_image_buffer = source_pvrz.image.as_raw();
 
             let mut w = block.width;
             let mut h = block.height;
-            if block.source_x_coordinate + w > source_header.width {
+            if block.source_x_coordinate + w > source_pvrz.header.width {
                 log::warn!(
                     "PVRZ {} texture width out of bounds: src_x={} w={} texture_w={}",
                     block.pvrz_name(),
                     block.source_x_coordinate,
                     w,
-                    source_header.width
+                    source_pvrz.header.width
                 );
-                w = source_header
+                w = source_pvrz
+                    .header
                     .width
                     .saturating_sub(block.source_x_coordinate);
             }
-            if block.source_y_coordinate + h > source_header.height {
+            if block.source_y_coordinate + h > source_pvrz.header.height {
                 log::warn!(
                     "PVRZ {} texture height out of bounds: src_y={} h={} texture_h={}",
                     block.pvrz_name(),
                     block.source_y_coordinate,
                     h,
-                    source_header.height
+                    source_pvrz.header.height
                 );
-                h = source_header
+                h = source_pvrz
+                    .header
                     .height
                     .saturating_sub(block.source_y_coordinate);
             }
@@ -244,7 +245,7 @@ impl BamV2 {
                 let block_source_row = block.source_y_coordinate + row;
                 let block_destination_row = block.target_y_coordinate + row;
 
-                let source_start = ((block_source_row * source_header.width
+                let source_start = ((block_source_row * source_pvrz.header.width
                     + block.source_x_coordinate)
                     * 4) as usize;
                 let source_end = source_start + (w * 4) as usize;

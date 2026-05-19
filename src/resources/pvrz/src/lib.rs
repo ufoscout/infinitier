@@ -3,6 +3,7 @@
 // To decode PVR texture files check: https://crates.io/crates/texture2ddecoder
 // To encode them back: https://crates.io/crates/texpresso
 
+use image::{ImageBuffer, Rgba};
 use log::error;
 
 mod exporter;
@@ -10,6 +11,14 @@ mod importer;
 
 pub use exporter::PvrzExporter;
 pub use importer::PvrzImporter;
+
+/// A fully-decoded PVRZ texture: the parsed header plus the RGBA8 image
+/// produced by decompressing its DXT1/DXT5 payload.
+#[derive(Debug)]
+pub struct Pvrz {
+    pub header: PvrzHeader,
+    pub image: ImageBuffer<Rgba<u8>, Vec<u8>>,
+}
 
 /// A PVR header
 #[derive(Debug, PartialEq, Eq)]
