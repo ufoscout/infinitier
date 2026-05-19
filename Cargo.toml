@@ -40,7 +40,6 @@ infinitier_test_utils = { path = "src/test_utils" }
 # Importers
 infinitier_bam_importer = { path = "src/importers/bam_importer", version = "0.0.4"  }
 infinitier_bif_importer = { path = "src/importers/bif_importer", version = "0.0.4"  }
-infinitier_two_da_importer = { path = "src/importers/two_da_importer", version = "0.0.4"  }
 
 # Resources
 infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.4"  }
@@ -49,6 +48,7 @@ infinitier_ids_resource = { path = "src/resources/ids", version = "0.0.4"  }
 infinitier_ini_resource = { path = "src/resources/ini", version = "0.0.4"  }
 infinitier_key_resource = { path = "src/resources/key", version = "0.0.4"  }
 infinitier_pvrz_resource = { path = "src/resources/pvrz", version = "0.0.4"  }
+infinitier_two_da_resource = { path = "src/resources/two_da", version = "0.0.4"  }
 infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.4"  }
 
 bitflags = { version = "2", features = ["serde"] }

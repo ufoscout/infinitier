@@ -1,12 +1,12 @@
 [package]
-name = "infinitier_two_da_importer"
+name = "infinitier_two_da_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Reader for the 2DA two-dimensional array format used in Infinity Engine games"
+description = "Reader and writer for the 2DA two-dimensional array format used in Infinity Engine games"
 readme = "readme.md"
 keywords = ["2da", "table", "infinity-engine", "baldurs-gate"]
 
@@ -18,3 +18,4 @@ log = { workspace = true }
 [dev-dependencies]
 infinitier_fs = { workspace = true }
 infinitier_test_utils = { workspace = true }
+tempfile = { workspace = true }

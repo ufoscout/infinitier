@@ -1975,7 +1975,7 @@ dependencies = [
  "infinitier_mve_decoder",
  "infinitier_pvrz_resource",
  "infinitier_test_utils",
- "infinitier_two_da_importer",
+ "infinitier_two_da_resource",
  "infinitier_wav_decoder",
  "infinitier_wbm_decoder",
  "infinitier_wed_resource",
@@ -2109,7 +2109,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "infinitier_two_da_importer"
+name = "infinitier_two_da_resource"
 version = "0.0.4"
 dependencies = [
  "infinitier_datasource",
@@ -2117,6 +2117,7 @@ dependencies = [
  "infinitier_test_utils",
  "itertools",
  "log",
+ "tempfile",
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 use infinitier_ids_resource::Ids;
 use infinitier_ini_resource::Ini;
-use infinitier_two_da_importer::TwoDA;
+use infinitier_two_da_resource::TwoDA;
 use infinitier_wed_resource::Wed;
 
 use bam::ImportedBam;

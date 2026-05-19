@@ -1,5 +1,3 @@
-#![doc = include_str!("../readme.md")]
-
 use std::collections::HashMap;
 
 use itertools::{Itertools, chain};
@@ -7,12 +5,14 @@ use log::{debug, warn};
 
 use infinitier_datasource::{DataSource, Importer};
 
+use crate::TwoDA;
+
 /// A 2DA file importer
 pub struct TwoDAImporter<'a> {
     pub name: &'a str,
 }
 
-impl<'a> Importer for TwoDAImporter<'a> {
+impl Importer for TwoDAImporter<'_> {
     type T = TwoDA;
 
     fn import(&self, source: &DataSource) -> std::io::Result<TwoDA> {
@@ -48,20 +48,10 @@ impl<'a> Importer for TwoDAImporter<'a> {
         debug!("Loaded {} [2DA]: {} rows", self.name, rows.len());
         Ok(TwoDA {
             headers,
-            columns,
             default,
             rows,
         })
     }
-}
-
-/// Represents a 2DA file.
-#[derive(Debug)]
-pub struct TwoDA {
-    pub headers: Vec<String>,
-    pub columns: Vec<usize>,
-    pub default: String,
-    pub rows: HashMap<String, Vec<String>>,
 }
 
 /// Splits a string into (word, byte_start_index).
@@ -93,7 +83,7 @@ fn parse_headers(input: &str) -> (Vec<String>, Vec<usize>) {
 }
 
 /// Parse a single row using precomputed column positions.
-/// `columns` must come from `split_words_with_positions(header_line)`.
+/// `columns` must come from `parse_headers(header_line)`.
 fn parse_data_row(line: &str, columns: &[usize], default: &str) -> (String, Vec<String>) {
     let max_len = line.len();
     let key = line[0..columns[0].min(max_len)].trim().to_string();
@@ -303,7 +293,6 @@ mod tests {
                 "MIN_CHR".to_string()
             ]
         );
-        assert_eq!(two_da.columns, vec![24, 32, 40, 48, 56, 64]);
         assert_eq!(two_da.rows.len(), 51);
         assert_eq!(two_da.default, "0");
 

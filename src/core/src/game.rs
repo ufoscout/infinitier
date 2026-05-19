@@ -153,7 +153,7 @@ impl GameResource {
         use infinitier_ids_resource::IdsImporter;
         use infinitier_ini_resource::IniImporter;
         use infinitier_pvrz_resource::PvrzImporter;
-        use infinitier_two_da_importer::TwoDAImporter;
+        use infinitier_two_da_resource::TwoDAImporter;
         use infinitier_wed_resource::WedImporter;
 
         let ds = self
@@ -522,7 +522,7 @@ impl GameDataBuilder {
 #[cfg(test)]
 mod tests {
     use infinitier_test_utils::{constants::BG2_RESOURCES_DIR, get_assets_path};
-    use infinitier_two_da_importer::TwoDAImporter;
+    use infinitier_two_da_resource::TwoDAImporter;
     use infinitier_wed_resource::WedImporter;
 
     use super::*;

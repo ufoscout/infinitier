@@ -46,7 +46,7 @@ pub mod pvr {
     pub use infinitier_pvrz_resource::*;
 }
 pub mod two_da {
-    pub use infinitier_two_da_importer::*;
+    pub use infinitier_two_da_resource::*;
 }
 pub mod wed {
     pub use infinitier_wed_resource::*;
