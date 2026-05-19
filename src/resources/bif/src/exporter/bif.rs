@@ -22,7 +22,11 @@ use flate2::write::ZlibEncoder;
 
 use crate::BIF_V1_0_SIGNATURE;
 
-pub(super) fn write_bif_v1<W: Write>(biff_bytes: &[u8], name: &str, writer: &mut W) -> io::Result<()> {
+pub(super) fn write_bif_v1<W: Write>(
+    biff_bytes: &[u8],
+    name: &str,
+    writer: &mut W,
+) -> io::Result<()> {
     // Compress the BIFF V1 payload into a buffer first so we can write the
     // header (which contains both uncompressed and compressed sizes) in one
     // go. The archives we round-trip are small enough that an extra
@@ -37,10 +41,10 @@ pub(super) fn write_bif_v1<W: Write>(biff_bytes: &[u8], name: &str, writer: &mut
     let name_bytes = name.as_bytes();
     let name_length = u32::try_from(name_bytes.len() + 1)
         .map_err(|_| io::Error::other("BIF V1.0 name too long"))?;
-    let uncompressed_size =
-        u32::try_from(biff_bytes.len()).map_err(|_| io::Error::other("BIF V1.0 inner payload exceeds 4 GiB"))?;
-    let compressed_size =
-        u32::try_from(compressed.len()).map_err(|_| io::Error::other("BIF V1.0 zlib stream exceeds 4 GiB"))?;
+    let uncompressed_size = u32::try_from(biff_bytes.len())
+        .map_err(|_| io::Error::other("BIF V1.0 inner payload exceeds 4 GiB"))?;
+    let compressed_size = u32::try_from(compressed.len())
+        .map_err(|_| io::Error::other("BIF V1.0 zlib stream exceeds 4 GiB"))?;
 
     writer.write_all(BIF_V1_0_SIGNATURE.as_bytes())?;
     writer.write_all(&name_length.to_le_bytes())?;

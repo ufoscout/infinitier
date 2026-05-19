@@ -118,11 +118,7 @@ mod tests {
             .unwrap()
     }
 
-    fn make_two_da(
-        headers: &[&str],
-        default: &str,
-        rows: &[(&str, Vec<&str>)],
-    ) -> TwoDA {
+    fn make_two_da(headers: &[&str], default: &str, rows: &[(&str, Vec<&str>)]) -> TwoDA {
         TwoDA {
             headers: headers.iter().map(|s| s.to_string()).collect(),
             default: default.to_string(),
@@ -143,10 +139,7 @@ mod tests {
         let original = make_two_da(
             &["A", "B", "C"],
             "0",
-            &[
-                ("ROW1", vec!["1", "2", "3"]),
-                ("ROW2", vec!["4", "5", "6"]),
-            ],
+            &[("ROW1", vec!["1", "2", "3"]), ("ROW2", vec!["4", "5", "6"])],
         );
         assert!(two_da_eq(&roundtrip(&original), &original));
     }
@@ -170,11 +163,7 @@ mod tests {
     fn test_export_preserves_values_wider_than_headers() {
         // Value "12" is wider than header "A" (one char) — column must widen
         // to fit values, not just headers.
-        let original = make_two_da(
-            &["A", "B"],
-            "0",
-            &[("ROW", vec!["12345", "67890"])],
-        );
+        let original = make_two_da(&["A", "B"], "0", &[("ROW", vec!["12345", "67890"])]);
         assert!(two_da_eq(&roundtrip(&original), &original));
     }
 
@@ -203,18 +192,14 @@ mod tests {
 
     #[test]
     fn test_export_to_file_roundtrip() {
-        let original = make_two_da(
-            &["A", "B"],
-            "0",
-            &[("ROW", vec!["1", "2"])],
-        );
+        let original = make_two_da(&["A", "B"], "0", &[("ROW", vec!["1", "2"])]);
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        TwoDAExporter
-            .export_to_file(&original, tmp.path())
-            .unwrap();
-        let rt = TwoDAImporter { name: "2da_rt_file" }
-            .import(&DataSource::new(tmp.path().to_path_buf()))
-            .unwrap();
+        TwoDAExporter.export_to_file(&original, tmp.path()).unwrap();
+        let rt = TwoDAImporter {
+            name: "2da_rt_file",
+        }
+        .import(&DataSource::new(tmp.path().to_path_buf()))
+        .unwrap();
         assert!(two_da_eq(&rt, &original));
     }
 
@@ -225,9 +210,11 @@ mod tests {
             .unwrap()
             .get_path("override/AbClasRq.2DA")
             .unwrap();
-        let original = TwoDAImporter { name: "2da_rt_real" }
-            .import(&DataSource::new(path.path()))
-            .unwrap();
+        let original = TwoDAImporter {
+            name: "2da_rt_real",
+        }
+        .import(&DataSource::new(path.path()))
+        .unwrap();
         let rt = roundtrip(&original);
         assert!(two_da_eq(&rt, &original));
     }

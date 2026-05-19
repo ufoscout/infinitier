@@ -297,9 +297,11 @@ mod tests {
         let path = get_assets_path().join("KEY/bg2").join("override");
         let wed_path = path.join("ar0072.WED");
         let json_path = path.join("ar0072.json");
-        let wed = WedImporter { name: "fixture_regen" }
-            .import(&DataSource::new(wed_path.as_path()))
-            .unwrap();
+        let wed = WedImporter {
+            name: "fixture_regen",
+        }
+        .import(&DataSource::new(wed_path.as_path()))
+        .unwrap();
         let json = serde_json::to_string_pretty(&wed).unwrap();
         std::fs::write(&json_path, json).unwrap();
     }

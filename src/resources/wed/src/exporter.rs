@@ -248,9 +248,11 @@ mod tests {
         let mut buf: Vec<u8> = Vec::new();
         WedExporter.export(&original, &mut buf).unwrap();
 
-        let re_imported = WedImporter { name: "wed_test_rt" }
-            .import(&DataSource::new(buf))
-            .unwrap();
+        let re_imported = WedImporter {
+            name: "wed_test_rt",
+        }
+        .import(&DataSource::new(buf))
+        .unwrap();
 
         assert_eq!(original, re_imported);
     }
@@ -289,9 +291,11 @@ mod tests {
         let tmp = tempfile::NamedTempFile::new().unwrap();
         WedExporter.export_to_file(&original, tmp.path()).unwrap();
 
-        let re_imported = WedImporter { name: "wed_test_rt" }
-            .import(&DataSource::new(tmp.path().to_path_buf()))
-            .unwrap();
+        let re_imported = WedImporter {
+            name: "wed_test_rt",
+        }
+        .import(&DataSource::new(tmp.path().to_path_buf()))
+        .unwrap();
 
         assert_eq!(original, re_imported);
     }

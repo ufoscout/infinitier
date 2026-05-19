@@ -121,8 +121,7 @@ fn build_biff_v1(bif: &Bif) -> io::Result<Vec<u8>> {
 
     let files_offset = u32::try_from(out.len())
         .map_err(|_| io::Error::other("BIFF V1 entries table beyond 4 GiB"))?;
-    out[files_offset_field..files_offset_field + 4]
-        .copy_from_slice(&files_offset.to_le_bytes());
+    out[files_offset_field..files_offset_field + 4].copy_from_slice(&files_offset.to_le_bytes());
 
     // File entries (16 bytes each), in original resource-vec order.
     for (i, resource) in bif.resources.iter().enumerate() {
@@ -177,11 +176,7 @@ mod tests {
     fn assert_bifs_functionally_equal(a: &Bif, b: &Bif) {
         assert_eq!(a.name, b.name, "name");
         assert_eq!(a.r#type, b.r#type, "type");
-        assert_eq!(
-            a.resources.len(),
-            b.resources.len(),
-            "resource count"
-        );
+        assert_eq!(a.resources.len(), b.resources.len(), "resource count");
         let mut a_reader = a.datasource.reader().unwrap();
         let mut b_reader = b.datasource.reader().unwrap();
         for (i, (ra, rb)) in a.resources.iter().zip(b.resources.iter()).enumerate() {

@@ -123,9 +123,11 @@ mod tests {
         };
         let tmp = tempfile::NamedTempFile::new().unwrap();
         IdsExporter.export_to_file(&ids, tmp.path()).unwrap();
-        let rt = IdsImporter { name: "ids_rt_file" }
-            .import(&DataSource::new(tmp.path().to_path_buf()))
-            .unwrap();
+        let rt = IdsImporter {
+            name: "ids_rt_file",
+        }
+        .import(&DataSource::new(tmp.path().to_path_buf()))
+        .unwrap();
         assert_eq!(rt, ids);
     }
 
@@ -142,7 +144,12 @@ mod tests {
                 .import(&DataSource::new(ids_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ids_path.display()));
             let rt = roundtrip(&original);
-            assert_eq!(rt, original, "round-trip mismatch for {}", ids_path.display());
+            assert_eq!(
+                rt,
+                original,
+                "round-trip mismatch for {}",
+                ids_path.display()
+            );
         }
     }
 }

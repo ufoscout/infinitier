@@ -155,9 +155,11 @@ mod tests {
         };
         let tmp = tempfile::NamedTempFile::new().unwrap();
         IniExporter.export_to_file(&ini, tmp.path()).unwrap();
-        let rt = IniImporter { name: "ini_rt_file" }
-            .import(&DataSource::new(tmp.path().to_path_buf()))
-            .unwrap();
+        let rt = IniImporter {
+            name: "ini_rt_file",
+        }
+        .import(&DataSource::new(tmp.path().to_path_buf()))
+        .unwrap();
         assert_eq!(rt, ini);
     }
 
@@ -174,7 +176,12 @@ mod tests {
                 .import(&DataSource::new(ini_path.as_path()))
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ini_path.display()));
             let rt = roundtrip(&original);
-            assert_eq!(rt, original, "round-trip mismatch for {}", ini_path.display());
+            assert_eq!(
+                rt,
+                original,
+                "round-trip mismatch for {}",
+                ini_path.display()
+            );
         }
     }
 }

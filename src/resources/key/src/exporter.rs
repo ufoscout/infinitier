@@ -39,13 +39,13 @@ impl KeyExporter {
 }
 
 fn build_bytes(key: &Key) -> io::Result<Vec<u8>> {
-    let is_demo = match detect_demo(key)? {
-        Some(d) => d,
-        // No BIF entries: format choice is irrelevant; pick standard.
-        None => false,
-    };
+    let is_demo = detect_demo(key)?.unwrap_or_default();
 
-    let bif_entry_size = if is_demo { BIF_ENTRY_DEMO } else { BIF_ENTRY_STD };
+    let bif_entry_size = if is_demo {
+        BIF_ENTRY_DEMO
+    } else {
+        BIF_ENTRY_STD
+    };
 
     let n_bifs = key.bif_entries.len() as u32;
     let n_resources = key.resource_entries.len() as u32;
