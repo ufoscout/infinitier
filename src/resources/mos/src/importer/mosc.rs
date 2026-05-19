@@ -18,7 +18,7 @@ use std::io::{BufRead, Read};
 use infinitier_datasource::{ReadExt, Reader};
 use log::{debug, error};
 
-use crate::{Mos, MOSC_V1_SIGNATURE, Type};
+use crate::{MOSC_V1_SIGNATURE, Mos, Type};
 
 use super::MosImporter;
 
@@ -66,8 +66,8 @@ mod tests {
     use infinitier_datasource::DataSource;
     use infinitier_test_utils::{assert_images_are_equal, get_assets_path};
 
-    use super::*;
     use super::super::v1::MosV1Parser;
+    use super::*;
 
     #[test]
     fn test_parse_mosc_should_fail_if_wrong_signature() {

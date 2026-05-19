@@ -73,7 +73,11 @@ impl MosV1 {
                 for x in 0..block.width {
                     let i = (y * block.width + x) as usize;
                     let p = &block.palette[block.pixel_palette_indexes[i] as usize];
-                    let alpha = if p.r == 0 && p.g == 255 && p.b == 0 { 0 } else { 255 };
+                    let alpha = if p.r == 0 && p.g == 255 && p.b == 0 {
+                        0
+                    } else {
+                        255
+                    };
                     img.put_pixel(x0 + x, y0 + y, Rgba([p.r, p.g, p.b, alpha]));
                 }
             }
