@@ -10,7 +10,7 @@ use infinitier_bif_importer::{BifEmbeddedResource, BifImporter};
 use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CiPath};
-use infinitier_key_importer::KeyImporter;
+use infinitier_key_resource::KeyImporter;
 use infinitier_wav_decoder::WavDecoder;
 use log::{debug, warn};
 

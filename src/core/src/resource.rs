@@ -40,7 +40,7 @@ pub mod ini {
     pub use infinitier_ini_resource::*;
 }
 pub mod key {
-    pub use infinitier_key_importer::*;
+    pub use infinitier_key_resource::*;
 }
 pub mod pvr {
     pub use infinitier_pvrz_resource::*;

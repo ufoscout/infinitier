@@ -1,12 +1,12 @@
 [package]
-name = "infinitier_key_importer"
+name = "infinitier_key_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Reader for the KEY resource index format used in Infinity Engine games"
+description = "Reader and writer for the KEY resource index format used in Infinity Engine games"
 readme = "readme.md"
 keywords = ["key", "chitin", "index", "infinity-engine", "baldurs-gate"]
 
@@ -19,3 +19,5 @@ serde = { workspace = true }
 [dev-dependencies]
 infinitier_fs = { workspace = true }
 infinitier_test_utils = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }

@@ -25,7 +25,6 @@ infinitier_wbm_decoder = { workspace = true }
 # Importers
 infinitier_bam_importer = { workspace = true }
 infinitier_bif_importer = { workspace = true }
-infinitier_key_importer = { workspace = true }
 infinitier_two_da_importer = { workspace = true }
 
 # Resources
@@ -33,6 +32,7 @@ infinitier_bcs_resource = { workspace = true }
 infinitier_bmp_resource = { workspace = true }
 infinitier_ids_resource = { workspace = true }
 infinitier_ini_resource = { workspace = true }
+infinitier_key_resource = { workspace = true }
 infinitier_pvrz_resource = { workspace = true }
 infinitier_wed_resource = { workspace = true }
 

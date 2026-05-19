@@ -1,8 +1,6 @@
 {
   "signature": "KEY",
   "version": "V1",
-  "resources_offset": 5449,
-  "bif_offset": 24,
   "bif_entries": [
     {
       "index": 0,
