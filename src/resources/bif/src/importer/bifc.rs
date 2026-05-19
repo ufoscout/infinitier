@@ -1,7 +1,8 @@
 use infinitier_datasource::{Data, DataSource, ReadExt, Reader, TempFileGenerator};
 use log::{debug, error};
 
-use crate::{BIFCV1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
+use crate::importer::biff::BiffParser;
+use crate::{BIFCV1_0_SIGNATURE, Bif, Type};
 use std::{
     collections::VecDeque,
     io::{BufRead, Read, Seek},

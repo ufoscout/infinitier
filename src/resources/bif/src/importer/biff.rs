@@ -3,10 +3,8 @@ use std::io::{Read, Seek};
 use infinitier_datasource::{DataSource, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
-use crate::{
-    BIFFV1_SIGNATURE, Bif, BifEmbeddedResource, Type, parse_bif_embedded_file,
-    parse_bif_embedded_tileset,
-};
+use crate::importer::{parse_bif_embedded_file, parse_bif_embedded_tileset};
+use crate::{BIFFV1_SIGNATURE, Bif, BifEmbeddedResource, Type};
 
 /// A BIFF V1 file importer
 pub struct BiffParser {}

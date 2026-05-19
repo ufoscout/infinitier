@@ -6,7 +6,7 @@ use std::{
 };
 
 use infinitier_acm_decoder::AcmDecoder;
-use infinitier_bif_importer::{BifEmbeddedResource, BifImporter};
+use infinitier_bif_resource::{BifEmbeddedResource, BifImporter};
 use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CiPath};

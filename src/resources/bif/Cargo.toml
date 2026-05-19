@@ -1,16 +1,17 @@
 [package]
-name = "infinitier_bif_importer"
+name = "infinitier_bif_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Reader for the BIF/BIFF/BIFC resource archive format used in Infinity Engine games"
+description = "Reader and writer for the BIF/BIFF/BIFC resource archive format used in Infinity Engine games"
 readme = "readme.md"
 keywords = ["bif", "biff", "archive", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
+flate2 = { workspace = true }
 infinitier_common = { workspace = true }
 infinitier_datasource = { workspace = true }
 log = { workspace = true }

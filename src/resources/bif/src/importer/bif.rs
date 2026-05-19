@@ -3,7 +3,8 @@ use std::sync::Arc;
 use infinitier_datasource::{Data, DataSource, ReadExt, TempFileGenerator};
 use log::{debug, error};
 
-use crate::{BIF_V1_0_SIGNATURE, Bif, Type, biff_reader::BiffParser};
+use crate::importer::biff::BiffParser;
+use crate::{BIF_V1_0_SIGNATURE, Bif, Type};
 
 /// A BIFC V1 file importer
 pub struct BifParser;

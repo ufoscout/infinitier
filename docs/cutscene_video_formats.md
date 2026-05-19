@@ -43,7 +43,7 @@ Packed inside BIF archives. Counts in the table above come from
 `grep -ac "Interplay MVE File"` against each BIF — a reliable proxy
 because every MVE file starts with that 26-byte signature. The MVEs
 are extractable through any BIF tool (NearInfinity, our
-`infinitier_bif_importer`, etc.) and then playable by
+`infinitier_bif_resource`, etc.) and then playable by
 `infinitier_mve_decoder`.
 
 ### 3. Every Enhanced Edition cutscene is WebM under a `.wbm` extension.

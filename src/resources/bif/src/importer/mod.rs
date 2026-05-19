@@ -1,25 +1,29 @@
-#![doc = include_str!("../readme.md")]
-
-mod bif_reader;
-mod bifc_reader;
-mod biff_reader;
-
 use infinitier_common::ResourceType;
 use infinitier_datasource::{DataSource, Importer, ReadExt, Reader};
 use log::{error, trace};
 use std::io::Read;
 
-use crate::{bif_reader::BifParser, bifc_reader::BifcParser, biff_reader::BiffParser};
+use crate::{
+    BIF_V1_0_SIGNATURE, BIFCV1_0_SIGNATURE, BIFFV1_SIGNATURE, Bif, BifEmbeddedResource, Type,
+};
+
+mod bif;
+mod bifc;
+mod biff;
+
+pub(crate) use bif::BifParser;
+pub(crate) use bifc::BifcParser;
+pub(crate) use biff::BiffParser;
 
 /// A BIF file importer
 pub struct BifImporter<'a> {
     pub name: &'a str,
 }
 
-impl<'a> Importer for BifImporter<'a> {
+impl Importer for BifImporter<'_> {
     type T = Bif;
 
-    fn import(&self, source: &infinitier_datasource::DataSource) -> std::io::Result<Self::T> {
+    fn import(&self, source: &DataSource) -> std::io::Result<Self::T> {
         let reader = &mut source.reader()?;
 
         match detect_biff_type(reader)? {
@@ -28,55 +32,6 @@ impl<'a> Importer for BifImporter<'a> {
             Type::Bifc => BifcParser::import(source, self.name),
         }
     }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Type {
-    Biff, // BIFF V1
-    Bif,  // BIFC V1   (compressed)
-    Bifc, // BIFC V1.0 (compressed)
-}
-
-pub const BIFFV1_SIGNATURE: &str = "BIFFV1  ";
-pub const BIF_V1_0_SIGNATURE: &str = "BIF V1.0";
-pub const BIFCV1_0_SIGNATURE: &str = "BIFCV1.0";
-
-impl Type {
-    pub fn signature(&self) -> &'static str {
-        match self {
-            Type::Biff => BIFFV1_SIGNATURE,
-            Type::Bif => BIF_V1_0_SIGNATURE,
-            Type::Bifc => BIFCV1_0_SIGNATURE,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Bif {
-    pub name: String,
-    pub r#type: Type,
-    pub resources: Vec<BifEmbeddedResource>,
-    /// DataSource for reading embedded resource data.
-    /// For uncompressed BIFF V1 this points to the original file;
-    /// for compressed formats it points to the in-memory decompressed bytes.
-    pub datasource: DataSource,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum BifEmbeddedResource {
-    File {
-        locator: u32,
-        size: u32,
-        offset: u64,
-        r#type: ResourceType,
-    },
-    Tileset {
-        locator: u32,
-        size: u32,
-        count: u32,
-        offset: u64,
-        r#type: ResourceType,
-    },
 }
 
 /// Detects the type of a BIFF file
@@ -106,7 +61,7 @@ pub fn detect_biff_type<R: Read>(reader: &mut Reader<R>) -> std::io::Result<Type
     }
 }
 
-pub fn parse_bif_embedded_file<R: Read>(
+pub(crate) fn parse_bif_embedded_file<R: Read>(
     reader: &mut Reader<R>,
 ) -> std::io::Result<BifEmbeddedResource> {
     let locator = reader.read_u32()? & 0xfffff;
@@ -123,7 +78,7 @@ pub fn parse_bif_embedded_file<R: Read>(
     })
 }
 
-pub fn parse_bif_embedded_tileset<R: Read>(
+pub(crate) fn parse_bif_embedded_tileset<R: Read>(
     reader: &mut Reader<R>,
 ) -> std::io::Result<BifEmbeddedResource> {
     let locator = reader.read_u32()? & 0xfffff;
