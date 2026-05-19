@@ -11,10 +11,13 @@ readme = "readme.md"
 keywords = ["pvrz", "pvr", "texture", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
+flate2 = { workspace = true }
 image = { workspace = true }
 infinitier_datasource = { workspace = true }
 log = { workspace = true }
+texpresso = { workspace = true }
 texture2ddecoder = { workspace = true }
 
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }
+tempfile = { workspace = true }

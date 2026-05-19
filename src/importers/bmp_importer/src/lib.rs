@@ -144,7 +144,7 @@ mod tests {
 
         let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
 
-        assert_images_are_equal(&bmp.image.clone().into(), &original);
+        assert_images_are_equal(&bmp.image.clone().into(), &original, None);
     }
 
     #[test]
@@ -155,7 +155,7 @@ mod tests {
 
         let bmp = BmpImporter { name: "bmp_name" }.import(&data).unwrap();
 
-        assert_images_are_equal(&bmp.image.clone().into(), &original);
+        assert_images_are_equal(&bmp.image.clone().into(), &original, None);
     }
 
     #[test]

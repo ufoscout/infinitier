@@ -29,14 +29,41 @@ pub fn get_assets_path() -> std::path::PathBuf {
     get_root_path().join("assets")
 }
 
-/// Asserts that two images are equal
-pub fn assert_images_are_equal(img_a: &DynamicImage, img_b: &DynamicImage) {
+/// Asserts that two images are equal.
+///
+/// `tolerance` is the max allowed absolute per-channel delta (any R/G/B/A
+/// channel of any pixel). `None` means strict bytewise equality.
+pub fn assert_images_are_equal(
+    img_a: &DynamicImage,
+    img_b: &DynamicImage,
+    tolerance: Option<u8>,
+) {
     if img_a.dimensions() != img_b.dimensions() {
         panic!("Images dimensions are different");
     }
 
-    if img_a.to_rgba8() != img_b.to_rgba8() {
-        panic!("Images bytes are different");
+    let a = img_a.to_rgba8();
+    let b = img_b.to_rgba8();
+
+    match tolerance {
+        None => {
+            if a != b {
+                panic!("Images bytes are different");
+            }
+        }
+        Some(t) => {
+            for (i, (pa, pb)) in a.chunks_exact(4).zip(b.chunks_exact(4)).enumerate() {
+                for c in 0..4 {
+                    let d = pa[c].abs_diff(pb[c]);
+                    if d > t {
+                        panic!(
+                            "Pixel {} channel {} differs by {} (a={:?}, b={:?}, tolerance={})",
+                            i, c, d, pa, pb, t
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 

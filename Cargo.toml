@@ -71,6 +71,10 @@ thiserror = "2"
 # We can switch to image-extras when this PR is merged: https://github.com/image-rs/image-extras/pull/16
 texture2ddecoder = "0.1"
 
+# BC1/BC3 (DXT1/DXT5) encoder used to write PVR files back from a decoded
+# ImageBuffer. Pure Rust port of libsquish.
+texpresso = "2"
+
 # Audio playback
 rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }
 

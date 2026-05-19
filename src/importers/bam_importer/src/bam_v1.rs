@@ -275,6 +275,7 @@ mod tests {
             assert_images_are_equal(
                 &image::open(get_assets_path().join("BAM_V1/01/1chan03B00000.PNG")).unwrap(),
                 &image.into(),
+                None,
             );
         }
     }
@@ -316,6 +317,7 @@ mod tests {
                     &image::open(get_assets_path().join(format!("BAM_V1/02/SPHEART000{i:02}.PNG")))
                         .unwrap(),
                     &image.into(),
+                    None,
                 );
             }
         }
@@ -349,6 +351,7 @@ mod tests {
             assert_images_are_equal(
                 &image::open(get_assets_path().join("BAM_V1/03/SPWI524D00000.PNG")).unwrap(),
                 &image.into(),
+                None,
             );
         }
     }

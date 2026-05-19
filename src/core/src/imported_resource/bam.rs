@@ -419,6 +419,7 @@ mod tests {
         assert_images_are_equal(
             &image::open(get_assets_path().join("BAM_V1/01/1chan03B00000.PNG")).unwrap(),
             &imported.frames[0].image.clone().into(),
+            None,
         );
     }
 
@@ -457,7 +458,7 @@ mod tests {
             let reference =
                 image::open(get_assets_path().join(format!("BAM_V1/02/SPHEART000{i:02}.PNG")))
                     .unwrap();
-            assert_images_are_equal(&reference, &frame.image.clone().into());
+            assert_images_are_equal(&reference, &frame.image.clone().into(), None);
         }
     }
 
@@ -497,6 +498,7 @@ mod tests {
         assert_images_are_equal(
             &image::open(asset_dir.join("1CHELM0300000.PNG")).unwrap(),
             &imported.frames[0].image.clone().into(),
+            None,
         );
     }
 

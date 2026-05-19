@@ -340,6 +340,7 @@ mod tests {
             assert_images_are_equal(
                 &image::open(get_assets_path().join("BAM_V2/1CHELM0300000.PNG")).unwrap(),
                 &image.into(),
+                None,
             );
         }
     }
