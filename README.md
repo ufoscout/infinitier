@@ -58,7 +58,7 @@ just check_code  # rustfmt + clippy
 | LUA | Lua script | |
 | MAZE | Maze data (IWD2) | |
 | MENU | WeiDU menu | |
-| MOS | Background mosaic image | |
+| MOS | Background mosaic image | Done |
 | MUS | Music playlist | |
 | MVE | Interplay MVE video | Done (both `Interplay MVE` and `BIKi`) |
 | PLT | Paperdoll layered bitmap | |
@@ -70,7 +70,7 @@ just check_code  # rustfmt + clippy
 | SPL | Spell | |
 | SRC | Script source | |
 | STO | Store / shop | |
-| TIS | Tileset | |
+| TIS | Tileset | Done |
 | TLK | String table | |
 | TOH | String override header (EE) | |
 | TOT | String override table (EE) | |

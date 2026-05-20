@@ -1,8 +1,10 @@
 #![doc = include_str!("../readme.md")]
 
 pub mod common;
+mod exporter;
 mod importer;
 
+pub use exporter::TisExporter;
 pub use importer::palette::{TisPalette, TisPaletteTile};
 pub use importer::pvrz::{TisPvrz, TisPvrzTile};
 pub use importer::{TisImporter, detect_tis_type};

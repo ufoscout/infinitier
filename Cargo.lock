@@ -2146,10 +2146,12 @@ dependencies = [
 name = "infinitier_tis_resource"
 version = "0.0.5"
 dependencies = [
+ "color_quant",
  "image",
  "infinitier_datasource",
  "infinitier_test_utils",
  "log",
+ "tempfile",
 ]
 
 [[package]]
