@@ -49,7 +49,7 @@ just check_code  # rustfmt + clippy
 | CRE | Creature | | |
 | DLG | Dialogue tree | | |
 | EFF | Effect | | |
-| FNT | Font | | |
+| FNT | Font | Partially done (not clear what the data after the header is for. Both NearInfinity and GemRB seem to ignore it) | Not needed |
 | GAM | Game save state | | |
 | GLSL | GLSL shader | | |
 | GUI | GUI definition | | |

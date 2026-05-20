@@ -1,40 +1,38 @@
 #![doc = include_str!("../readme.md")]
 //!
-//! ## Format note
+//! ## Format
 //!
-//! The Infinity Engine Enhanced Editions ship with `.fnt` files in a
-//! **proprietary, undocumented bitmap font format** (Beamdog's pre-2.0
-//! engine font). NearInfinity's `FntResource.java` parses a *different*
-//! format (a 20-byte BAM/BMP-reference stub) — but every actual EE
-//! game-data FNT this codebase has seen is the proprietary variant, so
-//! that's what this importer targets.
+//! Mirrors NearInfinity's `FntResource.java`:
 //!
-//! ### What we parse reliably
+//! ```text
+//! 0   # extra letters   u32     count of glyphs in the companion BMP
+//! 4   <opaque body>            engine-internal; NI doesn't parse this
+//! ```
 //!
-//! - A 16-byte fixed header (glyph count + a few small unknown fields).
-//! - A `glyph_count × u32` table of Unicode character codes covered by
-//!   the font.
+//! The `Letters` BAM and `Extra letters` BMP that NI shows in its
+//! viewer are **synthesised from the FNT's own resource name** — they
+//! aren't stored in the file. `DIALOG.FNT` ⇒ `DIALOG.BAM` (standard
+//! glyphs) and `DIALOG.BMP` (extra glyphs).
 //!
-//! ### What we currently *don't* parse
-//!
-//! The remainder of the file holds per-glyph metric quadruplets and
-//! pixel/coverage data, both as IEEE-754 floats — an unusual choice
-//! that suggests an SDF or coverage-mask representation. The exact
-//! semantics are not documented anywhere I could find, and reverse
-//! engineering them from samples produced inconsistent results, so the
-//! raw bytes are exposed verbatim via [`Fnt::raw`] for hex inspection
-//! by the viewer.
+//! Everything past the 4-byte header is left as opaque bytes here for
+//! the same reason it is in NI: the format is otherwise undocumented
+//! and shipping a half-right renderer would be worse than not
+//! rendering at all.
 
-use std::io::{Cursor, Read};
+use std::io::Read;
 use std::sync::Arc;
 
 use infinitier_datasource::{DataSource, Importer, ReadExt};
 use log::debug;
 
-/// Byte length of the FNT fixed header (count + four unknown fields).
-pub const HEADER_LEN: usize = 16;
+/// Byte length of the parsed FNT header — just `# extra letters`.
+pub const HEADER_LEN: usize = 4;
 
 /// An FNT bitmap-font importer.
+///
+/// `name` is the resource name (lowercase, no extension — matches
+/// [`GameData`](infinitier_datasource)'s indexing convention). It's
+/// used to synthesise the companion BAM/BMP filenames the way NI does.
 pub struct FntImporter<'a> {
     pub name: &'a str,
 }
@@ -43,9 +41,6 @@ impl Importer for FntImporter<'_> {
     type T = Fnt;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Self::T> {
-        // FNT files are small enough (≤100 KB in practice) that pulling
-        // them into memory once is cheaper than seeking; the viewer
-        // wants the full byte string anyway for the hex dump.
         let mut raw = Vec::new();
         source.reader()?.read_to_end(&mut raw)?;
         if raw.len() < HEADER_LEN {
@@ -59,95 +54,62 @@ impl Importer for FntImporter<'_> {
             ));
         }
 
-        // `ReadExt` is auto-impl'd for every `Read`, so a plain Cursor
-        // is enough — we never decode text from this stream.
-        let mut reader = Cursor::new(&raw[..]);
-        let glyph_count = reader.read_u32()?;
-        let field_4 = reader.read_u16()?;
-        let field_6 = reader.read_u16()?;
-        let field_8 = reader.read_u32()?;
-        let field_c = reader.read_u32()?;
+        let mut reader = std::io::Cursor::new(&raw[..HEADER_LEN]);
+        let extra_letters_count = reader.read_u32()?;
 
-        let codes_byte_len = (glyph_count as usize).saturating_mul(4);
-        let codes_end = HEADER_LEN
-            .checked_add(codes_byte_len)
-            .ok_or_else(|| std::io::Error::other("glyph_count overflow"))?;
-        if raw.len() < codes_end {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!(
-                    "FNT '{}' has {} bytes but glyph_count={} needs {} bytes for the codes table",
-                    self.name,
-                    raw.len(),
-                    glyph_count,
-                    codes_end
-                ),
-            ));
-        }
-
-        let mut character_codes = Vec::with_capacity(glyph_count as usize);
-        for _ in 0..glyph_count {
-            character_codes.push(reader.read_u32()?);
-        }
+        // Companion file names. Vanilla game-data uses uppercase
+        // 8.3 forms (DIALOG.BAM, DIALOG.BMP) — match that for display
+        // and BIF lookups, even though our own GameData index is
+        // lowercased.
+        let display_name = self.name.to_ascii_uppercase();
+        let letters_bam = format!("{display_name}.BAM");
+        let extra_letters_bmp = format!("{display_name}.BMP");
 
         debug!(
-            "Loaded {} [FNT]: glyph_count={}, body={} bytes",
+            "Loaded {} [FNT]: # extra letters={}, Letters={}, Extra letters={}, body={} bytes",
             self.name,
-            glyph_count,
-            raw.len() - codes_end
+            extra_letters_count,
+            letters_bam,
+            extra_letters_bmp,
+            raw.len() - HEADER_LEN,
         );
 
         Ok(Fnt {
-            glyph_count,
-            field_4,
-            field_6,
-            field_8,
-            field_c,
-            character_codes,
-            body_offset: codes_end,
+            extra_letters_count,
+            letters_bam,
+            extra_letters_bmp,
             raw: Arc::new(raw),
         })
     }
 }
 
-/// A parsed FNT bitmap font.
+/// A parsed FNT.
+///
+/// Matches the three fields NI surfaces in its `FntResource` viewer:
+/// the 4-byte `# extra letters` count plus two synthesised resource
+/// references to the companion BAM (standard glyphs) and BMP (extra
+/// glyphs).
 #[derive(Debug, Clone)]
 pub struct Fnt {
-    /// Number of glyphs in the font — equals the length of
-    /// [`Fnt::character_codes`].
-    pub glyph_count: u32,
-    /// Header field at offset `0x04` (u16). Observed values 3, 4, 5,
-    /// 11, 12 — varies by font; semantics unknown.
-    pub field_4: u16,
-    /// Header field at offset `0x06` (u16). Always observed as `1`.
-    pub field_6: u16,
-    /// Header field at offset `0x08` (u32). Always observed as `1`.
-    pub field_8: u32,
-    /// Header field at offset `0x0C` (u32). Variable; semantics unknown.
-    pub field_c: u32,
-    /// Unicode code points covered by this font, in file order. Vanilla
-    /// fonts ship `[9, 10, 13, 32..=126, 160..=255, …]` — control whitespace,
-    /// ASCII printables, Latin-1 supplement, and a handful of
-    /// typographic extras (`…`, `₤`, `€`).
-    pub character_codes: Vec<u32>,
-    /// Byte offset where the (un-parsed) per-glyph metric + pixel data
-    /// section begins. Always equals `HEADER_LEN + glyph_count * 4`.
-    pub body_offset: usize,
-    /// Original file bytes, kept so a viewer can hex-dump the
-    /// un-parsed body without re-reading the source.
+    /// Number of extra letters stored in the companion BMP. Read from
+    /// the first 4 bytes of the file.
+    pub extra_letters_count: u32,
+    /// Name of the companion BAM holding the standard glyphs —
+    /// `<resource_name>.BAM`, synthesised from the FNT's own name.
+    pub letters_bam: String,
+    /// Name of the companion BMP holding the extra glyphs —
+    /// `<resource_name>.BMP`, synthesised from the FNT's own name.
+    pub extra_letters_bmp: String,
+    /// Original file bytes — kept so consumers (e.g. the explorer
+    /// viewer) can hex-dump the opaque post-header body.
     pub raw: Arc<Vec<u8>>,
 }
 
 impl Fnt {
-    /// The portion of the file holding per-glyph metrics + pixel /
-    /// coverage data. Not parsed today — see the module doc comment.
+    /// Slice of the file past the parsed 4-byte header. Engine-
+    /// internal; not interpreted here.
     pub fn body(&self) -> &[u8] {
-        &self.raw[self.body_offset..]
-    }
-
-    /// `true` when this character code is in the font's coverage table.
-    pub fn covers(&self, code: u32) -> bool {
-        self.character_codes.contains(&code)
+        &self.raw[HEADER_LEN..]
     }
 }
 
@@ -158,58 +120,51 @@ mod tests {
 
     #[test]
     fn test_parse_realms_fnt() {
-        // REALMS.fnt is a small-ish font (~30 KB) that we know covers
-        // the standard 244-character set; great smoke test.
         let path = get_assets_path().join("FNT/REALMS.fnt");
         let fnt = FntImporter { name: "realms" }
             .import(&DataSource::new(path))
             .unwrap();
-
-        assert_eq!(fnt.glyph_count, 244);
-        assert_eq!(fnt.character_codes.len(), 244);
-        // Vanilla EE fonts always start with the three control
-        // whitespace chars and the space — independent of which fonts
-        // happen to be in the corpus.
-        assert_eq!(&fnt.character_codes[..4], &[9, 10, 13, 32]);
-        assert!(fnt.field_6 == 1);
-        assert!(fnt.field_8 == 1);
-        // body_offset === 16 + glyph_count * 4
-        assert_eq!(fnt.body_offset, 16 + 244 * 4);
+        // Matches the count NI would display (e.g. 244 for vanilla EE
+        // fonts that cover ASCII + Latin-1 supplement + typographic
+        // extras).
+        assert_eq!(fnt.extra_letters_count, 244);
+        // Synthesised companion refs — uppercase, no extension swap.
+        assert_eq!(fnt.letters_bam, "REALMS.BAM");
+        assert_eq!(fnt.extra_letters_bmp, "REALMS.BMP");
     }
 
     #[test]
-    fn test_covers_lookup() {
+    fn test_companion_refs_use_uppercase_name() {
+        // GameData stores names lowercased — the importer must
+        // uppercase them when building the companion refs so the
+        // display matches NI's (`DIALOG.BAM`, not `dialog.BAM`).
         let path = get_assets_path().join("FNT/REALMS.fnt");
-        let fnt = FntImporter { name: "realms" }
-            .import(&DataSource::new(path))
+        let fnt = FntImporter { name: "Realms" }
+            .import(&DataSource::new(path.as_path()))
             .unwrap();
-
-        assert!(fnt.covers(b'A' as u32));
-        assert!(fnt.covers(b'z' as u32));
-        assert!(fnt.covers(32));
-        // 0x0001 is not in any vanilla font's coverage list.
-        assert!(!fnt.covers(0x0001));
+        assert_eq!(fnt.letters_bam, "REALMS.BAM");
+        assert_eq!(fnt.extra_letters_bmp, "REALMS.BMP");
     }
 
     #[test]
     fn test_rejects_truncated_file() {
-        // 8 bytes is well under HEADER_LEN — must error, not panic.
-        let data = DataSource::new(&[0u8; 8][..]);
+        // Less than 4 bytes can't even hold the count → UnexpectedEof.
+        let data = DataSource::new(&[0u8; 3][..]);
         let err = FntImporter { name: "tiny" }.import(&data).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::UnexpectedEof);
     }
 
     #[test]
-    fn test_rejects_glyph_count_larger_than_file() {
-        // Header declares 1_000_000 glyphs in a 16-byte file — codes
-        // table would need 4 MB more; must surface as InvalidData.
-        let mut bytes = Vec::new();
-        bytes.extend_from_slice(&1_000_000u32.to_le_bytes()); // glyph_count
-        bytes.extend_from_slice(&[0u8; 12]); // rest of header
-        let err = FntImporter { name: "lies" }
-            .import(&DataSource::new(bytes))
-            .unwrap_err();
-        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    fn test_accepts_exactly_4_bytes() {
+        // A 4-byte FNT (just the header, no body) is structurally
+        // valid — NI would happily display "# extra letters" and the
+        // two synthesised refs with no body bytes. body() returns an
+        // empty slice.
+        let data = DataSource::new(&[0x05, 0x00, 0x00, 0x00][..]);
+        let fnt = FntImporter { name: "stub" }.import(&data).unwrap();
+        assert_eq!(fnt.extra_letters_count, 5);
+        assert_eq!(fnt.letters_bam, "STUB.BAM");
+        assert_eq!(fnt.body().len(), 0);
     }
 
     #[test]
@@ -220,7 +175,6 @@ mod tests {
             .import(&DataSource::new(path.as_path()))
             .unwrap();
         assert_eq!(fnt.raw.as_slice(), expected.as_slice());
-        // body() is just the slice after the header + codes table.
-        assert_eq!(fnt.body().len(), expected.len() - fnt.body_offset);
+        assert_eq!(fnt.body().len(), expected.len() - HEADER_LEN);
     }
 }
