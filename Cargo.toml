@@ -47,6 +47,7 @@ infinitier_key_resource = { path = "src/resources/key", version = "0.0.5"  }
 infinitier_mos_resource = { path = "src/resources/mos", version = "0.0.5"  }
 infinitier_png_resource = { path = "src/resources/png", version = "0.0.5"  }
 infinitier_pvrz_resource = { path = "src/resources/pvrz", version = "0.0.5"  }
+infinitier_tis_resource = { path = "src/resources/tis", version = "0.0.5"  }
 infinitier_two_da_resource = { path = "src/resources/two_da", version = "0.0.5"  }
 infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.5"  }
 
