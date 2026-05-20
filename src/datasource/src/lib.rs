@@ -366,10 +366,7 @@ fn add_signed_clamp(base: u64, offset: i64) -> std::io::Result<u64> {
         base.checked_sub((-(offset as i128)) as u64)
     };
     result.ok_or_else(|| {
-        std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "seek offset out of range",
-        )
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "seek offset out of range")
     })
 }
 
@@ -458,7 +455,10 @@ impl DataSource {
         match self {
             DataSource::Full { data, .. } => data.len(),
             DataSource::Embedded {
-                data, offset, limit, ..
+                data,
+                offset,
+                limit,
+                ..
             } => {
                 let after_offset = data.len()?.saturating_sub(*offset);
                 Ok(match limit {
@@ -580,7 +580,10 @@ impl DataSource {
         match self {
             DataSource::Full { data, .. } => data.reader(0, None),
             DataSource::Embedded {
-                data, offset, limit, ..
+                data,
+                offset,
+                limit,
+                ..
             } => data.reader(*offset, *limit),
             DataSource::Concat {
                 parts,
@@ -1255,13 +1258,7 @@ mod tests {
     fn test_concat_empty_parts_skipped() {
         // Empty parts in the middle and ends must not stall the reader
         // (otherwise the read/fill_buf loops would spin forever).
-        let concat = DataSource::new_concat(vec![
-            ds(b""),
-            ds(b"A"),
-            ds(b""),
-            ds(b"B"),
-            ds(b""),
-        ]);
+        let concat = DataSource::new_concat(vec![ds(b""), ds(b"A"), ds(b""), ds(b"B"), ds(b"")]);
         let mut reader = concat.reader().unwrap();
         let mut out = String::new();
         reader.read_to_string(&mut out).unwrap();
@@ -1358,10 +1355,8 @@ mod tests {
         // Process-id is enough to keep the file isolated from other
         // simultaneously-running test binaries — the test itself runs
         // single-threaded with respect to this path.
-        let tmp_path = std::env::temp_dir().join(format!(
-            "concat_no_preload_{}.tmp",
-            std::process::id()
-        ));
+        let tmp_path =
+            std::env::temp_dir().join(format!("concat_no_preload_{}.tmp", std::process::id()));
         let _ = std::fs::remove_file(&tmp_path);
         let tmp_clone = tmp_path.clone();
         let generator = TempFileGenerator::new(Box::new(move || {
@@ -1473,8 +1468,7 @@ mod tests {
     fn test_concat_with_offset_replaces_existing_window() {
         // Convention matches `Embedded`: chained `with_offset` calls
         // replace the previous window rather than composing.
-        let a =
-            DataSource::new_concat(vec![ds(b"aaaa"), ds(b"bbbb")]).with_offset(2, Some(4));
+        let a = DataSource::new_concat(vec![ds(b"aaaa"), ds(b"bbbb")]).with_offset(2, Some(4));
         // a's window is "aabb" (4 bytes).
         let b = a.with_offset(1, Some(2));
         // b re-bases against the underlying concat: offset=1, limit=2

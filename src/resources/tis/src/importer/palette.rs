@@ -79,8 +79,7 @@ impl TisPalette {
     pub fn to_image(&self, columns: u32) -> ImageBuffer<Rgba<u8>, Vec<u8>> {
         assert!(columns > 0, "columns must be > 0");
         let rows = (self.tiles.len() as u32).div_ceil(columns);
-        let mut img =
-            ImageBuffer::new(columns * self.tile_dimension, rows * self.tile_dimension);
+        let mut img = ImageBuffer::new(columns * self.tile_dimension, rows * self.tile_dimension);
         for idx in 0..self.tiles.len() {
             let col = (idx as u32) % columns;
             let row = (idx as u32) / columns;
@@ -94,13 +93,7 @@ impl TisPalette {
     /// Internal: paints tile `index` into `dst` at offset `(x0, y0)`.
     /// Shared between [`Self::tile_image`] and [`Self::to_image`] so the
     /// transparency rule stays in one place.
-    fn paint_tile(
-        &self,
-        index: usize,
-        dst: &mut ImageBuffer<Rgba<u8>, Vec<u8>>,
-        x0: u32,
-        y0: u32,
-    ) {
+    fn paint_tile(&self, index: usize, dst: &mut ImageBuffer<Rgba<u8>, Vec<u8>>, x0: u32, y0: u32) {
         let tile = &self.tiles[index];
         let transparent_zero =
             tile.palette[0].r == 0 && tile.palette[0].g == 255 && tile.palette[0].b == 0;

@@ -200,7 +200,8 @@ fn build_block(
     if direct_palette_fits {
         // Push entries in stable insertion order so the assigned indices
         // line up with what's already in `unique_colors`.
-        let mut ordered: Vec<((u8, u8, u8), u8)> = unique_colors.iter().map(|(k, v)| (*k, *v)).collect();
+        let mut ordered: Vec<((u8, u8, u8), u8)> =
+            unique_colors.iter().map(|(k, v)| (*k, *v)).collect();
         ordered.sort_by_key(|(_, idx)| *idx);
         for ((r, g, b), _) in ordered {
             palette.push(Rgb { r, g, b, alpha: 0 });

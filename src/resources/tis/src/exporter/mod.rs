@@ -107,8 +107,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_palette_fire01() {
-        let (original, re_imported) =
-            roundtrip(&get_assets_path().join("TIS/Palette/FIRE01.tis"));
+        let (original, re_imported) = roundtrip(&get_assets_path().join("TIS/Palette/FIRE01.tis"));
         match (&original, &re_imported) {
             (Tis::Palette(a), Tis::Palette(b)) => {
                 assert_eq!(a.r#type, Type::Palette);

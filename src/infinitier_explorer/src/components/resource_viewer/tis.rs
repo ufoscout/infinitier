@@ -85,12 +85,10 @@ impl TisViewer {
         // that fits — see `ColumnLimits`. For everything else just
         // hand the whole tileset to `compose`.
         let image = if self.truncated {
-            let visible =
-                (self.columns as usize) * (self.tiles_per_axis as usize);
+            let visible = (self.columns as usize) * (self.tiles_per_axis as usize);
             let count = self.tis.tile_count.min(visible);
-            let stride = (self.tis.tile_dimension as usize)
-                * (self.tis.tile_dimension as usize)
-                * 4;
+            let stride =
+                (self.tis.tile_dimension as usize) * (self.tis.tile_dimension as usize) * 4;
             // Compose works off a borrowed view: clone only the leading
             // `count * stride` bytes into a smaller `ImportedTis`.
             let view = ImportedTis {
@@ -173,10 +171,7 @@ impl ResourceViewerTrait for TisViewer {
         let composed_size = self.texture.size();
         egui::Panel::bottom("tis_info_panel").show_inside(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.label(format!(
-                    "{} × {} px",
-                    composed_size[0], composed_size[1]
-                ));
+                ui.label(format!("{} × {} px", composed_size[0], composed_size[1]));
                 ui.separator();
                 match resource.file_size {
                     Some(size) => {
@@ -260,8 +255,7 @@ impl ResourceViewerTrait for TisViewer {
 
         // ── Center: the composite image, fit to the available space ──
         let available = ui.available_size();
-        let natural =
-            egui::Vec2::new(composed_size[0] as f32, composed_size[1] as f32);
+        let natural = egui::Vec2::new(composed_size[0] as f32, composed_size[1] as f32);
         // Allow the image to scale up only if needed; otherwise keep
         // its natural size so tiles render pixel-exact.
         let scale = (available.x / natural.x)
@@ -274,16 +268,10 @@ impl ResourceViewerTrait for TisViewer {
             ui.add_space(y_offset);
         }
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-            let response = ui.add(
-                egui::Image::new(&self.texture).fit_to_exact_size(display),
-            );
+            let response = ui.add(egui::Image::new(&self.texture).fit_to_exact_size(display));
 
             if self.show_grid {
-                paint_tile_grid(
-                    ui,
-                    response.rect,
-                    self.tis.tile_dimension as f32 * scale,
-                );
+                paint_tile_grid(ui, response.rect, self.tis.tile_dimension as f32 * scale);
             }
         });
     }
@@ -300,7 +288,10 @@ fn paint_tile_grid(ui: &mut egui::Ui, image_rect: egui::Rect, tile_size: f32) {
         return;
     }
     let painter = ui.painter_at(image_rect);
-    let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 180));
+    let stroke = egui::Stroke::new(
+        1.0,
+        egui::Color32::from_rgba_unmultiplied(255, 255, 255, 180),
+    );
 
     // Vertical lines at column boundaries.
     let mut x = image_rect.left();

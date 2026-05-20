@@ -21,8 +21,7 @@ use crate::game::GameData;
 pub const DEFAULT_TILES_PER_ROW: u32 = 5;
 
 /// Bytes per decoded tile (`64 * 64 * 4` RGBA).
-const TILE_PIXEL_BYTES: usize =
-    (TILE_DIMENSION as usize) * (TILE_DIMENSION as usize) * 4;
+const TILE_PIXEL_BYTES: usize = (TILE_DIMENSION as usize) * (TILE_DIMENSION as usize) * 4;
 
 /// A preloaded TIS file: every tile's pixels are decoded ahead of time
 /// into a single contiguous buffer, plus the "expected" tiles-per-row
@@ -139,8 +138,7 @@ fn decode_pvrz(p: &TisPvrz, game_data: &GameData, name: &str) -> io::Result<Vec<
             continue;
         }
         let pvrz = get_or_load_pvrz(&mut pvrz_cache, name, tile, game_data)?;
-        let tile_slice =
-            &mut out[idx * TILE_PIXEL_BYTES..(idx + 1) * TILE_PIXEL_BYTES];
+        let tile_slice = &mut out[idx * TILE_PIXEL_BYTES..(idx + 1) * TILE_PIXEL_BYTES];
         copy_pvrz_tile(tile, pvrz, tile_slice);
     }
 
@@ -176,10 +174,7 @@ fn get_or_load_pvrz<'a>(
         let ds = resource.datasource.as_ref().ok_or_else(|| {
             io::Error::other(format!("PVRZ resource {pvrz_filename} has no datasource"))
         })?;
-        let pvrz = PvrzImporter {
-            name: &lookup_name,
-        }
-        .import(ds)?;
+        let pvrz = PvrzImporter { name: &lookup_name }.import(ds)?;
         e.insert(pvrz);
     }
     Ok(cache.get(&tile.pvrz_page).expect("just inserted"))
@@ -366,12 +361,12 @@ mod tests {
     /// the same name, so the WED-lookup path produces a non-default
     /// `expected_columns`. Returns the registered TIS resource name.
     fn register_palette_tis_with_wed(asset_dir: &Path, expected_width: u16) -> GameData {
-        use infinitier_wed_resource::{Wed, WedExporter, WedOverlay, ResourceReference};
+        use infinitier_wed_resource::{ResourceReference, Wed, WedExporter, WedOverlay};
 
         let tis_path = asset_dir.join("HOTCOALR.tis");
         let tile_count = 6u16; // matches HOTCOALR's tile_count
-        let cells = (expected_width as usize)
-            * (tile_count as usize).div_ceil(expected_width as usize);
+        let cells =
+            (expected_width as usize) * (tile_count as usize).div_ceil(expected_width as usize);
         let primary = WedOverlay {
             width: expected_width,
             height: (tile_count.div_ceil(expected_width)),
