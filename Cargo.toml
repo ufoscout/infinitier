@@ -13,7 +13,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-version = "0.0.4"
+version = "0.0.5"
 license = "GPL-3.0-or-later"
 authors = ["Francesco Cina <ufoscout@gmail.com>"]
 homepage = "https://github.com/ufoscout/infinitier"
@@ -21,33 +21,34 @@ repository = "https://github.com/ufoscout/infinitier"
 
 [workspace.dependencies]
 # Codecs
-infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.4" }
-infinitier_acm_encoder = { path = "src/codecs/acm_encoder", version = "0.0.4"  }
-infinitier_bik_decoder = { path = "src/codecs/bik_decoder", version = "0.0.4"  }
-infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.4"  }
-infinitier_mve_encoder = { path = "src/codecs/mve_encoder", version = "0.0.4"  }
-infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.4"  }
-infinitier_wbm_decoder = { path = "src/codecs/wbm_decoder", version = "0.0.4"  }
+infinitier_acm_decoder = { path = "src/codecs/acm_decoder", version = "0.0.5" }
+infinitier_acm_encoder = { path = "src/codecs/acm_encoder", version = "0.0.5"  }
+infinitier_bik_decoder = { path = "src/codecs/bik_decoder", version = "0.0.5"  }
+infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.5"  }
+infinitier_mve_encoder = { path = "src/codecs/mve_encoder", version = "0.0.5"  }
+infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.5"  }
+infinitier_wbm_decoder = { path = "src/codecs/wbm_decoder", version = "0.0.5"  }
 
 # Core
-infinitier_common = { path = "src/common", version = "0.0.4" }
-infinitier_core = { path = "src/core", version = "0.0.4"  }
-infinitier_datasource = { path = "src/datasource", version = "0.0.4"  }
-infinitier_fs = { path = "src/fs", version = "0.0.4"  }
+infinitier_common = { path = "src/common", version = "0.0.5" }
+infinitier_core = { path = "src/core", version = "0.0.5"  }
+infinitier_datasource = { path = "src/datasource", version = "0.0.5"  }
+infinitier_fs = { path = "src/fs", version = "0.0.5"  }
 infinitier_test_utils = { path = "src/test_utils" }
 
 # Resources
-infinitier_bam_resource = { path = "src/resources/bam", version = "0.0.4"  }
-infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.4"  }
-infinitier_bif_resource = { path = "src/resources/bif", version = "0.0.4"  }
-infinitier_bmp_resource = { path = "src/resources/bmp", version = "0.0.4"  }
-infinitier_ids_resource = { path = "src/resources/ids", version = "0.0.4"  }
-infinitier_ini_resource = { path = "src/resources/ini", version = "0.0.4"  }
-infinitier_key_resource = { path = "src/resources/key", version = "0.0.4"  }
-infinitier_mos_resource = { path = "src/resources/mos", version = "0.0.4"  }
-infinitier_pvrz_resource = { path = "src/resources/pvrz", version = "0.0.4"  }
-infinitier_two_da_resource = { path = "src/resources/two_da", version = "0.0.4"  }
-infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.4"  }
+infinitier_bam_resource = { path = "src/resources/bam", version = "0.0.5"  }
+infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.5"  }
+infinitier_bif_resource = { path = "src/resources/bif", version = "0.0.5"  }
+infinitier_bmp_resource = { path = "src/resources/bmp", version = "0.0.5"  }
+infinitier_ids_resource = { path = "src/resources/ids", version = "0.0.5"  }
+infinitier_ini_resource = { path = "src/resources/ini", version = "0.0.5"  }
+infinitier_key_resource = { path = "src/resources/key", version = "0.0.5"  }
+infinitier_mos_resource = { path = "src/resources/mos", version = "0.0.5"  }
+infinitier_png_resource = { path = "src/resources/png", version = "0.0.5"  }
+infinitier_pvrz_resource = { path = "src/resources/pvrz", version = "0.0.5"  }
+infinitier_two_da_resource = { path = "src/resources/two_da", version = "0.0.5"  }
+infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.5"  }
 
 bitflags = { version = "2", features = ["serde"] }
 bytesize = "2"

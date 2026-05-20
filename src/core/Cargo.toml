@@ -31,6 +31,7 @@ infinitier_ids_resource = { workspace = true }
 infinitier_ini_resource = { workspace = true }
 infinitier_key_resource = { workspace = true }
 infinitier_mos_resource = { workspace = true }
+infinitier_png_resource = { workspace = true }
 infinitier_pvrz_resource = { workspace = true }
 infinitier_two_da_resource = { workspace = true }
 infinitier_wed_resource = { workspace = true }

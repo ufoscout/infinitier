@@ -33,7 +33,6 @@ mod menu;
 mod movie;
 mod mus;
 mod plt;
-mod png;
 mod pro;
 mod sound;
 mod spl;
@@ -78,7 +77,6 @@ use menu::MenuViewer;
 use movie::MovieViewer;
 use mus::MusViewer;
 use plt::PltViewer;
-use png::PngViewer;
 use pro::ProViewer;
 use sound::SoundViewer;
 use spl::SplViewer;
@@ -169,7 +167,6 @@ impl ResourceViewer {
                                 ImportedResource::Mus => Box::new(MusViewer::new()),
                                 ImportedResource::Mve(src) => Box::new(MovieViewer::new(src)),
                                 ImportedResource::Plt => Box::new(PltViewer::new()),
-                                ImportedResource::Png => Box::new(PngViewer::new()),
                                 ImportedResource::Pro => Box::new(ProViewer::new()),
                                 ImportedResource::Spl => Box::new(SplViewer::new()),
                                 ImportedResource::Sql => Box::new(SqlViewer::new()),

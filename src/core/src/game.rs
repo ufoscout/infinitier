@@ -153,6 +153,7 @@ impl GameResource {
         use infinitier_ids_resource::IdsImporter;
         use infinitier_ini_resource::IniImporter;
         use infinitier_mos_resource::MosImporter;
+        use infinitier_png_resource::PngImporter;
         use infinitier_pvrz_resource::PvrzImporter;
         use infinitier_two_da_resource::TwoDAImporter;
         use infinitier_wed_resource::WedImporter;
@@ -176,7 +177,7 @@ impl GameResource {
                 .import(ds)
                 .and_then(|bam| ImportedBam::load(bam, game_data))
                 .map(ImportedResource::Bam),
-            // BMP, PVRZ, and MOS all feed into the unified
+            // BMP, PVRZ, MOS, and PNG all feed into the unified
             // `ImportedImage` wrapper so the explorer can render them
             // through one `ImageViewer`. Adding new raster formats here
             // only needs a new `ImportedImage::from_*` constructor.
@@ -191,6 +192,10 @@ impl GameResource {
             ResourceType::Mos => MosImporter { name: &self.name }
                 .import(ds)
                 .and_then(|mos| ImportedImage::from_mos(mos, game_data))
+                .map(ImportedResource::Image),
+            ResourceType::Png => PngImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedImage::from_png)
                 .map(ImportedResource::Image),
             ResourceType::Ids => IdsImporter { name: &self.name }
                 .import(ds)
@@ -234,7 +239,6 @@ impl GameResource {
                 &self.name,
             ))),
             ResourceType::Plt => Ok(ImportedResource::Plt),
-            ResourceType::Png => Ok(ImportedResource::Png),
             ResourceType::Pro => Ok(ImportedResource::Pro),
             ResourceType::Spl => Ok(ImportedResource::Spl),
             ResourceType::Sql => Ok(ImportedResource::Sql),

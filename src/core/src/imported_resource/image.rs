@@ -1,5 +1,5 @@
-//! Unified image abstraction over BMP / PVRZ / MOS (and, later, TGA /
-//! PNG / TIS …). Viewers and game code that just want "RGBA8 pixels
+//! Unified image abstraction over BMP / PVRZ / MOS / PNG (and, later,
+//! TGA / TIS …). Viewers and game code that just want "RGBA8 pixels
 //! plus a label" should work against [`ImportedImage`] instead of each
 //! format's bespoke importer output, so adding a new image format is a
 //! single new constructor here rather than a fresh viewer.
@@ -12,6 +12,7 @@ use infinitier_bmp_resource::{Bmp, BmpCompression};
 use infinitier_common::ResourceType;
 use infinitier_datasource::Importer;
 use infinitier_mos_resource::{Mos, MosV2, MosV2DataBlock, Type as MosType};
+use infinitier_png_resource::{Png, PngColorType};
 use infinitier_pvrz_resource::{PvrDataCompression, Pvrz, PvrzImporter};
 
 use crate::game::GameData;
@@ -52,6 +53,13 @@ pub enum ImageSource {
         /// otherwise-collapsed V1/MOSC pair in the info bar.
         variant: MosType,
     },
+    Png {
+        /// Original bit depth as declared in the IHDR chunk
+        /// (1, 2, 4, 8, 16).
+        bit_depth: u8,
+        /// Color type as declared in the IHDR chunk.
+        color_type: PngColorType,
+    },
 }
 
 impl ImportedImage {
@@ -74,6 +82,18 @@ impl ImportedImage {
             image: pvrz.image,
             source: ImageSource::Pvr {
                 pixel_format: pvrz.header.pixel_format,
+            },
+        }
+    }
+
+    /// Adopt an already-decoded [`Png`]. The pixel buffer is moved into
+    /// the new wrapper, no allocation.
+    pub fn from_png(png: Png) -> Self {
+        Self {
+            image: png.image,
+            source: ImageSource::Png {
+                bit_depth: png.bit_depth,
+                color_type: png.color_type,
             },
         }
     }
@@ -126,6 +146,7 @@ impl ImportedImage {
             ImageSource::Bmp { .. } => "BMP",
             ImageSource::Pvr { .. } => "PVR",
             ImageSource::Mos { .. } => "MOS",
+            ImageSource::Png { .. } => "PNG",
         }
     }
 
@@ -144,6 +165,10 @@ impl ImportedImage {
                 MosType::Mosc => "MOSC".to_string(),
                 MosType::MosV2 => "V2".to_string(),
             },
+            ImageSource::Png {
+                bit_depth,
+                color_type,
+            } => format!("{bit_depth} bpc, {color_type}"),
         }
     }
 }
@@ -236,6 +261,7 @@ mod tests {
     use infinitier_common::Game;
     use infinitier_datasource::{DataSource, Importer};
     use infinitier_mos_resource::MosImporter;
+    use infinitier_png_resource::PngImporter;
     use infinitier_pvrz_resource::PvrzImporter;
     use infinitier_test_utils::{assert_images_are_equal, get_assets_path};
 
@@ -315,6 +341,45 @@ mod tests {
         };
         let img = ImportedImage::from_bmp(bmp);
         assert_eq!(img.format_description(), "24 bpp, BI_RGB");
+    }
+
+    #[test]
+    fn test_from_png() {
+        let path = get_assets_path().join("MOS/MOSC/GUIWRLP8.png");
+        let png = PngImporter { name: "test_png" }
+            .import(&DataSource::new(path.clone()))
+            .unwrap();
+        let (w, h) = (png.image.width(), png.image.height());
+        let original_bit_depth = png.bit_depth;
+        let original_color_type = png.color_type;
+
+        let img = ImportedImage::from_png(png);
+
+        assert_eq!(img.width(), w);
+        assert_eq!(img.height(), h);
+        assert_eq!(img.format_label(), "PNG");
+        match img.source {
+            ImageSource::Png {
+                bit_depth,
+                color_type,
+            } => {
+                assert_eq!(bit_depth, original_bit_depth);
+                assert_eq!(color_type, original_color_type);
+            }
+            other => panic!("expected ImageSource::Png, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_format_description_png() {
+        let img = ImportedImage {
+            image: ImageBuffer::new(1, 1),
+            source: ImageSource::Png {
+                bit_depth: 8,
+                color_type: PngColorType::Rgba,
+            },
+        };
+        assert_eq!(img.format_description(), "8 bpc, RGBA");
     }
 
     #[test]
