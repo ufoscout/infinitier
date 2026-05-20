@@ -71,16 +71,16 @@ impl ResourceViewerTrait for TtfViewer {
             ui.horizontal(|ui| {
                 ui.label("TTF");
                 ui.separator();
-                ui.label(format!("{} {}", self.ttf.family_name, self.ttf.subfamily_name));
+                ui.label(format!(
+                    "{} {}",
+                    self.ttf.family_name, self.ttf.subfamily_name
+                ));
                 ui.separator();
                 ui.label(format!("{} glyphs", self.ttf.glyph_count));
                 ui.separator();
                 ui.label(format!(
                     "em={} asc={} desc={} line_gap={}",
-                    self.ttf.units_per_em,
-                    self.ttf.ascender,
-                    self.ttf.descender,
-                    self.ttf.line_gap,
+                    self.ttf.units_per_em, self.ttf.ascender, self.ttf.descender, self.ttf.line_gap,
                 ));
                 ui.separator();
                 if self.ttf.is_monospaced {
@@ -120,10 +120,7 @@ impl TtfViewer {
     /// the optional designer / copyright / version strings underneath.
     fn show_header(&self, ui: &mut egui::Ui, family: &FontFamily) {
         ui.add_space(8.0);
-        ui.label(
-            RichText::new(&self.ttf.full_name)
-                .font(FontId::new(36.0, family.clone())),
-        );
+        ui.label(RichText::new(&self.ttf.full_name).font(FontId::new(36.0, family.clone())));
         ui.add_space(4.0);
 
         let mut details = Vec::new();
@@ -175,10 +172,7 @@ impl TtfViewer {
                 self.sample_text.clone()
             };
             ui.label(format!("{size:>3.0} px:"));
-            ui.label(
-                RichText::new(label_text)
-                    .font(FontId::new(size, family.clone())),
-            );
+            ui.label(RichText::new(label_text).font(FontId::new(size, family.clone())));
             ui.add_space(8.0);
         }
     }

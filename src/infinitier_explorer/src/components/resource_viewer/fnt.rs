@@ -140,11 +140,7 @@ impl FntViewer {
     fn show_body_preview(&self, ui: &mut egui::Ui) {
         const PREVIEW_BYTES: usize = 256;
 
-        ui.label(
-            RichText::new("Raw (post-header body)")
-                .strong()
-                .size(16.0),
-        );
+        ui.label(RichText::new("Raw (post-header body)").strong().size(16.0));
         ui.add_space(4.0);
         let body = self.fnt.body();
         if body.is_empty() {
@@ -169,7 +165,11 @@ impl FntViewer {
             }
             dump.push(' ');
             for &b in chunk {
-                dump.push(if (32..127).contains(&b) { b as char } else { '.' });
+                dump.push(if (32..127).contains(&b) {
+                    b as char
+                } else {
+                    '.'
+                });
             }
             dump.push('\n');
         }

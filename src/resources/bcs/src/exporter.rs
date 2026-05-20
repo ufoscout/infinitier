@@ -223,17 +223,19 @@ mod tests {
         // covers full coverage; this test exists to exercise
         // `export_to_file` specifically (file IO path).
         let src = &paths[0];
-        let original = BcsImporter { name: "bcs_file_rt" }
-            .import(&DataSource::new(src.as_path()))
-            .unwrap();
+        let original = BcsImporter {
+            name: "bcs_file_rt",
+        }
+        .import(&DataSource::new(src.as_path()))
+        .unwrap();
 
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        BcsExporter
-            .export_to_file(&original, tmp.path())
-            .unwrap();
-        let re_imported = BcsImporter { name: "bcs_file_rt2" }
-            .import(&DataSource::new(tmp.path().to_path_buf()))
-            .unwrap();
+        BcsExporter.export_to_file(&original, tmp.path()).unwrap();
+        let re_imported = BcsImporter {
+            name: "bcs_file_rt2",
+        }
+        .import(&DataSource::new(tmp.path().to_path_buf()))
+        .unwrap();
         assert_eq!(re_imported, original);
     }
 }

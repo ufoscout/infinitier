@@ -18,8 +18,10 @@ use std::io::Read;
 use infinitier_datasource::{DataSource, Importer};
 use log::debug;
 
-use crate::{Action, Bcs, BcsObject, BcsPoint, BcsRegion, Condition, ConditionResponse, Response,
-            ResponseSet, Trigger};
+use crate::{
+    Action, Bcs, BcsObject, BcsPoint, BcsRegion, Condition, ConditionResponse, Response,
+    ResponseSet, Trigger,
+};
 
 /// A BCS script file importer.
 pub struct BcsImporter<'a> {

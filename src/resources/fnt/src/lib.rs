@@ -18,6 +18,79 @@
 //! the same reason it is in NI: the format is otherwise undocumented
 //! and shipping a half-right renderer would be worse than not
 //! rendering at all.
+//!
+//! ## Reverse-engineering notes (not parsed)
+//!
+//! For a while this crate exposed a parsed view of the body. The
+//! parsing was correct as far as it went, but **no consumer needed
+//! the data** — gemrb ignores the entire file and NearInfinity ignores
+//! everything past offset 4 — so the parsing was reverted. The
+//! findings are recorded here so the work isn't lost; if a future use
+//! case appears (e.g. an FNT→TTF converter or a glyph-cache exporter),
+//! the structure below is reproducible and well-defined.
+//!
+//! ### Extended header (offsets 4..16)
+//!
+//! ```text
+//! 4   u16   num_sizes               # of pre-rendered font sizes
+//! 6   u16   constant 1              always 1 in every sample
+//! 8   u32   constant 1              always 1 in every sample
+//! 12  u32   unknown                 varies per font; semantics unclear
+//! ```
+//!
+//! ### Body layout (offsets 16..)
+//!
+//! ```text
+//! 16  u32[extra_letters_count]      character coverage table
+//!     f32[num_sizes][4]             per-size font metrics — see below
+//!     f32[extra_letters_count][4]   per-glyph float quadruplets,
+//!                                   semantics undetermined (NOT the BAM
+//!                                   frame dimensions — conjecture
+//!                                   refuted)
+//!     <remaining bytes>             pre-rasterised glyph coverage
+//!                                   masks at the larger sizes (the
+//!                                   companion BAM only carries the
+//!                                   smallest size). Per-glyph stride
+//!                                   isn't cleanly divisible; full
+//!                                   layout would need engine-side
+//!                                   instrumentation to nail down.
+//! ```
+//!
+//! ### Per-size metrics — verified
+//!
+//! Each row of the size table is four floats:
+//! `(em_size, ascent, line_height, descent)`. Across 8/8 sampled
+//! BG:EE / IWD:EE / BG2:EE fonts the count matches `num_sizes`
+//! exactly, with all later quadruplets zeroed:
+//!
+//! | Font     | `num_sizes` | non-zero quads |
+//! |----------|-------------|----------------|
+//! | NORMAL   | 11          | 11             |
+//! | FLOATTXT | 11          | 11             |
+//! | TOOLFONT | 8           | 8              |
+//! | TOOLTIP  | 3           | 3              |
+//! | STONEBIG | 3           | 3              |
+//! | STATES2  | 3           | 3              |
+//! | REALMS   | 4           | 4              |
+//! | INITIALS | 1           | 1              |
+//!
+//! Values look reasonable: NORMAL's 11-entry ladder runs from
+//! em = 9 px (ascent 11, descent 3) up to em = 37.5 px (ascent 47,
+//! descent 12) — the classic EE UI font ladder. `ascent` equals
+//! `line_height` in every observed entry across every observed font.
+//!
+//! ### BAM correlation — refuted
+//!
+//! The per-glyph float quadruplets immediately after the size table do
+//! **not** echo the companion BAM's frame dimensions. Going through
+//! the BAM's cycle table (each BAM-font cycle indexes by char code,
+//! pointing at one frame holding that glyph), real glyph dims are e.g.
+//! `'space'→(4,10)`, `'!'→(4,4)`, `'#'→(7,13)`, `'$'→(10,9)`. The
+//! corresponding FNT quadruplets — `(0,1,2,0)`, `(1,2,1,0)`,
+//! `(1,5,0,0)`, `(0,6,0,0)` — don't carry any of those numbers in any
+//! column. Likely per-glyph X/Y offsets or kerning adjustments, but
+//! couldn't be pinned down to a reproducible meaning from sample
+//! correlation alone.
 
 use std::io::Read;
 use std::sync::Arc;
@@ -107,7 +180,8 @@ pub struct Fnt {
 
 impl Fnt {
     /// Slice of the file past the parsed 4-byte header. Engine-
-    /// internal; not interpreted here.
+    /// internal; not interpreted here. See the module docs for what's
+    /// known about the structure.
     pub fn body(&self) -> &[u8] {
         &self.raw[HEADER_LEN..]
     }
@@ -124,11 +198,7 @@ mod tests {
         let fnt = FntImporter { name: "realms" }
             .import(&DataSource::new(path))
             .unwrap();
-        // Matches the count NI would display (e.g. 244 for vanilla EE
-        // fonts that cover ASCII + Latin-1 supplement + typographic
-        // extras).
         assert_eq!(fnt.extra_letters_count, 244);
-        // Synthesised companion refs — uppercase, no extension swap.
         assert_eq!(fnt.letters_bam, "REALMS.BAM");
         assert_eq!(fnt.extra_letters_bmp, "REALMS.BMP");
     }

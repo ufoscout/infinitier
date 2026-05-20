@@ -32,10 +32,7 @@ impl Importer for TtfImporter<'_> {
         })?;
         debug!(
             "Loaded {} [TTF]: family='{}' subfamily='{}' glyphs={}",
-            self.name,
-            metadata.family_name,
-            metadata.subfamily_name,
-            metadata.glyph_count
+            self.name, metadata.family_name, metadata.subfamily_name, metadata.glyph_count
         );
         Ok(Ttf {
             raw: Arc::new(bytes),
@@ -237,9 +234,7 @@ mod tests {
     fn test_rejects_non_ttf_bytes() {
         // Random garbage must surface as InvalidData, not panic.
         let data = DataSource::new(&b"this is not a font"[..]);
-        let err = TtfImporter { name: "garbage" }
-            .import(&data)
-            .unwrap_err();
+        let err = TtfImporter { name: "garbage" }.import(&data).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
     }
 }
