@@ -20,3 +20,4 @@ serde = { workspace = true }
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }

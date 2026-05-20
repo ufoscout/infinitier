@@ -1,3 +1,4 @@
+use infinitier_fnt_resource::Fnt;
 use infinitier_ids_resource::Ids;
 use infinitier_ini_resource::Ini;
 use infinitier_ttf_resource::Ttf;
@@ -46,7 +47,11 @@ pub enum ImportedResource {
     Cre,
     Dlg,
     Eff,
-    Fnt,
+    /// Parsed FNT bitmap font — header + character coverage table.
+    /// The proprietary bitmap section is preserved verbatim in
+    /// [`Fnt::raw`] for the viewer's hex dump; see the crate's module
+    /// doc for the limitations.
+    Fnt(Fnt),
     Gam,
     Glsl,
     Gui,

@@ -172,6 +172,7 @@ impl GameResource {
         use infinitier_bam_resource::BamImporter;
         use infinitier_bcs_resource::BcsImporter;
         use infinitier_bmp_resource::BmpImporter;
+        use infinitier_fnt_resource::FntImporter;
         use infinitier_ids_resource::IdsImporter;
         use infinitier_ini_resource::IniImporter;
         use infinitier_mos_resource::MosImporter;
@@ -246,7 +247,9 @@ impl GameResource {
             ResourceType::Cre => Ok(ImportedResource::Cre),
             ResourceType::Dlg => Ok(ImportedResource::Dlg),
             ResourceType::Eff => Ok(ImportedResource::Eff),
-            ResourceType::Fnt => Ok(ImportedResource::Fnt),
+            ResourceType::Fnt => FntImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Fnt),
             ResourceType::Gam => Ok(ImportedResource::Gam),
             ResourceType::Glsl => Ok(ImportedResource::Glsl),
             ResourceType::Gui => Ok(ImportedResource::Gui),

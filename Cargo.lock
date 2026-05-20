@@ -1917,6 +1917,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -1977,6 +1978,7 @@ dependencies = [
  "infinitier_bmp_resource",
  "infinitier_common",
  "infinitier_datasource",
+ "infinitier_fnt_resource",
  "infinitier_fs",
  "infinitier_ids_resource",
  "infinitier_ini_resource",
@@ -2019,6 +2021,15 @@ dependencies = [
  "infinitier_core",
  "log",
  "rodio",
+]
+
+[[package]]
+name = "infinitier_fnt_resource"
+version = "0.0.5"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
 ]
 
 [[package]]

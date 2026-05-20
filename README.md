@@ -32,58 +32,60 @@ just check_code  # rustfmt + clippy
 
 ## File Format Status
 
-| Format | Description | Implementation |
-|--------|-------------|:--------------:|
-| 2DA | Two-dimensional array (data table) | Done |
-| ACM | Compressed audio | Done |
-| ARE | Area / location data | |
-| BAM | Bitmap animation | Done |
-| BCS | Compiled script | Done |
-| BIF | Resource archive | Done |
-| BIK | Bink video (`mve` extension) | Done |
-| BMP | Bitmap image | Done |
-| CHR | Character record | |
-| CHU | UI window and control definitions | |
-| CRE | Creature | |
-| DLG | Dialogue tree | |
-| EFF | Effect | |
-| FNT | Font | |
-| GAM | Game save state | |
-| GLSL | GLSL shader | |
-| GUI | GUI definition | |
-| IDS | Identifier / enumeration reference | Done |
-| INI | Configuration | Done |
-| ITM | Item | |
-| KEY | Resource index | Done |
-| LUA | Lua script | |
-| MAZE | Maze data (IWD2) | |
-| MENU | WeiDU menu | |
-| MOS | Background mosaic image | Done |
-| MUS | Music playlist | |
-| MVE | Interplay MVE video | Done (both `Interplay MVE` and `BIKi`) |
-| PLT | Paperdoll layered bitmap | |
-| PNG | PNG image | Done |
-| PRO | Projectile | |
-| PVRZ | PVR compressed texture | Done |
-| SAV | Save game archive | |
-| SQL | SQLite database | |
-| SPL | Spell | |
-| SRC | Script source | |
-| STO | Store / shop | |
-| TIS | Tileset | Done |
-| TLK | String table | |
-| TOH | String override header (EE) | |
-| TOT | String override table (EE) | |
-| TTF | TrueType font | Done |
-| VAR | Variables (IWD2) | |
-| VEF | Visual effect | |
-| VVC | Looping visual component | |
-| WAVC | Compressed WAV audio | Done |
-| WAV | Audio | Done |
-| WBM | WebM video | Done |
-| WED | Area geometry and layout | Done |
-| WFX | Sound effects configuration | |
-| WMAP | World map | |
+`Reader` covers the importer / decoder; `Writer` covers the exporter / encoder.
+
+| Format | Description | Reader | Writer |
+|--------|-------------|:------:|:------:|
+| 2DA | Two-dimensional array (data table) | Done | Done |
+| ACM | Compressed audio | Done | Done |
+| ARE | Area / location data | | |
+| BAM | Bitmap animation | Done | Done |
+| BCS | Compiled script | Done | Done |
+| BIF | Resource archive | Done | Done |
+| BIK | Bink video (`mve` extension) | Done | Non needed. Use the official [Bink tools](https://www.radgametools.com/bnkdown.htm)|
+| BMP | Bitmap image | Done | Not needed |
+| CHR | Character record | | |
+| CHU | UI window and control definitions | | |
+| CRE | Creature | | |
+| DLG | Dialogue tree | | |
+| EFF | Effect | | |
+| FNT | Font | | |
+| GAM | Game save state | | |
+| GLSL | GLSL shader | | |
+| GUI | GUI definition | | |
+| IDS | Identifier / enumeration reference | Done | Done |
+| INI | Configuration | Done | Done |
+| ITM | Item | | |
+| KEY | Resource index | Done | Done |
+| LUA | Lua script | | |
+| MAZE | Maze data (IWD2) | | |
+| MENU | WeiDU menu | | |
+| MOS | Background mosaic image | Done | Done |
+| MUS | Music playlist | | |
+| MVE | Interplay MVE video | Done | Done |
+| PLT | Paperdoll layered bitmap | | |
+| PNG | PNG image | Done | Not needed |
+| PRO | Projectile | | |
+| PVRZ | PVR compressed texture | Done | Done |
+| SAV | Save game archive | | |
+| SQL | SQLite database | | |
+| SPL | Spell | | |
+| SRC | Script source | | |
+| STO | Store / shop | | |
+| TIS | Tileset | Done | Done |
+| TLK | String table | | |
+| TOH | String override header (EE) | | |
+| TOT | String override table (EE) | | |
+| TTF | TrueType font | Done | Not needed |
+| VAR | Variables (IWD2) | | |
+| VEF | Visual effect | | |
+| VVC | Looping visual component | | |
+| WAVC | Compressed WAV audio | Done | Done |
+| WAV | Audio | Done | Not needed |
+| WBM | WebM video | Done | Not needed |
+| WED | Area geometry and layout | Done | Done |
+| WFX | Sound effects configuration | | |
+| WMAP | World map | | |
 
 ## AI Usage
 

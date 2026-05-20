@@ -28,6 +28,9 @@ pub mod bif {
 pub mod bmp {
     pub use infinitier_bmp_resource::*;
 }
+pub mod fnt {
+    pub use infinitier_fnt_resource::*;
+}
 pub mod common {
     pub use infinitier_bam_resource::common::*;
 }

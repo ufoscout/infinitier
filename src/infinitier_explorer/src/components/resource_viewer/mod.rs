@@ -156,7 +156,7 @@ impl ResourceViewer {
                                 ImportedResource::Cre => Box::new(CreViewer::new()),
                                 ImportedResource::Dlg => Box::new(DlgViewer::new()),
                                 ImportedResource::Eff => Box::new(EffViewer::new()),
-                                ImportedResource::Fnt => Box::new(FntViewer::new()),
+                                ImportedResource::Fnt(fnt) => Box::new(FntViewer::new(fnt)),
                                 ImportedResource::Gam => Box::new(GamViewer::new()),
                                 ImportedResource::Glsl => Box::new(GlslViewer::new()),
                                 ImportedResource::Gui => Box::new(GuiViewer::new()),

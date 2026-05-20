@@ -27,6 +27,7 @@ infinitier_bam_resource = { workspace = true }
 infinitier_bcs_resource = { workspace = true }
 infinitier_bif_resource = { workspace = true }
 infinitier_bmp_resource = { workspace = true }
+infinitier_fnt_resource = { workspace = true }
 infinitier_ids_resource = { workspace = true }
 infinitier_ini_resource = { workspace = true }
 infinitier_key_resource = { workspace = true }

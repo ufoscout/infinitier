@@ -41,6 +41,7 @@ infinitier_bam_resource = { path = "src/resources/bam", version = "0.0.5"  }
 infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.5"  }
 infinitier_bif_resource = { path = "src/resources/bif", version = "0.0.5"  }
 infinitier_bmp_resource = { path = "src/resources/bmp", version = "0.0.5"  }
+infinitier_fnt_resource = { path = "src/resources/fnt", version = "0.0.5"  }
 infinitier_ids_resource = { path = "src/resources/ids", version = "0.0.5"  }
 infinitier_ini_resource = { path = "src/resources/ini", version = "0.0.5"  }
 infinitier_key_resource = { path = "src/resources/key", version = "0.0.5"  }
