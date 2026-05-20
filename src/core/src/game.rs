@@ -178,6 +178,7 @@ impl GameResource {
         use infinitier_png_resource::PngImporter;
         use infinitier_pvrz_resource::PvrzImporter;
         use infinitier_tis_resource::TisImporter;
+        use infinitier_ttf_resource::TtfImporter;
         use infinitier_two_da_resource::TwoDAImporter;
         use infinitier_wed_resource::WedImporter;
 
@@ -271,7 +272,9 @@ impl GameResource {
                 .map(ImportedResource::Tis),
             ResourceType::Toh => Ok(ImportedResource::Toh),
             ResourceType::Tot => Ok(ImportedResource::Tot),
-            ResourceType::Ttf => Ok(ImportedResource::Ttf),
+            ResourceType::Ttf => TtfImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Ttf),
             ResourceType::Vef => Ok(ImportedResource::Vef),
             ResourceType::Vvc => Ok(ImportedResource::Vvc),
             ResourceType::Wbm => Ok(ImportedResource::Wbm(movie::MovieSource::new(

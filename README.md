@@ -62,7 +62,7 @@ just check_code  # rustfmt + clippy
 | MUS | Music playlist | |
 | MVE | Interplay MVE video | Done (both `Interplay MVE` and `BIKi`) |
 | PLT | Paperdoll layered bitmap | |
-| PNG | PNG image | |
+| PNG | PNG image | Done |
 | PRO | Projectile | |
 | PVRZ | PVR compressed texture | Done |
 | SAV | Save game archive | |
@@ -74,7 +74,7 @@ just check_code  # rustfmt + clippy
 | TLK | String table | |
 | TOH | String override header (EE) | |
 | TOT | String override table (EE) | |
-| TTF | TrueType font | |
+| TTF | TrueType font | Done |
 | VAR | Variables (IWD2) | |
 | VEF | Visual effect | |
 | VVC | Looping visual component | |

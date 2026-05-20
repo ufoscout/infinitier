@@ -1,5 +1,6 @@
 use infinitier_ids_resource::Ids;
 use infinitier_ini_resource::Ini;
+use infinitier_ttf_resource::Ttf;
 use infinitier_two_da_resource::TwoDA;
 use infinitier_wed_resource::Wed;
 
@@ -64,7 +65,11 @@ pub enum ImportedResource {
     Tga,
     Toh,
     Tot,
-    Ttf,
+    /// Parsed TrueType / OpenType font — name table + em metrics for
+    /// the info bar, plus a shared handle to the raw bytes so the
+    /// viewer can install the font into egui's text renderer for
+    /// sample-text rendering.
+    Ttf(Ttf),
     Vef,
     Vvc,
     Wbm(MovieSource),

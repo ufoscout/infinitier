@@ -48,6 +48,7 @@ infinitier_mos_resource = { path = "src/resources/mos", version = "0.0.5"  }
 infinitier_png_resource = { path = "src/resources/png", version = "0.0.5"  }
 infinitier_pvrz_resource = { path = "src/resources/pvrz", version = "0.0.5"  }
 infinitier_tis_resource = { path = "src/resources/tis", version = "0.0.5"  }
+infinitier_ttf_resource = { path = "src/resources/ttf", version = "0.0.5"  }
 infinitier_two_da_resource = { path = "src/resources/two_da", version = "0.0.5"  }
 infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.5"  }
 
@@ -81,6 +82,11 @@ texture2ddecoder = "0.1"
 # BC1/BC3 (DXT1/DXT5) encoder used to write PVR files back from a decoded
 # ImageBuffer. Pure Rust port of libsquish.
 texpresso = "2"
+
+# Pure-Rust TrueType / OpenType parser. Used by the TTF resource importer
+# to extract `name` / `head` / `hhea` metadata; sample-text rendering in
+# the viewer goes through egui's text renderer instead.
+ttf-parser = "0.25"
 
 # Audio playback
 rodio = { version = "0.22", default-features = false, features = ["playback", "symphonia-mp3"] }

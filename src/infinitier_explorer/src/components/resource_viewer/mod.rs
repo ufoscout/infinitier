@@ -178,7 +178,9 @@ impl ResourceViewer {
                                 }
                                 ImportedResource::Toh => Box::new(TohViewer::new()),
                                 ImportedResource::Tot => Box::new(TotViewer::new()),
-                                ImportedResource::Ttf => Box::new(TtfViewer::new()),
+                                ImportedResource::Ttf(ttf) => {
+                                    Box::new(TtfViewer::new(ttf, ui, resource_id))
+                                }
                                 ImportedResource::Vef => Box::new(VefViewer::new()),
                                 ImportedResource::Vvc => Box::new(VvcViewer::new()),
                                 ImportedResource::Wbm(src) => Box::new(MovieViewer::new(src)),

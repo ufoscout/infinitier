@@ -52,6 +52,9 @@ pub mod pvrz {
 pub mod tis {
     pub use infinitier_tis_resource::*;
 }
+pub mod ttf {
+    pub use infinitier_ttf_resource::*;
+}
 pub mod two_da {
     pub use infinitier_two_da_resource::*;
 }

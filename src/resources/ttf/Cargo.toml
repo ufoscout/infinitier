@@ -1,0 +1,19 @@
+[package]
+name = "infinitier_ttf_resource"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Reader for TrueType / OpenType fonts used by Infinity Engine Enhanced Editions"
+readme = "readme.md"
+keywords = ["ttf", "otf", "font", "infinity-engine", "baldurs-gate"]
+
+[dependencies]
+infinitier_datasource = { workspace = true }
+log = { workspace = true }
+ttf-parser = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }

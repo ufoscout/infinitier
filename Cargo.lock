@@ -1987,6 +1987,7 @@ dependencies = [
  "infinitier_pvrz_resource",
  "infinitier_test_utils",
  "infinitier_tis_resource",
+ "infinitier_ttf_resource",
  "infinitier_two_da_resource",
  "infinitier_wav_decoder",
  "infinitier_wbm_decoder",
@@ -2153,6 +2154,16 @@ dependencies = [
  "infinitier_test_utils",
  "log",
  "tempfile",
+]
+
+[[package]]
+name = "infinitier_ttf_resource"
+version = "0.0.5"
+dependencies = [
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
+ "ttf-parser",
 ]
 
 [[package]]
