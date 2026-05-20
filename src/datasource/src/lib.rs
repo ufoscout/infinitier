@@ -79,6 +79,28 @@ impl DataTrait for Cursor<SharedBytes> {}
 impl<D: DataTrait> DataTrait for Take<D> {}
 
 impl Data {
+    /// Byte length of the data, computed without reading the content
+    /// into memory. For [`Data::Path`] this is a single `stat` call; for
+    /// [`Data::Generator`] it realises the temp file (if necessary) and
+    /// stats it; for [`Data::MemorySource`] it's `Vec::len`.
+    ///
+    /// Surfacing this allows callers — notably the [`DataSource::Concat`]
+    /// reader — to compute cumulative offsets across multiple parts
+    /// without first reading their bytes.
+    pub fn len(&self) -> std::io::Result<u64> {
+        match self {
+            Data::Path(path) => Ok(std::fs::metadata(path)?.len()),
+            Data::Generator(generator) => Ok(std::fs::metadata(generator.path()?)?.len()),
+            Data::MemorySource(bytes) => Ok(bytes.len() as u64),
+        }
+    }
+
+    /// `true` when `len()` is `0`. Provided to satisfy clippy's
+    /// `len_without_is_empty` lint.
+    pub fn is_empty(&self) -> std::io::Result<bool> {
+        Ok(self.len()? == 0)
+    }
+
     /// Returns a reader for the data
     pub fn reader(&self, offset: u64, limit: Option<u64>) -> std::io::Result<Box<dyn DataTrait>> {
         match self {
@@ -122,6 +144,235 @@ impl AsRef<[u8]> for SharedBytes {
     }
 }
 
+/// [`DataTrait`] adapter that reads from several [`DataSource`]s in
+/// sequence as if they were one stream — backs [`DataSource::Concat`].
+///
+/// **Lazy by construction**: at most one part is open at a time, and a
+/// part is opened only when a read or seek actually lands inside it. No
+/// part's bytes are pulled into memory ahead of time; segment lengths
+/// (needed for seeking) come from [`Data::len`], which only does a
+/// `stat`-like metadata lookup.
+struct ConcatReader {
+    /// Source parts, cloned at construction so the reader can outlive
+    /// the borrowed slice it came from. `DataSource` is cheap to clone
+    /// — file paths and `Arc`-shared byte buffers.
+    parts: Vec<DataSource>,
+    /// Cumulative byte offsets: `segment_starts[i]` = sum of lengths of
+    /// `parts[..i]`. The last entry is the total concatenated length.
+    /// Computed once at construction via stat / `Vec::len`.
+    segment_starts: Vec<u64>,
+    /// Currently-open part: `(part_index, opened_reader)`. `None` until
+    /// the first read/seek lands inside a part. Switching parts drops
+    /// the previous reader, so we keep at most one file handle open.
+    current: Option<(usize, Box<dyn DataTrait>)>,
+    /// Global cursor position, in `[0, total_length]`.
+    position: u64,
+}
+
+impl ConcatReader {
+    fn new(parts: &[DataSource]) -> std::io::Result<Self> {
+        let mut segment_starts = Vec::with_capacity(parts.len() + 1);
+        let mut total = 0u64;
+        segment_starts.push(0);
+        for part in parts {
+            total = total.saturating_add(part.len()?);
+            segment_starts.push(total);
+        }
+        Ok(Self {
+            parts: parts.to_vec(),
+            segment_starts,
+            current: None,
+            position: 0,
+        })
+    }
+
+    fn total_length(&self) -> u64 {
+        *self.segment_starts.last().unwrap_or(&0)
+    }
+
+    /// Index of the part that contains the byte at `pos`. When `pos`
+    /// falls exactly on a part boundary, returns the part that *starts*
+    /// at that offset (the later one). Returns `parts.len()` when
+    /// `pos >= total_length`.
+    fn segment_for_position(&self, pos: u64) -> usize {
+        if pos >= self.total_length() {
+            return self.parts.len();
+        }
+        // segment_starts is sorted, with parts.len() + 1 entries. Find
+        // the largest i with segment_starts[i] <= pos.
+        match self.segment_starts.binary_search(&pos) {
+            Ok(i) => i.min(self.parts.len()), // exact match = boundary
+            Err(i) => i.saturating_sub(1),    // pos is between i-1 and i
+        }
+    }
+
+    /// Make sure `self.current` is open for the part containing
+    /// `self.position`, with the underlying reader seeked to the
+    /// corresponding local offset. No-op when already aligned.
+    /// Caller must check `position < total_length` first.
+    fn ensure_open(&mut self) -> std::io::Result<()> {
+        let seg = self.segment_for_position(self.position);
+        debug_assert!(seg < self.parts.len());
+        let local = self.position - self.segment_starts[seg];
+
+        let needs_open = match &self.current {
+            Some((i, _)) => *i != seg,
+            None => true,
+        };
+        if needs_open {
+            // Drop the old reader first so we never hold two file
+            // handles at once.
+            self.current = None;
+            let mut reader = self.parts[seg].data_reader()?;
+            if local > 0 {
+                reader.seek(std::io::SeekFrom::Start(local))?;
+            }
+            self.current = Some((seg, reader));
+        }
+        Ok(())
+    }
+
+    /// Step past every empty part starting at the current position so
+    /// `self.position` lands either on a non-empty part or at EOF.
+    /// Zero-length parts are surprisingly easy to produce (a `Concat`
+    /// with no parts, a `Path` to an empty file, …) — without this the
+    /// reader would loop forever on them in `read` / `fill_buf`.
+    fn skip_empty_parts(&mut self) {
+        // segment_starts[i] == segment_starts[i+1] means part i is empty.
+        while self.position < self.total_length() {
+            let seg = self.segment_for_position(self.position);
+            if self.segment_starts[seg] == self.segment_starts[seg + 1] {
+                self.position = self.segment_starts[seg + 1];
+                self.current = None;
+            } else {
+                break;
+            }
+        }
+    }
+}
+
+impl Read for ConcatReader {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        loop {
+            self.skip_empty_parts();
+            if self.position >= self.total_length() {
+                return Ok(0);
+            }
+            self.ensure_open()?;
+            let n = self.current.as_mut().unwrap().1.read(buf)?;
+            if n > 0 {
+                self.position += n as u64;
+                return Ok(n);
+            }
+            // Underlying reader returned 0 but we're not at total EOF
+            // → this part is exhausted earlier than its declared length
+            // (e.g. the backing file was truncated since `len()` was
+            // computed). Jump to the next part's start and try again.
+            let seg = self.segment_for_position(self.position);
+            self.position = self.segment_starts[seg + 1];
+            self.current = None;
+        }
+    }
+}
+
+impl BufRead for ConcatReader {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        loop {
+            self.skip_empty_parts();
+            if self.position >= self.total_length() {
+                return Ok(&[]);
+            }
+            self.ensure_open()?;
+            // Two-step dance to keep the borrow checker happy: the
+            // first call lets us inspect whether the buffer is empty
+            // without keeping the borrow alive across `self.position`
+            // mutation. The second call returns the same buffer (every
+            // `BufRead` impl caches its result, so this is essentially
+            // free).
+            let is_empty = self.current.as_mut().unwrap().1.fill_buf()?.is_empty();
+            if !is_empty {
+                return self.current.as_mut().unwrap().1.fill_buf();
+            }
+            // Current part returned an empty buffer despite us not
+            // having reached its declared end — same truncation case
+            // as in `read`. Advance to the next part.
+            let seg = self.segment_for_position(self.position);
+            self.position = self.segment_starts[seg + 1];
+            self.current = None;
+        }
+    }
+
+    fn consume(&mut self, amt: usize) {
+        if amt == 0 {
+            return;
+        }
+        if let Some((_, reader)) = self.current.as_mut() {
+            reader.consume(amt);
+        }
+        self.position = self
+            .position
+            .saturating_add(amt as u64)
+            .min(self.total_length());
+    }
+}
+
+impl Seek for ConcatReader {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        let total = self.total_length();
+        let new_pos = match pos {
+            std::io::SeekFrom::Start(n) => n,
+            std::io::SeekFrom::End(off) => add_signed_clamp(total, off)?,
+            std::io::SeekFrom::Current(off) => add_signed_clamp(self.position, off)?,
+        };
+        // Allow seeking exactly to total_length (end-of-stream marker);
+        // any read from there will yield 0.
+        if new_pos > total {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "seek past end of concatenated stream",
+            ));
+        }
+        self.position = new_pos;
+        // Either reseek the current part to the right local offset, or
+        // drop it so `ensure_open` re-creates it on the next read.
+        if new_pos < total {
+            let seg = self.segment_for_position(new_pos);
+            match &mut self.current {
+                Some((i, reader)) if *i == seg => {
+                    let local = new_pos - self.segment_starts[seg];
+                    reader.seek(std::io::SeekFrom::Start(local))?;
+                }
+                _ => self.current = None,
+            }
+        } else {
+            // Sitting exactly at total — no current part is meaningful.
+            self.current = None;
+        }
+        Ok(self.position)
+    }
+}
+
+impl DataTrait for ConcatReader {}
+
+/// Compute `base + offset` for a signed offset, returning
+/// `InvalidInput` on overflow / underflow rather than panicking.
+fn add_signed_clamp(base: u64, offset: i64) -> std::io::Result<u64> {
+    let result = if offset >= 0 {
+        base.checked_add(offset as u64)
+    } else {
+        base.checked_sub((-(offset as i128)) as u64)
+    };
+    result.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "seek offset out of range",
+        )
+    })
+}
+
 /// A data source with a specific encoding
 #[derive(Debug, Clone)]
 pub enum DataSource {
@@ -132,6 +383,30 @@ pub enum DataSource {
     Embedded {
         encoding: &'static Encoding,
         data: Data,
+        offset: u64,
+        limit: Option<u64>,
+    },
+    /// Logical concatenation of multiple data sources.
+    ///
+    /// The reader returned by [`DataSource::reader`] walks the parts in
+    /// order: when the current part is exhausted it transparently
+    /// switches to the next one. Seeking is also transparent — the
+    /// reader maps a global offset to `(part_index, local_offset)` and
+    /// only opens that one part. **No part is read into memory ahead of
+    /// time**; each part's bytes are pulled from disk (or its in-memory
+    /// `Vec`) on demand, and at most one part is kept open at a time.
+    ///
+    /// The optional `offset` / `limit` apply an outer window over the
+    /// concatenated stream — same convention as [`DataSource::Embedded`]
+    /// for non-concat data. Windowing stays lazy: it's implemented by
+    /// seeking the [`ConcatReader`] and wrapping it in `Take`, not by
+    /// materialising bytes.
+    ///
+    /// Built via [`DataSource::new_concat`] (default `offset = 0`,
+    /// `limit = None`); window with [`DataSource::with_offset`].
+    Concat {
+        encoding: &'static Encoding,
+        parts: Vec<DataSource>,
         offset: u64,
         limit: Option<u64>,
     },
@@ -162,6 +437,59 @@ impl DataSource {
         }
     }
 
+    /// Creates a data source that reads `parts` back-to-back as a single
+    /// logical byte stream. See [`DataSource::Concat`] for the lazy /
+    /// no-preload guarantee.
+    pub fn new_concat(parts: Vec<DataSource>) -> Self {
+        DataSource::Concat {
+            encoding: WINDOWS_1252,
+            parts,
+            offset: 0,
+            limit: None,
+        }
+    }
+
+    /// Total byte length of the data source, computed without reading
+    /// the content. For [`DataSource::Concat`] this is the sum of every
+    /// part's length (each computed via [`Data::len`]) clamped by the
+    /// outer `offset` / `limit` window; for [`DataSource::Embedded`]
+    /// it accounts for the offset and limit.
+    pub fn len(&self) -> std::io::Result<u64> {
+        match self {
+            DataSource::Full { data, .. } => data.len(),
+            DataSource::Embedded {
+                data, offset, limit, ..
+            } => {
+                let after_offset = data.len()?.saturating_sub(*offset);
+                Ok(match limit {
+                    Some(l) => after_offset.min(*l),
+                    None => after_offset,
+                })
+            }
+            DataSource::Concat {
+                parts,
+                offset,
+                limit,
+                ..
+            } => {
+                let mut total = 0u64;
+                for p in parts {
+                    total = total.saturating_add(p.len()?);
+                }
+                let after_offset = total.saturating_sub(*offset);
+                Ok(match limit {
+                    Some(l) => after_offset.min(*l),
+                    None => after_offset,
+                })
+            }
+        }
+    }
+
+    /// `true` when [`DataSource::len`] is `0`.
+    pub fn is_empty(&self) -> std::io::Result<bool> {
+        Ok(self.len()? == 0)
+    }
+
     /// Sets the encoding
     pub fn with_encoding(self, encoding: &'static Encoding) -> Self {
         match self {
@@ -177,10 +505,32 @@ impl DataSource {
                 offset,
                 limit,
             },
+            DataSource::Concat {
+                parts,
+                offset,
+                limit,
+                ..
+            } => DataSource::Concat {
+                encoding,
+                parts,
+                offset,
+                limit,
+            },
         }
     }
 
-    /// Sets the offset
+    /// Applies an `(offset, limit)` window to the data source.
+    ///
+    /// The new window **replaces** any existing one (same semantics as
+    /// [`DataSource::Embedded`] — `with_offset` is not compositional).
+    ///
+    /// For [`DataSource::Concat`] the window is applied to the
+    /// concatenated logical stream: `offset` skips that many bytes
+    /// across however many parts they span, and `limit` caps the
+    /// total visible length. The concatenation stays lazy — windowing
+    /// is implemented at read time by seeking the underlying
+    /// `ConcatReader` and wrapping it in [`std::io::Read::take`], not
+    /// by materialising bytes.
     pub fn with_offset(self, offset: u64, limit: Option<u64>) -> Self {
         match self {
             DataSource::Full { encoding, data } => DataSource::Embedded {
@@ -195,6 +545,14 @@ impl DataSource {
                 offset,
                 limit,
             },
+            DataSource::Concat {
+                encoding, parts, ..
+            } => DataSource::Concat {
+                encoding,
+                parts,
+                offset,
+                limit,
+            },
         }
     }
 
@@ -203,25 +561,50 @@ impl DataSource {
         match self {
             DataSource::Full { encoding, .. } => encoding,
             DataSource::Embedded { encoding, .. } => encoding,
+            DataSource::Concat { encoding, .. } => encoding,
         }
     }
 
     /// Creates a data reader
     pub fn reader(&self) -> std::io::Result<Reader<Box<dyn DataTrait>>> {
+        Ok(Reader {
+            data: self.data_reader()?,
+            charset: self.encoding(),
+        })
+    }
+
+    /// Internal: build just the [`DataTrait`] reader (no charset
+    /// wrapping). Used by [`Self::reader`] and by [`ConcatReader`] when
+    /// it opens a part lazily on demand.
+    fn data_reader(&self) -> std::io::Result<Box<dyn DataTrait>> {
         match self {
-            DataSource::Full { encoding, data } => Ok(Reader {
-                data: data.reader(0, None)?,
-                charset: encoding,
-            }),
+            DataSource::Full { data, .. } => data.reader(0, None),
             DataSource::Embedded {
-                encoding,
-                data,
+                data, offset, limit, ..
+            } => data.reader(*offset, *limit),
+            DataSource::Concat {
+                parts,
                 offset,
                 limit,
-            } => Ok(Reader {
-                data: data.reader(*offset, *limit)?,
-                charset: encoding,
-            }),
+                ..
+            } => {
+                // Build the unwindowed reader first, then apply the
+                // outer window the same way `Data::reader` does for
+                // path/memory sources: seek to `offset`, then wrap in
+                // `Take(limit)` if a limit is set. `Take<T: Seek>`
+                // (stable since 1.89) normalises its position to start
+                // at 0, so the consumer sees the windowed stream the
+                // same way as `DataSource::Embedded` does.
+                let mut reader = ConcatReader::new(parts)?;
+                if *offset > 0 {
+                    reader.seek(std::io::SeekFrom::Start(*offset))?;
+                }
+                if let Some(l) = limit {
+                    Ok(Box::new(reader.take(*l)))
+                } else {
+                    Ok(Box::new(reader))
+                }
+            }
         }
     }
 }
@@ -789,5 +1172,350 @@ mod tests {
         }
 
         let _ = std::fs::remove_file(&tmp_path);
+    }
+
+    // ── DataSource::Concat ────────────────────────────────────────────
+
+    fn ds(bytes: &'static [u8]) -> DataSource {
+        DataSource::new(bytes)
+    }
+
+    #[test]
+    fn test_concat_reads_each_part_in_order() {
+        let concat = DataSource::new_concat(vec![ds(b"Hello, "), ds(b"world"), ds(b"!")]);
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "Hello, world!");
+    }
+
+    #[test]
+    fn test_concat_len_sums_parts_without_reading() {
+        let concat = DataSource::new_concat(vec![ds(b"abc"), ds(b"defg"), ds(b"hi")]);
+        assert_eq!(concat.len().unwrap(), 9);
+        assert!(!concat.is_empty().unwrap());
+    }
+
+    #[test]
+    fn test_concat_read_spans_part_boundary() {
+        // 5-byte read straddles the boundary between part 0 ("Hello, ")
+        // and part 1 ("world"). The contract is: each underlying `read`
+        // returns from only one part, but successive reads chain.
+        let concat = DataSource::new_concat(vec![ds(b"Hello, "), ds(b"world!")]);
+        let mut reader = concat.reader().unwrap();
+        let mut buf = [0u8; 13];
+        reader.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"Hello, world!");
+    }
+
+    #[test]
+    fn test_concat_seek_into_later_part() {
+        // Seek lands inside the third part — only that part should be
+        // opened (we can't easily observe that here, but we verify the
+        // bytes are correct).
+        let concat = DataSource::new_concat(vec![ds(b"AAAA"), ds(b"BBBB"), ds(b"CCCC")]);
+        let mut reader = concat.reader().unwrap();
+        reader.seek(std::io::SeekFrom::Start(9)).unwrap();
+        let mut buf = [0u8; 3];
+        reader.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"CCC");
+        assert_eq!(reader.stream_position().unwrap(), 12);
+    }
+
+    #[test]
+    fn test_concat_seek_from_end_and_current() {
+        let concat = DataSource::new_concat(vec![ds(b"abcd"), ds(b"efgh")]);
+        let mut reader = concat.reader().unwrap();
+        // From End: seek to 2 bytes before end (position 6).
+        reader.seek(std::io::SeekFrom::End(-2)).unwrap();
+        assert_eq!(reader.stream_position().unwrap(), 6);
+        let mut tail = [0u8; 2];
+        reader.read_exact(&mut tail).unwrap();
+        assert_eq!(&tail, b"gh");
+        // From Current: rewind 4 bytes back to position 4.
+        reader.seek(std::io::SeekFrom::Current(-4)).unwrap();
+        assert_eq!(reader.stream_position().unwrap(), 4);
+        let mut mid = [0u8; 2];
+        reader.read_exact(&mut mid).unwrap();
+        assert_eq!(&mid, b"ef");
+    }
+
+    #[test]
+    fn test_concat_seek_past_end_errors() {
+        let concat = DataSource::new_concat(vec![ds(b"abc")]);
+        let mut reader = concat.reader().unwrap();
+        // Seeking exactly to total_length is allowed (EOF marker)…
+        reader.seek(std::io::SeekFrom::Start(3)).unwrap();
+        // …but seeking past total_length is an error.
+        let err = reader.seek(std::io::SeekFrom::Start(4)).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+    }
+
+    #[test]
+    fn test_concat_empty_parts_skipped() {
+        // Empty parts in the middle and ends must not stall the reader
+        // (otherwise the read/fill_buf loops would spin forever).
+        let concat = DataSource::new_concat(vec![
+            ds(b""),
+            ds(b"A"),
+            ds(b""),
+            ds(b"B"),
+            ds(b""),
+        ]);
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "AB");
+    }
+
+    #[test]
+    fn test_concat_of_zero_parts_is_empty() {
+        let concat = DataSource::new_concat(vec![]);
+        assert_eq!(concat.len().unwrap(), 0);
+        assert!(concat.is_empty().unwrap());
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "");
+    }
+
+    #[test]
+    fn test_concat_bufread_crosses_part_boundary() {
+        use std::io::BufRead;
+        // `read_until(b'\n')` should keep pulling from successive
+        // parts until it finds the delimiter — the trickiest BufRead
+        // case across boundaries.
+        let concat = DataSource::new_concat(vec![ds(b"first "), ds(b"line\nleftover")]);
+        let mut reader = concat.reader().unwrap();
+        let mut buf = Vec::new();
+        let n = reader.read_until(b'\n', &mut buf).unwrap();
+        assert_eq!(buf, b"first line\n");
+        assert_eq!(n, 11);
+    }
+
+    #[test]
+    fn test_concat_nested() {
+        // A Concat that contains another Concat as one of its parts.
+        // The nested ConcatReader is created on demand.
+        let inner = DataSource::new_concat(vec![ds(b"inner-"), ds(b"data")]);
+        let outer = DataSource::new_concat(vec![ds(b"["), inner, ds(b"]")]);
+        assert_eq!(outer.len().unwrap(), 1 + 10 + 1);
+        let mut reader = outer.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "[inner-data]");
+    }
+
+    #[test]
+    fn test_concat_path_parts_read_lazily() {
+        // Confirm that Concat over file-backed parts (a) computes
+        // length via stat (i.e. doesn't need to read content), and (b)
+        // reads the bytes correctly through actual file I/O.
+        use std::io::Write;
+        let tmpdir = std::env::temp_dir();
+        let pid = std::process::id();
+        let p1 = tmpdir.join(format!("concat_test_a_{pid}.bin"));
+        let p2 = tmpdir.join(format!("concat_test_b_{pid}.bin"));
+        std::fs::File::create(&p1)
+            .unwrap()
+            .write_all(b"file-1-bytes")
+            .unwrap();
+        std::fs::File::create(&p2)
+            .unwrap()
+            .write_all(b"||file-2-bytes")
+            .unwrap();
+
+        let concat = DataSource::new_concat(vec![
+            DataSource::new(p1.as_path()),
+            DataSource::new(p2.as_path()),
+        ]);
+        // `len` does only stat calls — no content is read here.
+        assert_eq!(concat.len().unwrap(), 12 + 14);
+
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "file-1-bytes||file-2-bytes");
+
+        let _ = std::fs::remove_file(&p1);
+        let _ = std::fs::remove_file(&p2);
+    }
+
+    #[test]
+    fn test_concat_does_not_call_generator_until_first_read() {
+        // The temp-file generator counts how many times it's invoked.
+        // Building a Concat (and calling `len`) must NOT count as a
+        // "read" of the part's bytes — but `len` does need to realise
+        // the file once to stat it. We assert that `len + reader()`
+        // realises the file at most once, and that no extra
+        // realisations happen for reads inside that part.
+        use std::io::Write;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let call_count = Arc::new(AtomicUsize::new(0));
+        let call_count_clone = call_count.clone();
+
+        // Process-id is enough to keep the file isolated from other
+        // simultaneously-running test binaries — the test itself runs
+        // single-threaded with respect to this path.
+        let tmp_path = std::env::temp_dir().join(format!(
+            "concat_no_preload_{}.tmp",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&tmp_path);
+        let tmp_clone = tmp_path.clone();
+        let generator = TempFileGenerator::new(Box::new(move || {
+            call_count_clone.fetch_add(1, Ordering::SeqCst);
+            let mut f = std::fs::File::create(&tmp_clone)?;
+            f.write_all(b"generated-payload")?;
+            Ok(tmp_clone.clone())
+        }));
+
+        let gen_part = DataSource::new(Data::Generator(Arc::new(generator)));
+        let concat = DataSource::new_concat(vec![ds(b"prefix-"), gen_part, ds(b"-suffix")]);
+
+        // Length lookup realises the generator exactly once (to stat).
+        assert_eq!(concat.len().unwrap(), 7 + 17 + 7);
+        let after_len = call_count.load(Ordering::SeqCst);
+        assert_eq!(after_len, 1, "len() should realise the generator once");
+
+        // Reading every byte of the concatenation must NOT cause
+        // additional realisations (the file is already on disk).
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "prefix-generated-payload-suffix");
+        assert_eq!(
+            call_count.load(Ordering::SeqCst),
+            after_len,
+            "reading bytes should not re-realise the generator"
+        );
+
+        let _ = std::fs::remove_file(&tmp_path);
+    }
+
+    #[test]
+    fn test_concat_with_encoding() {
+        use encoding_rs::UTF_8;
+        let concat = DataSource::new_concat(vec![ds(b"hello"), ds(b"!")]).with_encoding(UTF_8);
+        assert_eq!(concat.encoding().name(), "UTF-8");
+        let mut reader = concat.reader().unwrap();
+        assert_eq!(reader.read_string(6).unwrap(), "hello!");
+    }
+
+    #[test]
+    fn test_concat_with_offset_skips_into_later_part() {
+        // Offset 9 lands inside the third part ("ccc"); limit Some(2)
+        // takes 2 bytes from there.
+        let concat = DataSource::new_concat(vec![ds(b"aaaa"), ds(b"bbbb"), ds(b"cccc")])
+            .with_offset(9, Some(2));
+        assert_eq!(concat.len().unwrap(), 2);
+        let mut reader = concat.reader().unwrap();
+        // Take<T> normalises position to start at 0 — same convention
+        // as `DataSource::Embedded` with offset+limit.
+        assert_eq!(reader.position().unwrap(), 0);
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "cc");
+    }
+
+    #[test]
+    fn test_concat_with_offset_spans_part_boundary() {
+        // Offset 3 + limit 5 spans the join between part 1 (4 bytes)
+        // and part 2 — the windowed reader should still hop between
+        // parts transparently.
+        let concat = DataSource::new_concat(vec![ds(b"aaaa"), ds(b"BBBB"), ds(b"cccc")])
+            .with_offset(3, Some(5));
+        assert_eq!(concat.len().unwrap(), 5);
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "aBBBB");
+    }
+
+    #[test]
+    fn test_concat_with_offset_no_limit_skips_only() {
+        // Offset without limit: window = sum_of_parts - offset.
+        let concat = DataSource::new_concat(vec![ds(b"abcd"), ds(b"efgh")]).with_offset(5, None);
+        assert_eq!(concat.len().unwrap(), 3);
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "fgh");
+    }
+
+    #[test]
+    fn test_concat_with_offset_limit_caps_at_actual_length() {
+        // limit larger than the bytes remaining after offset: visible
+        // length should clamp to remaining_bytes, not panic / over-read.
+        let concat = DataSource::new_concat(vec![ds(b"abc"), ds(b"def")]).with_offset(4, Some(100));
+        assert_eq!(concat.len().unwrap(), 2);
+        let mut reader = concat.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "ef");
+    }
+
+    #[test]
+    fn test_concat_with_offset_seek_from_end_uses_window_length() {
+        // SeekFrom::End must refer to the windowed end, not the
+        // underlying concat's end — `Take<T: Seek>` enforces this.
+        let concat = DataSource::new_concat(vec![ds(b"abcd"), ds(b"efgh")]).with_offset(2, Some(4));
+        // Window contents = "cdef".
+        let mut reader = concat.reader().unwrap();
+        reader.seek(std::io::SeekFrom::End(-2)).unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "ef");
+    }
+
+    #[test]
+    fn test_concat_with_offset_replaces_existing_window() {
+        // Convention matches `Embedded`: chained `with_offset` calls
+        // replace the previous window rather than composing.
+        let a =
+            DataSource::new_concat(vec![ds(b"aaaa"), ds(b"bbbb")]).with_offset(2, Some(4));
+        // a's window is "aabb" (4 bytes).
+        let b = a.with_offset(1, Some(2));
+        // b re-bases against the underlying concat: offset=1, limit=2
+        // → "aa" (positions 1..3 of "aaaabbbb").
+        assert_eq!(b.len().unwrap(), 2);
+        let mut reader = b.reader().unwrap();
+        let mut out = String::new();
+        reader.read_to_string(&mut out).unwrap();
+        assert_eq!(out, "aa");
+    }
+
+    #[test]
+    fn test_concat_with_offset_zero_is_a_noop() {
+        // offset=0 + limit=None must behave identically to a plain
+        // `new_concat` (no Take wrapper, no seek).
+        let plain = DataSource::new_concat(vec![ds(b"hello"), ds(b" world")]);
+        let windowed =
+            DataSource::new_concat(vec![ds(b"hello"), ds(b" world")]).with_offset(0, None);
+        let mut a = String::new();
+        let mut b = String::new();
+        plain.reader().unwrap().read_to_string(&mut a).unwrap();
+        windowed.reader().unwrap().read_to_string(&mut b).unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a, "hello world");
+    }
+
+    #[test]
+    fn test_concat_reader_supports_position_round_trip() {
+        // Position-tracking on the ConcatReader must agree with
+        // `stream_position` after each operation.
+        let concat = DataSource::new_concat(vec![ds(b"AAAA"), ds(b"BBBB"), ds(b"CC")]);
+        let mut reader = concat.reader().unwrap();
+        assert_eq!(reader.position().unwrap(), 0);
+        let mut buf = [0u8; 6];
+        reader.read_exact(&mut buf).unwrap();
+        assert_eq!(&buf, b"AAAABB");
+        assert_eq!(reader.position().unwrap(), 6);
+        reader.seek(std::io::SeekFrom::Start(2)).unwrap();
+        assert_eq!(reader.position().unwrap(), 2);
+        let mut buf2 = [0u8; 4];
+        reader.read_exact(&mut buf2).unwrap();
+        assert_eq!(&buf2, b"AABB");
     }
 }
