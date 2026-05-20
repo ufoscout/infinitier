@@ -52,6 +52,10 @@ infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.4"  }
 bitflags = { version = "2", features = ["serde"] }
 bytesize = "2"
 clap = { version = "4", features = ["derive"] }
+# Pure-Rust NeuQuant color quantizer. Used by the MOS V1 exporter to
+# build a 256-entry palette per 64×64 block when converting an arbitrary
+# RGBA image to MOS V1 (each block carries its own palette on disk).
+color_quant = "1"
 encoding_rs = "0.8"
 env_logger = "0.11"
 flate2 = "1"

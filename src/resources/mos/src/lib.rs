@@ -1,8 +1,10 @@
 #![doc = include_str!("../readme.md")]
 
 pub mod common;
+mod exporter;
 mod importer;
 
+pub use exporter::MosExporter;
 pub use importer::v1::{MosV1, MosV1Block};
 pub use importer::v2::{MosV2, MosV2DataBlock};
 pub use importer::{MosImporter, detect_mos_type};
