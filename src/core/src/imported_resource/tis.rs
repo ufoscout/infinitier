@@ -124,17 +124,25 @@ fn decode_palette(p: &TisPalette) -> Vec<u8> {
 /// into the output buffer. PVRZ pages are cached so each is decoded at
 /// most once even when many tiles share an atlas.
 ///
-/// "No source" tiles (`pvrz_page == -1`) paint as fully-transparent
-/// 64×64 blocks — NearInfinity uses black, but for an explorer view
-/// transparency communicates "this slot is empty" more clearly and
-/// matches the engine's `0xFFFFFFFF` sentinel meaning.
+/// "No source" tiles (`pvrz_page == -1`) are painted as **opaque
+/// black** — matching NearInfinity's `TisV2Decoder` and the
+/// vanilla-engine output. (The reference PNGs in `extracted_resources`
+/// were verified empirically: every `-1` tile renders as RGBA
+/// `(0, 0, 0, 255)`, not as transparent.)
 fn decode_pvrz(p: &TisPvrz, game_data: &GameData, name: &str) -> io::Result<Vec<u8>> {
     let mut pvrz_cache: HashMap<i32, Pvrz> = HashMap::new();
+    // Start every byte at 0, then bump alpha to 0xFF in stride. This is
+    // the opaque-black state for any tile that doesn't get overwritten
+    // by a `copy_pvrz_tile` call below (i.e. the `-1` blanks). For
+    // tiles that *do* get overwritten, the PVRZ payload supplies its
+    // own alpha and the pre-filled value is discarded — harmless.
     let mut out = vec![0u8; p.tiles.len() * TILE_PIXEL_BYTES];
+    for px in out.chunks_exact_mut(4) {
+        px[3] = 0xFF;
+    }
 
     for (idx, tile) in p.tiles.iter().enumerate() {
         if tile.is_blank() {
-            // Already zero-initialised — i.e. fully transparent.
             continue;
         }
         let pvrz = get_or_load_pvrz(&mut pvrz_cache, name, tile, game_data)?;
@@ -431,11 +439,67 @@ mod tests {
         assert_eq!(imported.expected_columns, 3);
     }
 
-    // Sanity-check that the `make_game_data_from_dir` helper compiles.
-    // (Used by potential future PVRZ-resolution tests once we have a
-    // PVRZ corpus matched to a TIS fixture; not exercised today.)
-    #[allow(dead_code)]
-    fn _unused(dir: &Path) -> GameData {
-        make_game_data_from_dir(dir)
+    #[test]
+    fn test_load_pvrz_ar0015_matches_reference_png() {
+        // AR0015 (BG2:EE) is a PVRZ-based TIS with 352 tiles laid out
+        // as a 22 × 16 grid (per its WED). 162 of those tiles use the
+        // `-1` "no source" sentinel — NearInfinity and the vanilla
+        // engine both paint those as opaque black, *not* transparent
+        // (verified empirically against the reference PNG).
+        //
+        // This test composites the imported tileset at the columns
+        // value derived from the WED (which the importer picks
+        // automatically) and asserts byte-for-byte equality with the
+        // PNG NearInfinity exports.
+        let asset_dir = get_assets_path().join("TIS/Pvrz/AR0015");
+        let game_data = make_game_data_from_dir(&asset_dir);
+
+        // Sanity: GameData picked up the TIS, WED, and PVRZ page.
+        assert!(
+            game_data
+                .get_by_name_and_type("ar0015", ResourceType::Tis)
+                .is_some(),
+            "TIS resource must be registered"
+        );
+        assert!(
+            game_data
+                .get_by_name_and_type("ar0015", ResourceType::Wed)
+                .is_some(),
+            "WED resource must be registered (for expected_columns)"
+        );
+        assert!(
+            game_data
+                .get_by_name_and_type("a001500", ResourceType::Pvrz)
+                .is_some(),
+            "page 0 PVRZ must be registered as a001500.pvrz"
+        );
+
+        let tis = import_tis(&asset_dir.join("AR0015.tis"));
+        let imported = ImportedTis::load(tis, &game_data, "ar0015").unwrap();
+
+        // WED-driven layout: 22 columns × 16 rows = 352 tiles.
+        assert_eq!(imported.variant, TisType::Pvrz);
+        assert_eq!(imported.tile_count, 352);
+        assert_eq!(imported.expected_columns, 22, "WED says width=22");
+
+        let composed = imported.compose(imported.expected_columns);
+        assert_eq!(composed.width(), 22 * 64);
+        assert_eq!(composed.height(), 16 * 64);
+
+        // Spot-check a known-blank tile (index 0) — must be opaque
+        // black, not transparent. Catches regressions of the original
+        // "blank = transparent" bug specifically.
+        assert_eq!(
+            composed.get_pixel(0, 0).0,
+            [0, 0, 0, 255],
+            "tile 0 is `-1` in the source — must render as opaque black"
+        );
+
+        // Full image comparison against the reference PNG exported
+        // by NearInfinity. Any drift from byte-exact equality means
+        // either the PVRZ decode, the WED-derived layout, or the
+        // blank-tile policy has regressed.
+        let reference = image::open(asset_dir.join("AR0015.png")).unwrap();
+        assert_images_are_equal(&reference, &composed.into(), None);
     }
 }
