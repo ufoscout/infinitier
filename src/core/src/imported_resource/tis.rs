@@ -280,7 +280,6 @@ mod tests {
                 file_size: Some(file_size),
                 datasource: Some(DataSource::new(real_path.as_path())),
                 data_origin: DataOrigin::Missing,
-                tileset_info: None,
             });
         }
         GameData::new(resources, Game::Bg2)
@@ -413,7 +412,6 @@ mod tests {
                 file_size: Some(std::fs::metadata(&tis_path).unwrap().len()),
                 datasource: Some(DataSource::new(tis_path.as_path())),
                 data_origin: DataOrigin::Missing,
-                tileset_info: None,
             },
             GameResource {
                 game_type: Game::Bg2,
@@ -422,7 +420,6 @@ mod tests {
                 file_size: Some(wed_bytes.len() as u64),
                 datasource: Some(DataSource::new(wed_bytes)),
                 data_origin: DataOrigin::Missing,
-                tileset_info: None,
             },
         ];
         GameData::new(resources, Game::Bg2)

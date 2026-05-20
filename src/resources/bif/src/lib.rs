@@ -37,7 +37,7 @@ pub struct Bif {
     pub resources: Vec<BifEmbeddedResource>,
     /// DataSource for reading embedded resource data.
     /// For uncompressed BIFF V1 this points to the original file;
-    /// for compressed formats it points to the in-memory decompressed bytes.
+    /// for compressed formats it points to a temporary decompressed file.
     pub datasource: DataSource,
 }
 
