@@ -372,6 +372,7 @@ mod tests {
                 file_size: Some(file_size),
                 datasource: Some(DataSource::new(real_path.as_path())),
                 data_origin: DataOrigin::Missing,
+                tileset_info: None,
             });
         }
         GameData::new(resources, Game::Bg2)

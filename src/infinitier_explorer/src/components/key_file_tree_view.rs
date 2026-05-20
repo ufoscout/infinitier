@@ -98,6 +98,7 @@ mod tests {
                     file_size: None,
                     datasource: None,
                     data_origin,
+                    tileset_info: None,
                 })
                 .collect(),
             Game::Bg2,

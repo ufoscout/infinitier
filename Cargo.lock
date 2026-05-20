@@ -1986,6 +1986,7 @@ dependencies = [
  "infinitier_png_resource",
  "infinitier_pvrz_resource",
  "infinitier_test_utils",
+ "infinitier_tis_resource",
  "infinitier_two_da_resource",
  "infinitier_wav_decoder",
  "infinitier_wbm_decoder",

@@ -8,12 +8,14 @@ use bcs::ImportedBcs;
 use image::ImportedImage;
 use movie::MovieSource;
 use sound::SoundDecoder;
+use tis::ImportedTis;
 
 pub mod bam;
 pub mod bcs;
 pub mod image;
 pub mod movie;
 pub mod sound;
+pub mod tis;
 
 #[derive(Debug)]
 pub enum ImportedResource {
@@ -28,6 +30,10 @@ pub enum ImportedResource {
     /// ACM and WAV/WAVC resources both decode to PCM via the unified
     /// streaming [`SoundDecoder`].
     Sound(SoundDecoder),
+    /// Decoded TIS tileset — palette and PVRZ variants are both
+    /// pre-rendered into 64×64 RGBA tile buffers so the viewer only
+    /// has to composite, not decode.
+    Tis(ImportedTis),
     TwoDA(TwoDA),
     Wed(Wed),
     // Types without importers
@@ -56,7 +62,6 @@ pub enum ImportedResource {
     Src,
     Sto,
     Tga,
-    Tis,
     Toh,
     Tot,
     Ttf,

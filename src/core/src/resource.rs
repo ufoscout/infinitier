@@ -43,8 +43,14 @@ pub mod key {
 pub mod mos {
     pub use infinitier_mos_resource::*;
 }
+pub mod png {
+    pub use infinitier_png_resource::*;
+}
 pub mod pvrz {
     pub use infinitier_pvrz_resource::*;
+}
+pub mod tis {
+    pub use infinitier_tis_resource::*;
 }
 pub mod two_da {
     pub use infinitier_two_da_resource::*;

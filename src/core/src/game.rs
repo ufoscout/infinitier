@@ -120,6 +120,24 @@ pub struct GameResource {
     pub datasource: Option<DataSource>,
     /// Where the resource is loaded
     pub data_origin: DataOrigin,
+    /// Extra metadata for tileset (TIS) resources stored inside a BIF.
+    ///
+    /// BIF-embedded tilesets carry no `"TIS V1  "` header — the BIF entry
+    /// keeps `count` and `tile_length` instead, and the bytes at `offset`
+    /// are the raw tile data. When this is `Some`, [`GameResource::import`]
+    /// synthesises a header on the fly so the TIS importer sees a complete
+    /// standalone file. `None` for everything else (including standalone
+    /// `.tis` files in the override folder, which already have a header).
+    pub tileset_info: Option<TilesetInfo>,
+}
+
+/// Header-less-tileset metadata recovered from a BIF entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TilesetInfo {
+    /// Number of tiles concatenated in the BIF datasource.
+    pub tile_count: u32,
+    /// Bytes per tile (5120 for the palette variant, 12 for PVRZ).
+    pub tile_length: u32,
 }
 
 impl GameResource {
@@ -139,6 +157,31 @@ pub enum DataOrigin {
     Missing,
 }
 
+/// Read every byte of a BIF-embedded tileset's raw tile data, prefix it
+/// with a 24-byte standalone-TIS header derived from `info`, and wrap
+/// the combined byte string in a fresh in-memory [`DataSource`].
+///
+/// Used only on the BIF path — standalone `.tis` files already carry a
+/// header and skip this entirely.
+fn synthesise_headered_tis(ds: &DataSource, info: &TilesetInfo) -> io::Result<DataSource> {
+    use std::io::Read;
+
+    let mut reader = ds.reader()?;
+    let mut bytes: Vec<u8> = Vec::with_capacity(
+        24 + (info.tile_count as usize) * (info.tile_length as usize),
+    );
+    // 24-byte TIS V1 header (signature, tile_count, tile_length,
+    // header_size, tile_dimension). Tile dimension is fixed at 64 in
+    // every Infinity Engine game.
+    bytes.extend_from_slice(b"TIS V1  ");
+    bytes.extend_from_slice(&info.tile_count.to_le_bytes());
+    bytes.extend_from_slice(&info.tile_length.to_le_bytes());
+    bytes.extend_from_slice(&24u32.to_le_bytes());
+    bytes.extend_from_slice(&64u32.to_le_bytes());
+    reader.read_to_end(&mut bytes)?;
+    Ok(DataSource::new(bytes))
+}
+
 impl GameResource {
     pub fn import(
         &self,
@@ -146,6 +189,7 @@ impl GameResource {
     ) -> io::Result<crate::imported_resource::ImportedResource> {
         use crate::imported_resource::{
             ImportedResource, bam::ImportedBam, bcs::ImportedBcs, image::ImportedImage,
+            tis::ImportedTis,
         };
         use infinitier_bam_resource::BamImporter;
         use infinitier_bcs_resource::BcsImporter;
@@ -155,6 +199,7 @@ impl GameResource {
         use infinitier_mos_resource::MosImporter;
         use infinitier_png_resource::PngImporter;
         use infinitier_pvrz_resource::PvrzImporter;
+        use infinitier_tis_resource::TisImporter;
         use infinitier_two_da_resource::TwoDAImporter;
         use infinitier_wed_resource::WedImporter;
 
@@ -245,7 +290,24 @@ impl GameResource {
             ResourceType::Src => Ok(ImportedResource::Src),
             ResourceType::Sto => Ok(ImportedResource::Sto),
             ResourceType::Tga => Ok(ImportedResource::Tga),
-            ResourceType::Tis => Ok(ImportedResource::Tis),
+            ResourceType::Tis => {
+                // BIF-embedded tilesets are header-less raw tile data —
+                // synthesise the 24-byte `"TIS V1  "` header on the fly
+                // from the metadata the BIF entry gave us so the standard
+                // TisImporter can parse the result.
+                let synthesised: DataSource;
+                let import_ds = match &self.tileset_info {
+                    Some(info) => {
+                        synthesised = synthesise_headered_tis(ds, info)?;
+                        &synthesised
+                    }
+                    None => ds,
+                };
+                TisImporter { name: &self.name }
+                    .import(import_ds)
+                    .and_then(|tis| ImportedTis::load(tis, game_data, &self.name))
+                    .map(ImportedResource::Tis)
+            }
             ResourceType::Toh => Ok(ImportedResource::Toh),
             ResourceType::Tot => Ok(ImportedResource::Tot),
             ResourceType::Ttf => Ok(ImportedResource::Ttf),
@@ -386,20 +448,38 @@ impl GameDataBuilder {
                 if let Some(bif_resource) = bif_resource {
                     debug!("Resource {}.{:?} found in bif {:?}", name, r#type, bif_ds);
 
-                    let (datasource, file_size) = match bif_resource {
+                    let (datasource, file_size, tileset_info) = match bif_resource {
                         BifEmbeddedResource::File {
                             locator: _,
                             size,
                             offset,
                             r#type: _,
-                        } => (bif_source(*offset, *size as u64), *size as u64),
+                        } => (bif_source(*offset, *size as u64), *size as u64, None),
                         BifEmbeddedResource::Tileset {
                             locator: _,
                             size,
-                            count: _,
+                            count,
                             offset,
                             r#type: _,
-                        } => (bif_source(*offset, *size as u64), *size as u64),
+                        } => {
+                            // The BIF Tileset entry's `size` field is the
+                            // per-tile byte count (5120 / 12), not the total
+                            // resource size — the actual TIS payload spans
+                            // `count * size` bytes, and starts with raw tile
+                            // data, no `"TIS V1  "` header. We carry the
+                            // (count, tile_length) over to `GameResource` so
+                            // `import` can synthesise that 24-byte header
+                            // on the fly.
+                            let total = (*count as u64) * (*size as u64);
+                            (
+                                bif_source(*offset, total),
+                                total,
+                                Some(TilesetInfo {
+                                    tile_count: *count,
+                                    tile_length: *size,
+                                }),
+                            )
+                        }
                     };
 
                     game_data.add_resource(GameResource {
@@ -411,6 +491,7 @@ impl GameDataBuilder {
                         data_origin: DataOrigin::Bif {
                             name: bif.name.clone(),
                         },
+                        tileset_info,
                     });
                 } else {
                     warn!(
@@ -424,6 +505,7 @@ impl GameDataBuilder {
                         file_size: None,
                         datasource: None,
                         data_origin: DataOrigin::Missing,
+                        tileset_info: None,
                     });
                 }
             } else {
@@ -435,6 +517,7 @@ impl GameDataBuilder {
                     file_size: None,
                     datasource: None,
                     data_origin: DataOrigin::Missing,
+                    tileset_info: None,
                 });
             }
         }
@@ -521,6 +604,10 @@ impl GameDataBuilder {
                 game_type: self.game_type,
                 r#type,
                 name,
+                // Override / override-style directories always hold
+                // standalone files — TIS files found here already have
+                // the 24-byte header (no need to synthesise it).
+                tileset_info: None,
             });
         }
         Ok(())
@@ -593,12 +680,50 @@ mod tests {
             resource.data_origin
         );
 
-        // The data is into the assets/bg2/data/Data/AREA070C.bif file
-        assert!(resource.datasource.is_some());
+        // BIF-embedded → tileset_info must be populated so import() can
+        // synthesise the missing 24-byte TIS header.
+        let info = resource
+            .tileset_info
+            .expect("BIF-embedded TIS must carry tileset_info");
+        assert!(info.tile_count > 0);
+        // BG2 area tilesets are palette-variant (Enhanced Editions
+        // switched to PVRZ).
+        assert_eq!(info.tile_length, 5120);
 
-        // ToDo: implement when tis importer is available
-        // Test that the data can be read
-        // WedImporter::import(resource.datasource.as_ref().unwrap()).unwrap();
+        // file_size is the full TIS-equivalent payload: every tile +
+        // the header we'll synthesise.
+        let expected_payload = (info.tile_count as u64) * (info.tile_length as u64);
+        assert_eq!(resource.file_size, Some(expected_payload));
+        assert!(resource.datasource.is_some());
+    }
+
+    #[test]
+    fn test_tis_bif_resource_imports_end_to_end() {
+        // Regression: the explorer used to crash with "Unsupported TIS
+        // file signature" because BIF tilesets are header-less and the
+        // window was sized to one tile rather than the full payload.
+        // Going through GameResource::import must now produce a real
+        // `ImportedTis` with `tile_count` tiles of 64×64 RGBA pixels.
+        use crate::imported_resource::ImportedResource;
+
+        let game_data = build_bg2();
+        let resource = game_data
+            .get_by_name_and_type("ar0714", ResourceType::Tis)
+            .unwrap();
+        let info = resource.tileset_info.unwrap();
+
+        let imported = resource.import(&game_data).expect("TIS import succeeds");
+        let ImportedResource::Tis(tis) = imported else {
+            panic!("expected ImportedResource::Tis");
+        };
+        assert_eq!(tis.tile_count, info.tile_count as usize);
+        assert_eq!(tis.tile_dimension, 64);
+        // Eagerly-decoded RGBA tiles: tile_count × 64 × 64 × 4 bytes.
+        assert_eq!(
+            tis.tile_pixels.len(),
+            tis.tile_count * 64 * 64 * 4,
+            "decoded tile pixel buffer size"
+        );
     }
 
     #[test]
@@ -679,6 +804,7 @@ mod tests {
             file_size: None,
             datasource: None,
             data_origin: origin,
+            tileset_info: None,
         }
     }
 

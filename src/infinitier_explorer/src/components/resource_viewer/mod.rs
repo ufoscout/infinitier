@@ -173,7 +173,9 @@ impl ResourceViewer {
                                 ImportedResource::Src => Box::new(SrcViewer::new()),
                                 ImportedResource::Sto => Box::new(StoViewer::new()),
                                 ImportedResource::Tga => Box::new(TgaViewer::new()),
-                                ImportedResource::Tis => Box::new(TisViewer::new()),
+                                ImportedResource::Tis(tis) => {
+                                    Box::new(TisViewer::new(tis, ui, resource_id))
+                                }
                                 ImportedResource::Toh => Box::new(TohViewer::new()),
                                 ImportedResource::Tot => Box::new(TotViewer::new()),
                                 ImportedResource::Ttf => Box::new(TtfViewer::new()),
