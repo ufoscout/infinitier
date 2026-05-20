@@ -3,7 +3,7 @@ use std::io::Write;
 use flate2::write::ZlibEncoder;
 use image::{ImageBuffer, Rgba};
 
-use crate::PvrDataCompression;
+use crate::{PvrDataCompression, Pvrz};
 
 /// A PVRZ file exporter.
 ///
@@ -72,6 +72,30 @@ impl PvrzExporter {
         self.export(image, &mut writer)?;
         writer.flush()?;
         Ok(())
+    }
+
+    /// Exports a previously-imported [`Pvrz`] to a PVRZ byte stream.
+    ///
+    /// The compression format is taken from `pvrz.header.pixel_format` so
+    /// the round-trip preserves the original DXT1/DXT5 choice. Most other
+    /// header fields are not preserved verbatim — see [`PvrzExporter::export`]
+    /// for the fixed values written (version, mip_map_count = 1, …).
+    pub fn export_pvrz<W: Write>(pvrz: &Pvrz, writer: &mut W) -> std::io::Result<()> {
+        PvrzExporter {
+            format: pvrz.header.pixel_format,
+        }
+        .export(&pvrz.image, writer)
+    }
+
+    /// Exports a previously-imported [`Pvrz`] to a PVRZ file at `filename`.
+    pub fn export_pvrz_to_file<P: AsRef<std::path::Path>>(
+        pvrz: &Pvrz,
+        filename: P,
+    ) -> std::io::Result<()> {
+        PvrzExporter {
+            format: pvrz.header.pixel_format,
+        }
+        .export_to_file(&pvrz.image, filename)
     }
 }
 
@@ -177,6 +201,44 @@ mod tests {
         assert_eq!(pvrz2.header.height, pvrz.image.height());
         assert_eq!(pvrz2.header.pixel_format, PvrDataCompression::DXT1);
 
+        assert_images_are_equal(&pvrz.image.into(), &pvrz2.image.into(), Some(8));
+    }
+
+    #[test]
+    fn test_export_pvrz_roundtrip() {
+        // DXT5 source: export_pvrz should infer the format from the
+        // header and produce a byte stream that re-imports to the same
+        // PVRZ (compression-format preserved, image within DXT5 lossy
+        // tolerance).
+        let data = DataSource::new(get_assets_path().join("PVR_DXT5/MOS0000.PVRZ"));
+        let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
+
+        let mut buf: Vec<u8> = Vec::new();
+        PvrzExporter::export_pvrz(&pvrz, &mut buf).unwrap();
+
+        let pvrz2 = PvrzImporter { name: "rt" }
+            .import(&DataSource::new(buf))
+            .unwrap();
+        assert_eq!(pvrz2.header.pixel_format, PvrDataCompression::DXT5);
+        assert_eq!(pvrz2.header.width, pvrz.image.width());
+        assert_eq!(pvrz2.header.height, pvrz.image.height());
+        assert_images_are_equal(&pvrz.image.into(), &pvrz2.image.into(), Some(40));
+    }
+
+    #[test]
+    fn test_export_pvrz_to_file_roundtrip() {
+        let data = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
+        let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
+
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        PvrzExporter::export_pvrz_to_file(&pvrz, tmp.path()).unwrap();
+
+        let pvrz2 = PvrzImporter { name: "rt" }
+            .import(&DataSource::new(tmp.path().to_path_buf()))
+            .unwrap();
+        assert_eq!(pvrz2.header.pixel_format, PvrDataCompression::DXT1);
+        assert_eq!(pvrz2.header.width, pvrz.image.width());
+        assert_eq!(pvrz2.header.height, pvrz.image.height());
         assert_images_are_equal(&pvrz.image.into(), &pvrz2.image.into(), Some(8));
     }
 }
