@@ -2145,6 +2145,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_sav_resource"
+version = "0.0.5"
+dependencies = [
+ "flate2",
+ "infinitier_common",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
+ "tempfile",
+]
+
+[[package]]
 name = "infinitier_test_utils"
 version = "0.0.5"
 dependencies = [
