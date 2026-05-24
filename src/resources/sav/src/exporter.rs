@@ -6,8 +6,8 @@
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
-use flate2::write::ZlibEncoder;
 use flate2::Compression;
+use flate2::write::ZlibEncoder;
 
 use crate::{SAV_V1_SIGNATURE, Sav, SavEntry};
 
@@ -141,15 +141,12 @@ mod tests {
     fn test_export_to_file_round_trip() {
         // File-path overload — same struct-equality round-trip, but
         // exercises the `BufWriter<File>` path.
-        let path = get_assets_path()
-            .join("SAV_GAM/bg/Save/888888888-Mission-Pack-Save/Baldur.sav");
+        let path = get_assets_path().join("SAV_GAM/bg/Save/888888888-Mission-Pack-Save/Baldur.sav");
         let original = SavImporter { name: "rt_file" }
             .import(&DataSource::new(path.as_path()))
             .unwrap();
         let tmp = tempfile::NamedTempFile::new().unwrap();
-        SavExporter
-            .export_to_file(&original, tmp.path())
-            .unwrap();
+        SavExporter.export_to_file(&original, tmp.path()).unwrap();
         let re_imported = SavImporter { name: "rt_file2" }
             .import(&DataSource::new(tmp.path().to_path_buf()))
             .unwrap();

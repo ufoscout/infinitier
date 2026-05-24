@@ -2,7 +2,6 @@
 
 use std::io::Read;
 
-use flate2::bufread::ZlibDecoder;
 use infinitier_common::ResourceType;
 use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
@@ -45,11 +44,7 @@ impl Importer for SavImporter<'_> {
             entries.push(entry);
         }
 
-        debug!(
-            "Loaded {} [SAV V1]: {} entries",
-            self.name,
-            entries.len()
-        );
+        debug!("Loaded {} [SAV V1]: {} entries", self.name, entries.len());
         Ok(Sav { entries })
     }
 }
@@ -79,22 +74,22 @@ fn read_entry<R: std::io::BufRead + std::io::Seek>(
         .to_owned();
 
     let uncompressed_size = reader.read_u32()?;
-    let compressed_size = reader.read_u32()? as usize;
+    // The on-disk `compressed_size` is informational — the zlib stream
+    // self-terminates at its adler32 trailer, which is exactly where
+    // `as_zip_reader()` stops consuming bytes from the outer reader.
+    // We read past the field so the cursor advances, but don't rely
+    // on its value (same approach MOSC's importer takes).
+    let _compressed_size = reader.read_u32()?;
 
-    // Read the compressed payload, then inflate it inline. We pull the
-    // bytes into an intermediate Vec rather than streaming straight
-    // out of `reader` so that a decompression failure leaves the
-    // outer reader positioned right after this entry — making error
-    // messages locatable.
-    let mut compressed = vec![0u8; compressed_size];
-    reader.read_exact(&mut compressed)?;
-
+    // Inflate straight out of the outer reader — `as_zip_reader` is
+    // the shared codebase idiom for "wrap the next bytes as a zlib
+    // stream", and once it returns EOF the outer reader is left
+    // positioned right after the zlib trailer, ready for the next
+    // entry record.
     let mut data = Vec::with_capacity(uncompressed_size as usize);
-    ZlibDecoder::new(compressed.as_slice())
-        .read_to_end(&mut data)
-        .map_err(|e| std::io::Error::other(format!(
-            "SAV entry '{filename}': zlib inflate failed: {e}"
-        )))?;
+    reader.as_zip_reader().read_to_end(&mut data).map_err(|e| {
+        std::io::Error::other(format!("SAV entry '{filename}': zlib inflate failed: {e}"))
+    })?;
     if data.len() as u64 != uncompressed_size as u64 {
         return Err(std::io::Error::other(format!(
             "SAV entry '{filename}': declared uncompressed_size={uncompressed_size}, \

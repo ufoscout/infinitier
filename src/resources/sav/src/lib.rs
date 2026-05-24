@@ -26,7 +26,6 @@
 //! integers are little-endian — same convention as every other IE
 //! resource format.
 
-
 use infinitier_common::ResourceType;
 use infinitier_datasource::DataSource;
 
@@ -110,9 +109,9 @@ pub(crate) mod test_support {
     /// the corpus walk in `exporter::tests`.
     pub fn baldur_sav() -> Sav {
         SavImporter { name: "Baldur" }
-            .import(&DataSource::new(get_assets_path().join(
-                "SAV_GAM/bg/Save/888888888-Mission-Pack-Save/Baldur.sav",
-            )))
+            .import(&DataSource::new(
+                get_assets_path().join("SAV_GAM/bg/Save/888888888-Mission-Pack-Save/Baldur.sav"),
+            ))
             .unwrap()
     }
 
@@ -123,10 +122,8 @@ pub(crate) mod test_support {
     pub fn build_synthetic_sav(filename: &str, payload: &[u8]) -> Vec<u8> {
         let mut compressed = Vec::new();
         {
-            let mut enc = flate2::write::ZlibEncoder::new(
-                &mut compressed,
-                flate2::Compression::default(),
-            );
+            let mut enc =
+                flate2::write::ZlibEncoder::new(&mut compressed, flate2::Compression::default());
             enc.write_all(payload).unwrap();
             enc.finish().unwrap();
         }
@@ -183,10 +180,7 @@ mod tests {
         // and comes back unchanged.
         let plaintext = b"the quick brown fox jumps over the lazy dog";
         let sav = SavImporter { name: "synth" }
-            .import(&DataSource::new(build_synthetic_sav(
-                "fox.txt",
-                plaintext,
-            )))
+            .import(&DataSource::new(build_synthetic_sav("fox.txt", plaintext)))
             .unwrap();
         let ds = sav.entries[0].data_source();
         let mut reader = ds.reader().unwrap();
