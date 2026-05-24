@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_parse_pvrz_dxt1() {
-        let data = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
+        let data = DataSource::new(get_assets_path().join("PVRZ/DXT1/A004602.PVRZ"));
 
         let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
@@ -150,7 +150,7 @@ mod tests {
         );
 
         assert_images_are_equal(
-            &image::open(get_assets_path().join("PVR_DXT1/A004602.PNG")).unwrap(),
+            &image::open(get_assets_path().join("PVRZ/DXT1/A004602.PNG")).unwrap(),
             &pvrz.image.into(),
             None,
         );
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_parse_pvrz_dxt5() {
-        let data = DataSource::new(get_assets_path().join("PVR_DXT5/MOS0000.PVRZ"));
+        let data = DataSource::new(get_assets_path().join("PVRZ/DXT5/MOS0000.PVRZ"));
 
         let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
@@ -181,7 +181,7 @@ mod tests {
         );
 
         assert_images_are_equal(
-            &image::open(get_assets_path().join("PVR_DXT5/MOS0000.PNG")).unwrap(),
+            &image::open(get_assets_path().join("PVRZ/DXT5/MOS0000.PNG")).unwrap(),
             &pvrz.image.into(),
             None,
         );

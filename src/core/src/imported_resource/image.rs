@@ -296,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_from_pvrz_dxt1() {
-        let ds = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
+        let ds = DataSource::new(get_assets_path().join("PVRZ/DXT1/A004602.PVRZ"));
         let pvrz = PvrzImporter { name: "test_pvr" }.import(&ds).unwrap();
         // Capture header values before `from_pvrz` takes ownership.
         let (w, h) = (pvrz.header.width, pvrz.header.height);
@@ -318,7 +318,7 @@ mod tests {
 
     #[test]
     fn test_from_pvrz_dxt5() {
-        let ds = DataSource::new(get_assets_path().join("PVR_DXT5/MOS0000.PVRZ"));
+        let ds = DataSource::new(get_assets_path().join("PVRZ/DXT5/MOS0000.PVRZ"));
         let pvrz = PvrzImporter { name: "test_pvr" }.import(&ds).unwrap();
         let img = ImportedImage::from_pvrz(pvrz);
 

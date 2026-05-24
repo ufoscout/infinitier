@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_export_dxt1_roundtrip() {
-        let data = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
+        let data = DataSource::new(get_assets_path().join("PVRZ/DXT1/A004602.PVRZ"));
         let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let mut buf: Vec<u8> = Vec::new();
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_export_dxt5_roundtrip() {
-        let data = DataSource::new(get_assets_path().join("PVR_DXT5/MOS0000.PVRZ"));
+        let data = DataSource::new(get_assets_path().join("PVRZ/DXT5/MOS0000.PVRZ"));
         let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let mut buf: Vec<u8> = Vec::new();
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn test_export_to_file_roundtrip() {
-        let data = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
+        let data = DataSource::new(get_assets_path().join("PVRZ/DXT1/A004602.PVRZ"));
         let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let tmp = tempfile::NamedTempFile::new().unwrap();
@@ -210,7 +210,7 @@ mod tests {
         // header and produce a byte stream that re-imports to the same
         // PVRZ (compression-format preserved, image within DXT5 lossy
         // tolerance).
-        let data = DataSource::new(get_assets_path().join("PVR_DXT5/MOS0000.PVRZ"));
+        let data = DataSource::new(get_assets_path().join("PVRZ/DXT5/MOS0000.PVRZ"));
         let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let mut buf: Vec<u8> = Vec::new();
@@ -227,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_export_pvrz_to_file_roundtrip() {
-        let data = DataSource::new(get_assets_path().join("PVR_DXT1/A004602.PVRZ"));
+        let data = DataSource::new(get_assets_path().join("PVRZ/DXT1/A004602.PVRZ"));
         let pvrz = PvrzImporter { name: "pvrz_test" }.import(&data).unwrap();
 
         let tmp = tempfile::NamedTempFile::new().unwrap();

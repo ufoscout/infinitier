@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_bam_v1_single_frame() {
-        let path = get_assets_path().join("BAM_V1/01/1chan03B_decompressed.BAM");
+        let path = get_assets_path().join("BAM/V1/01/1chan03B_decompressed.BAM");
         let (original, re_imported) = roundtrip(&path);
         match (&original, &re_imported) {
             (Bam::V1(a), Bam::V1(b)) => assert_bam_v1_content_equal(a, b),
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_bam_v1_multi_frame() {
-        let path = get_assets_path().join("BAM_V1/02/SPHEART_decompressed.BAM");
+        let path = get_assets_path().join("BAM/V1/02/SPHEART_decompressed.BAM");
         let (original, re_imported) = roundtrip(&path);
         match (&original, &re_imported) {
             (Bam::V1(a), Bam::V1(b)) => assert_bam_v1_content_equal(a, b),
@@ -114,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_bam_v1_small() {
-        let path = get_assets_path().join("BAM_V1/03/SPWI524D_decompressed.BAM");
+        let path = get_assets_path().join("BAM/V1/03/SPWI524D_decompressed.BAM");
         let (original, re_imported) = roundtrip(&path);
         match (&original, &re_imported) {
             (Bam::V1(a), Bam::V1(b)) => assert_bam_v1_content_equal(a, b),
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn test_roundtrip_bamc() {
         // The BAMC-tagged BamV1 should round-trip back to BAMC.
-        let path = get_assets_path().join("BAM_V1/02/SPHEART_compressed.BAM");
+        let path = get_assets_path().join("BAM/V1/02/SPHEART_compressed.BAM");
         let (original, re_imported) = roundtrip(&path);
         match (&original, &re_imported) {
             (Bam::V1(a), Bam::V1(b)) => {
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_bam_v2() {
-        let path = get_assets_path().join("BAM_V2/1CHELM03.BAM");
+        let path = get_assets_path().join("BAM/V2/1CHELM03.BAM");
         let (original, re_imported) = roundtrip(&path);
         match (&original, &re_imported) {
             (Bam::V2(a), Bam::V2(b)) => assert_bam_v2_content_equal(a, b),
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_export_to_file_roundtrip() {
-        let path = get_assets_path().join("BAM_V1/03/SPWI524D_decompressed.BAM");
+        let path = get_assets_path().join("BAM/V1/03/SPWI524D_decompressed.BAM");
         let source = DataSource::new(path.as_path());
         let original = BamImporter {
             name: "bam_file_rt",

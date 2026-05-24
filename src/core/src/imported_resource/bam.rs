@@ -387,7 +387,7 @@ mod tests {
     fn test_load_bam_v1() {
         // V1 does not need PVRZ lookup, so an empty GameData is fine.
         let game_data = GameData::new(vec![], Game::Bg2);
-        let bam = import_bam(&get_assets_path().join("BAM_V1/01/1chan03B_decompressed.BAM"));
+        let bam = import_bam(&get_assets_path().join("BAM/V1/01/1chan03B_decompressed.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
 
         assert_eq!(imported.r#type, ResourceType::Bam);
@@ -415,7 +415,7 @@ mod tests {
 
         // Pixel data must match the reference PNG.
         assert_images_are_equal(
-            &image::open(get_assets_path().join("BAM_V1/01/1chan03B00000.PNG")).unwrap(),
+            &image::open(get_assets_path().join("BAM/V1/01/1chan03B00000.PNG")).unwrap(),
             &imported.frames[0].image.clone().into(),
             None,
         );
@@ -428,10 +428,10 @@ mod tests {
         // to BAMC); the decoded content must still match the corresponding
         // plain BAM V1 file.
         let game_data = GameData::new(vec![], Game::Bg2);
-        let bam = import_bam(&get_assets_path().join("BAM_V1/01/1chan03B_compressed.BAM"));
+        let bam = import_bam(&get_assets_path().join("BAM/V1/01/1chan03B_compressed.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
 
-        let bam_dec = import_bam(&get_assets_path().join("BAM_V1/01/1chan03B_decompressed.BAM"));
+        let bam_dec = import_bam(&get_assets_path().join("BAM/V1/01/1chan03B_decompressed.BAM"));
         let imported_dec = ImportedBam::load(bam_dec, &game_data).unwrap();
 
         assert_eq!(imported.bam_type, Type::BamC);
@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn test_load_bam_v1_multi_frame() {
         let game_data = GameData::new(vec![], Game::Bg2);
-        let bam = import_bam(&get_assets_path().join("BAM_V1/02/SPHEART_decompressed.BAM"));
+        let bam = import_bam(&get_assets_path().join("BAM/V1/02/SPHEART_decompressed.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
 
         assert_eq!(imported.bam_type, Type::BamV1);
@@ -457,7 +457,7 @@ mod tests {
         // Every per-frame image must match its reference PNG.
         for (i, frame) in imported.frames.iter().enumerate() {
             let reference =
-                image::open(get_assets_path().join(format!("BAM_V1/02/SPHEART000{i:02}.PNG")))
+                image::open(get_assets_path().join(format!("BAM/V1/02/SPHEART000{i:02}.PNG")))
                     .unwrap();
             assert_images_are_equal(&reference, &frame.image.clone().into(), None);
         }
@@ -465,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_load_bam_v2() {
-        let asset_dir = get_assets_path().join("BAM_V2");
+        let asset_dir = get_assets_path().join("BAM/V2");
         let game_data = make_game_data_from_dir(&asset_dir);
         let bam = import_bam(&asset_dir.join("1CHELM03.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
@@ -507,7 +507,7 @@ mod tests {
     fn test_load_bam_v2_missing_pvrz_errors() {
         // Empty GameData → the required `mos0000` PVRZ is unavailable.
         let game_data = GameData::new(vec![], Game::Bg2);
-        let bam = import_bam(&get_assets_path().join("BAM_V2/1CHELM03.BAM"));
+        let bam = import_bam(&get_assets_path().join("BAM/V2/1CHELM03.BAM"));
         let err = ImportedBam::load(bam, &game_data).unwrap_err();
         assert!(
             err.to_string().contains("MOS0000"),
