@@ -2,98 +2,183 @@
 //!
 //! ## On-disk layout (V1, the only version IE games actually use)
 //!
-//! ```text
-//!  0x00   8 bytes  Signature ('TLK V1  ')
-//!  0x08   2        Language id (Windows code page)
-//!  0x0A   4        Number of string entries
-//!  0x0E   4        Absolute offset of the string-data section
-//! ```
-//!
-//! Followed by `num_entries` × 26-byte entries:
+//! All offsets are little-endian. The format is identical across
+//! every shipped IE engine (BG, BG2, EE, IWD, IWD2, PST) — only the
+//! interpretation of certain bits inside [`TlkEntry::flags`] varies
+//! by game, and those bits are preserved verbatim. The importer /
+//! exporter therefore do not need a [`infinitier_common::Engine`]
+//! parameter; see `readme.md` for the discussion.
 //!
 //! ```text
-//!  0x00   2   Flags (bit 0 = has-text, bit 1 = sound, bit 2 = token,
-//!             bit 3+ = engine-defined)
-//!  0x02   8   Sound resref (`.WAV`)
-//!  0x0A   4   Volume variance
-//!  0x0E   4   Pitch variance
-//!  0x12   4   Offset of string bytes (relative to the string-data
-//!             section)
-//!  0x16   4   Length of the string in bytes
+//!  Header (18 bytes)
+//!  0x00   4   Signature ('TLK ')
+//!  0x04   4   Version   ('V1  ')
+//!  0x08   2   Language id (Windows code page; e.g. 1252 / 1250)
+//!  0x0A   4   Number of string entries
+//!  0x0E   4   Absolute offset of the string-data section
+//!
+//!  Entries (26 bytes each, `entry_count` records)
+//!  0x00   2   Flags (bit 0 = has-text, bit 1 = has-sound,
+//!                    bit 2 = standard-token; bits 3+ engine-defined)
+//!  0x02   8   Sound resref (`.WAV`, fixed-width ASCIIZ)
+//!  0x0A   4   Volume variance (unused, preserved verbatim)
+//!  0x0E   4   Pitch variance  (unused, preserved verbatim)
+//!  0x12   4   String offset, relative to the strings section
+//!  0x16   4   String length in bytes
+//!
+//!  Strings section
+//!  String bytes, length = file_size - strings_offset. Strings are
+//!  not separated by NUL terminators; each entry's `(offset, length)`
+//!  window selects its bytes inside this buffer.
 //! ```
 //!
-//! Then the string section starts at the absolute offset stored in
-//! the header — `num_entries` strings concatenated, each at the
-//! offset / length declared by its entry.
+//! The importer round-trips the entries and the strings section
+//! verbatim, so callers can mutate either side and the exporter
+//! produces bytes the engine will accept (subject to the caller
+//! keeping the `(offset, length)` cursors in sync).
 
-use std::io::{Read, Seek};
+mod exporter;
+mod importer;
 
-use infinitier_datasource::{DataSource, Importer, ReadExt, SeekExt};
-use log::debug;
+pub use exporter::TlkExporter;
+pub use importer::TlkImporter;
 
-const HEADER_LEN: u64 = 0x12;
-const ENTRY_LEN: u64 = 26;
-
-/// 4-byte signature.
+/// 4-byte signature at offset `0x00` of every TLK file.
 pub const TLK_SIGNATURE: &[u8; 4] = b"TLK ";
-/// 4-byte version tag — only V1 is observed in shipped IE games.
-pub const TLK_V1_TAG: &[u8; 4] = b"V1  ";
 
-/// A loaded TLK file. Holds the parsed entry index plus the raw
-/// string-bytes section; [`Tlk::get`] decodes individual strings on
-/// demand to avoid eagerly allocating one `String` per entry
-/// (`dialog.tlk` typically has 50–100k entries).
+/// On-disk header length (signature + version + lang + count +
+/// strings-offset = 18 bytes). Sub-sections start at this offset.
+pub const HEADER_LEN: usize = 0x12;
+
+/// On-disk size of one [`TlkEntry`] (flags + sound resref + variance
+/// + offset + length).
+pub const ENTRY_LEN: usize = 26;
+
+/// Known on-disk version tags. Only [`TlkVersion::V1`] is actually
+/// observed in shipped IE games — the V2 spec is a community draft
+/// that no engine recognises. Round-trip-safe enum: any unknown 4-byte
+/// tag is rejected at import time rather than carried as `Unknown(_)`,
+/// so we never serialise back a value the engine wouldn't load.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TlkVersion {
+    /// `V1  ` — the only version produced by any shipped IE engine.
+    V1,
+}
+
+impl TlkVersion {
+    /// The 4-byte tag stored at offset `0x04` of every TLK file.
+    pub fn as_bytes(&self) -> &'static [u8; 4] {
+        match self {
+            TlkVersion::V1 => b"V1  ",
+        }
+    }
+}
+
+/// A loaded TLK file.
+///
+/// Carries the parsed entry index plus the raw strings section.
+/// [`Tlk::get`] decodes individual strings on demand to avoid
+/// eagerly allocating one `String` per entry — `dialog.tlk` typically
+/// has 50–100 thousand entries.
+///
+/// Round-trip semantics: re-exporting then re-importing a `Tlk`
+/// yields a struct-equal value. The exporter is also **byte-exact**
+/// for any `Tlk` whose `entries[*].string_offset / string_length`
+/// pairs still match the contents of [`Self::strings`] (i.e. when
+/// the caller has not edited strings in a way that shifts other
+/// entries' offsets); see [`TlkExporter`] for details.
 #[derive(Debug, Clone)]
 pub struct Tlk {
-    /// Windows code page identifier from header offset 0x08. Most
-    /// shipped EE TLKs use `1252` (Western European); the Russian /
-    /// Polish / Korean / Chinese builds use the appropriate Windows
-    /// code page for their text.
+    /// On-disk version tag — currently always [`TlkVersion::V1`].
+    pub version: TlkVersion,
+    /// Windows code page identifier from header offset 0x08.
+    /// Shipped EE TLKs use `1252` (Western European); the
+    /// Russian / Polish / Korean / Chinese builds use the matching
+    /// Windows code page.
     pub language_id: u16,
+    /// Absolute file offset of the strings section as stored on disk
+    /// at header offset 0x0E. Preserved verbatim so the exporter can
+    /// reproduce non-canonical inputs (e.g. tools that leave a gap
+    /// between the entries block and the strings block) byte-for-byte.
+    /// For every shipped IE engine this equals the canonical value
+    /// `0x12 + entries.len() * 26` (no gap). Callers who add or
+    /// remove entries must update this field accordingly — the
+    /// exporter rejects values that would overlap the entries block.
+    pub strings_offset: u32,
     /// One entry per strref — sound + offset/length metadata.
     pub entries: Vec<TlkEntry>,
-    /// Raw bytes of the string section. Each entry's `(offset,
-    /// length)` window into this buffer is decoded via the encoding
-    /// configured on the caller's [`DataSource`] (default
-    /// WINDOWS-1252, which matches every shipped TLK except the
-    /// Asian / Cyrillic locales).
+    /// Raw bytes of the strings section. Each entry's
+    /// `(string_offset, string_length)` window into this buffer is
+    /// decoded via [`Self::encoding`] when [`Self::get`] is called.
     pub strings: Vec<u8>,
     /// Encoding used to decode string bytes — copied from the
-    /// [`DataSource`] at import time.
+    /// [`infinitier_datasource::DataSource`] at import time. Almost
+    /// always WINDOWS-1252; the Asian locale TLKs use their matching
+    /// Windows code page.
     encoding: &'static encoding_rs::Encoding,
 }
 
 /// One TLK entry — fixed 26-byte record on disk.
+///
+/// Field-level semantics:
+/// - `flags`: bit-0 = "text exists", bit-1 = "sound exists",
+///   bit-2 = "standard token expansion" (only honoured by BG2 and
+///   the Enhanced Editions per IESDP). Bits 3+ are engine-defined
+///   and preserved verbatim.
+/// - `sound_resref`: 8-byte ASCIIZ resref pointing at a `.WAV` (when
+///   `flags & 2`); decoded via WINDOWS-1252.
+/// - `volume_variance` / `pitch_variance`: documented as "unused" by
+///   IESDP. Preserved verbatim so the round-trip stays byte-exact
+///   even for tools / mods that store non-zero values here.
+/// - `string_offset` / `string_length`: the `(offset, length)` window
+///   into [`Tlk::strings`] for this entry's text. The offset is
+///   relative to the start of the strings section, not the file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TlkEntry {
-    /// Bit flags: bit 0 = has text, bit 1 = sound, bit 2 = standard
-    /// tokens (`<CHARNAME>` etc.). Engine-specific bits sit above.
+    /// Bit flags — see the struct-level docs.
     pub flags: u16,
     /// 8-byte ASCIIZ resref pointing at a `.WAV` if `flags & 2`.
     pub sound_resref: String,
-    /// Volume variance for the attached sound (ignored when
-    /// `flags & 2` is clear).
+    /// Volume variance for the attached sound. IESDP marks this
+    /// "unused"; preserved verbatim for round-trip.
     pub volume_variance: u32,
-    /// Pitch variance for the attached sound.
+    /// Pitch variance for the attached sound. IESDP marks this
+    /// "unused"; preserved verbatim for round-trip.
     pub pitch_variance: u32,
-    /// Offset of this entry's string bytes inside [`Tlk::strings`].
+    /// Offset of this entry's string bytes inside [`Tlk::strings`]
+    /// (relative to the strings section, not the file).
     pub string_offset: u32,
     /// Number of bytes the entry's string occupies.
     pub string_length: u32,
 }
 
+/// Bit 0 of [`TlkEntry::flags`] — "this entry carries text".
+pub const FLAG_HAS_TEXT: u16 = 0x0001;
+/// Bit 1 of [`TlkEntry::flags`] — "this entry has an attached
+/// sound".
+pub const FLAG_HAS_SOUND: u16 = 0x0002;
+/// Bit 2 of [`TlkEntry::flags`] — "this entry uses standard token
+/// expansion" (`<CHARNAME>`, …). Per IESDP, only honoured by BG2
+/// and the Enhanced Editions.
+pub const FLAG_HAS_TOKEN: u16 = 0x0004;
+
+/// Sentinel value used by the IE engines to mean "no string" when a
+/// strref field is unset.
+pub const NO_STRREF: u32 = 0xFFFF_FFFF;
+
 impl Tlk {
     /// Look up the string at `strref`, decoded using the TLK's
-    /// encoding. Returns `None` when `strref` is out of range (or
-    /// the sentinel `0xFFFFFFFF`, which the engines use to mean "no
-    /// string").
+    /// encoding. Returns `None` when `strref` is out of range, when
+    /// the entry's `(offset, length)` window points outside the
+    /// strings section, or when `strref == 0xFFFFFFFF` (the engine's
+    /// "no string" sentinel).
     pub fn get(&self, strref: u32) -> Option<String> {
-        if strref == 0xFFFF_FFFF || strref as usize >= self.entries.len() {
+        if strref == NO_STRREF || strref as usize >= self.entries.len() {
             return None;
         }
         let entry = &self.entries[strref as usize];
         let start = entry.string_offset as usize;
-        let end = start.saturating_add(entry.string_length as usize);
+        let end = start.checked_add(entry.string_length as usize)?;
         if end > self.strings.len() {
             return None;
         }
@@ -111,179 +196,116 @@ impl Tlk {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
-}
 
-/// File importer for TLK V1 resources.
-pub struct TlkImporter<'a> {
-    /// Caller-visible name for error / log messages — usually the
-    /// dialog.tlk path.
-    pub name: &'a str,
-}
+    /// The [`encoding_rs::Encoding`] this TLK was loaded with. Stored
+    /// on the [`infinitier_datasource::DataSource`] at import time —
+    /// callers can override the default (WINDOWS-1252) for the Asian
+    /// locale TLKs that ship in Korean / Chinese / Russian builds.
+    pub fn encoding(&self) -> &'static encoding_rs::Encoding {
+        self.encoding
+    }
 
-impl Importer for TlkImporter<'_> {
-    type T = Tlk;
-
-    fn import(&self, source: &DataSource) -> std::io::Result<Tlk> {
-        let mut reader = source.preloaded_reader()?;
-        let file_size = reader.seek(std::io::SeekFrom::End(0))?;
-        if file_size < HEADER_LEN {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                format!("TLK '{}' shorter than {HEADER_LEN}-byte header", self.name),
-            ));
-        }
-        reader.set_position(0)?;
-        let sig: [u8; 4] = reader.read_exact_to_array()?;
-        if &sig != TLK_SIGNATURE {
-            return Err(std::io::Error::other(format!(
-                "Unsupported TLK signature in {}: {sig:?}",
-                self.name
-            )));
-        }
-        let ver: [u8; 4] = reader.read_exact_to_array()?;
-        if &ver != TLK_V1_TAG {
-            return Err(std::io::Error::other(format!(
-                "Unsupported TLK version in {}: {ver:?}",
-                self.name
-            )));
-        }
-        let language_id = reader.read_u16()?;
-        let num_entries = reader.read_u32()?;
-        let strings_offset = reader.read_u32()? as u64;
-
-        let entries_end = HEADER_LEN + (num_entries as u64) * ENTRY_LEN;
-        if entries_end > file_size {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!(
-                    "TLK '{}': entries section [{HEADER_LEN}..{entries_end}] runs past file end ({file_size} B)",
-                    self.name
-                ),
-            ));
-        }
-        if strings_offset > file_size {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!(
-                    "TLK '{}': strings offset {strings_offset} past file end ({file_size} B)",
-                    self.name
-                ),
-            ));
-        }
-
-        let mut entries = Vec::with_capacity(num_entries as usize);
-        for i in 0..num_entries as u64 {
-            reader.set_position(HEADER_LEN + i * ENTRY_LEN)?;
-            let flags = reader.read_u16()?;
-            let sound_resref = reader.read_string(8)?;
-            let volume_variance = reader.read_u32()?;
-            let pitch_variance = reader.read_u32()?;
-            let string_offset = reader.read_u32()?;
-            let string_length = reader.read_u32()?;
-            entries.push(TlkEntry {
-                flags,
-                sound_resref,
-                volume_variance,
-                pitch_variance,
-                string_offset,
-                string_length,
-            });
-        }
-
-        reader.set_position(strings_offset)?;
-        let strings_len = file_size.saturating_sub(strings_offset) as usize;
-        let mut strings = vec![0u8; strings_len];
-        reader.read_exact(&mut strings)?;
-
-        debug!(
-            "Loaded {} [TLK V1]: lang={language_id}, {} entries, strings_section={} B",
-            self.name,
-            entries.len(),
-            strings.len(),
-        );
-
-        Ok(Tlk {
+    /// Internal constructor used by the importer. Kept `pub(crate)`
+    /// because the [`Self::encoding`] field is private — callers who
+    /// want to mint a `Tlk` from scratch should go through the
+    /// importer on a synthetic byte stream.
+    pub(crate) fn new(
+        version: TlkVersion,
+        language_id: u16,
+        strings_offset: u32,
+        entries: Vec<TlkEntry>,
+        strings: Vec<u8>,
+        encoding: &'static encoding_rs::Encoding,
+    ) -> Self {
+        Self {
+            version,
             language_id,
+            strings_offset,
             entries,
             strings,
-            encoding: source.encoding(),
-        })
+            encoding,
+        }
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) mod test_support {
+    use std::path::{Path, PathBuf};
+
+    use infinitier_datasource::{DataSource, Importer};
+    use infinitier_test_utils::get_assets_path;
+
+    use crate::{ENTRY_LEN, FLAG_HAS_TEXT, HEADER_LEN, Tlk, TlkImporter};
 
     /// Build a synthetic TLK with two entries — "Hello" and "World!"
-    /// — so we can validate the parser without depending on a real
-    /// `dialog.tlk` in the workspace.
-    fn synth_tlk() -> Vec<u8> {
-        // strings section = "HelloWorld!" (no NUL separators, the
-        // offsets / lengths in the entries delimit them).
+    /// — so we can validate parser / writer without depending on a
+    /// real `dialog.tlk` in the workspace. Shared between
+    /// importer.rs and exporter.rs tests.
+    pub fn synth_tlk() -> Vec<u8> {
         let strings = b"HelloWorld!";
-        let header_len = 0x12usize;
-        let entry_len = 26usize;
         let n_entries = 2u32;
-        let strings_offset = header_len + entry_len * n_entries as usize;
+        let strings_offset = HEADER_LEN + ENTRY_LEN * n_entries as usize;
         let mut buf = Vec::new();
         // Header
         buf.extend_from_slice(b"TLK V1  ");
-        buf.extend_from_slice(&1252u16.to_le_bytes()); // language id
+        buf.extend_from_slice(&1252u16.to_le_bytes());
         buf.extend_from_slice(&n_entries.to_le_bytes());
         buf.extend_from_slice(&(strings_offset as u32).to_le_bytes());
         // Entry 0: "Hello" @ offset=0 length=5
-        buf.extend_from_slice(&1u16.to_le_bytes()); // flags (has text)
-        buf.extend_from_slice(b"\0\0\0\0\0\0\0\0"); // sound resref
-        buf.extend_from_slice(&0u32.to_le_bytes()); // volume
-        buf.extend_from_slice(&0u32.to_le_bytes()); // pitch
-        buf.extend_from_slice(&0u32.to_le_bytes()); // string offset
-        buf.extend_from_slice(&5u32.to_le_bytes()); // string length
+        buf.extend_from_slice(&FLAG_HAS_TEXT.to_le_bytes());
+        buf.extend_from_slice(b"\0\0\0\0\0\0\0\0");
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(&5u32.to_le_bytes());
         // Entry 1: "World!" @ offset=5 length=6
-        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&FLAG_HAS_TEXT.to_le_bytes());
         buf.extend_from_slice(b"\0\0\0\0\0\0\0\0");
         buf.extend_from_slice(&0u32.to_le_bytes());
         buf.extend_from_slice(&0u32.to_le_bytes());
         buf.extend_from_slice(&5u32.to_le_bytes());
         buf.extend_from_slice(&6u32.to_le_bytes());
-        // Strings section
         assert_eq!(buf.len(), strings_offset);
         buf.extend_from_slice(strings);
         buf
     }
 
-    #[test]
-    fn test_parse_and_lookup_synthetic() {
-        let bytes = synth_tlk();
-        let tlk = TlkImporter { name: "synth" }
-            .import(&DataSource::new(bytes))
-            .unwrap();
-        assert_eq!(tlk.len(), 2);
-        assert_eq!(tlk.get(0).as_deref(), Some("Hello"));
-        assert_eq!(tlk.get(1).as_deref(), Some("World!"));
-        // Out-of-range returns None, doesn't panic.
-        assert_eq!(tlk.get(2), None);
-        // Sentinel "no string" strref.
-        assert_eq!(tlk.get(0xFFFF_FFFF), None);
+    /// Recursively collect every `.tlk` file under `assets/TLK/`.
+    pub fn all_tlk_fixtures() -> Vec<PathBuf> {
+        fn visit(dir: &Path, out: &mut Vec<PathBuf>) {
+            for entry in std::fs::read_dir(dir).expect("read_dir") {
+                let entry = entry.expect("dir entry");
+                let path = entry.path();
+                if path.is_dir() {
+                    visit(&path, out);
+                } else if path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|s| s.eq_ignore_ascii_case("tlk"))
+                    .unwrap_or(false)
+                {
+                    out.push(path);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        let root = get_assets_path().join("TLK");
+        if root.is_dir() {
+            visit(&root, &mut out);
+        }
+        out.sort();
+        out
     }
 
-    #[test]
-    fn test_rejects_wrong_signature() {
-        let mut bytes = synth_tlk();
-        bytes[0..4].copy_from_slice(b"BAD ");
-        let err = TlkImporter { name: "bad" }
-            .import(&DataSource::new(bytes))
-            .unwrap_err();
-        assert!(err.to_string().contains("Unsupported TLK signature"));
-    }
-
-    #[test]
-    fn test_rejects_wrong_version() {
-        let mut bytes = synth_tlk();
-        bytes[4..8].copy_from_slice(b"V2  ");
-        let err = TlkImporter { name: "v2" }
-            .import(&DataSource::new(bytes))
-            .unwrap_err();
-        assert!(err.to_string().contains("Unsupported TLK version"));
+    /// Import a specific fixture given its path relative to
+    /// `assets/TLK/`. Exposed for follow-on test modules; the
+    /// in-crate tests scan the corpus dynamically via
+    /// [`all_tlk_fixtures`].
+    #[allow(dead_code)]
+    pub fn import_fixture(rel_path: &str) -> Tlk {
+        let path = get_assets_path().join("TLK").join(rel_path);
+        TlkImporter { name: rel_path }
+            .import(&DataSource::new(path.as_path()))
+            .unwrap_or_else(|e| panic!("import {rel_path}: {e}"))
     }
 }

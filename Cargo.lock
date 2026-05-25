@@ -2247,7 +2247,9 @@ version = "0.0.5"
 dependencies = [
  "encoding_rs",
  "infinitier_datasource",
+ "infinitier_test_utils",
  "log",
+ "tempfile",
 ]
 
 [[package]]
