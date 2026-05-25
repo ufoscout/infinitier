@@ -16,8 +16,10 @@ pub struct AppState {
     /// [`infinitier_core::game_detect::detect_game`], never
     /// hard-coded by the caller.
     pub game: Game,
-    /// Absolute path to the loaded game folder (for display only).
-    pub game_path: PathBuf,
+    /// Absolute paths to the loaded game folders (for display only).
+    /// Stored in input order — when multiple roots were given,
+    /// later folders override earlier ones on path conflicts.
+    pub game_path: Vec<PathBuf>,
     /// Pre-indexed game data. Currently unused for the MVP party
     /// view (the CRE blob is self-contained inside the save), but
     /// kept here so subsequent features (item lookup, spell names,
@@ -34,7 +36,7 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(game: Game, game_path: PathBuf, game_data: GameData, save: SaveGame) -> Self {
+    pub fn new(game: Game, game_path: Vec<PathBuf>, game_data: GameData, save: SaveGame) -> Self {
         let selected_party_index = if save.party.is_empty() { None } else { Some(0) };
         Self {
             game,

@@ -12,12 +12,26 @@ use std::path::PathBuf;
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Args {
-    /// Path to the game folder (bg, bg2, bgee, bg2ee, idw, idwee, idw2, pst, pstee).
-    /// The folder must contain a CHITIN.KEY file.
-    game_path: PathBuf,
+    /// Comma-separated list of game folders (bg, bg2, bgee, bg2ee, idw, idwee,
+    /// idw2, pst, pstee). At least the first folder must contain a CHITIN.KEY
+    /// file. When multiple folders are given they are merged into a single
+    /// case-insensitive view in input order — later folders override earlier
+    /// ones on path conflicts (mod-overlay style).
+    #[arg(value_delimiter = ',', required = true, num_args = 1..)]
+    game_path: Vec<PathBuf>,
     /// Log filter, e.g. "warn", "debug", "infinitier=debug,warn".
     #[arg(long, default_value = "infinitier=debug,warn")]
     log: String,
+}
+
+/// Render a `Vec<PathBuf>` as a comma-separated string for log / window-title
+/// purposes.
+fn display_paths(paths: &[PathBuf]) -> String {
+    paths
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn main() {
@@ -25,15 +39,15 @@ fn main() {
 
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    let game = detect_game(&CaseInsensitiveFS::new(&args.game_path).unwrap())
+    let game = detect_game(&CaseInsensitiveFS::new(args.game_path.as_slice()).unwrap())
         .expect("Cannot detect game type");
 
-    let key = GameDataBuilder::new(&args.game_path, game)
+    let key = GameDataBuilder::new(args.game_path.as_slice(), game)
         .and_then(|b| b.build())
         .unwrap_or_else(|e| {
             eprintln!(
-                "Failed to load key file from '{}': {e}",
-                args.game_path.display()
+                "Failed to load key file from [{}]: {e}",
+                display_paths(&args.game_path),
             );
             std::process::exit(1);
         });
@@ -41,7 +55,7 @@ fn main() {
     let title = format!(
         "Infinitier Explorer — {:?} — {}",
         game,
-        args.game_path.display()
+        display_paths(&args.game_path),
     );
 
     let options = eframe::NativeOptions {

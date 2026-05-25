@@ -8,7 +8,7 @@ run_bg:
 # Run Infinitier Explorer with local Baldur's Gate - Enhanced Edition
 [group('run_explorer')]
 run_bgee:
-  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition"
+  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate - Enhanced Edition"
 
 # Run Infinitier Explorer with local Baldur's Gate 2
 [group('run_explorer')]
@@ -18,7 +18,7 @@ run_bg2:
 # Run Infinitier Explorer with local Baldur's Gate 2 - Enhanced Edition
 [group('run_explorer')]
 run_bg2ee:
-  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition"
+  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate II - Enhanced Edition"
 
 # Run Infinitier Explorer with local Icewind Dale
 [group('run_explorer')]
@@ -28,7 +28,7 @@ run_iwd:
 # Run Infinitier Explorer with local Icewind Dale - Enhanced Edition
 [group('run_explorer')]
 run_iwdee:
-  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition"
+  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition","{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Icewind Dale - Enhanced Edition"
 
 # Run Infinitier Explorer with local Icewind Dale 2
 [group('run_explorer')]
@@ -43,7 +43,7 @@ run_pst:
 # Run Infinitier Explorer with local Planescape Torment - Enhanced Edition
 [group('run_explorer')]
 run_pstee:
-  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition"
+  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition","{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Planescape Torment - Enhanced Edition"
 
 
 ## SAVE GAME EDITOR 
@@ -56,7 +56,7 @@ run_bg_keeper:
 # Run Infinitier Keeper with local Baldur's Gate - Enhanced Edition
 [group('run_keeper')]
 run_bgee_keeper:
-  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition" --save-path "./assets/SAV_GAM/bg_ee/save/000000010-Inizio Capitolo 3"
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate - Enhanced Edition" --save-path "./assets/SAV_GAM/bg_ee/save/000000010-Inizio Capitolo 3"
 
 # Run Infinitier Keeper with local Baldur's Gate 2
 [group('run_keeper')]
@@ -66,7 +66,7 @@ run_bg2_keeper:
 # Run Infinitier Keeper with local Baldur's Gate 2 - Enhanced Edition
 [group('run_keeper')]
 run_bg2ee_keeper:
-  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition" --save-path "./assets/SAV_GAM/bg2_ee/save/000000005-Salvataggio Finale-TOB - Thu Mar 26 21-32-51 2026"
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate - Enhanced Edition" --save-path "./assets/SAV_GAM/bg2_ee/save/000000005-Salvataggio Finale-TOB - Thu Mar 26 21-32-51 2026"
 
 # Run Infinitier Keeper with local Icewind Dale
 [group('run_keeper')]
@@ -76,7 +76,7 @@ run_iwd_keeper:
 # Run Infinitier Keeper with local Icewind Dale - Enhanced Edition
 [group('run_keeper')]
 run_iwdee_keeper:
-  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition" --save-path "./assets/SAV_GAM/iwdee/save/000000001-Quick-Save-2"
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition","{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Icewind Dale - Enhanced Edition" --save-path "./assets/SAV_GAM/iwdee/save/000000001-Quick-Save-2"
 
 # Run Infinitier ExplKeeperorer with local Icewind Dale 2
 [group('run_keeper')]
@@ -91,4 +91,4 @@ run_pst_keeper:
 # Run Infinitier Keeper with local Planescape Torment - Enhanced Edition
 [group('run_keeper')]
 run_pstee_keeper:
-  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition" --save-path "./assets/SAV_GAM/pst_ee/save/000000001-Quick-Save"
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition","{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Planescape Torment - Enhanced Edition" --save-path "./assets/SAV_GAM/pst_ee/save/000000001-Quick-Save"

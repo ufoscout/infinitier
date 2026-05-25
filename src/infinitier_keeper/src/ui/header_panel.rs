@@ -14,7 +14,14 @@ impl HeaderPanel {
                     ui.label(format!("{:?}", state.game));
                     ui.separator();
                     ui.strong("Game folder:");
-                    ui.label(state.game_path.display().to_string());
+                    ui.label(
+                        state
+                            .game_path
+                            .iter()
+                            .map(|p| p.display().to_string())
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    );
                 });
                 ui.horizontal_wrapped(|ui| {
                     ui.strong("Save folder:");
