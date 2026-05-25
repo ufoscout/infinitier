@@ -81,6 +81,16 @@ fn serialize(gam: &Gam) -> io::Result<Vec<u8>> {
         h.party_inventory_offset,
         gam.party_inventory.len(),
     );
+    // Each party / non-party NPC may carry an embedded CRE blob at
+    // an absolute file offset — make sure the buffer extends far
+    // enough to hold those bytes too. Without this the writer would
+    // truncate the CRE region for any save where the blob lives
+    // past the end of the explicitly tracked sections.
+    for npc in gam.party_npcs.iter().chain(gam.non_party_npcs.iter()) {
+        if !npc.cre.is_empty() && npc.cre_offset > 0 {
+            extend(&mut file_size, npc.cre_offset, npc.cre.len());
+        }
+    }
     extend_for_engine(&mut file_size, &gam.engine_data);
 
     let mut buf = vec![0u8; file_size as usize];
@@ -511,6 +521,16 @@ fn write_npcs_at(buf: &mut [u8], offset: usize, npcs: &[GamNpc]) {
     for npc in npcs {
         buf[off..off + npc.raw.len()].copy_from_slice(&npc.raw);
         off += npc.raw.len();
+        // The embedded CRE blob lives elsewhere in the file (at the
+        // absolute offset stored inside `npc.raw` at bytes 4..8);
+        // write it back there so the round-tripped GAM keeps the
+        // creature record reachable. Slots without an embedded CRE
+        // (resref-only) carry an empty `cre` and a zero offset.
+        if !npc.cre.is_empty() && npc.cre_offset > 0 {
+            let dest = npc.cre_offset as usize;
+            let end = dest + npc.cre.len();
+            buf[dest..end].copy_from_slice(&npc.cre);
+        }
     }
 }
 

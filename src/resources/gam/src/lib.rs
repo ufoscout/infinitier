@@ -166,39 +166,84 @@ pub struct GamNpc {
     pub selection_state: u16,
     /// 0x02: party slot (`0..=5`) or `0xFFFF` for "not in party".
     pub party_order: u16,
-    /// 0x04: offset (relative to the start of THIS NPC struct) of
-    /// the embedded CRE blob.
+    /// 0x04: **absolute** file offset of the embedded CRE blob. Per
+    /// NearInfinity (`PartyNPC.read` constructs the embedded
+    /// `CreResource` against the GAM file buffer at this exact
+    /// position), the offset is into the GAM file itself — not into
+    /// the NPC's own byte slice. Zero when the slot has no embedded
+    /// CRE (it references an external resource by name via
+    /// [`Self::character_name`] instead).
     pub cre_offset: u32,
     /// 0x08: length in bytes of the embedded CRE blob.
     pub cre_size: u32,
     /// 0x0C: 8-byte resref-shaped "character name" field (often the
     /// short name; the longer name lives deeper inside the engine-
     /// specific tail). Decoded via WINDOWS-1252 with trailing NULs
-    /// stripped.
+    /// stripped. Names that start with `*` carry an embedded CRE
+    /// pointed at by [`Self::cre_offset`]; everything else is a
+    /// CRE-resref into the resource system.
     pub character_name: String,
-    /// The entry's full byte slice (length depends on engine
-    /// variant; see the corpus comments in `importer.rs`). Includes
-    /// the parsed-out 0x14-byte sub-header so the entry is
-    /// self-contained.
+    /// The NPC struct's full byte slice (length depends on engine
+    /// variant — BG1 = 352, IWD = 384, PST = 360, BG2/EE = 352,
+    /// IWD2 = 832). Includes the parsed-out 0x14-byte sub-header so
+    /// the entry is self-contained.
     pub raw: Vec<u8>,
+    /// Embedded CRE bytes lifted from `gam_file[cre_offset ..
+    /// cre_offset + cre_size]` during import. Empty when
+    /// `cre_size == 0`. The exporter writes these back at
+    /// [`Self::cre_offset`] so save games round-trip correctly.
+    pub cre: Vec<u8>,
 }
 
 impl GamNpc {
-    /// Embedded CRE bytes. The slot stores a CRE resource at
-    /// `[cre_offset .. cre_offset + cre_size]` relative to its own
-    /// start. Returns an empty slice when either field is zero
-    /// (which happens for slots that don't carry an embedded CRE —
-    /// e.g. some non-party entries).
+    /// Embedded CRE bytes — the canonical accessor used by
+    /// downstream parsers (e.g. `infinitier_cre_resource`). Returns
+    /// an empty slice when the slot doesn't carry an embedded CRE.
     pub fn cre_data(&self) -> &[u8] {
-        if self.cre_size == 0 {
-            return &[];
-        }
-        let start = self.cre_offset as usize;
-        let end = start.saturating_add(self.cre_size as usize);
+        &self.cre
+    }
+
+    /// Localized 32-byte display name stored deep inside the NPC
+    /// struct (the field NearInfinity calls `GAM_NPC_NAME`, distinct
+    /// from the 8-byte engine script-name in [`Self::character_name`]).
+    /// Decoded via WINDOWS-1252 with trailing NULs stripped.
+    ///
+    /// The offset of this field depends on the engine — BG / BG2 /
+    /// EE / IWD store it at `+0xC0`, PST at `+0xC8`, IWD2 at `+0x1BE`
+    /// — so the caller must pass the engine in. Returns an empty
+    /// string for slots whose `raw` is too short to contain the
+    /// field (malformed saves).
+    pub fn long_name(&self, engine: infinitier_common::Engine) -> String {
+        let off = long_name_offset_for_engine(engine);
+        let end = off + 32;
         if end > self.raw.len() {
-            return &[];
+            return String::new();
         }
-        &self.raw[start..end]
+        let bytes = &self.raw[off..end];
+        let trimmed_end = bytes.iter().rposition(|&b| b != 0).map_or(0, |p| p + 1);
+        let (decoded, _, _) =
+            encoding_rs::WINDOWS_1252.decode(&bytes[..trimmed_end]);
+        decoded.into_owned()
+    }
+}
+
+/// Offset (within an NPC's `raw` byte slice) of the 32-byte localized
+/// display-name field — engine-specific, per NearInfinity's
+/// `PartyNPC.read`.
+fn long_name_offset_for_engine(engine: infinitier_common::Engine) -> usize {
+    use infinitier_common::Engine::*;
+    match engine {
+        // BG1, BG2 (vanilla or Tutu), every EE flavour, and IWD
+        // vanilla all put the name at offset 0xC0 within the NPC
+        // struct.
+        Bg | Bg2 | Ee | Iwd => 0xC0,
+        // PST shifts the field by 8 bytes because of its different
+        // quick-item slot layout.
+        Pst => 0xC8,
+        // IWD2's NPC struct is much larger (the d20 quick-spell /
+        // ability / song / button tables sit between the common
+        // header and the name) — the name ends up at 0x1BE.
+        Iwd2 => 0x1BE,
     }
 }
 

@@ -1,6 +1,6 @@
 use eframe::egui;
+use infinitier_cre_resource::Cre;
 
-use crate::cre::{Abilities, CreSummary};
 use crate::save::PartyMember;
 use crate::state::AppState;
 
@@ -20,7 +20,7 @@ impl AbilitiesPanel {
             ui.heading(member_title(idx, member));
             ui.separator();
             match &member.cre {
-                Ok(summary) => render_abilities(ui, summary),
+                Ok(cre) => render_abilities(ui, cre),
                 Err(err) => {
                     ui.colored_label(
                         egui::Color32::from_rgb(180, 90, 90),
@@ -40,20 +40,10 @@ fn member_title(idx: usize, member: &PartyMember) -> String {
     }
 }
 
-fn render_abilities(ui: &mut egui::Ui, summary: &CreSummary) {
-    let Abilities {
-        strength,
-        strength_bonus,
-        intelligence,
-        wisdom,
-        dexterity,
-        constitution,
-        charisma,
-    } = summary.abilities;
-
+fn render_abilities(ui: &mut egui::Ui, cre: &Cre) {
     ui.horizontal(|ui| {
         ui.strong("CRE version:");
-        ui.label(format!("{:?}", summary.version));
+        ui.label(format!("{:?}", cre.version));
     });
     ui.add_space(8.0);
 
@@ -62,12 +52,12 @@ fn render_abilities(ui: &mut egui::Ui, summary: &CreSummary) {
         .spacing([24.0, 6.0])
         .striped(true)
         .show(ui, |ui| {
-            ability_row(ui, "Strength", strength);
-            // Strength % (the 18/01..18/00 bonus) only exists in
-            // AD&D-era engines. IWD2 (CRE V2.2) uses d20 and omits
-            // it; we still print the row so the UI is uniform, but
-            // mark it as N/A.
-            match strength_bonus {
+            ability_row(ui, "Strength", cre.strength());
+            // Strength % (the AD&D 18/01..18/00 bonus) only exists
+            // pre-d20. IWD2 (CRE V2.2) omits it; the typed accessor
+            // returns `None` there, and we render the row as "—" so
+            // the grid stays uniform across versions.
+            match cre.strength_bonus() {
                 Some(bonus) => ability_row(ui, "Strength %", bonus),
                 None => {
                     ui.label("Strength %");
@@ -75,11 +65,11 @@ fn render_abilities(ui: &mut egui::Ui, summary: &CreSummary) {
                     ui.end_row();
                 }
             }
-            ability_row(ui, "Dexterity", dexterity);
-            ability_row(ui, "Constitution", constitution);
-            ability_row(ui, "Intelligence", intelligence);
-            ability_row(ui, "Wisdom", wisdom);
-            ability_row(ui, "Charisma", charisma);
+            ability_row(ui, "Dexterity", cre.dexterity());
+            ability_row(ui, "Constitution", cre.constitution());
+            ability_row(ui, "Intelligence", cre.intelligence());
+            ability_row(ui, "Wisdom", cre.wisdom());
+            ability_row(ui, "Charisma", cre.charisma());
         });
 }
 

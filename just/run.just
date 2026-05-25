@@ -58,3 +58,37 @@ run_bg_keeper:
 run_bgee_keeper:
   cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition" --save-path "./assets/SAV_GAM/bg_ee/save/000000010-Inizio Capitolo 3"
 
+# Run Infinitier Keeper with local Baldur's Gate 2
+[group('run_keeper')]
+run_bg2_keeper:
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Baldur's Gate 2/" --save-path "./assets/SAV_GAM/bg2/save/000000007-The Three of Us"
+
+# Run Infinitier Keeper with local Baldur's Gate 2 - Enhanced Edition
+[group('run_keeper')]
+run_bg2ee_keeper:
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition" --save-path "./assets/SAV_GAM/bg2_ee/save/000000005-Salvataggio Finale-TOB - Thu Mar 26 21-32-51 2026"
+
+# Run Infinitier Keeper with local Icewind Dale
+[group('run_keeper')]
+run_iwd_keeper:
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Icewind Dale" --save-path "./assets/SAV_GAM/iwd/mpsave/000000001-Quick-Save"
+
+# Run Infinitier Keeper with local Icewind Dale - Enhanced Edition
+[group('run_keeper')]
+run_iwdee_keeper:
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition" --save-path "./assets/SAV_GAM/iwdee/save/000000001-Quick-Save-2"
+
+# Run Infinitier ExplKeeperorer with local Icewind Dale 2
+[group('run_keeper')]
+run_iwd2_keeper:
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Icewind Dale 2" --save-path "./assets/SAV_GAM/iwd2/mpsave/000000002-Quick-Save"
+
+# Run Infinitier Keeper with local Planescape Torment
+[group('run_keeper')]
+run_pst_keeper:
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Planescape Torment" --save-path "./assets/SAV_GAM/pst/save/000000001-Quick-Save"
+
+# Run Infinitier Keeper with local Planescape Torment - Enhanced Edition
+[group('run_keeper')]
+run_pstee_keeper:
+  cargo run -p infinitier_keeper -- --game-path "{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition" --save-path "./assets/SAV_GAM/pst_ee/save/000000001-Quick-Save"

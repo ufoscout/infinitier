@@ -13,10 +13,15 @@ keywords = ["save-game", "editor", "infinity-engine", "baldurs-gate", "gui"]
 [dependencies]
 infinitier_common = { workspace = true }
 infinitier_core = { workspace = true }
+infinitier_cre_resource = { workspace = true }
 infinitier_datasource = { workspace = true }
 infinitier_gam_resource = { workspace = true }
+infinitier_tlk_resource = { workspace = true }
 
 clap = { workspace = true }
 eframe = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }

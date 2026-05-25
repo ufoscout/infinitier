@@ -1,0 +1,16 @@
+[package]
+name = "infinitier_tlk_resource"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Reader for the TLK string-table format used by Infinity Engine games' dialog.tlk"
+readme = "readme.md"
+keywords = ["tlk", "dialog", "infinity-engine", "baldurs-gate"]
+
+[dependencies]
+encoding_rs = { workspace = true }
+infinitier_datasource = { workspace = true }
+log = { workspace = true }

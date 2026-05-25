@@ -349,6 +349,25 @@ fn parse_npc(reader: &mut GamReader, offset: u64, record_size: u64) -> std::io::
     reader.set_position(offset)?;
     let mut raw = vec![0u8; record_size as usize];
     reader.read_exact(&mut raw)?;
+    // Pull the embedded CRE blob from its **absolute** position in
+    // the GAM file (cre_offset is into the whole file, not into this
+    // NPC's bytes — see `GamNpc::cre_offset` for the NI cross-ref).
+    // Out-of-range pointers silently become an empty slice so that
+    // malformed saves still load.
+    let cre = if cre_size > 0 && cre_offset > 0 {
+        let file_size = reader.seek(std::io::SeekFrom::End(0))?;
+        let end = (cre_offset as u64).saturating_add(cre_size as u64);
+        if end <= file_size {
+            reader.set_position(cre_offset as u64)?;
+            let mut buf = vec![0u8; cre_size as usize];
+            reader.read_exact(&mut buf)?;
+            buf
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
     Ok(GamNpc {
         selection_state,
         party_order,
@@ -356,6 +375,7 @@ fn parse_npc(reader: &mut GamReader, offset: u64, record_size: u64) -> std::io::
         cre_size,
         character_name,
         raw,
+        cre,
     })
 }
 
@@ -911,6 +931,42 @@ mod tests {
         let gam = import_fixture("bg2/save/000000003-Auto-Save-TOB/BALDUR.GAM");
         assert_eq!(gam.version, GamVersion::V2_1);
         assert!(matches!(gam.engine_data, GamEngineData::Bg2(_)));
+    }
+
+    #[test]
+    fn test_party_npcs_have_embedded_cre_blobs() {
+        // Regression for a real-world bug: `GamNpc::cre_offset` is an
+        // **absolute** GAM-file offset, not relative to the NPC
+        // struct. A BG:EE save's party NPCs each carry a sizeable
+        // embedded CRE (typically ~1.5–30 KB); when the offset was
+        // (wrongly) treated as NPC-relative, `cre_data()` returned
+        // empty for every slot and downstream parsers thought the
+        // creature record was missing. The fix lifts the bytes from
+        // the file at the absolute offset on import.
+        let gam = import_fixture("bg_ee/save/000000000-Auto-Salvataggio/BALDUR.gam");
+        let main_pc = gam
+            .party_npcs
+            .iter()
+            .find(|n| n.cre_size > 0)
+            .expect("expected at least one party NPC with an embedded CRE");
+        // The blob should start with the CRE file signature.
+        assert!(
+            main_pc.cre.len() == main_pc.cre_size as usize,
+            "cre.len()={} but cre_size={}",
+            main_pc.cre.len(),
+            main_pc.cre_size
+        );
+        assert_eq!(&main_pc.cre[0..4], b"CRE ", "first 4 bytes weren't 'CRE '");
+        // Slots without an embedded creature (cre_size == 0) must
+        // produce an empty Vec, not garbage.
+        for npc in gam
+            .non_party_npcs
+            .iter()
+            .chain(gam.party_npcs.iter())
+            .filter(|n| n.cre_size == 0)
+        {
+            assert!(npc.cre.is_empty(), "expected empty cre for cre_size=0 slot");
+        }
     }
 
     #[test]
