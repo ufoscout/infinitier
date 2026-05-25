@@ -9,7 +9,7 @@ use eframe::egui;
 
 use crate::save::PartyMember;
 use crate::state::AppState;
-use crate::ui::tabs::{show_tab, CharacterTab};
+use crate::ui::tabs::{CharacterTab, show_tab};
 
 pub struct CharacterPanel;
 

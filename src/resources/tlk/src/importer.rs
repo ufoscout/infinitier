@@ -32,10 +32,7 @@ impl Importer for TlkImporter<'_> {
         if file_size < HEADER_LEN as u64 {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
-                format!(
-                    "TLK '{}' shorter than {HEADER_LEN}-byte header",
-                    self.name
-                ),
+                format!("TLK '{}' shorter than {HEADER_LEN}-byte header", self.name),
             ));
         }
         reader.set_position(0)?;

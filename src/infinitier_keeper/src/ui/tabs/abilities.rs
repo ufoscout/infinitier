@@ -24,7 +24,9 @@ impl AbilitiesTab {
             ui.columns(3, |cols| {
                 section(&mut cols[0], "Ability scores", |ui| ability_scores(ui, cre));
                 cols[0].add_space(8.0);
-                section(&mut cols[0], "Combat & status", |ui| combat_stats(ui, cre, gam));
+                section(&mut cols[0], "Combat & status", |ui| {
+                    combat_stats(ui, cre, gam)
+                });
 
                 section(&mut cols[1], "Experience & levels", |ui| {
                     experience_levels(ui, cre)
@@ -291,7 +293,11 @@ fn morale(ui: &mut egui::Ui, cre: &Cre) {
         .striped(true)
         .show(ui, |ui| match &cre.header {
             CreHeader::V10(h) => {
-                row(ui, "Morale", &h.morale_default_value_is_10_capped.to_string());
+                row(
+                    ui,
+                    "Morale",
+                    &h.morale_default_value_is_10_capped.to_string(),
+                );
                 row(
                     ui,
                     "Morale break",

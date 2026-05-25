@@ -2,54 +2,77 @@ use serde::{Deserialize, Serialize};
 
 /// A Resource file type
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SaveGameResourceType {
+    Sav,
+}
+
+impl SaveGameResourceType {
+    pub fn from_extension(ext: &str) -> Option<SaveGameResourceType> {
+        let ext = ext.trim_start_matches('.').to_ascii_lowercase();
+        match ext.as_str() {
+            "sav" => Some(SaveGameResourceType::Sav),
+            _ => None,
+        }
+    }
+
+    /// Returns the extension of the `ResourceType` enum variant as a string, or `None` if it is unknown.
+    pub fn get_extension(&self) -> &'static str {
+        match self {
+            SaveGameResourceType::Sav => "sav",
+        }
+    }
+}
+
+/// A Resource file type
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceType {
-    Bmp,
-    Mve,
-    Wav,
-    Wfx,
-    Plt,
-    Tga,
-    Bam,
-    Wed,
-    Chu,
-    Tis,
-    Mos,
-    Itm,
-    Spl,
-    Bcs,
-    Ids,
-    Cre,
+    Acm,
     Are,
-    Dlg,
-    TwoDA,
-    Gam,
-    Sto,
-    Wmp,
-    Eff,
+    Bah,
+    Bam,
+    Bcs,
+    Bio,
+    Bmp,
     Bs,
     Chr,
-    Vvc,
-    Vef,
-    Pro,
-    Bio,
-    Wbm,
+    Chu,
+    Cre,
+    Dlg,
+    Eff,
     Fnt,
-    Gui,
-    Sql,
-    Pvrz,
+    Gam,
     Glsl,
-    Tot,
-    Toh,
-    Menu,
-    Lua,
-    Ttf,
-    Png,
-    Bah,
+    Gui,
+    Ids,
     Ini,
-    Src,
+    Itm,
+    Lua,
     Maze,
+    Menu,
+    Mos,
     Mus,
-    Acm,
+    Mve,
+    Plt,
+    Png,
+    Pro,
+    Pvrz,
+    Spl,
+    Sql,
+    Src,
+    Sto,
+    Tga,
+    Tis,
+    Toh,
+    Tot,
+    Ttf,
+    TwoDA,
+    Vef,
+    Vvc,
+    Wav,
+    Wbm,
+    Wed,
+    Wfx,
+    Wmp,
     Unknown(u16),
 }
 

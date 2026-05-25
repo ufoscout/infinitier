@@ -135,7 +135,10 @@ mod tests {
             .unwrap();
         let mut produced = Vec::new();
         TlkExporter.export(&tlk, &mut produced).unwrap();
-        assert_eq!(produced, original, "synthetic TLK round-trip not byte-exact");
+        assert_eq!(
+            produced, original,
+            "synthetic TLK round-trip not byte-exact"
+        );
     }
 
     /// Byte-exact round trip across the shipped corpus — every real

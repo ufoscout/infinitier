@@ -69,6 +69,11 @@ impl GameData {
             .flat_map(move |ids| ids.iter().filter_map(move |&id| self.resources.get(id)))
     }
 
+    /// Discover the save games visible on `fs`.
+    pub fn save_games(&self, fs: &crate::fs::CaseInsensitiveFS) -> crate::save_games::SaveGames {
+        crate::save_games::scan_save_games(fs)
+    }
+
     /// Creates a GameData from a list of resources
     pub fn new(resources: Vec<GameResource>, game_type: Game) -> Self {
         let mut game_data = GameData {
