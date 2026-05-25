@@ -8,8 +8,6 @@ use std::path::PathBuf;
 use clap::Parser;
 use eframe::egui;
 use infinitier_core::{fs::CaseInsensitiveFS, game::GameDataBuilder, game_detect::detect_game};
-use infinitier_datasource::{DataSource, Importer};
-use infinitier_tlk_resource::{Tlk, TlkImporter};
 
 use crate::app::KeeperApp;
 use crate::state::AppState;
@@ -27,55 +25,19 @@ struct Args {
     /// earlier ones on path conflicts (mod-overlay style).
     #[arg(long, value_delimiter = ',', required = true, num_args = 1..)]
     game_path: Vec<PathBuf>,
-    /// Path to a single save folder — e.g.
-    /// `<game>/save/000000001-Quick-Save/`. Must contain exactly one
-    /// `.GAM` file.
+    /// Which save game to open. Accepts either:
+    /// - a numeric index into the list returned by
+    ///   [`infinitier_core::game::GameData::save_games`] (alphabetical
+    ///   by save folder name, starting at 0), or
+    /// - the on-disk save folder name (e.g. `000000001-Quick-Save`).
+    ///
+    /// Anything that parses as a `usize` is treated as an index; every
+    /// other string is treated as a name.
     #[arg(long)]
-    save_path: PathBuf,
-    /// Optional path to `dialog.tlk` — used to resolve localized
-    /// party-member names (Minsc, Imoen, Aerie, …) referenced by
-    /// CRE strrefs. When omitted we auto-detect against the game
-    /// folder; see [`locate_dialog_tlk`] for the search order.
-    #[arg(long)]
-    tlk_path: Option<PathBuf>,
+    savegame: String,
     /// Log filter, e.g. "warn", "debug", "infinitier=debug,warn".
     #[arg(long, default_value = "infinitier=debug,warn")]
     log: String,
-}
-
-/// Look for a `dialog.tlk` to use for strref resolution. Searches each
-/// supplied `game_path` in input order; for every folder it tries (in
-/// order):
-///
-/// 1. `<game_path>/lang/en_us/dialog.tlk` — the canonical EE layout
-///    with English. We prefer English on auto-detect because the
-///    keeper's typed-field labels (Strength, …) are English; the
-///    user can pass `--tlk-path` to override.
-/// 2. Any `<game_path>/lang/<locale>/dialog.tlk` — first one found.
-/// 3. `<game_path>/dialog.tlk` — older non-EE layout.
-fn locate_dialog_tlk(game_paths: &[PathBuf]) -> Option<PathBuf> {
-    for game_path in game_paths {
-        let lang_root = game_path.join("lang");
-        for preferred in ["en_us", "en_US", "en"] {
-            let p = lang_root.join(preferred).join("dialog.tlk");
-            if p.is_file() {
-                return Some(p);
-            }
-        }
-        if let Ok(entries) = std::fs::read_dir(&lang_root) {
-            for entry in entries.flatten() {
-                let p = entry.path().join("dialog.tlk");
-                if p.is_file() {
-                    return Some(p);
-                }
-            }
-        }
-        let direct = game_path.join("dialog.tlk");
-        if direct.is_file() {
-            return Some(direct);
-        }
-    }
-    None
 }
 
 /// Render a `Vec<PathBuf>` as a comma-separated string for log / window-title
@@ -86,13 +48,6 @@ fn display_paths(paths: &[PathBuf]) -> String {
         .map(|p| p.display().to_string())
         .collect::<Vec<_>>()
         .join(", ")
-}
-
-fn load_tlk(path: &std::path::Path) -> std::io::Result<Tlk> {
-    TlkImporter {
-        name: path.to_str().unwrap_or("dialog.tlk"),
-    }
-    .import(&DataSource::new(path))
 }
 
 fn main() {
@@ -128,53 +83,72 @@ fn main() {
             std::process::exit(1);
         });
 
-    // Locate dialog.tlk so we can render party-member names instead
-    // of the 8-byte engine script-names. Failures are non-fatal —
-    // we just fall back to the GAM long-name / script-name chain.
-    let tlk_path = args
-        .tlk_path
-        .clone()
-        .or_else(|| locate_dialog_tlk(&args.game_path));
-    let tlk = match &tlk_path {
-        Some(p) => match load_tlk(p) {
-            Ok(t) => {
-                log::info!(
-                    "Loaded TLK '{}': lang_id={} entries={}",
-                    p.display(),
-                    t.language_id,
-                    t.len()
+    // Save lookup goes through the GameData so the same FS that backs
+    // resource lookups also picks up saves — keeps everything in one
+    // case-insensitive index instead of having the keeper rummage on
+    // disk directly.
+    let save_games = game_data.save_games();
+    let core_save = if let Ok(idx) = args.savegame.parse::<usize>() {
+        save_games.by_index(idx).cloned().unwrap_or_else(|| {
+            eprintln!(
+                "savegame index {idx} out of range — {} save(s) discovered",
+                save_games.len(),
+            );
+            std::process::exit(1);
+        })
+    } else {
+        save_games
+            .by_name(&args.savegame)
+            .cloned()
+            .unwrap_or_else(|| {
+                eprintln!(
+                    "savegame '{}' not found — {} save(s) discovered: {}",
+                    args.savegame,
+                    save_games.len(),
+                    save_games
+                        .saves()
+                        .iter()
+                        .map(|s| s.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", "),
                 );
-                Some(t)
-            }
-            Err(e) => {
-                log::warn!("Failed to load TLK '{}': {e}", p.display());
-                None
-            }
-        },
-        None => {
+                std::process::exit(1);
+            })
+    };
+
+    // dialog.tlk is loaded through the GameData too — same FS, same
+    // case-insensitive lookup. Failures are non-fatal: we fall back
+    // to the GAM long-name / engine script-name chain.
+    let tlk = match game_data.dialog_tlk() {
+        Ok(Some(t)) => {
+            log::info!(
+                "Loaded dialog.tlk: lang_id={} entries={}",
+                t.language_id,
+                t.len(),
+            );
+            Some(t)
+        }
+        Ok(None) => {
             log::warn!(
-                "No dialog.tlk found under [{}]/lang — party-member names will fall back to engine script-names.",
+                "No dialog.tlk found under [{}] — party-member names will fall back to engine script-names.",
                 display_paths(&args.game_path),
             );
             None
         }
+        Err(e) => {
+            log::warn!("Failed to load dialog.tlk: {e}");
+            None
+        }
     };
 
-    let save = save::load_save(&args.save_path, game.engine(), tlk.as_ref()).unwrap_or_else(|e| {
-        eprintln!(
-            "Failed to load save folder '{}': {e}",
-            args.save_path.display()
-        );
+    let save = save::load_save(&core_save, game.engine(), tlk.as_ref()).unwrap_or_else(|e| {
+        eprintln!("Failed to load save '{}': {e}", core_save.name);
         std::process::exit(1);
     });
 
-    let state = AppState::new(game, args.game_path.clone(), game_data, save);
+    let title = format!("Infinitier Keeper — {:?} — {}", game, save.name,);
 
-    let title = format!(
-        "Infinitier Keeper — {:?} — {}",
-        state.game,
-        state.save.save_path.display()
-    );
+    let state = AppState::new(game, args.game_path.clone(), game_data, save);
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

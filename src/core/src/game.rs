@@ -76,6 +76,47 @@ impl GameData {
         crate::save_games::scan_save_games(&self.fs)
     }
 
+    /// Locate and load the game's `dialog.tlk`. Returns `Ok(None)` when
+    /// no `dialog.tlk` is reachable through the FS; `Err` when one is
+    /// found but the parser rejects it.
+    ///
+    /// Search order:
+    ///
+    /// 1. `lang/en_us/dialog.tlk` — canonical Enhanced Edition layout
+    ///    with English. Preferred on auto-detect because most callers
+    ///    surface English labels.
+    /// 2. Any `lang/<locale>/dialog.tlk` — first one the FS reports.
+    /// 3. `dialog.tlk` at the game-folder root — the older non-EE
+    ///    layout.
+    pub fn dialog_tlk(&self) -> io::Result<Option<infinitier_tlk_resource::Tlk>> {
+        use infinitier_tlk_resource::TlkImporter;
+
+        let load = |path: &infinitier_fs::CiPath,
+                    label: &str|
+         -> io::Result<infinitier_tlk_resource::Tlk> {
+            TlkImporter { name: label }.import(&DataSource::new(path.path()))
+        };
+
+        // 1. lang/en_us/dialog.tlk
+        if let Some(p) = self.fs.get_path_opt("lang/en_us/dialog.tlk") {
+            return load(&p, "lang/en_us/dialog.tlk").map(Some);
+        }
+        // 2. Any other lang/<locale>/dialog.tlk. The CaseInsensitiveFS
+        //    indexes every file recursively, so a single list_files
+        //    sweep over `lang/` picks up every locale.
+        for cipath in self.fs.list_files("lang", Some("tlk"), true) {
+            if cipath.base_name() == "dialog.tlk" {
+                let label = cipath.as_str().to_string();
+                return load(&cipath, &label).map(Some);
+            }
+        }
+        // 3. dialog.tlk at the game-folder root (vanilla layout).
+        if let Some(p) = self.fs.get_path_opt("dialog.tlk") {
+            return load(&p, "dialog.tlk").map(Some);
+        }
+        Ok(None)
+    }
+
     /// Creates a GameData from a list of resources
     pub fn new(resources: Vec<GameResource>, game_type: Game, fs: CaseInsensitiveFS) -> Self {
         let mut game_data = GameData {
@@ -221,7 +262,7 @@ impl GameResource {
             ResourceType::Chu => Ok(ImportedResource::Chu),
             ResourceType::Cre => CreImporter { name: &self.name }
                 .import(ds)
-                .map(ImportedResource::Cre),
+                .map(|cre| ImportedResource::Cre(Box::new(cre))),
             ResourceType::Dlg => Ok(ImportedResource::Dlg),
             ResourceType::Eff => Ok(ImportedResource::Eff),
             ResourceType::Fnt => FntImporter { name: &self.name }
@@ -232,7 +273,7 @@ impl GameResource {
                 engine: game_data.game().engine(),
             }
             .import(ds)
-            .map(ImportedResource::Gam),
+            .map(|gam| ImportedResource::Gam(Box::new(gam))),
             ResourceType::Glsl => Ok(ImportedResource::Glsl),
             ResourceType::Gui => Ok(ImportedResource::Gui),
             ResourceType::Ids => IdsImporter { name: &self.name }
