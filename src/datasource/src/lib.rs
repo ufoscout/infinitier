@@ -573,6 +573,18 @@ impl DataSource {
         })
     }
 
+    /// Like [`Self::reader`], but eagerly reads the entire source
+    /// into a `Vec<u8>` so the returned [`Reader`] is backed by an
+    /// in-memory [`Cursor`].
+    pub fn preloaded_reader(&self) -> std::io::Result<Reader<std::io::Cursor<Vec<u8>>>> {
+        let mut buf = Vec::new();
+        self.reader()?.read_to_end(&mut buf)?;
+        Ok(Reader {
+            data: std::io::Cursor::new(buf),
+            charset: self.encoding(),
+        })
+    }
+
     /// Internal: build just the [`DataTrait`] reader (no charset
     /// wrapping). Used by [`Self::reader`] and by [`ConcatReader`] when
     /// it opens a part lazily on demand.
@@ -889,6 +901,8 @@ impl<T: Seek> Seek for Reader<T> {
 #[cfg(test)]
 mod tests {
 
+    use std::io::SeekFrom;
+
     use super::*;
 
     #[test]
@@ -986,6 +1000,49 @@ mod tests {
         let reader = DataSource::new(&[0x01, 0x02]);
         let mut reader = reader.reader().unwrap();
         assert_eq!(reader.read_i16().unwrap(), 0x0201);
+    }
+
+    #[test]
+    fn test_preloaded_reader_reads_full_content_with_random_access() {
+
+        let data = b"Hello, world!";
+        let source = DataSource::new(data.as_slice());
+        let mut reader = source.preloaded_reader().unwrap();
+
+        // Sequential read works.
+        assert_eq!(reader.read_string(5).unwrap(), "Hello");
+        assert_eq!(reader.position().unwrap(), 5);
+
+        // Random access.
+        reader.set_position(7).unwrap();
+        assert_eq!(reader.read_string(5).unwrap(), "world");
+
+        // Total length matches the source.
+        let total = reader.seek(SeekFrom::End(0)).unwrap();
+        assert_eq!(total, data.len() as u64);
+    }
+
+    #[test]
+    fn test_preloaded_reader_honors_offset_and_encoding() {
+        // Source bytes: "Hello, " (skipped by offset) | <0xE9>llo
+        // (window), where 0xE9 decodes to 'é' in WINDOWS-1252. The
+        // preloaded reader should see only the 4-byte window
+        // "<0xE9>llo" and decode it to "éllo".
+        let bytes: &[u8] = &[0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0xE9, 0x6C, 0x6C, 0x6F];
+        let source = DataSource::new_with_offset(bytes, 7, Some(4));
+        let mut reader = source.preloaded_reader().unwrap();
+
+        // Position starts at the window's beginning, not the
+        // underlying source's offset.
+        assert_eq!(reader.position().unwrap(), 0);
+
+        // Length is the windowed length.
+        let len = reader.seek(SeekFrom::End(0)).unwrap();
+        assert_eq!(len, 4);
+
+        // Encoding is inherited — 0xE9 decodes to 'é'.
+        reader.set_position(0).unwrap();
+        assert_eq!(reader.read_string(4).unwrap(), "éllo");
     }
 
     #[test]
