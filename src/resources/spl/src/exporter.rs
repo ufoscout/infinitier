@@ -55,10 +55,9 @@ fn serialize(spl: &Spl) -> io::Result<Vec<u8>> {
     // versions the abilities + effects sections sit downstream of
     // the header.
     let header_len = spl.version.header_len();
-    let abilities_end = (spl.header.abilities_offset() as usize)
-        + spl.abilities.len() * ABILITY_LEN;
-    let effects_end =
-        (spl.header.effects_offset() as usize) + spl.effects.len() * EFFECT_LEN;
+    let abilities_end =
+        (spl.header.abilities_offset() as usize) + spl.abilities.len() * ABILITY_LEN;
+    let effects_end = (spl.header.effects_offset() as usize) + spl.effects.len() * EFFECT_LEN;
     let mut file_size = header_len.max(abilities_end).max(effects_end);
     // Empty section offsets must not retroactively extend the file
     // when their count is zero — guard with `count > 0` checks above
@@ -257,8 +256,8 @@ mod tests {
     use infinitier_datasource::{DataSource, Importer};
 
     use super::*;
-    use crate::{SplImporter, SplVersion};
     use crate::test_support::all_spl_fixtures;
+    use crate::{SplImporter, SplVersion};
 
     #[test]
     fn test_corpus_round_trip() {
@@ -310,8 +309,7 @@ mod tests {
 
     #[test]
     fn test_export_preserves_signature_and_version() {
-        let path = infinitier_test_utils::get_assets_path()
-            .join("spl/v2_0/iwd2_SPWI426.spl");
+        let path = infinitier_test_utils::get_assets_path().join("spl/v2_0/iwd2_SPWI426.spl");
         let original = SplImporter { name: "sig" }
             .import(&DataSource::new(path.as_path()))
             .unwrap();
@@ -327,8 +325,7 @@ mod tests {
         // swapping the matching `SplHeader` variant, the export
         // must surface that as an error rather than emit a
         // self-contradicting file.
-        let path = infinitier_test_utils::get_assets_path()
-            .join("spl/v1/bg_SPWI413.spl");
+        let path = infinitier_test_utils::get_assets_path().join("spl/v1/bg_SPWI413.spl");
         let mut spl = SplImporter { name: "x" }
             .import(&DataSource::new(path.as_path()))
             .unwrap();

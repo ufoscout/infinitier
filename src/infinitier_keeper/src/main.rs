@@ -85,18 +85,17 @@ fn main() {
 
     // Game detection drives every engine-specific decision below — we
     // never read it from CLI flags or a config file.
-    let game = detect_game(&CaseInsensitiveFS::new(&args.game_path).unwrap_or_else(|e| {
-        eprintln!(
-            "Failed to open game folder '{}': {e}",
-            args.game_path.display()
-        );
-        std::process::exit(1);
-    }))
+    let game = detect_game(
+        &CaseInsensitiveFS::new(&args.game_path).unwrap_or_else(|e| {
+            eprintln!(
+                "Failed to open game folder '{}': {e}",
+                args.game_path.display()
+            );
+            std::process::exit(1);
+        }),
+    )
     .unwrap_or_else(|| {
-        eprintln!(
-            "Cannot detect game type at '{}'",
-            args.game_path.display()
-        );
+        eprintln!("Cannot detect game type at '{}'", args.game_path.display());
         std::process::exit(1);
     });
 
@@ -176,8 +175,8 @@ fn main() {
             // Same Linux/X11 DPI workaround as the explorer crate.
             #[cfg(target_os = "linux")]
             {
-                let is_x11 = std::env::var("WAYLAND_DISPLAY").is_err()
-                    && std::env::var("DISPLAY").is_ok();
+                let is_x11 =
+                    std::env::var("WAYLAND_DISPLAY").is_err() && std::env::var("DISPLAY").is_ok();
                 if is_x11 {
                     if let Ok(scale) = std::env::var("INFINITIER_SCALE") {
                         if let Ok(ppp) = scale.parse::<f32>() {

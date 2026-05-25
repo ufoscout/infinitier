@@ -21,8 +21,7 @@ use crate::{
     Cre, CreHeader, CreVersion, EffectList, Item, Iwd2Table, KnownSpell, MemorizedSpell,
     SpellMemorizationInfo, SubSections, V1SubSections, V22SubSections,
     header_generated::{
-        serialize_header_v1_0, serialize_header_v1_2, serialize_header_v2_2,
-        serialize_header_v9_0,
+        serialize_header_v1_0, serialize_header_v1_2, serialize_header_v2_2, serialize_header_v9_0,
     },
 };
 
@@ -123,7 +122,11 @@ fn compute_file_size(cre: &Cre, header_bytes: &[u8]) -> io::Result<usize> {
             let read_u32 = |off: usize| {
                 u32::from_le_bytes(header_bytes[base + off..base + off + 4].try_into().unwrap())
             };
-            extend(&mut file_size, read_u32(0x00), s.known_spells.len() * KNOWN_SPELL_LEN);
+            extend(
+                &mut file_size,
+                read_u32(0x00),
+                s.known_spells.len() * KNOWN_SPELL_LEN,
+            );
             extend(
                 &mut file_size,
                 read_u32(0x08),
@@ -143,9 +146,8 @@ fn compute_file_size(cre: &Cre, header_bytes: &[u8]) -> io::Result<usize> {
             );
         }
         (CreVersion::V2_2, SubSections::V22(s)) => {
-            let read_u32 = |off: usize| {
-                u32::from_le_bytes(header_bytes[off..off + 4].try_into().unwrap())
-            };
+            let read_u32 =
+                |off: usize| u32::from_le_bytes(header_bytes[off..off + 4].try_into().unwrap());
             // IWD2 sub-section block = `entries.len() * 16` record
             // bytes + 8-byte trailer. We only emit the trailer when
             // the table has actually been parsed (non-zero offset);
@@ -179,11 +181,19 @@ fn compute_file_size(cre: &Cre, header_bytes: &[u8]) -> io::Result<usize> {
             }
             // Tail table.
             let abilities_off = read_u32(V22_TAIL_TABLE_BASE);
-            extend(&mut file_size, abilities_off, table_bytes(&s.abilities, abilities_off));
+            extend(
+                &mut file_size,
+                abilities_off,
+                table_bytes(&s.abilities, abilities_off),
+            );
             let songs_off = read_u32(V22_TAIL_TABLE_BASE + 0x08);
             extend(&mut file_size, songs_off, table_bytes(&s.songs, songs_off));
             let shapes_off = read_u32(V22_TAIL_TABLE_BASE + 0x10);
-            extend(&mut file_size, shapes_off, table_bytes(&s.shapes, shapes_off));
+            extend(
+                &mut file_size,
+                shapes_off,
+                table_bytes(&s.shapes, shapes_off),
+            );
             extend(
                 &mut file_size,
                 read_u32(V22_TAIL_TABLE_BASE + 0x18),
@@ -225,9 +235,8 @@ fn write_v1_sub_sections(
     s: &V1SubSections,
 ) -> io::Result<()> {
     let base = v1_section_table_base(version);
-    let read_u32 = |off: usize| {
-        u32::from_le_bytes(header[base + off..base + off + 4].try_into().unwrap())
-    };
+    let read_u32 =
+        |off: usize| u32::from_le_bytes(header[base + off..base + off + 4].try_into().unwrap());
 
     write_known_spells(buf, read_u32(0x00) as usize, &s.known_spells);
     write_spell_memorization_info(buf, read_u32(0x08) as usize, &s.spell_memorization_info);
@@ -248,9 +257,7 @@ fn write_v1_sub_sections(
 // ─────────────────────────────────────────────────────────────────────
 
 fn write_v22_sub_sections(buf: &mut [u8], header: &[u8], s: &V22SubSections) -> io::Result<()> {
-    let read_u32 = |off: usize| {
-        u32::from_le_bytes(header[off..off + 4].try_into().unwrap())
-    };
+    let read_u32 = |off: usize| u32::from_le_bytes(header[off..off + 4].try_into().unwrap());
 
     let class_lists: [&[Iwd2Table; 9]; 7] = [
         &s.bard_spells,
@@ -281,7 +288,11 @@ fn write_v22_sub_sections(buf: &mut [u8], header: &[u8], s: &V22SubSections) -> 
         buf[item_slots_off..item_slots_off + n].copy_from_slice(&s.item_slots);
     }
     write_items(buf, read_u32(V22_TAIL_TABLE_BASE + 0x1C) as usize, &s.items);
-    write_effects(buf, read_u32(V22_TAIL_TABLE_BASE + 0x24) as usize, &s.effects);
+    write_effects(
+        buf,
+        read_u32(V22_TAIL_TABLE_BASE + 0x24) as usize,
+        &s.effects,
+    );
     Ok(())
 }
 
@@ -445,8 +456,7 @@ mod tests {
     fn test_export_preserves_signature_and_version() {
         // Header bytes are written verbatim — the first 8 bytes must
         // therefore match the canonical signature + version tag.
-        let path = infinitier_test_utils::get_assets_path()
-            .join("cre/v2_2/52SERSA.cre");
+        let path = infinitier_test_utils::get_assets_path().join("cre/v2_2/52SERSA.cre");
         let original = CreImporter { name: "sig" }
             .import(&DataSource::new(path.as_path()))
             .unwrap();
@@ -462,8 +472,7 @@ mod tests {
         // swapping the matching `CreHeader::V*` variant, the export
         // must surface that as an error rather than emit a
         // self-contradicting file.
-        let path = infinitier_test_utils::get_assets_path()
-            .join("cre/v1_0/IRONGU.cre");
+        let path = infinitier_test_utils::get_assets_path().join("cre/v1_0/IRONGU.cre");
         let mut cre = CreImporter { name: "x" }
             .import(&DataSource::new(path.as_path()))
             .unwrap();

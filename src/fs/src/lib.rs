@@ -9,53 +9,66 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::roots::Roots;
+
+pub mod roots;
+
 /// A file system that is case insensitive
 #[derive(Debug, Clone)]
 pub struct CaseInsensitiveFS {
-    /// The root directory
-    root: PathBuf,
+    /// The root directories
+    roots: Vec<PathBuf>,
     /// Resource fallback folders
     fallbacks: Vec<String>,
     paths: Arc<BTreeMap<String, PathBuf>>,
 }
 
 impl CaseInsensitiveFS {
-    /// Creates a new `CaseInsensitiveFS` from the given root path.
+    /// Creates a new `CaseInsensitiveFS` from the given root paths.
     ///
-    /// The given root path is used as the root directory for the file system.
+    /// The given root paths are used as the root directories for the file system.
     /// All files and directories underneath the given root path are then
     /// traversed recursively, and their paths are stored in a map
     /// where the keys are the lowercased path strings and the values are the
     /// corresponding absolute paths.
-    pub fn new<P: AsRef<Path>>(root: P) -> io::Result<CaseInsensitiveFS> {
-        Self::new_with_fallback(root, vec![])
+    ///
+    /// In case of conflicts, the last root is used.
+    pub fn new(roots: impl Roots) -> io::Result<CaseInsensitiveFS> {
+        Self::new_with_fallback(roots, vec![])
     }
 
     /// Creates a new `CaseInsensitiveFS` from the given root path.
     ///
-    /// The given root path is used as the root directory for the file system.
+    /// The given root paths are used as the root directories for the file system.
     /// All files and directories underneath the given root path are then
     /// traversed recursively, and their paths are stored in a map
     /// where the keys are the lowercased path strings and the values are the
     /// corresponding absolute paths.
     ///
     /// The fallbacks are used to search for files that are not found in the root directory.
-    pub fn new_with_fallback<P: AsRef<Path>>(
-        root: P,
+    ///
+    /// In case of conflicts, the last root is used.
+    pub fn new_with_fallback(
+        roots: impl Roots,
         fallbacks: Vec<String>,
     ) -> io::Result<CaseInsensitiveFS> {
-        let root = root.as_ref().canonicalize()?;
-        let paths = Arc::new(list_real_entries_recursive(&root)?);
+        let roots = roots.pathbufs();
+        let mut paths = BTreeMap::new();
+        for root in roots.iter() {
+            paths.append(&mut list_real_entries_recursive(root)?);
+        }
+
         Ok(CaseInsensitiveFS {
-            root,
+            roots,
             fallbacks,
-            paths,
+            paths: Arc::new(paths),
         })
     }
 
-    /// Returns the root directory of the file system
-    pub fn get_root(&self) -> &Path {
-        &self.root
+    /// Returns the roots directory of the file system.
+    /// In case of conflicts, the last root is used.
+    pub fn get_roots(&self) -> &[PathBuf] {
+        &self.roots
     }
 
     /// Returns a `CiPath` for the file or directory at the given path relative to root.
@@ -287,6 +300,58 @@ mod tests {
 
         assert!(fs.get_path("/src/core/cargo.TOML").is_ok());
         assert!(fs.get_path("/Targets").is_err());
+    }
+
+    #[test]
+    fn test_case_insensitive_fs_with_multiple_roots() {
+        // Arrange — two roots, each with one unique file plus a file
+        // whose case-insensitive key collides with the other root:
+        // - root_a/only_a.txt          ("only_a")
+        // - root_a/SHARED.txt          ("from_a")
+        // - root_b/only_b.txt          ("only_b")
+        // - root_b/shared.TXT          ("from_b")
+        let root_a = tempfile::tempdir().unwrap();
+        let root_b = tempfile::tempdir().unwrap();
+
+        fs::write(root_a.path().join("only_a.txt"), "only_a").unwrap();
+        fs::write(root_a.path().join("SHARED.txt"), "from_a").unwrap();
+        fs::write(root_b.path().join("only_b.txt"), "only_b").unwrap();
+        fs::write(root_b.path().join("shared.TXT"), "from_b").unwrap();
+
+        let cifs = CaseInsensitiveFS::new(vec![root_a.path(), root_b.path()]).unwrap();
+
+        // Both roots are recorded, in order.
+        assert_eq!(
+            cifs.get_roots(),
+            &[
+                root_a.path().canonicalize().unwrap(),
+                root_b.path().canonicalize().unwrap(),
+            ]
+        );
+
+        // Files unique to each root are reachable case-insensitively, and the
+        // resolved paths point at the real file on disk (content check).
+        let a = cifs.get_path("ONLY_A.TXT").unwrap();
+        assert_eq!(
+            a.path(),
+            root_a.path().join("only_a.txt").canonicalize().unwrap()
+        );
+        assert_eq!(fs::read_to_string(a.path()).unwrap(), "only_a");
+
+        let b = cifs.get_path("only_b.txt").unwrap();
+        assert_eq!(
+            b.path(),
+            root_b.path().join("only_b.txt").canonicalize().unwrap()
+        );
+        assert_eq!(fs::read_to_string(b.path()).unwrap(), "only_b");
+
+        // On conflict, the last root wins.
+        let shared = cifs.get_path("shared.txt").unwrap();
+        assert_eq!(
+            shared.path(),
+            root_b.path().join("shared.TXT").canonicalize().unwrap()
+        );
+        assert_eq!(fs::read_to_string(shared.path()).unwrap(), "from_b");
     }
 
     #[test]

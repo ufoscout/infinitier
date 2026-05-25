@@ -1,15 +1,10 @@
-use std::{
-    collections::HashMap,
-    io,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{collections::HashMap, io, sync::Arc};
 
 use infinitier_acm_decoder::AcmDecoder;
 use infinitier_bif_resource::{BifEmbeddedResource, BifImporter};
 use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
-use infinitier_fs::{CaseInsensitiveFS, CiPath};
+use infinitier_fs::{CaseInsensitiveFS, CiPath, roots::Roots};
 use infinitier_key_resource::KeyImporter;
 use infinitier_wav_decoder::WavDecoder;
 use log::{debug, warn};
@@ -293,8 +288,6 @@ impl GameResource {
 
 /// A game data builder
 pub struct GameDataBuilder {
-    /// File system root
-    root: PathBuf,
     /// File system
     fs: CaseInsensitiveFS,
     /// Name of the key file
@@ -307,9 +300,8 @@ pub struct GameDataBuilder {
 
 impl GameDataBuilder {
     /// Create a new game data builder
-    pub fn new<P: AsRef<Path>>(game_root: P, game_type: Game) -> io::Result<GameDataBuilder> {
+    pub fn new(game_root: impl Roots, game_type: Game) -> io::Result<GameDataBuilder> {
         Ok(GameDataBuilder {
-            root: game_root.as_ref().to_path_buf(),
             game_type,
             fs: CaseInsensitiveFS::new_with_fallback(
                 game_root,
@@ -335,13 +327,6 @@ impl GameDataBuilder {
     pub fn with_key_file(mut self, key_file: String) -> GameDataBuilder {
         self.key_file = key_file;
         self
-    }
-
-    /// Set the fallback folders.
-    /// Default: ["data", "cache", "cd1", "cd2", "cd3", "cd4", "cd5", "cd6", "cd7"]
-    pub fn with_fallbacks(mut self, fallbacks: Vec<String>) -> io::Result<GameDataBuilder> {
-        self.fs = CaseInsensitiveFS::new_with_fallback(&self.root, fallbacks)?;
-        Ok(self)
     }
 
     /// Set the resource override folders

@@ -14,7 +14,10 @@ impl AbilitiesPanel {
                 return;
             };
             let Some(member) = state.save.party.get(idx) else {
-                ui.colored_label(egui::Color32::RED, "Stale selection — party member not found.");
+                ui.colored_label(
+                    egui::Color32::RED,
+                    "Stale selection — party member not found.",
+                );
                 return;
             };
             ui.heading(member_title(idx, member));

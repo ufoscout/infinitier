@@ -153,9 +153,8 @@ struct V1Table {
 
 fn read_v1_section_table(header: &[u8], version: CreVersion) -> std::io::Result<V1Table> {
     let base = v1_section_table_base(version) as usize;
-    let read_u32 = |off: usize| {
-        u32::from_le_bytes(header[base + off..base + off + 4].try_into().unwrap())
-    };
+    let read_u32 =
+        |off: usize| u32::from_le_bytes(header[base + off..base + off + 4].try_into().unwrap());
     Ok(V1Table {
         known_spells_off: read_u32(0x00),
         known_spells_cnt: read_u32(0x04),
@@ -180,11 +179,11 @@ fn parse_v1_sub_sections(
     let t = read_v1_section_table(header, version)?;
     let eff_version = header[EFF_VERSION_OFFSET as usize];
 
-    let known_spells =
-        parse_known_spells(reader, t.known_spells_off, t.known_spells_cnt, name)?;
+    let known_spells = parse_known_spells(reader, t.known_spells_off, t.known_spells_cnt, name)?;
     let spell_memorization_info =
         parse_spell_memorization_info(reader, t.spell_mem_off, t.spell_mem_cnt, name)?;
-    let memorized_spells = parse_memorized_spells(reader, t.mem_spells_off, t.mem_spells_cnt, name)?;
+    let memorized_spells =
+        parse_memorized_spells(reader, t.mem_spells_off, t.mem_spells_cnt, name)?;
     let items = parse_items(reader, t.items_off, t.items_cnt, name)?;
     let item_slots = parse_item_slots(reader, t.item_slots_off, &t, name)?;
     let effects = parse_effects(reader, t.effects_off, t.effects_cnt, eff_version, name)?;
@@ -269,9 +268,7 @@ struct V22Table {
 }
 
 fn read_v22_section_table(header: &[u8]) -> std::io::Result<V22Table> {
-    let read_u32 = |off: usize| {
-        u32::from_le_bytes(header[off..off + 4].try_into().unwrap())
-    };
+    let read_u32 = |off: usize| u32::from_le_bytes(header[off..off + 4].try_into().unwrap());
     let mut class_spell_offsets = [[0u32; 9]; 7];
     for (c, row) in class_spell_offsets.iter_mut().enumerate() {
         for (l, cell) in row.iter_mut().enumerate() {
@@ -382,14 +379,15 @@ fn parse_v22_sub_sections(
     // records (not including the trailer); we still need to add the
     // trailer to the extent-based size derivation. We honour the
     // count field where present and skip the extent-based estimate.
-    let parse_tail_table = |reader: &mut CreReader, off: u32, cnt: u32| -> std::io::Result<Iwd2Table> {
-        if off == 0 {
-            // No section. NI never writes the trailer either when
-            // the offset is zero.
-            return Ok(Iwd2Table::default());
-        }
-        parse_iwd2_table_at(reader, off, cnt as usize, name)
-    };
+    let parse_tail_table =
+        |reader: &mut CreReader, off: u32, cnt: u32| -> std::io::Result<Iwd2Table> {
+            if off == 0 {
+                // No section. NI never writes the trailer either when
+                // the offset is zero.
+                return Ok(Iwd2Table::default());
+            }
+            parse_iwd2_table_at(reader, off, cnt as usize, name)
+        };
     let abilities = parse_tail_table(reader, t.abilities_off, t.abilities_cnt)?;
     let songs = parse_tail_table(reader, t.song_off, t.song_cnt)?;
     let shapes = parse_tail_table(reader, t.shapes_off, t.shapes_cnt)?;
@@ -454,7 +452,12 @@ fn parse_known_spells(
         return Ok(Vec::new());
     }
     let start = offset as u64;
-    check_range(reader, start + count as u64 * KNOWN_SPELL_LEN, name, "known-spells section")?;
+    check_range(
+        reader,
+        start + count as u64 * KNOWN_SPELL_LEN,
+        name,
+        "known-spells section",
+    )?;
     let mut out = Vec::with_capacity(count as usize);
     for i in 0..count as u64 {
         reader.set_position(start + i * KNOWN_SPELL_LEN)?;
@@ -536,7 +539,12 @@ fn parse_items(
         return Ok(Vec::new());
     }
     let start = offset as u64;
-    check_range(reader, start + count as u64 * ITEM_LEN, name, "items section")?;
+    check_range(
+        reader,
+        start + count as u64 * ITEM_LEN,
+        name,
+        "items section",
+    )?;
     let mut out = Vec::with_capacity(count as usize);
     for i in 0..count as u64 {
         reader.set_position(start + i * ITEM_LEN)?;

@@ -295,10 +295,10 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
     debug_assert_eq!(header.len(), 724);
     let read_u8 = |o: usize| header[o];
     let read_i8 = |o: usize| header[o] as i8;
-    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o+4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o+4].try_into().unwrap());
+    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
+    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV10 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -431,8 +431,16 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
 
 pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     let mut buf = vec![0u8; 724];
-    { let src = &h.signature; let n = src.len().min(4); buf[0x0000..0x0000+n].copy_from_slice(&src[..n]); }
-    { let src = &h.version; let n = src.len().min(4); buf[0x0004..0x0004+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.signature;
+        let n = src.len().min(4);
+        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.version;
+        let n = src.len().min(4);
+        buf[0x0004..0x0004 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0008..0x000C].copy_from_slice(&h.long_name.to_le_bytes());
     buf[0x000C..0x0010].copy_from_slice(&h.short_name_tooltip.to_le_bytes());
     buf[0x0010..0x0014].copy_from_slice(&h.creature_flags.to_le_bytes());
@@ -452,7 +460,10 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x0032] = h.hair_colour_index;
     buf[0x0033] = h.eff_structure_version_0_version_1;
     write_resref(&mut buf[0x0034..0x003C], &h.small_portrait_bmp);
-    write_resref(&mut buf[0x003C..0x0044], &h.large_portrait_pstee_bam_other_games);
+    write_resref(
+        &mut buf[0x003C..0x0044],
+        &h.large_portrait_pstee_bam_other_games,
+    );
     buf[0x0044] = h.reputation as u8;
     buf[0x0045] = h.hide_in_shadows_base;
     buf[0x0046..0x0048].copy_from_slice(&h.armor_class_natural.to_le_bytes());
@@ -511,8 +522,16 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x0081] = h.bg1_7;
     buf[0x0082] = h.turn_undead_level;
     buf[0x0083] = h.tracking_skill;
-    { let src = &h.tracking_target; let n = src.len().min(32); buf[0x0084..0x0084+n].copy_from_slice(&src[..n]); }
-    { let src = &h.strrefs_pertaining_to_the_character_most; let n = src.len().min(400); buf[0x00A4..0x00A4+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.tracking_target;
+        let n = src.len().min(32);
+        buf[0x0084..0x0084 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.strrefs_pertaining_to_the_character_most;
+        let n = src.len().min(400);
+        buf[0x00A4..0x00A4 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0234] = h.level_first_class_highest_attained_level;
     buf[0x0235] = h.level_second_class_highest_attained_level;
     buf[0x0236] = h.level_third_class_highest_attained_level;
@@ -528,7 +547,10 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x0240] = h.morale_break_see_here_for_further;
     buf[0x0241] = h.racial_enemy_race_ids;
     buf[0x0242..0x0244].copy_from_slice(&h.morale_recovery_time_see_here_for.to_le_bytes());
-    buf[0x0244..0x0248].copy_from_slice(&h.kit_information_none_0x00000000_kit_barbarian.to_le_bytes());
+    buf[0x0244..0x0248].copy_from_slice(
+        &h.kit_information_none_0x00000000_kit_barbarian
+            .to_le_bytes(),
+    );
     write_resref(&mut buf[0x0248..0x0250], &h.creature_script_override);
     write_resref(&mut buf[0x0250..0x0258], &h.creature_script_class);
     write_resref(&mut buf[0x0258..0x0260], &h.creature_script_race);
@@ -540,11 +562,19 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x0273] = h.class_class_ids;
     buf[0x0274] = h.specific_specific_ids;
     buf[0x0275] = h.gender_gender_ids_dictates_the_casting;
-    { let src = &h.object_ids_references; let n = src.len().min(5); buf[0x0276..0x0276+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.object_ids_references;
+        let n = src.len().min(5);
+        buf[0x0276..0x0276 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x027B] = h.alignment_alignmen_ids;
     buf[0x027C..0x027E].copy_from_slice(&h.global_actor_enumeration_value.to_le_bytes());
     buf[0x027E..0x0280].copy_from_slice(&h.local_area_actor_enumeration_value.to_le_bytes());
-    { let src = &h.death_variable_set_sprite_is_deadvariable; let n = src.len().min(32); buf[0x0280..0x0280+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.death_variable_set_sprite_is_deadvariable;
+        let n = src.len().min(32);
+        buf[0x0280..0x0280 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x02A0..0x02A4].copy_from_slice(&h.known_spells_offset.to_le_bytes());
     buf[0x02A4..0x02A8].copy_from_slice(&h.known_spells_count.to_le_bytes());
     buf[0x02A8..0x02AC].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
@@ -910,10 +940,10 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
     debug_assert_eq!(header.len(), 888);
     let read_u8 = |o: usize| header[o];
     let read_i8 = |o: usize| header[o] as i8;
-    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o+4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o+4].try_into().unwrap());
+    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
+    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV12 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -1089,8 +1119,16 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
 
 pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     let mut buf = vec![0u8; 888];
-    { let src = &h.signature; let n = src.len().min(4); buf[0x0000..0x0000+n].copy_from_slice(&src[..n]); }
-    { let src = &h.version; let n = src.len().min(4); buf[0x0004..0x0004+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.signature;
+        let n = src.len().min(4);
+        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.version;
+        let n = src.len().min(4);
+        buf[0x0004..0x0004 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0008..0x000C].copy_from_slice(&h.long_name.to_le_bytes());
     buf[0x000C..0x0010].copy_from_slice(&h.short_name_tooltip.to_le_bytes());
     buf[0x0010..0x0014].copy_from_slice(&h.creature_flags.to_le_bytes());
@@ -1154,22 +1192,82 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x0073] = h.bow_proficiency_proficiencies_maybe_be_packed;
     buf[0x0074] = h.unused_proficiency_slots;
     buf[0x0075] = h.unused_proficiency_slot;
-    { let src = &h.unused_proficiency_slot_2; let n = src.len().min(1); buf[0x0076..0x0076+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_3; let n = src.len().min(1); buf[0x0077..0x0077+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_4; let n = src.len().min(1); buf[0x0078..0x0078+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_5; let n = src.len().min(1); buf[0x0079..0x0079+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_6; let n = src.len().min(1); buf[0x007A..0x007A+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_7; let n = src.len().min(1); buf[0x007B..0x007B+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_8; let n = src.len().min(1); buf[0x007C..0x007C+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_9; let n = src.len().min(1); buf[0x007D..0x007D+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_10; let n = src.len().min(1); buf[0x007E..0x007E+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_11; let n = src.len().min(1); buf[0x007F..0x007F+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_12; let n = src.len().min(1); buf[0x0080..0x0080+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unused_proficiency_slot_13; let n = src.len().min(1); buf[0x0081..0x0081+n].copy_from_slice(&src[..n]); }
-    { let src = &h.turn_undead_level; let n = src.len().min(1); buf[0x0082..0x0082+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unused_proficiency_slot_2;
+        let n = src.len().min(1);
+        buf[0x0076..0x0076 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_3;
+        let n = src.len().min(1);
+        buf[0x0077..0x0077 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_4;
+        let n = src.len().min(1);
+        buf[0x0078..0x0078 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_5;
+        let n = src.len().min(1);
+        buf[0x0079..0x0079 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_6;
+        let n = src.len().min(1);
+        buf[0x007A..0x007A + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_7;
+        let n = src.len().min(1);
+        buf[0x007B..0x007B + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_8;
+        let n = src.len().min(1);
+        buf[0x007C..0x007C + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_9;
+        let n = src.len().min(1);
+        buf[0x007D..0x007D + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_10;
+        let n = src.len().min(1);
+        buf[0x007E..0x007E + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_11;
+        let n = src.len().min(1);
+        buf[0x007F..0x007F + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_12;
+        let n = src.len().min(1);
+        buf[0x0080..0x0080 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unused_proficiency_slot_13;
+        let n = src.len().min(1);
+        buf[0x0081..0x0081 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.turn_undead_level;
+        let n = src.len().min(1);
+        buf[0x0082..0x0082 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0083] = h.tracking_skill;
-    { let src = &h.tracking_target; let n = src.len().min(32); buf[0x0084..0x0084+n].copy_from_slice(&src[..n]); }
-    { let src = &h.strrefs_pertaining_to_the_character_most; let n = src.len().min(400); buf[0x00A4..0x00A4+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.tracking_target;
+        let n = src.len().min(32);
+        buf[0x0084..0x0084 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.strrefs_pertaining_to_the_character_most;
+        let n = src.len().min(400);
+        buf[0x00A4..0x00A4 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0234] = h.highest_attained_level_in_class;
     buf[0x0235] = h.highest_attained_level_in_class_2;
     buf[0x0236] = h.highest_attained_level_in_class_3;
@@ -1185,13 +1283,20 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x0240] = h.morale_break;
     buf[0x0241] = h.racial_enemy_race_ids;
     buf[0x0242..0x0244].copy_from_slice(&h.morale_recovery_time.to_le_bytes());
-    buf[0x0244..0x0248].copy_from_slice(&h.kit_information_none_0x00000000_abjurer_0x00400000.to_le_bytes());
+    buf[0x0244..0x0248].copy_from_slice(
+        &h.kit_information_none_0x00000000_abjurer_0x00400000
+            .to_le_bytes(),
+    );
     write_resref(&mut buf[0x0248..0x0250], &h.creature_script_override);
     write_resref(&mut buf[0x0250..0x0258], &h.creature_script_class);
     write_resref(&mut buf[0x0258..0x0260], &h.creature_script_race);
     write_resref(&mut buf[0x0260..0x0268], &h.creature_script_general);
     write_resref(&mut buf[0x0268..0x0270], &h.creature_script_default);
-    { let src = &h.unknown; let n = src.len().min(36); buf[0x0270..0x0270+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown;
+        let n = src.len().min(36);
+        buf[0x0270..0x0270 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0294..0x0298].copy_from_slice(&h.offset_to_overlay_section.to_le_bytes());
     buf[0x0298..0x029C].copy_from_slice(&h.size_of_overlay_section.to_le_bytes());
     buf[0x029C..0x02A0].copy_from_slice(&h.xp_secondary_class.to_le_bytes());
@@ -1210,7 +1315,11 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x02B9] = h.law_variable_increment_value;
     buf[0x02BA] = h.lady_variable_increment_value;
     buf[0x02BB] = h.murder_variable_increment_value;
-    { let src = &h.monstrous_compendium_entry; let n = src.len().min(32); buf[0x02BC..0x02BC+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.monstrous_compendium_entry;
+        let n = src.len().min(32);
+        buf[0x02BC..0x02BC + n].copy_from_slice(&src[..n]);
+    }
     buf[0x02DC] = h.dialog_activation_range;
     buf[0x02DD] = h.selection_circle_size;
     buf[0x02DE] = h.unknown_2;
@@ -1223,7 +1332,11 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x02EC..0x02EE].copy_from_slice(&h.colour_5_clownclr_ids.to_le_bytes());
     buf[0x02EE..0x02F0].copy_from_slice(&h.colour_6_clownclr_ids.to_le_bytes());
     buf[0x02F0..0x02F2].copy_from_slice(&h.colour_7_clownclr_ids.to_le_bytes());
-    { let src = &h.related_to_colours; let n = src.len().min(3); buf[0x02F2..0x02F2+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.related_to_colours;
+        let n = src.len().min(3);
+        buf[0x02F2..0x02F2 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x02F5] = h.colour_placement_1_these_fields_are;
     buf[0x02F6] = h.colour_placement_2;
     buf[0x02F7] = h.colour_placement_3;
@@ -1231,7 +1344,11 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x02F9] = h.colour_placement_5;
     buf[0x02FA] = h.colour_placement_6;
     buf[0x02FB] = h.colour_placement_7;
-    { let src = &h.unknown_3; let n = src.len().min(21); buf[0x02FC..0x02FC+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_3;
+        let n = src.len().min(21);
+        buf[0x02FC..0x02FC + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0311] = h.species_race_ids;
     buf[0x0312] = h.team_team_ids;
     buf[0x0313] = h.faction_faction_ids;
@@ -1241,11 +1358,19 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x0317] = h.class_class_ids;
     buf[0x0318] = h.specific_specific_ids;
     buf[0x0319] = h.gender_gender_ids;
-    { let src = &h.object_ids_references; let n = src.len().min(5); buf[0x031A..0x031A+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.object_ids_references;
+        let n = src.len().min(5);
+        buf[0x031A..0x031A + n].copy_from_slice(&src[..n]);
+    }
     buf[0x031F] = h.alignment_alignmen_ids;
     buf[0x0320..0x0322].copy_from_slice(&h.global_actor_enumeration_value.to_le_bytes());
     buf[0x0322..0x0324].copy_from_slice(&h.local_area_actor_enumeration_value.to_le_bytes());
-    { let src = &h.death_variable_set_sprite_is_deadvariable; let n = src.len().min(32); buf[0x0324..0x0324+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.death_variable_set_sprite_is_deadvariable;
+        let n = src.len().min(32);
+        buf[0x0324..0x0324 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0344..0x0348].copy_from_slice(&h.known_spells_offset.to_le_bytes());
     buf[0x0348..0x034C].copy_from_slice(&h.known_spells_count.to_le_bytes());
     buf[0x034C..0x0350].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
@@ -1549,10 +1674,10 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
     debug_assert_eq!(header.len(), 828);
     let read_u8 = |o: usize| header[o];
     let read_i8 = |o: usize| header[o] as i8;
-    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o+4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o+4].try_into().unwrap());
+    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
+    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV90 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -1697,8 +1822,16 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
 
 pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     let mut buf = vec![0u8; 828];
-    { let src = &h.signature; let n = src.len().min(4); buf[0x0000..0x0000+n].copy_from_slice(&src[..n]); }
-    { let src = &h.version; let n = src.len().min(4); buf[0x0004..0x0004+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.signature;
+        let n = src.len().min(4);
+        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.version;
+        let n = src.len().min(4);
+        buf[0x0004..0x0004 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0008..0x000C].copy_from_slice(&h.long_name.to_le_bytes());
     buf[0x000C..0x0010].copy_from_slice(&h.short_name_tooltip.to_le_bytes());
     buf[0x0010..0x0014].copy_from_slice(&h.creature_flags.to_le_bytes());
@@ -1777,8 +1910,16 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x0081] = h.unknown_proficiency_proficiencies_maybe_be_packed_5;
     buf[0x0082] = h.turn_undead_level;
     buf[0x0083] = h.tracking_skill;
-    { let src = &h.tracking_target; let n = src.len().min(32); buf[0x0084..0x0084+n].copy_from_slice(&src[..n]); }
-    { let src = &h.strrefs_pertaining_to_the_character_most; let n = src.len().min(400); buf[0x00A4..0x00A4+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.tracking_target;
+        let n = src.len().min(32);
+        buf[0x0084..0x0084 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.strrefs_pertaining_to_the_character_most;
+        let n = src.len().min(400);
+        buf[0x00A4..0x00A4 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0234] = h.highest_attained_level_in_class;
     buf[0x0235] = h.highest_attained_level_in_class_2;
     buf[0x0236] = h.highest_attained_level_in_class_3;
@@ -1794,7 +1935,10 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x0240] = h.morale_break;
     buf[0x0241] = h.racial_enemy_race_ids;
     buf[0x0242..0x0244].copy_from_slice(&h.morale_recovery_time.to_le_bytes());
-    buf[0x0244..0x0248].copy_from_slice(&h.kit_information_none_abjurer_0x00400000_conjurer.to_le_bytes());
+    buf[0x0244..0x0248].copy_from_slice(
+        &h.kit_information_none_abjurer_0x00400000_conjurer
+            .to_le_bytes(),
+    );
     write_resref(&mut buf[0x0248..0x0250], &h.creature_script_override);
     write_resref(&mut buf[0x0250..0x0258], &h.creature_script_class);
     write_resref(&mut buf[0x0258..0x0260], &h.creature_script_race);
@@ -1804,25 +1948,52 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x0271] = h.set_dead_variable_on_death_0;
     buf[0x0272] = h.set_kill_scriptname_cnt_on_death;
     buf[0x0273] = h.unknown;
-    { let src = &h.internal_variables; let n = src.len().min(10); buf[0x0274..0x0274+n].copy_from_slice(&src[..n]); }
-    { let src = &h.secondary_death_variable_set_to_1; let n = src.len().min(32); buf[0x027E..0x027E+n].copy_from_slice(&src[..n]); }
-    { let src = &h.tertiary_death_variable_incremented_by_1; let n = src.len().min(32); buf[0x029E..0x029E+n].copy_from_slice(&src[..n]); }
-    buf[0x02BE..0x02C0].copy_from_slice(&h.determines_whether_the_engine_automatically_saves.to_le_bytes());
+    {
+        let src = &h.internal_variables;
+        let n = src.len().min(10);
+        buf[0x0274..0x0274 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.secondary_death_variable_set_to_1;
+        let n = src.len().min(32);
+        buf[0x027E..0x027E + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.tertiary_death_variable_incremented_by_1;
+        let n = src.len().min(32);
+        buf[0x029E..0x029E + n].copy_from_slice(&src[..n]);
+    }
+    buf[0x02BE..0x02C0].copy_from_slice(
+        &h.determines_whether_the_engine_automatically_saves
+            .to_le_bytes(),
+    );
     buf[0x02C0..0x02C2].copy_from_slice(&h.saved_x_coordinate.to_le_bytes());
     buf[0x02C2..0x02C4].copy_from_slice(&h.saved_y_coordinate.to_le_bytes());
     buf[0x02C4..0x02C6].copy_from_slice(&h.saved_orientation.to_le_bytes());
-    { let src = &h.unknown_2; let n = src.len().min(18); buf[0x02C6..0x02C6+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_2;
+        let n = src.len().min(18);
+        buf[0x02C6..0x02C6 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x02D8] = h.enemy_ally_ea_ids;
     buf[0x02D9] = h.general_general_ids;
     buf[0x02DA] = h.race_race_ids;
     buf[0x02DB] = h.class_class_ids;
     buf[0x02DC] = h.specific_specific_ids;
     buf[0x02DD] = h.gender_gender_ids;
-    { let src = &h.object_ids_references; let n = src.len().min(5); buf[0x02DE..0x02DE+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.object_ids_references;
+        let n = src.len().min(5);
+        buf[0x02DE..0x02DE + n].copy_from_slice(&src[..n]);
+    }
     buf[0x02E3] = h.alignment_alignmen_ids;
     buf[0x02E4..0x02E6].copy_from_slice(&h.global_actor_enumeration_value.to_le_bytes());
     buf[0x02E6..0x02E8].copy_from_slice(&h.local_area_actor_enumeration_value.to_le_bytes());
-    { let src = &h.death_variable_set_sprite_is_deadvariable; let n = src.len().min(32); buf[0x02E8..0x02E8+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.death_variable_set_sprite_is_deadvariable;
+        let n = src.len().min(32);
+        buf[0x02E8..0x02E8 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0308..0x030C].copy_from_slice(&h.known_spells_offset.to_le_bytes());
     buf[0x030C..0x0310].copy_from_slice(&h.known_spells_count.to_le_bytes());
     buf[0x0310..0x0314].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
@@ -2516,10 +2687,10 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
     debug_assert_eq!(header.len(), 1582);
     let read_u8 = |o: usize| header[o];
     let read_i8 = |o: usize| header[o] as i8;
-    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o+2].try_into().unwrap());
-    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o+4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o+4].try_into().unwrap());
+    let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
+    let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
+    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV22 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -2859,8 +3030,16 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
 
 pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     let mut buf = vec![0u8; 1582];
-    { let src = &h.signature; let n = src.len().min(4); buf[0x0000..0x0000+n].copy_from_slice(&src[..n]); }
-    { let src = &h.version; let n = src.len().min(4); buf[0x0004..0x0004+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.signature;
+        let n = src.len().min(4);
+        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.version;
+        let n = src.len().min(4);
+        buf[0x0004..0x0004 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0008..0x000C].copy_from_slice(&h.long_name.to_le_bytes());
     buf[0x000C..0x0010].copy_from_slice(&h.short_name_tooltip.to_le_bytes());
     buf[0x0010..0x0014].copy_from_slice(&h.creature_flags.to_le_bytes());
@@ -2871,7 +3050,11 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x0024..0x0026].copy_from_slice(&h.current_hit_points.to_le_bytes());
     buf[0x0026..0x0028].copy_from_slice(&h.maximum_hit_points.to_le_bytes());
     buf[0x0028..0x002C].copy_from_slice(&h.animation_id_animate_ids_0x002c.to_le_bytes());
-    { let src = &h._padding_01; let n = src.len().min(1); buf[0x002C..0x002C+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h._padding_01;
+        let n = src.len().min(1);
+        buf[0x002C..0x002C + n].copy_from_slice(&src[..n]);
+    }
     buf[0x002D] = h.minor_colour_index_bg1_animations;
     buf[0x002E] = h.major_colour_index_bg1_animations;
     buf[0x002F] = h.skin_colour_index_bg1_animations;
@@ -2905,12 +3088,20 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x005E] = h.resist_piercing;
     buf[0x005F] = h.resist_missile;
     buf[0x0060] = h.resist_magic_damage;
-    { let src = &h.unknown_further_resistances; let n = src.len().min(4); buf[0x0061..0x0061+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_further_resistances;
+        let n = src.len().min(4);
+        buf[0x0061..0x0061 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0065] = h.fatigue;
     buf[0x0066] = h.intoxication;
     buf[0x0067] = h.luck;
     buf[0x0068] = h.turn_undead_level;
-    { let src = &h.unknown; let n = src.len().min(33); buf[0x0069..0x0069+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown;
+        let n = src.len().min(33);
+        buf[0x0069..0x0069 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x008A] = h.total_levels;
     buf[0x008B] = h.barbarian_levels;
     buf[0x008C] = h.bard_levels;
@@ -2923,18 +3114,38 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x0093] = h.rogue_levels;
     buf[0x0094] = h.sorcerer_levels;
     buf[0x0095] = h.wizard_levels;
-    { let src = &h.unknown_2; let n = src.len().min(22); buf[0x0096..0x0096+n].copy_from_slice(&src[..n]); }
-    { let src = &h.strref_s_most_are_connected_with; let n = src.len().min(256); buf[0x00AC..0x00AC+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_2;
+        let n = src.len().min(22);
+        buf[0x0096..0x0096 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.strref_s_most_are_connected_with;
+        let n = src.len().min(256);
+        buf[0x00AC..0x00AC + n].copy_from_slice(&src[..n]);
+    }
     write_resref(&mut buf[0x01AC..0x01B4], &h.team_script);
     write_resref(&mut buf[0x01B4..0x01BC], &h.special_script_1);
     buf[0x01BC] = h.creature_enchantment_level;
-    { let src = &h.unknown_3; let n = src.len().min(3); buf[0x01BD..0x01BD+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_3;
+        let n = src.len().min(3);
+        buf[0x01BD..0x01BD + n].copy_from_slice(&src[..n]);
+    }
     buf[0x01C0..0x01C4].copy_from_slice(&h.feats_1.to_le_bytes());
     buf[0x01C4..0x01C8].copy_from_slice(&h.feats_2.to_le_bytes());
     buf[0x01C8..0x01CC].copy_from_slice(&h.feats_3.to_le_bytes());
-    { let src = &h.unknown_4; let n = src.len().min(12); buf[0x01CC..0x01CC+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_4;
+        let n = src.len().min(12);
+        buf[0x01CC..0x01CC + n].copy_from_slice(&src[..n]);
+    }
     buf[0x01D8] = h.mw_bow;
-    { let src = &h.sw_crossbow; let n = src.len().min(1); buf[0x01D9..0x01D9+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.sw_crossbow;
+        let n = src.len().min(1);
+        buf[0x01D9..0x01D9 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x01DA] = h.sw_missile;
     buf[0x01DB] = h.mw_axe;
     buf[0x01DC] = h.sw_mace;
@@ -2959,7 +3170,11 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x01EF] = h.extra_smiting;
     buf[0x01F0] = h.extra_turning;
     buf[0x01F1] = h.ew_bastard_sword;
-    { let src = &h.unknown_5; let n = src.len().min(38); buf[0x01F2..0x01F2+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_5;
+        let n = src.len().min(38);
+        buf[0x01F2..0x01F2 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0218] = h.alchemy;
     buf[0x0219] = h.animal_empathy;
     buf[0x021A] = h.bluff;
@@ -2976,7 +3191,11 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x0225] = h.spellcraft;
     buf[0x0226] = h.use_magic_device;
     buf[0x0227] = h.wilderness_law;
-    { let src = &h.unknown_6; let n = src.len().min(50); buf[0x0228..0x0228+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_6;
+        let n = src.len().min(50);
+        buf[0x0228..0x0228 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x025A] = h.xp_category_values_from_moncrate_2da;
     buf[0x025B] = h.favoured_enemy_1;
     buf[0x025C] = h.favoured_enemy_2;
@@ -2997,23 +3216,57 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x026C..0x0270].copy_from_slice(&h.unknown_8.to_le_bytes());
     buf[0x0270..0x0274].copy_from_slice(&h.kit_bitfield.to_le_bytes());
     write_resref(&mut buf[0x0274..0x027C], &h.creature_script_override);
-    write_resref(&mut buf[0x027C..0x0284], &h.creature_script_special_script_3);
-    write_resref(&mut buf[0x0284..0x028C], &h.creature_script_special_script_2);
-    { let src = &h._padding_02; let n = src.len().min(8); buf[0x028C..0x028C+n].copy_from_slice(&src[..n]); }
+    write_resref(
+        &mut buf[0x027C..0x0284],
+        &h.creature_script_special_script_3,
+    );
+    write_resref(
+        &mut buf[0x0284..0x028C],
+        &h.creature_script_special_script_2,
+    );
+    {
+        let src = &h._padding_02;
+        let n = src.len().min(8);
+        buf[0x028C..0x028C + n].copy_from_slice(&src[..n]);
+    }
     write_resref(&mut buf[0x0294..0x029C], &h.creature_script_movement_script);
     buf[0x029C] = h.visible_0_no_1_yes;
     buf[0x029D] = h.set_scriptname_dead_variable_on_death;
     buf[0x029E] = h.set_kill_racename_cnt_on_death;
     buf[0x029F] = h.unknown_9;
-    { let src = &h.internals_as_used_by_setinternal; let n = src.len().min(10); buf[0x02A0..0x02A0+n].copy_from_slice(&src[..n]); }
-    { let src = &h.secondary_death_variable_set_to_1; let n = src.len().min(32); buf[0x02AA..0x02AA+n].copy_from_slice(&src[..n]); }
-    { let src = &h.tertiary_death_variable_incremented_by_1; let n = src.len().min(32); buf[0x02CA..0x02CA+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.internals_as_used_by_setinternal;
+        let n = src.len().min(10);
+        buf[0x02A0..0x02A0 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.secondary_death_variable_set_to_1;
+        let n = src.len().min(32);
+        buf[0x02AA..0x02AA + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.tertiary_death_variable_incremented_by_1;
+        let n = src.len().min(32);
+        buf[0x02CA..0x02CA + n].copy_from_slice(&src[..n]);
+    }
     buf[0x02EA..0x02EC].copy_from_slice(&h.unknown_10.to_le_bytes());
     buf[0x02EC..0x02EE].copy_from_slice(&h.saved_location_x_coordinate.to_le_bytes());
-    { let src = &h._padding_03; let n = src.len().min(1); buf[0x02EE..0x02EE+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h._padding_03;
+        let n = src.len().min(1);
+        buf[0x02EE..0x02EE + n].copy_from_slice(&src[..n]);
+    }
     buf[0x02EF..0x02F1].copy_from_slice(&h.saved_location_y_coordinate.to_le_bytes());
-    { let src = &h._padding_04; let n = src.len().min(1); buf[0x02F1..0x02F1+n].copy_from_slice(&src[..n]); }
-    { let src = &h.unknown_11; let n = src.len().min(15); buf[0x02F2..0x02F2+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h._padding_04;
+        let n = src.len().min(1);
+        buf[0x02F1..0x02F1 + n].copy_from_slice(&src[..n]);
+    }
+    {
+        let src = &h.unknown_11;
+        let n = src.len().min(15);
+        buf[0x02F2..0x02F2 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0301] = h.minimum_transparency_fade_in_fade_out;
     buf[0x0302] = h.fade_speed_fade_in_fade_out;
     buf[0x0303] = h.specflag_values;
@@ -3021,20 +3274,33 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x0305] = h.unknown_12;
     buf[0x0306] = h.unknown_13;
     buf[0x0307] = h.remaining_skill_points_after_level_up;
-    { let src = &h.unknown_14; let n = src.len().min(124); buf[0x0308..0x0308+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.unknown_14;
+        let n = src.len().min(124);
+        buf[0x0308..0x0308 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x0384] = h.enemy_ally_ea_ids;
     buf[0x0385] = h.general_general_ids;
     buf[0x0386] = h.race_race_ids;
     buf[0x0387] = h.class_class_ids_not_updated_when;
     buf[0x0388] = h.specific_specific_ids;
     buf[0x0389] = h.sex_gender_ids;
-    { let src = &h.object_ids_references; let n = src.len().min(5); buf[0x038A..0x038A+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.object_ids_references;
+        let n = src.len().min(5);
+        buf[0x038A..0x038A + n].copy_from_slice(&src[..n]);
+    }
     buf[0x038F] = h.alignment_alignmen_ids;
     buf[0x0390..0x0392].copy_from_slice(&h.global_actor_enumeration_value.to_le_bytes());
     buf[0x0392..0x0394].copy_from_slice(&h.local_area_actor_enumeration_value.to_le_bytes());
-    { let src = &h.death_variable; let n = src.len().min(32); buf[0x0394..0x0394+n].copy_from_slice(&src[..n]); }
+    {
+        let src = &h.death_variable;
+        let n = src.len().min(32);
+        buf[0x0394..0x0394 + n].copy_from_slice(&src[..n]);
+    }
     buf[0x03B4..0x03B6].copy_from_slice(&h.avclass_value_duplicate_of_class_used.to_le_bytes());
-    buf[0x03B6..0x03B8].copy_from_slice(&h.classmsk_bitfield_value_duplicate_of_class.to_le_bytes());
+    buf[0x03B6..0x03B8]
+        .copy_from_slice(&h.classmsk_bitfield_value_duplicate_of_class.to_le_bytes());
     buf[0x03B8..0x03BA].copy_from_slice(&h.unknown_15.to_le_bytes());
     buf[0x03BA..0x03BE].copy_from_slice(&h.bard_spell_offset_level_1.to_le_bytes());
     buf[0x03BE..0x03C2].copy_from_slice(&h.bard_spell_offset_level_2.to_le_bytes());
@@ -3194,4 +3460,3 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     write_resref(&mut buf[0x0626..0x062E], &h.dialog);
     buf
 }
-

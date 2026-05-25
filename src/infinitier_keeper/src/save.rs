@@ -181,8 +181,7 @@ mod tests {
         // do); the user's reported path lives outside the repo.
         let save_dir = infinitier_test_utils::get_assets_path()
             .join("SAV_GAM/bg_ee/save/000000000-Auto-Salvataggio");
-        let save = load_save(&save_dir, Game::Bgee.engine(), None)
-            .expect("loading BG:EE save");
+        let save = load_save(&save_dir, Game::Bgee.engine(), None).expect("loading BG:EE save");
         let with_cre: Vec<_> = save
             .party
             .iter()
@@ -364,4 +363,3 @@ mod tests {
         }
     }
 }
-

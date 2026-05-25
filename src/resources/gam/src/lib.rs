@@ -221,8 +221,7 @@ impl GamNpc {
         }
         let bytes = &self.raw[off..end];
         let trimmed_end = bytes.iter().rposition(|&b| b != 0).map_or(0, |p| p + 1);
-        let (decoded, _, _) =
-            encoding_rs::WINDOWS_1252.decode(&bytes[..trimmed_end]);
+        let (decoded, _, _) = encoding_rs::WINDOWS_1252.decode(&bytes[..trimmed_end]);
         decoded.into_owned()
     }
 }

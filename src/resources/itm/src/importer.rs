@@ -369,11 +369,7 @@ fn parse_ability(reader: &mut ItmReader) -> std::io::Result<ItmAbility> {
     let charge_depletion = reader.read_u16()?;
     let flags = reader.read_u32()?;
     let projectile_animation = reader.read_u16()?;
-    let melee_animation = [
-        reader.read_u16()?,
-        reader.read_u16()?,
-        reader.read_u16()?,
-    ];
+    let melee_animation = [reader.read_u16()?, reader.read_u16()?, reader.read_u16()?];
     let qualifier_arrow = reader.read_u16()?;
     let qualifier_bolt = reader.read_u16()?;
     let qualifier_bullet = reader.read_u16()?;

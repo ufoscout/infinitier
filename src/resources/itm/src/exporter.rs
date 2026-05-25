@@ -49,10 +49,10 @@ fn serialize(itm: &Itm) -> io::Result<Vec<u8>> {
     }
 
     let header_len = itm.version.header_len();
-    let abilities_end = (itm.header.extended_headers_offset() as usize)
-        + itm.abilities.len() * ABILITY_LEN;
-    let effects_end = (itm.header.feature_blocks_offset() as usize)
-        + itm.effects.len() * EFFECT_LEN;
+    let abilities_end =
+        (itm.header.extended_headers_offset() as usize) + itm.abilities.len() * ABILITY_LEN;
+    let effects_end =
+        (itm.header.feature_blocks_offset() as usize) + itm.effects.len() * EFFECT_LEN;
     let file_size = header_len.max(abilities_end).max(effects_end);
 
     let mut buf = vec![0u8; file_size];
@@ -287,8 +287,8 @@ mod tests {
     use infinitier_datasource::{DataSource, Importer};
 
     use super::*;
-    use crate::{ItmImporter, ItmVersion};
     use crate::test_support::all_itm_fixtures;
+    use crate::{ItmImporter, ItmVersion};
 
     #[test]
     fn test_corpus_round_trip() {
@@ -341,8 +341,7 @@ mod tests {
 
     #[test]
     fn test_export_preserves_signature_and_version() {
-        let path = infinitier_test_utils::get_assets_path()
-            .join("itm/v2_0/iwd2_ISW11.itm");
+        let path = infinitier_test_utils::get_assets_path().join("itm/v2_0/iwd2_ISW11.itm");
         let original = ItmImporter { name: "sig" }
             .import(&DataSource::new(path.as_path()))
             .unwrap();
@@ -354,8 +353,7 @@ mod tests {
 
     #[test]
     fn test_export_rejects_inconsistent_version() {
-        let path = infinitier_test_utils::get_assets_path()
-            .join("itm/v1/bg_AX1H02.itm");
+        let path = infinitier_test_utils::get_assets_path().join("itm/v1/bg_AX1H02.itm");
         let mut itm = ItmImporter { name: "x" }
             .import(&DataSource::new(path.as_path()))
             .unwrap();
