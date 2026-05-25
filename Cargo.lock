@@ -2077,6 +2077,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_keeper"
+version = "0.0.5"
+dependencies = [
+ "clap",
+ "eframe",
+ "env_logger",
+ "infinitier_common",
+ "infinitier_core",
+ "infinitier_datasource",
+ "infinitier_gam_resource",
+ "log",
+]
+
+[[package]]
 name = "infinitier_key_resource"
 version = "0.0.5"
 dependencies = [

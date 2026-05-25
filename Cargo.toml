@@ -5,6 +5,7 @@ members = [
     "src/core",
     "src/datasource",
     "src/infinitier_explorer",
+    "src/infinitier_keeper",
     "src/fs",
     "src/test_utils",
     "src/resources/*",
@@ -34,6 +35,7 @@ infinitier_common = { path = "src/common", version = "0.0.5" }
 infinitier_core = { path = "src/core", version = "0.0.5"  }
 infinitier_datasource = { path = "src/datasource", version = "0.0.5"  }
 infinitier_fs = { path = "src/fs", version = "0.0.5"  }
+infinitier_keeper = { path = "src/infinitier_keeper", version = "0.0.5"  }
 infinitier_test_utils = { path = "src/test_utils" }
 
 # Resources

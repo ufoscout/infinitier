@@ -1,0 +1,44 @@
+//! App-wide mutable state, separated from the egui scaffolding so
+//! the UI panels can borrow it without coupling to the eframe shell.
+
+use std::path::PathBuf;
+
+use infinitier_common::Game;
+use infinitier_core::game::GameData;
+
+use crate::save::SaveGame;
+
+/// Top-level keeper state. Loaded once at startup; refreshed on
+/// reload (future work — for now the loader runs in `main`).
+pub struct AppState {
+    /// Which IE game the data folder turned out to be. Detected via
+    /// [`infinitier_core::game_detect::detect_game`], never
+    /// hard-coded by the caller.
+    pub game: Game,
+    /// Absolute path to the loaded game folder (for display only).
+    pub game_path: PathBuf,
+    /// Pre-indexed game data. Currently unused for the MVP party
+    /// view (the CRE blob is self-contained inside the save), but
+    /// kept here so subsequent features (item lookup, spell names,
+    /// 2DA references) can read from it without re-plumbing.
+    #[allow(dead_code)]
+    pub game_data: GameData,
+    /// Loaded save state.
+    pub save: SaveGame,
+    /// Selected party-member row, or `None` until the user clicks
+    /// one.
+    pub selected_party_index: Option<usize>,
+}
+
+impl AppState {
+    pub fn new(game: Game, game_path: PathBuf, game_data: GameData, save: SaveGame) -> Self {
+        let selected_party_index = if save.party.is_empty() { None } else { Some(0) };
+        Self {
+            game,
+            game_path,
+            game_data,
+            save,
+            selected_party_index,
+        }
+    }
+}
