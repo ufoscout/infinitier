@@ -1004,7 +1004,6 @@ mod tests {
 
     #[test]
     fn test_preloaded_reader_reads_full_content_with_random_access() {
-
         let data = b"Hello, world!";
         let source = DataSource::new(data.as_slice());
         let mut reader = source.preloaded_reader().unwrap();
@@ -1028,7 +1027,9 @@ mod tests {
         // (window), where 0xE9 decodes to 'é' in WINDOWS-1252. The
         // preloaded reader should see only the 4-byte window
         // "<0xE9>llo" and decode it to "éllo".
-        let bytes: &[u8] = &[0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0xE9, 0x6C, 0x6C, 0x6F];
+        let bytes: &[u8] = &[
+            0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0xE9, 0x6C, 0x6C, 0x6F,
+        ];
         let source = DataSource::new_with_offset(bytes, 7, Some(4));
         let mut reader = source.preloaded_reader().unwrap();
 

@@ -1,0 +1,21 @@
+[package]
+name = "infinitier_gam_resource"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Reader and Writer for the GAM save-game state format used in Infinity Engine games"
+readme = "readme.md"
+keywords = ["gam", "save-game", "infinity-engine", "baldurs-gate"]
+
+[dependencies]
+encoding_rs = { workspace = true }
+infinitier_common = { workspace = true }
+infinitier_datasource = { workspace = true }
+log = { workspace = true }
+
+[dev-dependencies]
+infinitier_test_utils = { workspace = true }
+tempfile = { workspace = true }

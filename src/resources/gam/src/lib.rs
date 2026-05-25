@@ -1,0 +1,695 @@
+#![doc = include_str!("../readme.md")]
+//!
+//! ## Format
+//!
+//! GAM holds the per-savegame mutable game state: the party, NPCs in
+//! the world, global variables, journal entries, weather, gold,
+//! reputation, the current and main area, and engine-specific extras
+//! (PST's Modron Maze, IWD2's Heart-of-Fury flag, EE campaigns…).
+//!
+//! Four wire-format versions exist in the corpus:
+//!
+//! | Version | Games | Notes |
+//! |---------|------------------|-------|
+//! | `V1.1`  | BG1, IWD, PST    | Three different post-0x54 tails (BG1/IWD/PST). |
+//! | `V2.0`  | BG2, BG:EE, BG2:EE, PST:EE | Familiar / stored locations / pocket plane locations sections. |
+//! | `V2.1`  | BG2 ToB, BG2:EE, IWD:EE | Undocumented in IESDP. Same backbone as V2.0; extra EE-only trailing fields. |
+//! | `V2.2`  | IWD2             | Larger NPC struct (≈ 832 bytes), Heart-of-Fury flag. |
+//!
+//! Spec references:
+//! <https://gibberlings3.github.io/iesdp/file_formats/ie_formats/gam_v1.1.htm>,
+//! <https://gibberlings3.github.io/iesdp/file_formats/ie_formats/gam_v2.0.htm>,
+//! <https://gibberlings3.github.io/iesdp/file_formats/ie_formats/gam_v2.2.htm>
+//!
+//! ## Parsing scope
+//!
+//! The 0x00..0x54 prefix is **universally shared** across every
+//! version. After 0x54 the layout differs by engine — the file's
+//! version string alone can't disambiguate BG1 / IWD / PST (all
+//! `V1.1`) or BG2 / EE (both `V2.0`/`V2.1`). To handle that, both
+//! [`GamImporter`] and [`GamExporter`] take an [`Engine`] selector
+//! which drives the engine-specific dispatch. The parsed result
+//! carries the engine-specific extension in [`Gam::engine_data`].
+
+use infinitier_common::Engine;
+
+mod exporter;
+mod importer;
+
+pub use exporter::GamExporter;
+pub use importer::GamImporter;
+
+/// 4-byte file signature — present at offset 0 of every GAM.
+pub const GAM_SIGNATURE: &[u8; 4] = b"GAME";
+
+/// Total byte length of the common 0x00..0x54 header.
+pub const COMMON_HEADER_LEN: usize = 0x54;
+
+/// Known on-disk version tags. The full 8-byte file prefix is
+/// `<GAM_SIGNATURE><version.as_bytes()>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GamVersion {
+    /// `V1.1` — BG1 / IWD / PST. Post-0x54 layout is engine-specific
+    /// (which the parser can't disambiguate from the version string
+    /// alone) — see [`Gam::engine_data`].
+    V1_1,
+    /// `V2.0` — BG2 / BG:EE / BG2:EE / PST:EE.
+    V2_0,
+    /// `V2.1` — BG2 ToB / BG2:EE / IWD:EE. Undocumented in IESDP;
+    /// structurally a V2.0 variant.
+    V2_1,
+    /// `V2.2` — IWD2. Larger NPC struct, Heart-of-Fury flag.
+    V2_2,
+}
+
+impl GamVersion {
+    /// The 4-byte tag stored at offset 0x04 of the file.
+    pub fn as_bytes(&self) -> &'static [u8; 4] {
+        match self {
+            GamVersion::V1_1 => b"V1.1",
+            GamVersion::V2_0 => b"V2.0",
+            GamVersion::V2_1 => b"V2.1",
+            GamVersion::V2_2 => b"V2.2",
+        }
+    }
+}
+
+/// A parsed GAM file.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Gam {
+    /// On-disk version, recognised by the `"V1.1"`/`"V2.0"`/`"V2.1"`/`"V2.2"`
+    /// 4-byte tag at offset 4.
+    pub version: GamVersion,
+    /// Fixed 0x00..0x54 header. Universally shared across all
+    /// versions — covers game time, formation, gold, weather, the
+    /// offset / count pairs for every variable-length section, the
+    /// main area resref, and the journal section.
+    pub header: GamHeader,
+    /// Engine-specific extension parsed from 0x54 onwards. The
+    /// variant matches the [`Engine`] passed to the importer.
+    pub engine_data: GamEngineData,
+    /// Party-member NPCs in file order. Every entry includes the
+    /// common 0x14-byte sub-header plus its full original byte slice
+    /// (see [`GamNpc::raw`]) for engine-specific drill-down.
+    pub party_npcs: Vec<GamNpc>,
+    /// Non-party (world / spawn) NPCs in file order.
+    pub non_party_npcs: Vec<GamNpc>,
+    /// Global variables in file order. Layout is the same across
+    /// every version (60 bytes each).
+    pub variables: Vec<GamVariable>,
+    /// Journal entries in file order. 12 bytes each, identical
+    /// layout across versions.
+    pub journal: Vec<JournalEntry>,
+    /// Raw bytes of the party-inventory section (20-byte item
+    /// records, layout not parsed here).
+    pub party_inventory: Vec<u8>,
+}
+
+/// 0x54-byte common header at the start of every GAM, regardless of
+/// version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GamHeader {
+    /// Game time in 1/300-of-an-hour units (300 = 1 hour).
+    pub game_time: u32,
+    /// Index of the currently-selected formation preset.
+    pub selected_formation: u16,
+    /// The five formation hot-buttons (1..=5) at the bottom of the UI.
+    pub formation_buttons: [u16; 5],
+    /// Party gold piece count.
+    pub party_gold: u32,
+    /// V1.1: count of party NPC structs excluding the protagonist.
+    /// V2.x: "active area override" (party member index, or `0xFFFF`).
+    ///
+    /// Exposed raw because the meaning depends on the version.
+    pub active_npc_or_party_count: u16,
+    /// Weather bitfield (rain, snow, wind, lightning, …).
+    pub weather: u16,
+    /// Byte offset of the party-NPCs section in the file.
+    pub party_npc_offset: u32,
+    /// Number of party-NPC entries (always includes the protagonist
+    /// in the V2.x layout; V1.1 likewise).
+    pub party_npc_count: u32,
+    /// Byte offset of the party-inventory section.
+    pub party_inventory_offset: u32,
+    /// Party-inventory record count.
+    pub party_inventory_count: u32,
+    /// Byte offset of the non-party-NPCs section.
+    pub non_party_npc_offset: u32,
+    /// Non-party-NPC entry count.
+    pub non_party_npc_count: u32,
+    /// Byte offset of the GLOBAL-variables section.
+    pub globals_offset: u32,
+    /// GLOBAL-variable count.
+    pub globals_count: u32,
+    /// 8-byte ASCIIZ "world area" resref..
+    pub world_area: String,
+    /// 4-byte "current link" u32 at offset 0x48 (NearInfinity's
+    /// `GAM_CURRENT_LINK`). Stored verbatim for round-trip work.
+    pub current_link: u32,
+    /// Number of journal entries.
+    pub journal_count: u32,
+    /// Byte offset of the journal-entries section.
+    pub journal_offset: u32,
+}
+
+/// One NPC slot — party or non-party.
+///
+/// The first 0x14 bytes of every NPC slot are the same across every
+/// game / version, so they're parsed here. The remainder is
+/// engine-specific (BG1: 352 bytes total, IWD: 384, PST: 360,
+/// BG2/EE: 352, IWD2: ~832) and kept in [`Self::raw`] for callers
+/// that want to decode it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GamNpc {
+    /// 0x00: selection state (`0`=unselected, `1`=selected,
+    /// `0x8000`=dead).
+    pub selection_state: u16,
+    /// 0x02: party slot (`0..=5`) or `0xFFFF` for "not in party".
+    pub party_order: u16,
+    /// 0x04: offset (relative to the start of THIS NPC struct) of
+    /// the embedded CRE blob.
+    pub cre_offset: u32,
+    /// 0x08: length in bytes of the embedded CRE blob.
+    pub cre_size: u32,
+    /// 0x0C: 8-byte resref-shaped "character name" field (often the
+    /// short name; the longer name lives deeper inside the engine-
+    /// specific tail). Decoded via WINDOWS-1252 with trailing NULs
+    /// stripped.
+    pub character_name: String,
+    /// The entry's full byte slice (length depends on engine
+    /// variant; see the corpus comments in `importer.rs`). Includes
+    /// the parsed-out 0x14-byte sub-header so the entry is
+    /// self-contained.
+    pub raw: Vec<u8>,
+}
+
+impl GamNpc {
+    /// Embedded CRE bytes. The slot stores a CRE resource at
+    /// `[cre_offset .. cre_offset + cre_size]` relative to its own
+    /// start. Returns an empty slice when either field is zero
+    /// (which happens for slots that don't carry an embedded CRE —
+    /// e.g. some non-party entries).
+    pub fn cre_data(&self) -> &[u8] {
+        if self.cre_size == 0 {
+            return &[];
+        }
+        let start = self.cre_offset as usize;
+        let end = start.saturating_add(self.cre_size as usize);
+        if end > self.raw.len() {
+            return &[];
+        }
+        &self.raw[start..end]
+    }
+}
+
+/// One GLOBAL / Kill variable record. 60 bytes on disk, identical
+/// layout in every GAM version.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GamVariable {
+    /// 0x00: variable name (32-byte buffer, trailing NUL bytes
+    /// stripped). Decoded via WINDOWS-1252; round-trips bijectively
+    /// because the IE-wide encoding is a single-byte mapping that
+    /// covers every byte value 0x00..=0xFF.
+    pub name: String,
+    /// 0x20: bitfield indicating which of the following value slots
+    /// is meaningful — int / float / script-name / resref / strref /
+    /// dword.
+    pub type_flags: u16,
+    /// 0x22: secondary "reference" field, often zero.
+    pub ref_value: u16,
+    /// 0x24: u32 value slot.
+    pub dword_value: u32,
+    /// 0x28: i32 value slot. Most "GLOBAL" int variables live here.
+    pub int_value: i32,
+    /// 0x2C: f64 value slot. Almost never used in vanilla saves.
+    pub double_value: f64,
+    /// 0x34: 8-byte script-name buffer. WINDOWS-1252 decode with
+    /// trailing NULs stripped.
+    pub script_name: String,
+}
+
+/// One journal-log entry. 12 bytes on disk, identical layout in
+/// every GAM version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct JournalEntry {
+    /// 0x00: TLK string-reference for the entry's display text.
+    pub strref: u32,
+    /// 0x04: timestamp in seconds since the start of the campaign.
+    pub time_seconds: u32,
+    /// 0x08: chapter number at the time of the entry.
+    pub chapter: u8,
+    /// 0x09: index of the party member who read this (`0xFF` if
+    /// nobody / user note).
+    pub read_by_pc: u8,
+    /// 0x0A: journal section bitfield — bits flag Quests /
+    /// Completed / Info; `0` means user note.
+    pub section: u8,
+    /// 0x0B: location flag (`0x1F` = external dialog.tlk, `0xFF` =
+    /// internal).
+    pub location_flag: u8,
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  Engine-specific extensions
+// ─────────────────────────────────────────────────────────────────────
+
+/// Engine-specific GAM extension. Carries the parsed contents of the
+/// 0x54-onwards region — both the fixed header bytes and any
+/// variable-length sub-sections referenced by the engine-specific
+/// header offsets. The variant is fixed by the [`Engine`] passed to
+/// [`GamImporter`].
+#[derive(Debug, Clone, PartialEq)]
+pub enum GamEngineData {
+    /// BG1 (V1.1). No variable-length sub-sections.
+    Bg(BgGamData),
+    /// BG2 (V2.0 / V2.1). Familiar info + stored locations + pocket
+    /// plane locations.
+    Bg2(Bg2GamData),
+    /// EE family (BG:EE, BG2:EE, IWD:EE, PST:EE, EET, BgeeSod).
+    /// V2.0/V2.1 layout with the EE-only trailing fields (zoom,
+    /// random encounter area, worldmap, campaign, familiar owner).
+    Ee(EeGamData),
+    /// IWD vanilla (V1.1). Includes a count + offset of opaque
+    /// "section 3" records plus an EOS-pointed trailing blob.
+    Iwd(IwdGamData),
+    /// IWD2 (V2.2). Heart-of-Fury flag + IWD-style trailing
+    /// section 3 records + trailing 4-byte field.
+    Iwd2(Iwd2GamData),
+    /// PST vanilla (V1.1). Modron Maze + kill variables + bestiary.
+    Pst(PstGamData),
+}
+
+impl GamEngineData {
+    /// The [`Engine`] this extension belongs to.
+    pub fn engine(&self) -> Engine {
+        match self {
+            GamEngineData::Bg(_) => Engine::Bg,
+            GamEngineData::Bg2(_) => Engine::Bg2,
+            GamEngineData::Ee(_) => Engine::Ee,
+            GamEngineData::Iwd(_) => Engine::Iwd,
+            GamEngineData::Iwd2(_) => Engine::Iwd2,
+            GamEngineData::Pst(_) => Engine::Pst,
+        }
+    }
+}
+
+/// BG1 (V1.1) engine extension. Layout follows IESDP `gam_v1.1.htm`
+/// for the BG1 engine specifically.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BgGamData {
+    /// 0x54: party reputation × 10.
+    pub reputation: u32,
+    /// 0x58: 8-byte ASCIIZ master area resref.
+    pub master_area: String,
+    /// 0x60: configuration / GUI flags bitfield.
+    pub configuration: u32,
+    /// 0x64: which XP cap applies to this save. NearInfinity's
+    /// `VERSION_BG1_ARRAY` bitmap — see [`BgSaveVersion`].
+    pub save_version: BgSaveVersion,
+    /// 0x68..0xB4: 76 bytes of unknown / reserved data, preserved
+    /// verbatim for round-trip.
+    pub unknown: Vec<u8>,
+}
+
+/// BG1 `save_version` field. Tells the engine which XP cap to apply
+/// to the save — base BG1 or the TotSC expansion. Round-trip-safe
+/// thanks to the [`Self::Unknown`] catch-all for unrecognised values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BgSaveVersion {
+    /// `0` — `"Restrict XP to BG1 limit"`. Base BG1 saves.
+    Bg1,
+    /// `1` — `"Restrict XP to TotSC limit"`. Saves created with the
+    /// Tales of the Sword Coast expansion installed.
+    TotSC,
+    /// Any other on-disk value, preserved verbatim.
+    Unknown(u32),
+}
+
+impl BgSaveVersion {
+    /// Decode the on-disk u32 into the enum.
+    pub fn from_u32(v: u32) -> Self {
+        match v {
+            0 => BgSaveVersion::Bg1,
+            1 => BgSaveVersion::TotSC,
+            other => BgSaveVersion::Unknown(other),
+        }
+    }
+
+    /// The u32 representation written back to disk. `Unknown(v)`
+    /// round-trips its raw `v`.
+    pub fn as_u32(self) -> u32 {
+        match self {
+            BgSaveVersion::Bg1 => 0,
+            BgSaveVersion::TotSC => 1,
+            BgSaveVersion::Unknown(v) => v,
+        }
+    }
+}
+
+/// BG2 vanilla (V2.0 / V2.1) engine extension.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bg2GamData {
+    /// 0x54: party reputation × 10.
+    pub reputation: u32,
+    /// 0x58: 8-byte master area resref.
+    pub master_area: String,
+    /// 0x60: configuration flags.
+    pub configuration: u32,
+    /// 0x64: save version.
+    pub save_version: u32,
+    /// 0x68: offset of the familiar-info struct (0 = absent).
+    pub familiar_offset: u32,
+    /// 0x6C: offset of the stored-locations section.
+    pub stored_locations_offset: u32,
+    /// 0x70: count of stored-location records.
+    pub stored_locations_count: u32,
+    /// 0x74: elapsed real time (ticks).
+    pub real_time: u32,
+    /// 0x78: offset of the pocket-plane locations section.
+    pub pocket_plane_locations_offset: u32,
+    /// 0x7C: count of pocket-plane-location records.
+    pub pocket_plane_locations_count: u32,
+    /// 0x80..0xB4: 52 bytes of reserved data (zeroed in vanilla
+    /// saves), preserved verbatim.
+    pub unknown: Vec<u8>,
+    /// Variable-length sub-section: familiar-info struct at
+    /// `familiar_offset` (`None` when the offset is zero).
+    pub familiar: Option<Familiar>,
+    /// Variable-length sub-section: stored-location records.
+    pub stored_locations: Vec<StoredLocation>,
+    /// Variable-length sub-section: pocket-plane location records.
+    pub pocket_plane_locations: Vec<StoredLocation>,
+}
+
+/// Enhanced Edition (BG:EE / BG2:EE / IWD:EE / PST:EE / EET /
+/// BgeeSod) extension. Same backbone as [`Bg2GamData`] but with the
+/// EE-only trailing fields.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EeGamData {
+    /// 0x54: party reputation × 10.
+    pub reputation: u32,
+    /// 0x58: 8-byte master area resref.
+    pub master_area: String,
+    /// 0x60: configuration flags.
+    pub configuration: u32,
+    /// 0x64: save version.
+    pub save_version: u32,
+    /// 0x68: offset of the familiar-info struct.
+    pub familiar_offset: u32,
+    /// 0x6C: offset of the stored-locations section.
+    pub stored_locations_offset: u32,
+    /// 0x70: stored-location record count.
+    pub stored_locations_count: u32,
+    /// 0x74: elapsed real time (ticks).
+    pub real_time: u32,
+    /// 0x78: offset of the pocket-plane locations section.
+    pub pocket_plane_locations_offset: u32,
+    /// 0x7C: pocket-plane location record count.
+    pub pocket_plane_locations_count: u32,
+    /// 0x80: zoom level (EE-only).
+    pub zoom_level: u32,
+    /// 0x84: 8-byte random-encounter-area resref (EE-only).
+    pub random_encounter_area: String,
+    /// 0x8C: 8-byte worldmap resref (EE-only).
+    pub worldmap: String,
+    /// 0x94: 8-byte campaign tag (EE-only).
+    pub campaign: String,
+    /// 0x9C: party-slot index of the familiar owner (EE-only).
+    pub familiar_owner: u32,
+    /// 0xA0..0xB4: 20-byte encounter-entry resref (EE-only).
+    pub encounter_entry: String,
+    /// Familiar-info struct at `familiar_offset` (when non-zero).
+    pub familiar: Option<Familiar>,
+    /// Stored-location records.
+    pub stored_locations: Vec<StoredLocation>,
+    /// Pocket-plane location records.
+    pub pocket_plane_locations: Vec<StoredLocation>,
+}
+
+/// IWD vanilla (V1.1) extension. Adds a "section 3" count/offset and
+/// an EOS-pointed trailing blob — both verbatim because IESDP
+/// doesn't document the inner layout.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IwdGamData {
+    /// 0x54: reputation × 10.
+    pub reputation: u32,
+    /// 0x58: 8-byte master area resref.
+    pub master_area: String,
+    /// 0x60: configuration flags.
+    pub configuration: u32,
+    /// 0x64: count of opaque "section 3" records (24 bytes each).
+    pub unknown_count: u32,
+    /// 0x68: offset of the "section 3" records.
+    pub unknown_offset: u32,
+    /// 0x6C..0xB4: 72 bytes of reserved data, preserved verbatim.
+    pub unknown: Vec<u8>,
+    /// The "section 3" records (24 bytes each, raw).
+    pub unknown_section3: Vec<UnknownSection3>,
+    /// EOS pointer + trailing blob — only present when
+    /// `unknown_count > 0`. The pointer (a 4-byte absolute offset)
+    /// follows the last section-3 record and marks the end of the
+    /// blob that comes after it.
+    pub unknown_trailer: Option<IwdUnknownTrailer>,
+}
+
+/// Trailing structure that follows the "section 3" records in
+/// IWD/IWD2 saves when `unknown_count > 0`. Round-tripped verbatim.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IwdUnknownTrailer {
+    /// Absolute byte offset stored verbatim ("end of unknown
+    /// structure" in NearInfinity).
+    pub end_offset: u32,
+    /// Raw bytes from the end of `end_offset`'s 4-byte slot up to
+    /// the offset stored in `end_offset`.
+    pub blob: Vec<u8>,
+}
+
+/// IWD2 (V2.2) extension.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Iwd2GamData {
+    /// 0x54: reputation × 10.
+    pub reputation: u32,
+    /// 0x58: 8-byte master area resref.
+    pub master_area: String,
+    /// 0x60: configuration flags.
+    pub configuration: u32,
+    /// 0x64: count of "section 3" records.
+    pub unknown_count: u32,
+    /// 0x68: offset of the "section 3" records.
+    pub unknown_offset: u32,
+    /// 0x6C: nightmare-mode (a.k.a. Heart of Fury) flag.
+    pub nightmare_mode: u32,
+    /// 0x70..0xB4: 68 bytes of reserved data, preserved verbatim.
+    pub unknown: Vec<u8>,
+    /// The "section 3" records (24 bytes each, raw).
+    pub unknown_section3: Vec<UnknownSection3>,
+    /// EOS pointer + trailing blob (same shape as IWD).
+    pub unknown_trailer: Option<IwdUnknownTrailer>,
+    /// IWD2-only: 4 extra trailing bytes that follow the
+    /// unknown-trailer blob.
+    pub trailing_extra: u32,
+}
+
+/// PST vanilla (V1.1) extension.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PstGamData {
+    /// 0x54: offset of the Modron Maze (1720 bytes when present).
+    pub modron_maze_offset: u32,
+    /// 0x58: reputation × 10.
+    pub reputation: u32,
+    /// 0x5C: 8-byte master area resref.
+    pub master_area: String,
+    /// 0x64: offset of the kill-variables section (60-byte records).
+    pub kill_variables_offset: u32,
+    /// 0x68: kill-variables record count.
+    pub kill_variables_count: u32,
+    /// 0x6C: offset of the 260-byte Bestiary blob.
+    pub bestiary_offset: u32,
+    /// 0x70: 8-byte "master area 2" resref (still undocumented).
+    pub master_area_2: String,
+    /// 0x78..0xB8: 64 bytes reserved, preserved verbatim.
+    pub unknown: Vec<u8>,
+    /// Modron Maze state (when `modron_maze_offset > 0`).
+    pub modron_maze: Option<ModronMaze>,
+    /// Kill-variables records (same 60-byte layout as
+    /// [`GamVariable`]).
+    pub kill_variables: Vec<GamVariable>,
+    /// 260-byte Bestiary blob (when `bestiary_offset > 0`).
+    pub bestiary: Option<Vec<u8>>,
+}
+
+/// 12-byte stored-location record (BG2 / EE pocket-plane and
+/// stored-location sections).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredLocation {
+    /// 0x00: 8-byte ASCIIZ area resref (WINDOWS-1252 decoded,
+    /// trailing NULs stripped).
+    pub area: String,
+    /// 0x08: stored x coordinate.
+    pub x: i16,
+    /// 0x0A: stored y coordinate.
+    pub y: i16,
+}
+
+/// 24-byte opaque "section 3" record (IWD / IWD2). IESDP doesn't
+/// document the internal layout, so the bytes are kept verbatim.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownSection3 {
+    /// Raw 24 bytes.
+    pub raw: Vec<u8>,
+}
+
+/// Familiar-info struct (BG2 / EE). 400 fixed bytes + optionally a
+/// trailing list of CRE resrefs pointed to by [`Self::resources_offset`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Familiar {
+    /// 0x00: 8-byte CRE resrefs, one per D&D alignment (LG, LN, LE,
+    /// NG, TN, NE, CG, CN, CE — in that on-disk order). WINDOWS-1252
+    /// decoded, trailing NULs stripped.
+    pub default_cre_per_alignment: [String; 9],
+    /// 0x48: absolute file offset of the "extra familiar resources"
+    /// list. Stored verbatim — round-trips even when the list is
+    /// empty.
+    pub resources_offset: u32,
+    /// 0x4C..0x190: 9 alignments × 9 character levels of u32 count
+    /// fields (NearInfinity exposes these per row).
+    pub counts: [[u32; 9]; 9],
+    /// Optional list of 8-byte CRE resrefs sitting at
+    /// `resources_offset`. Length is the sum of all values in
+    /// [`Self::counts`].
+    pub extra_resources: Vec<String>,
+}
+
+/// Modron-Maze state (PST). 1720 bytes on disk: 64 × 26-byte room
+/// entries followed by a 56-byte fixed header.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModronMaze {
+    /// 64 room entries — NearInfinity lays them out FIRST, before
+    /// the fixed header.
+    pub entries: Box<[ModronMazeEntry; 64]>,
+    /// Maze grid size in x.
+    pub size_x: i32,
+    /// Maze grid size in y.
+    pub size_y: i32,
+    /// Wizard room x position.
+    pub wizard_room_x: i32,
+    /// Wizard room y position.
+    pub wizard_room_y: i32,
+    /// Nordom x position.
+    pub nordom_x: i32,
+    /// Nordom y position.
+    pub nordom_y: i32,
+    /// Foyer x position.
+    pub foyer_x: i32,
+    /// Foyer y position.
+    pub foyer_y: i32,
+    /// Engine room x position.
+    pub engine_room_x: i32,
+    /// Engine room y position.
+    pub engine_room_y: i32,
+    /// Number of traps.
+    pub num_traps: i32,
+    /// "Maze initialized" flag.
+    pub initialized: u32,
+    /// Foyer maze blocker made.
+    pub maze_blocker_made: u32,
+    /// Foyer engine blocker made.
+    pub engine_blocker_made: u32,
+}
+
+/// One 26-byte Modron Maze room entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ModronMazeEntry {
+    /// 0x00: used flag.
+    pub used: u32,
+    /// 0x04: accessible flag.
+    pub accessible: u32,
+    /// 0x08: is-valid flag.
+    pub is_valid: u32,
+    /// 0x0C: is-trapped flag.
+    pub is_trapped: u32,
+    /// 0x10: trap type (0=A, 1=B, 2=C).
+    pub trap_type: u32,
+    /// 0x14: exit-walls bitfield (None / East / West / North /
+    /// South).
+    pub exits: u16,
+    /// 0x16: populated flag (4 bytes — overlaps the field-width of
+    /// the previous u16; treat as `u32` per NearInfinity).
+    pub populated: u32,
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::path::{Path, PathBuf};
+
+    use infinitier_common::Engine;
+    use infinitier_datasource::{DataSource, Importer};
+    use infinitier_test_utils::get_assets_path;
+
+    use crate::{Gam, GamImporter};
+
+    /// Recursively collect every `.gam` file under `assets/SAV_GAM/`.
+    pub fn all_gam_fixtures() -> Vec<PathBuf> {
+        fn visit(dir: &Path, out: &mut Vec<PathBuf>) {
+            for entry in std::fs::read_dir(dir).expect("read_dir") {
+                let entry = entry.expect("dir entry");
+                let path = entry.path();
+                if path.is_dir() {
+                    visit(&path, out);
+                } else if path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|s| s.eq_ignore_ascii_case("gam"))
+                    .unwrap_or(false)
+                {
+                    out.push(path);
+                }
+            }
+        }
+        let mut out = Vec::new();
+        visit(&get_assets_path().join("SAV_GAM"), &mut out);
+        out.sort();
+        out
+    }
+
+    /// Maps a fixture path's top-level corpus directory to the
+    /// [`Engine`] needed to parse it. The corpus uses one top-level
+    /// directory per game release; `bg` → BG1, `bg2` → BG2 vanilla,
+    /// the various EE flavours all share `Engine::Ee`, etc.
+    pub fn engine_for_fixture(path: &Path) -> Engine {
+        let root = get_assets_path().join("SAV_GAM");
+        let rel = path.strip_prefix(&root).expect("fixture under SAV_GAM");
+        let first = rel
+            .iter()
+            .next()
+            .and_then(|c| c.to_str())
+            .expect("first path component");
+        match first {
+            "bg" => Engine::Bg,
+            "bg2" => Engine::Bg2,
+            "bg_ee" | "bg2_ee" | "iwdee" | "pst_ee" => Engine::Ee,
+            "iwd" => Engine::Iwd,
+            "iwd2" => Engine::Iwd2,
+            "pst" => Engine::Pst,
+            other => panic!("unrecognised fixture engine directory: {other}"),
+        }
+    }
+
+    /// Import a specific fixture given its path under
+    /// `assets/SAV_GAM/`. Engine is inferred from the path.
+    pub fn import_fixture(rel_path: &str) -> Gam {
+        let path = get_assets_path().join("SAV_GAM").join(rel_path);
+        let engine = engine_for_fixture(&path);
+        GamImporter {
+            name: rel_path,
+            engine,
+        }
+        .import(&DataSource::new(path.as_path()))
+        .unwrap_or_else(|e| panic!("import {rel_path}: {e}"))
+    }
+
+    /// `DataSource` shim used by negative tests.
+    pub fn ds(bytes: &'static [u8]) -> DataSource {
+        DataSource::new(bytes)
+    }
+}

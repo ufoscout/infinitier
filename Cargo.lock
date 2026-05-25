@@ -2042,6 +2042,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_gam_resource"
+version = "0.0.5"
+dependencies = [
+ "encoding_rs",
+ "infinitier_common",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "log",
+ "tempfile",
+]
+
+[[package]]
 name = "infinitier_ids_resource"
 version = "0.0.5"
 dependencies = [
