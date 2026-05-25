@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn test_from_mos_v1() {
         // V1 needs no PVRZ lookup, so an empty GameData is fine.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let ds = DataSource::new(get_assets_path().join("MOS/V1/GTRSPCAP.mos"));
         let mos = MosImporter { name: "test_mos" }.import(&ds).unwrap();
 
@@ -423,7 +423,7 @@ mod tests {
 
     #[test]
     fn test_from_mos_mosc() {
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let ds = DataSource::new(get_assets_path().join("MOS/MOSC/GUIWRLP8.mos"));
         let mos = MosImporter { name: "test_mos" }.import(&ds).unwrap();
 
@@ -450,7 +450,7 @@ mod tests {
     fn test_from_mos_v2_missing_pvrz_errors() {
         // No PVRZ resources registered → V2's required `mosNNNN` lookup
         // fails. Documents the error surface for explorer / loader code.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let ds = DataSource::new(get_assets_path().join("MOS/V2/BGDECBAR.mos"));
         let mos = MosImporter { name: "test_mos" }.import(&ds).unwrap();
         let err = ImportedImage::from_mos(mos, &game_data).unwrap_err();

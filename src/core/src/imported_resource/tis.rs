@@ -285,7 +285,11 @@ mod tests {
                 data_origin: DataOrigin::Missing,
             });
         }
-        GameData::new(resources, Game::Bg2)
+        GameData::new(
+            resources,
+            Game::Bg2,
+            infinitier_fs::CaseInsensitiveFS::empty(),
+        )
     }
 
     fn import_tis(path: &Path) -> Tis {
@@ -297,7 +301,7 @@ mod tests {
     fn test_load_palette_single_tile_no_wed() {
         // FIRE01: 1 tile, no WED in the test corpus → default columns
         // falls back to `min(tile_count, 5) = 1`.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let tis = import_tis(&get_assets_path().join("TIS/Palette/FIRE01.tis"));
         let imported = ImportedTis::load(tis, &game_data, "fire01").unwrap();
 
@@ -311,7 +315,7 @@ mod tests {
     #[test]
     fn test_load_palette_multi_tile_caps_default_to_five() {
         // HOTCOALR: 6 tiles, no WED → default columns = min(6, 5) = 5.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let tis = import_tis(&get_assets_path().join("TIS/Palette/HOTCOALR.tis"));
         let imported = ImportedTis::load(tis, &game_data, "hotcoalr").unwrap();
 
@@ -324,7 +328,7 @@ mod tests {
     fn test_compose_matches_reference_png() {
         // 6×1 layout of the HOTCOALR tileset must reproduce the
         // 384×64 reference PNG byte-for-byte.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let tis = import_tis(&get_assets_path().join("TIS/Palette/HOTCOALR.tis"));
         let imported = ImportedTis::load(tis, &game_data, "hotcoalr").unwrap();
         let composed = imported.compose(6);
@@ -342,7 +346,7 @@ mod tests {
         // PVRZ TIS with no PVRZ assets registered → load must surface
         // a "PVRZ resource X not found" error rather than silently
         // producing a black tileset.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let tis = import_tis(&get_assets_path().join("TIS/Pvrz/AR0107.tis"));
         let err = ImportedTis::load(tis, &game_data, "ar0107").unwrap_err();
         assert!(
@@ -355,7 +359,7 @@ mod tests {
     fn test_compose_pads_short_last_row() {
         // 6 tiles in a 4-column grid → 2 rows, the second row half-full.
         // The padded slots must stay fully transparent.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let tis = import_tis(&get_assets_path().join("TIS/Palette/HOTCOALR.tis"));
         let imported = ImportedTis::load(tis, &game_data, "hotcoalr").unwrap();
         let composed = imported.compose(4);
@@ -425,7 +429,11 @@ mod tests {
                 data_origin: DataOrigin::Missing,
             },
         ];
-        GameData::new(resources, Game::Bg2)
+        GameData::new(
+            resources,
+            Game::Bg2,
+            infinitier_fs::CaseInsensitiveFS::empty(),
+        )
     }
 
     #[test]

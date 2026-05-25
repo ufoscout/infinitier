@@ -16,6 +16,8 @@ pub type ResourceId = usize;
 /// The Data of a game.
 #[derive(Debug)]
 pub struct GameData {
+    /// File system
+    fs: CaseInsensitiveFS,
     /// Game Type
     game_type: Game,
     /// All resources
@@ -70,13 +72,14 @@ impl GameData {
     }
 
     /// Discover the save games visible on `fs`.
-    pub fn save_games(&self, fs: &crate::fs::CaseInsensitiveFS) -> crate::save_games::SaveGames {
-        crate::save_games::scan_save_games(fs)
+    pub fn save_games(&self) -> crate::save_games::SaveGames {
+        crate::save_games::scan_save_games(&self.fs)
     }
 
     /// Creates a GameData from a list of resources
-    pub fn new(resources: Vec<GameResource>, game_type: Game) -> Self {
+    pub fn new(resources: Vec<GameResource>, game_type: Game, fs: CaseInsensitiveFS) -> Self {
         let mut game_data = GameData {
+            fs,
             game_type,
             resources: Vec::new(),
             name_type_index: HashMap::new(),
@@ -354,6 +357,7 @@ impl GameDataBuilder {
     /// Build the game data
     pub fn build(&self) -> io::Result<GameData> {
         let mut game_data = GameData {
+            fs: self.fs.clone(),
             game_type: self.game_type,
             resources: vec![],
             name_type_index: HashMap::new(),
@@ -768,7 +772,8 @@ mod tests {
 
     #[test]
     fn test_add_resource_replaces_when_name_and_type_match() {
-        let mut game_data = GameData::new(vec![], Game::Bg2);
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
 
         game_data.add_resource(make_resource(
             "TEST",
@@ -808,7 +813,8 @@ mod tests {
 
     #[test]
     fn test_add_resource_keeps_existing_when_type_differs() {
-        let mut game_data = GameData::new(vec![], Game::Bg2);
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
 
         game_data.add_resource(make_resource(
             "TEST",
@@ -847,7 +853,8 @@ mod tests {
         std::fs::File::create(root.join("MUSIC/notes.txt")).unwrap();
 
         let builder = GameDataBuilder::new(root, Game::Bg2).unwrap();
-        let mut game_data = GameData::new(vec![], Game::Bg2);
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
 
         builder
             .add_resources_from_dir(&mut game_data, "music", Some("mus"), false)
@@ -881,7 +888,8 @@ mod tests {
         std::fs::File::create(root.join("OVERRIDE/Baz.UNKNOWNEXT")).unwrap();
 
         let builder = GameDataBuilder::new(root, Game::Bg2).unwrap();
-        let mut game_data = GameData::new(vec![], Game::Bg2);
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
 
         builder
             .add_resources_from_dir(&mut game_data, "override", None, false)
@@ -910,7 +918,8 @@ mod tests {
 
     #[test]
     fn test_add_resource_keeps_existing_when_name_differs() {
-        let mut game_data = GameData::new(vec![], Game::Bg2);
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
 
         game_data.add_resource(make_resource(
             "TEST1",
@@ -938,7 +947,8 @@ mod tests {
 
     #[test]
     fn test_get_all_by_type() {
-        let mut game_data = GameData::new(vec![], Game::Bg2);
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         game_data.add_resource(make_resource("A", ResourceType::Bam, DataOrigin::Missing));
         game_data.add_resource(make_resource("B", ResourceType::Wed, DataOrigin::Missing));
         game_data.add_resource(make_resource("C", ResourceType::Bam, DataOrigin::Missing));

@@ -101,6 +101,7 @@ mod tests {
                 })
                 .collect(),
             Game::Bg2,
+            infinitier_core::fs::CaseInsensitiveFS::empty(),
         )
     }
 

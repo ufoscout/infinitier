@@ -113,7 +113,11 @@ mod tests {
                 data_origin: DataOrigin::Missing,
             });
         }
-        GameData::new(resources, Game::Bg2)
+        GameData::new(
+            resources,
+            Game::Bg2,
+            infinitier_fs::CaseInsensitiveFS::empty(),
+        )
     }
 
     fn import_bcs(path: &Path) -> Bcs {
@@ -174,7 +178,7 @@ mod tests {
     fn test_load_bcs_missing_trigger_ids_errors() {
         // Empty GameData → neither TRIGGER nor ACTION are findable; the
         // error must surface the missing resource so callers can diagnose.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let bcs_path = get_assets_path().join("BCS").join("foozle.bcs");
         let bcs = import_bcs(&bcs_path);
 

@@ -37,6 +37,18 @@ impl CaseInsensitiveFS {
         Self::new_with_fallback(roots, vec![])
     }
 
+    /// Returns an empty `CaseInsensitiveFS` with no roots and no
+    /// indexed paths. Useful for tests / placeholders where a real
+    /// game folder is not required — every path lookup on the
+    /// returned FS will miss.
+    pub fn empty() -> CaseInsensitiveFS {
+        CaseInsensitiveFS {
+            roots: Vec::new(),
+            fallbacks: Vec::new(),
+            paths: Arc::new(BTreeMap::new()),
+        }
+    }
+
     /// Creates a new `CaseInsensitiveFS` from the given root path.
     ///
     /// The given root paths are used as the root directories for the file system.

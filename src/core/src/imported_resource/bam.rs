@@ -374,7 +374,11 @@ mod tests {
                 data_origin: DataOrigin::Missing,
             });
         }
-        GameData::new(resources, Game::Bg2)
+        GameData::new(
+            resources,
+            Game::Bg2,
+            infinitier_fs::CaseInsensitiveFS::empty(),
+        )
     }
 
     fn import_bam(path: &Path) -> Bam {
@@ -386,7 +390,7 @@ mod tests {
     #[test]
     fn test_load_bam_v1() {
         // V1 does not need PVRZ lookup, so an empty GameData is fine.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let bam = import_bam(&get_assets_path().join("BAM/V1/01/1chan03B_decompressed.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
 
@@ -427,7 +431,7 @@ mod tests {
         // its tag set to Type::BamC (so the exporter can round-trip back
         // to BAMC); the decoded content must still match the corresponding
         // plain BAM V1 file.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let bam = import_bam(&get_assets_path().join("BAM/V1/01/1chan03B_compressed.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
 
@@ -442,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_load_bam_v1_multi_frame() {
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let bam = import_bam(&get_assets_path().join("BAM/V1/02/SPHEART_decompressed.BAM"));
         let imported = ImportedBam::load(bam, &game_data).unwrap();
 
@@ -506,7 +510,7 @@ mod tests {
     #[test]
     fn test_load_bam_v2_missing_pvrz_errors() {
         // Empty GameData → the required `mos0000` PVRZ is unavailable.
-        let game_data = GameData::new(vec![], Game::Bg2);
+        let game_data = GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
         let bam = import_bam(&get_assets_path().join("BAM/V2/1CHELM03.BAM"));
         let err = ImportedBam::load(bam, &game_data).unwrap_err();
         assert!(
