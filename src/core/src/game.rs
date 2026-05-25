@@ -167,12 +167,16 @@ impl GameResource {
         use infinitier_bam_resource::BamImporter;
         use infinitier_bcs_resource::BcsImporter;
         use infinitier_bmp_resource::BmpImporter;
+        use infinitier_cre_resource::CreImporter;
         use infinitier_fnt_resource::FntImporter;
+        use infinitier_gam_resource::GamImporter;
         use infinitier_ids_resource::IdsImporter;
         use infinitier_ini_resource::IniImporter;
+        use infinitier_itm_resource::ItmImporter;
         use infinitier_mos_resource::MosImporter;
         use infinitier_png_resource::PngImporter;
         use infinitier_pvrz_resource::PvrzImporter;
+        use infinitier_spl_resource::SplImporter;
         use infinitier_tis_resource::TisImporter;
         use infinitier_ttf_resource::TtfImporter;
         use infinitier_two_da_resource::TwoDAImporter;
@@ -190,76 +194,73 @@ impl GameResource {
             )
             .map(SoundDecoder::Acm)
             .map(ImportedResource::Sound)?),
-            ResourceType::Wav => Ok(WavDecoder::open(ds, &self.name)
-                .map(SoundDecoder::Wav)
-                .map(ImportedResource::Sound)?),
+            ResourceType::Are => Ok(ImportedResource::Are),
+            ResourceType::Bah => Ok(ImportedResource::Bah),
             ResourceType::Bam => BamImporter { name: &self.name }
                 .import(ds)
                 .and_then(|bam| ImportedBam::load(bam, game_data))
                 .map(ImportedResource::Bam),
-            // BMP, PVRZ, MOS, and PNG all feed into the unified
-            // `ImportedImage` wrapper so the explorer can render them
-            // through one `ImageViewer`. Adding new raster formats here
-            // only needs a new `ImportedImage::from_*` constructor.
+            ResourceType::Bcs | ResourceType::Bs => BcsImporter { name: &self.name }
+                .import(ds)
+                .and_then(|bcs| ImportedBcs::load(bcs, game_data))
+                .map(ImportedResource::Bcs),
+            ResourceType::Bio => Ok(ImportedResource::Bio),
             ResourceType::Bmp => BmpImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedImage::from_bmp)
                 .map(ImportedResource::Image),
-            ResourceType::Pvrz => PvrzImporter { name: &self.name }
+            ResourceType::Chr => Ok(ImportedResource::Chr),
+            ResourceType::Chu => Ok(ImportedResource::Chu),
+            ResourceType::Cre => CreImporter { name: &self.name }
                 .import(ds)
-                .map(ImportedImage::from_pvrz)
-                .map(ImportedResource::Image),
-            ResourceType::Mos => MosImporter { name: &self.name }
+                .map(ImportedResource::Cre),
+            ResourceType::Dlg => Ok(ImportedResource::Dlg),
+            ResourceType::Eff => Ok(ImportedResource::Eff),
+            ResourceType::Fnt => FntImporter { name: &self.name }
                 .import(ds)
-                .and_then(|mos| ImportedImage::from_mos(mos, game_data))
-                .map(ImportedResource::Image),
-            ResourceType::Png => PngImporter { name: &self.name }
-                .import(ds)
-                .map(ImportedImage::from_png)
-                .map(ImportedResource::Image),
+                .map(ImportedResource::Fnt),
+            ResourceType::Gam => GamImporter {
+                name: &self.name,
+                engine: game_data.game().engine(),
+            }
+            .import(ds)
+            .map(ImportedResource::Gam),
+            ResourceType::Glsl => Ok(ImportedResource::Glsl),
+            ResourceType::Gui => Ok(ImportedResource::Gui),
             ResourceType::Ids => IdsImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Ids),
             ResourceType::Ini => IniImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Ini),
-            ResourceType::TwoDA => TwoDAImporter { name: &self.name }
+            ResourceType::Itm => ItmImporter { name: &self.name }
                 .import(ds)
-                .map(ImportedResource::TwoDA),
-            ResourceType::Wed => WedImporter { name: &self.name }
-                .import(ds)
-                .map(ImportedResource::Wed),
-            ResourceType::Are => Ok(ImportedResource::Are),
-            ResourceType::Bah => Ok(ImportedResource::Bah),
-            // BCS and BS share the same bytecode format.
-            ResourceType::Bcs | ResourceType::Bs => BcsImporter { name: &self.name }
-                .import(ds)
-                .and_then(|bcs| ImportedBcs::load(bcs, game_data))
-                .map(ImportedResource::Bcs),
-            ResourceType::Bio => Ok(ImportedResource::Bio),
-            ResourceType::Chr => Ok(ImportedResource::Chr),
-            ResourceType::Chu => Ok(ImportedResource::Chu),
-            ResourceType::Cre => Ok(ImportedResource::Cre),
-            ResourceType::Dlg => Ok(ImportedResource::Dlg),
-            ResourceType::Eff => Ok(ImportedResource::Eff),
-            ResourceType::Fnt => FntImporter { name: &self.name }
-                .import(ds)
-                .map(ImportedResource::Fnt),
-            ResourceType::Gam => Ok(ImportedResource::Gam),
-            ResourceType::Glsl => Ok(ImportedResource::Glsl),
-            ResourceType::Gui => Ok(ImportedResource::Gui),
-            ResourceType::Itm => Ok(ImportedResource::Itm),
+                .map(ImportedResource::Itm),
             ResourceType::Lua => Ok(ImportedResource::Lua),
             ResourceType::Maze => Ok(ImportedResource::Maze),
             ResourceType::Menu => Ok(ImportedResource::Menu),
+            ResourceType::Mos => MosImporter { name: &self.name }
+                .import(ds)
+                .and_then(|mos| ImportedImage::from_mos(mos, game_data))
+                .map(ImportedResource::Image),
             ResourceType::Mus => Ok(ImportedResource::Mus),
             ResourceType::Mve => Ok(ImportedResource::Mve(movie::MovieSource::new(
                 ds.clone(),
                 &self.name,
             ))),
             ResourceType::Plt => Ok(ImportedResource::Plt),
+            ResourceType::Png => PngImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedImage::from_png)
+                .map(ImportedResource::Image),
             ResourceType::Pro => Ok(ImportedResource::Pro),
-            ResourceType::Spl => Ok(ImportedResource::Spl),
+            ResourceType::Pvrz => PvrzImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedImage::from_pvrz)
+                .map(ImportedResource::Image),
+            ResourceType::Spl => SplImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Spl),
             ResourceType::Sql => Ok(ImportedResource::Sql),
             ResourceType::Src => Ok(ImportedResource::Src),
             ResourceType::Sto => Ok(ImportedResource::Sto),
@@ -273,15 +274,24 @@ impl GameResource {
             ResourceType::Ttf => TtfImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Ttf),
+            ResourceType::TwoDA => TwoDAImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::TwoDA),
+            ResourceType::Unknown(id) => Ok(ImportedResource::Unknown(id)),
             ResourceType::Vef => Ok(ImportedResource::Vef),
             ResourceType::Vvc => Ok(ImportedResource::Vvc),
+            ResourceType::Wav => Ok(WavDecoder::open(ds, &self.name)
+                .map(SoundDecoder::Wav)
+                .map(ImportedResource::Sound)?),
             ResourceType::Wbm => Ok(ImportedResource::Wbm(movie::MovieSource::new(
                 ds.clone(),
                 &self.name,
             ))),
+            ResourceType::Wed => WedImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Wed),
             ResourceType::Wfx => Ok(ImportedResource::Wfx),
             ResourceType::Wmp => Ok(ImportedResource::Wmp),
-            ResourceType::Unknown(id) => Ok(ImportedResource::Unknown(id)),
         }
     }
 }

@@ -28,8 +28,14 @@ pub mod bif {
 pub mod bmp {
     pub use infinitier_bmp_resource::*;
 }
+pub mod cre {
+    pub use infinitier_cre_resource::*;
+}
 pub mod fnt {
     pub use infinitier_fnt_resource::*;
+}
+pub mod gam {
+    pub use infinitier_gam_resource::*;
 }
 pub mod common {
     pub use infinitier_bam_resource::common::*;
@@ -39,6 +45,9 @@ pub mod ids {
 }
 pub mod ini {
     pub use infinitier_ini_resource::*;
+}
+pub mod itm {
+    pub use infinitier_itm_resource::*;
 }
 pub mod key {
     pub use infinitier_key_resource::*;
@@ -52,8 +61,17 @@ pub mod png {
 pub mod pvrz {
     pub use infinitier_pvrz_resource::*;
 }
+pub mod sav {
+    pub use infinitier_sav_resource::*;
+}
+pub mod spl {
+    pub use infinitier_spl_resource::*;
+}
 pub mod tis {
     pub use infinitier_tis_resource::*;
+}
+pub mod tlk {
+    pub use infinitier_tlk_resource::*;
 }
 pub mod ttf {
     pub use infinitier_ttf_resource::*;

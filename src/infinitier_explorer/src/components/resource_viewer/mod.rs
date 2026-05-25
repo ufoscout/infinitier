@@ -153,14 +153,14 @@ impl ResourceViewer {
                                 ImportedResource::Bio => Box::new(BioViewer::new()),
                                 ImportedResource::Chr => Box::new(ChrViewer::new()),
                                 ImportedResource::Chu => Box::new(ChuViewer::new()),
-                                ImportedResource::Cre => Box::new(CreViewer::new()),
+                                ImportedResource::Cre(_) => Box::new(CreViewer::new()),
                                 ImportedResource::Dlg => Box::new(DlgViewer::new()),
                                 ImportedResource::Eff => Box::new(EffViewer::new()),
                                 ImportedResource::Fnt(fnt) => Box::new(FntViewer::new(fnt)),
-                                ImportedResource::Gam => Box::new(GamViewer::new()),
+                                ImportedResource::Gam(_) => Box::new(GamViewer::new()),
                                 ImportedResource::Glsl => Box::new(GlslViewer::new()),
                                 ImportedResource::Gui => Box::new(GuiViewer::new()),
-                                ImportedResource::Itm => Box::new(ItmViewer::new()),
+                                ImportedResource::Itm(_) => Box::new(ItmViewer::new()),
                                 ImportedResource::Lua => Box::new(LuaViewer::new()),
                                 ImportedResource::Maze => Box::new(MazeViewer::new()),
                                 ImportedResource::Menu => Box::new(MenuViewer::new()),
@@ -168,7 +168,7 @@ impl ResourceViewer {
                                 ImportedResource::Mve(src) => Box::new(MovieViewer::new(src)),
                                 ImportedResource::Plt => Box::new(PltViewer::new()),
                                 ImportedResource::Pro => Box::new(ProViewer::new()),
-                                ImportedResource::Spl => Box::new(SplViewer::new()),
+                                ImportedResource::Spl(_) => Box::new(SplViewer::new()),
                                 ImportedResource::Sql => Box::new(SqlViewer::new()),
                                 ImportedResource::Src => Box::new(SrcViewer::new()),
                                 ImportedResource::Sto => Box::new(StoViewer::new()),
@@ -186,7 +186,14 @@ impl ResourceViewer {
                                 ImportedResource::Wbm(src) => Box::new(MovieViewer::new(src)),
                                 ImportedResource::Wfx => Box::new(WfxViewer::new()),
                                 ImportedResource::Wmp => Box::new(WmpViewer::new()),
-                                ImportedResource::Unknown(_) => Box::new(UnknownViewer::new()),
+                                // Sav / Tlk have no `ResourceType` entry yet,
+                                // so the import dispatcher in
+                                // `infinitier_core::game` never produces them
+                                // here. Treat as Unknown for safety until they
+                                // get dedicated viewers.
+                                ImportedResource::Sav(_)
+                                | ImportedResource::Tlk(_)
+                                | ImportedResource::Unknown(_) => Box::new(UnknownViewer::new()),
                             },
                             Err(err) => {
                                 error!("Error importing resource: {resource_id:?}, {err:?}");
