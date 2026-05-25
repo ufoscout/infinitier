@@ -7,6 +7,7 @@ use infinitier_common::Game;
 use infinitier_core::game::GameData;
 
 use crate::save::SaveGame;
+use crate::ui::CharacterTab;
 
 /// Top-level keeper state. Loaded once at startup; refreshed on
 /// reload (future work — for now the loader runs in `main`).
@@ -28,6 +29,8 @@ pub struct AppState {
     /// Selected party-member row, or `None` until the user clicks
     /// one.
     pub selected_party_index: Option<usize>,
+    /// Currently-active tab in the per-character editor on the right.
+    pub selected_tab: CharacterTab,
 }
 
 impl AppState {
@@ -39,6 +42,7 @@ impl AppState {
             game_data,
             save,
             selected_party_index,
+            selected_tab: CharacterTab::Abilities,
         }
     }
 }
