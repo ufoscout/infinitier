@@ -1,7 +1,5 @@
 use eframe::egui;
-use infinitier_common::Game;
-use infinitier_cre_resource::Cre;
-use infinitier_gam_resource::Gam;
+use infinitier_core::resource::{Game, cre::Cre, gam::Gam};
 
 pub struct ResistancesTab;
 

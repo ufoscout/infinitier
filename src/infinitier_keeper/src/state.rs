@@ -3,8 +3,8 @@
 
 use std::path::PathBuf;
 
-use infinitier_common::Game;
 use infinitier_core::game::GameData;
+use infinitier_core::resource::Game;
 
 use crate::save::SaveGame;
 use crate::ui::CharacterTab;

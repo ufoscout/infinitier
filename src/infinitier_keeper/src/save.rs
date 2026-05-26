@@ -8,12 +8,12 @@
 //! [`SaveGame`] (the campaign-wide [`Gam`] plus a pre-parsed party
 //! summary so the UI never has to re-walk the CRE blobs).
 
-use infinitier_common::Engine;
-use infinitier_core::save_games::SaveGame as CoreSaveGame;
-use infinitier_cre_resource::{Cre, CreImporter};
-use infinitier_datasource::{DataSource, Importer};
-use infinitier_gam_resource::{Gam, GamImporter, GamNpc};
-use infinitier_tlk_resource::Tlk;
+use infinitier_core::fs::{DataSource, Importer};
+use infinitier_core::resource::Engine;
+use infinitier_core::resource::gam::{GamImporter, GamNpc};
+use infinitier_core::resource::tlk::Tlk;
+use infinitier_core::{resource::gam::Gam, save_games::SaveGame as CoreSaveGame};
+use infinitier_core::resource::cre::{Cre, CreImporter};
 
 /// A loaded save game — the parsed [`Gam`] plus a parsed per-party
 /// summary so the UI can render without re-walking the CRE blobs on
@@ -132,9 +132,10 @@ fn build_party_member(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_common::Game;
     use infinitier_core::fs::CaseInsensitiveFS;
-    use infinitier_core::save_games::scan_save_games;
+    use infinitier_core::resource::Game;
+use infinitier_core::resource::tlk::TlkImporter;
+use infinitier_core::save_games::scan_save_games;
 
     /// Build a `core::save_games::SaveGame` for the fixture under
     /// `assets/SAV_GAM/<engine_dir>/<save_dir>/<save_name>` using the
@@ -242,7 +243,6 @@ mod tests {
     /// without needing a 5 MB `dialog.tlk` checked into the repo.
     #[test]
     fn party_names_resolve_via_tlk() {
-        use infinitier_tlk_resource::TlkImporter;
 
         let core_save = fixture_save(
             "bg2_ee",

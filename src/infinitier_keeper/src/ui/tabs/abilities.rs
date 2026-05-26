@@ -7,9 +7,9 @@
 //! the on-disk fields, so the source of truth is the parsed header.
 
 use eframe::egui;
-use infinitier_common::Game;
-use infinitier_cre_resource::{Cre, CreHeader};
-use infinitier_gam_resource::{Gam, GamEngineData};
+use infinitier_core::resource::Game;
+use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
+use infinitier_core::resource::gam::{Gam, GamEngineData};
 
 pub struct AbilitiesTab;
 
@@ -419,7 +419,7 @@ fn format_attacks(raw: u8) -> String {
     }
 }
 
-fn format_iwd2_class_levels(h: &infinitier_cre_resource::CreHeaderV22) -> String {
+fn format_iwd2_class_levels(h: &CreHeaderV22) -> String {
     let entries = [
         ("Barbarian", h.barbarian_levels),
         ("Bard", h.bard_levels),

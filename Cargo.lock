@@ -2111,13 +2111,8 @@ dependencies = [
  "clap",
  "eframe",
  "env_logger",
- "infinitier_common",
  "infinitier_core",
- "infinitier_cre_resource",
- "infinitier_datasource",
- "infinitier_gam_resource",
  "infinitier_test_utils",
- "infinitier_tlk_resource",
  "log",
 ]
 
