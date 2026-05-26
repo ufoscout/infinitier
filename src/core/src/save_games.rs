@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use infinitier_common::resource::SaveGameResourceType;
+use infinitier_common::ResourceType;
 use infinitier_datasource::DataSource;
 use infinitier_fs::{CaseInsensitiveFS, CiPath};
 use log::debug;
@@ -121,7 +121,7 @@ pub fn scan_save_games(fs: &CaseInsensitiveFS) -> SaveGames {
     for save_dir in SAVE_DIRS {
         for sav in fs.list_files(
             save_dir,
-            Some(SaveGameResourceType::Sav.get_extension()),
+            ResourceType::Sav.get_extension(),
             true,
         ) {
             let Some(save) = build_save_game(fs, &sav) else {

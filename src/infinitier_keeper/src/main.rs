@@ -17,22 +17,16 @@ use crate::state::AppState;
 #[command(author, version, about)]
 struct Args {
     /// Comma-separated list of game folders (must contain a `CHITIN.KEY`
-    /// file in at least the first one). Used to detect which engine
-    /// produced the save and to look up shared game data (names, 2DA
-    /// tables, …) — none of this is hard-coded by the keeper. When
+    /// file in at least one). When
     /// multiple folders are given they are merged into a single
     /// case-insensitive view in input order — later folders override
     /// earlier ones on path conflicts (mod-overlay style).
     #[arg(long, value_delimiter = ',', required = true, num_args = 1..)]
     game_path: Vec<PathBuf>,
     /// Which save game to open. Accepts either:
-    /// - a numeric index into the list returned by
-    ///   [`infinitier_core::game::GameData::save_games`] (alphabetical
+    /// - a numeric index (alphabetical
     ///   by save folder name, starting at 0), or
     /// - the on-disk save folder name (e.g. `000000001-Quick-Save`).
-    ///
-    /// Anything that parses as a `usize` is treated as an index; every
-    /// other string is treated as a name.
     #[arg(long)]
     savegame: String,
     /// Log filter, e.g. "warn", "debug", "infinitier=debug,warn".
@@ -54,8 +48,6 @@ fn main() {
     let args = Args::parse();
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    // Game detection drives every engine-specific decision below — we
-    // never read it from CLI flags or a config file.
     let game = detect_game(
         &CaseInsensitiveFS::new(args.game_path.as_slice()).unwrap_or_else(|e| {
             eprintln!(
@@ -83,10 +75,6 @@ fn main() {
             std::process::exit(1);
         });
 
-    // Save lookup goes through the GameData so the same FS that backs
-    // resource lookups also picks up saves — keeps everything in one
-    // case-insensitive index instead of having the keeper rummage on
-    // disk directly.
     let save_games = game_data.save_games();
     let core_save = if let Ok(idx) = args.savegame.parse::<usize>() {
         save_games.by_index(idx).cloned().unwrap_or_else(|| {

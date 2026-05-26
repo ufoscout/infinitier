@@ -225,8 +225,10 @@ impl GameResource {
         use infinitier_mos_resource::MosImporter;
         use infinitier_png_resource::PngImporter;
         use infinitier_pvrz_resource::PvrzImporter;
+        use infinitier_sav_resource::SavImporter;
         use infinitier_spl_resource::SplImporter;
         use infinitier_tis_resource::TisImporter;
+        use infinitier_tlk_resource::TlkImporter;
         use infinitier_ttf_resource::TtfImporter;
         use infinitier_two_da_resource::TwoDAImporter;
         use infinitier_wed_resource::WedImporter;
@@ -307,6 +309,9 @@ impl GameResource {
                 .import(ds)
                 .map(ImportedImage::from_pvrz)
                 .map(ImportedResource::Image),
+            ResourceType::Sav => SavImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Sav),
             ResourceType::Spl => SplImporter { name: &self.name }
                 .import(ds)
                 .map(ImportedResource::Spl),
@@ -318,6 +323,9 @@ impl GameResource {
                 .import(ds)
                 .and_then(|tis| ImportedTis::load(tis, game_data, &self.name))
                 .map(ImportedResource::Tis),
+            ResourceType::Tlk => TlkImporter { name: &self.name }
+                .import(ds)
+                .map(ImportedResource::Tlk),
             ResourceType::Toh => Ok(ImportedResource::Toh),
             ResourceType::Tot => Ok(ImportedResource::Tot),
             ResourceType::Ttf => TtfImporter { name: &self.name }
@@ -575,6 +583,12 @@ impl GameDataBuilder {
             &mut game_data,
             "sounds",
             ResourceType::Wav.get_extension(),
+            false,
+        )?;
+        self.add_resources_from_dir(
+            &mut game_data,
+            "",
+            ResourceType::Tlk.get_extension(),
             false,
         )?;
         self.add_resources_from_dir(&mut game_data, "override", None, false)?;

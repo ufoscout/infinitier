@@ -142,7 +142,17 @@ fn detect_demo(key: &Key) -> io::Result<Option<bool>> {
 
 fn write_resource_entry(buf: &mut Vec<u8>, entry: &ResourceEntry) -> io::Result<()> {
     write_fixed_string(buf, &entry.resource_name, 8)?;
-    buf.extend_from_slice(&entry.r#type.to_u16().to_le_bytes());
+    // KEY entries are addressed by a 16-bit type id. The standalone-file
+    // resource kinds (`Sav` / `Tlk`) have no such id and cannot be
+    // listed in a KEY — fail explicitly rather than silently writing
+    // a zero or panicking.
+    let type_id = entry.r#type.to_u16().ok_or_else(|| {
+        io::Error::other(format!(
+            "resource '{}' has type {:?} which has no KEY/BIF u16 id and cannot be exported",
+            entry.resource_name, entry.r#type,
+        ))
+    })?;
+    buf.extend_from_slice(&type_id.to_le_bytes());
     let bif_entries_index = u32::try_from(entry.bif_entries_index).map_err(|_| {
         io::Error::other(format!(
             "bif_entries_index out of range: {}",

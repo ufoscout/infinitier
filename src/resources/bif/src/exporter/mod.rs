@@ -132,10 +132,19 @@ fn build_biff_v1(bif: &Bif) -> io::Result<Vec<u8>> {
             ..
         } = resource
         {
+            // BIF file entries use the 16-bit type id; the
+            // standalone-file resource kinds (`Sav` / `Tlk`) have
+            // none and cannot live inside a BIF.
+            let type_id = r#type.to_u16().ok_or_else(|| {
+                io::Error::other(format!(
+                    "BIF file entry #{i} has type {:?} which has no KEY/BIF u16 id and cannot be exported",
+                    r#type,
+                ))
+            })?;
             out.extend_from_slice(&locator.to_le_bytes());
             out.extend_from_slice(&new_offsets[i].to_le_bytes());
             out.extend_from_slice(&size.to_le_bytes());
-            out.extend_from_slice(&r#type.to_u16().to_le_bytes());
+            out.extend_from_slice(&type_id.to_le_bytes());
             out.extend_from_slice(&0u16.to_le_bytes()); // unknown / reserved
         }
     }
@@ -150,11 +159,17 @@ fn build_biff_v1(bif: &Bif) -> io::Result<Vec<u8>> {
             ..
         } = resource
         {
+            let type_id = r#type.to_u16().ok_or_else(|| {
+                io::Error::other(format!(
+                    "BIF tileset entry #{i} has type {:?} which has no KEY/BIF u16 id and cannot be exported",
+                    r#type,
+                ))
+            })?;
             out.extend_from_slice(&locator.to_le_bytes());
             out.extend_from_slice(&new_offsets[i].to_le_bytes());
             out.extend_from_slice(&count.to_le_bytes());
             out.extend_from_slice(&size.to_le_bytes());
-            out.extend_from_slice(&r#type.to_u16().to_le_bytes());
+            out.extend_from_slice(&type_id.to_le_bytes());
             out.extend_from_slice(&0u16.to_le_bytes()); // unknown / reserved
         }
     }

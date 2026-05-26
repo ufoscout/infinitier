@@ -2,29 +2,6 @@ use serde::{Deserialize, Serialize};
 
 /// A Resource file type
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SaveGameResourceType {
-    Sav,
-}
-
-impl SaveGameResourceType {
-    pub fn from_extension(ext: &str) -> Option<SaveGameResourceType> {
-        let ext = ext.trim_start_matches('.').to_ascii_lowercase();
-        match ext.as_str() {
-            "sav" => Some(SaveGameResourceType::Sav),
-            _ => None,
-        }
-    }
-
-    /// Returns the extension of the `ResourceType` enum variant as a string, or `None` if it is unknown.
-    pub fn get_extension(&self) -> &'static str {
-        match self {
-            SaveGameResourceType::Sav => "sav",
-        }
-    }
-}
-
-/// A Resource file type
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceType {
     Acm,
     Are,
@@ -56,12 +33,16 @@ pub enum ResourceType {
     Png,
     Pro,
     Pvrz,
+    /// Per-area save state.
+    Sav,
     Spl,
     Sql,
     Src,
     Sto,
     Tga,
     Tis,
+    /// Localized string table (`dialog.tlk` / `dialogF.tlk`).
+    Tlk,
     Toh,
     Tot,
     Ttf,
@@ -131,57 +112,61 @@ impl ResourceType {
         }
     }
 
-    /// Returns the hexadecimal value of the `ResourceType` enum variant.
-    pub fn to_u16(&self) -> u16 {
+    /// Hexadecimal id assigned by the engines (and used by KEY / BIF
+    /// to refer to the resource). `None` for resource kinds that the
+    /// engines never embed in KEY / BIF.
+    pub fn to_u16(&self) -> Option<u16> {
         match self {
-            ResourceType::Bmp => 0x001,
-            ResourceType::Mve => 0x002,
-            ResourceType::Wav => 0x004,
-            ResourceType::Wfx => 0x005,
-            ResourceType::Plt => 0x006,
-            ResourceType::Tga => 0x3b8,
-            ResourceType::Bam => 0x3e8,
-            ResourceType::Wed => 0x3e9,
-            ResourceType::Chu => 0x3ea,
-            ResourceType::Tis => 0x3eb,
-            ResourceType::Mos => 0x3ec,
-            ResourceType::Itm => 0x3ed,
-            ResourceType::Spl => 0x3ee,
-            ResourceType::Bcs => 0x3ef,
-            ResourceType::Ids => 0x3f0,
-            ResourceType::Cre => 0x3f1,
-            ResourceType::Are => 0x3f2,
-            ResourceType::Dlg => 0x3f3,
-            ResourceType::TwoDA => 0x3f4,
-            ResourceType::Gam => 0x3f5,
-            ResourceType::Sto => 0x3f6,
-            ResourceType::Wmp => 0x3f7,
-            ResourceType::Eff => 0x3f8,
-            ResourceType::Bs => 0x3f9,
-            ResourceType::Chr => 0x3fa,
-            ResourceType::Vvc => 0x3fb,
-            ResourceType::Vef => 0x3fc,
-            ResourceType::Pro => 0x3fd,
-            ResourceType::Bio => 0x3fe,
-            ResourceType::Wbm => 0x3ff,
-            ResourceType::Fnt => 0x400,
-            ResourceType::Gui => 0x402,
-            ResourceType::Sql => 0x403,
-            ResourceType::Pvrz => 0x404,
-            ResourceType::Glsl => 0x405,
-            ResourceType::Tot => 0x406,
-            ResourceType::Toh => 0x407,
-            ResourceType::Menu => 0x408,
-            ResourceType::Lua => 0x409,
-            ResourceType::Ttf => 0x40a,
-            ResourceType::Png => 0x40b,
-            ResourceType::Bah => 0x44c,
-            ResourceType::Ini => 0x802,
-            ResourceType::Src => 0x803,
-            ResourceType::Maze => 0x804,
-            ResourceType::Mus => 0xffe,
-            ResourceType::Acm => 0xfff,
-            ResourceType::Unknown(i) => *i,
+            ResourceType::Bmp => Some(0x001),
+            ResourceType::Mve => Some(0x002),
+            ResourceType::Wav => Some(0x004),
+            ResourceType::Wfx => Some(0x005),
+            ResourceType::Plt => Some(0x006),
+            ResourceType::Tga => Some(0x3b8),
+            ResourceType::Bam => Some(0x3e8),
+            ResourceType::Wed => Some(0x3e9),
+            ResourceType::Chu => Some(0x3ea),
+            ResourceType::Tis => Some(0x3eb),
+            ResourceType::Mos => Some(0x3ec),
+            ResourceType::Itm => Some(0x3ed),
+            ResourceType::Spl => Some(0x3ee),
+            ResourceType::Bcs => Some(0x3ef),
+            ResourceType::Ids => Some(0x3f0),
+            ResourceType::Cre => Some(0x3f1),
+            ResourceType::Are => Some(0x3f2),
+            ResourceType::Dlg => Some(0x3f3),
+            ResourceType::TwoDA => Some(0x3f4),
+            ResourceType::Gam => Some(0x3f5),
+            ResourceType::Sto => Some(0x3f6),
+            ResourceType::Wmp => Some(0x3f7),
+            ResourceType::Eff => Some(0x3f8),
+            ResourceType::Bs => Some(0x3f9),
+            ResourceType::Chr => Some(0x3fa),
+            ResourceType::Vvc => Some(0x3fb),
+            ResourceType::Vef => Some(0x3fc),
+            ResourceType::Pro => Some(0x3fd),
+            ResourceType::Bio => Some(0x3fe),
+            ResourceType::Wbm => Some(0x3ff),
+            ResourceType::Fnt => Some(0x400),
+            ResourceType::Gui => Some(0x402),
+            ResourceType::Sql => Some(0x403),
+            ResourceType::Pvrz => Some(0x404),
+            ResourceType::Glsl => Some(0x405),
+            ResourceType::Tot => Some(0x406),
+            ResourceType::Toh => Some(0x407),
+            ResourceType::Menu => Some(0x408),
+            ResourceType::Lua => Some(0x409),
+            ResourceType::Ttf => Some(0x40a),
+            ResourceType::Png => Some(0x40b),
+            ResourceType::Bah => Some(0x44c),
+            ResourceType::Ini => Some(0x802),
+            ResourceType::Src => Some(0x803),
+            ResourceType::Maze => Some(0x804),
+            ResourceType::Mus => Some(0xffe),
+            ResourceType::Acm => Some(0xfff),
+            ResourceType::Unknown(i) => Some(*i),
+            // Standalone-file resources without a KEY/BIF u16 id.
+            ResourceType::Sav | ResourceType::Tlk => None,
         }
     }
 
@@ -238,6 +223,8 @@ impl ResourceType {
             "maze" => Some(ResourceType::Maze),
             "mus" => Some(ResourceType::Mus),
             "acm" => Some(ResourceType::Acm),
+            "sav" => Some(ResourceType::Sav),
+            "tlk" => Some(ResourceType::Tlk),
             _ => None,
         }
     }
@@ -292,6 +279,8 @@ impl ResourceType {
             ResourceType::Maze => Some("maze"),
             ResourceType::Mus => Some("mus"),
             ResourceType::Acm => Some("acm"),
+            ResourceType::Sav => Some("sav"),
+            ResourceType::Tlk => Some("tlk"),
             ResourceType::Unknown(_) => None,
         }
     }
@@ -304,8 +293,23 @@ mod tests {
     #[test]
     fn test_resource_type_roundtrip() {
         for i in 0..16u16.pow(3) {
-            assert_eq!(ResourceType::from(i).to_u16(), i);
+            // `from(u16)` never produces `Sav`/`Tlk` (those have no u16
+            // id), so every variant it can hand back round-trips
+            // through `Some(i)`.
+            assert_eq!(ResourceType::from(i).to_u16(), Some(i));
         }
+    }
+
+    #[test]
+    fn test_sav_and_tlk_have_no_u16() {
+        // The standalone-file kinds have no KEY/BIF u16 id.
+        assert_eq!(ResourceType::Sav.to_u16(), None);
+        assert_eq!(ResourceType::Tlk.to_u16(), None);
+        // But they still round-trip via extensions.
+        assert_eq!(ResourceType::from_extension("sav"), Some(ResourceType::Sav));
+        assert_eq!(ResourceType::from_extension("tlk"), Some(ResourceType::Tlk));
+        assert_eq!(ResourceType::Sav.get_extension(), Some("sav"));
+        assert_eq!(ResourceType::Tlk.get_extension(), Some("tlk"));
     }
 
     #[test]
