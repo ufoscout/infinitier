@@ -16,7 +16,9 @@ impl HeaderPanel {
                     ui.strong("Game folder:");
                     ui.label(
                         state
-                            .game_data.fs().get_roots()
+                            .game_data
+                            .fs()
+                            .get_roots()
                             .iter()
                             .map(|p| p.display().to_string())
                             .collect::<Vec<_>>()
@@ -28,7 +30,7 @@ impl HeaderPanel {
                     ui.label(&state.save_name);
                     ui.separator();
                     ui.strong("Version:");
-                    ui.label(format!("{:?}", state.save.gam.version));
+                    ui.label(format!("{:?}", state.save.version));
                 });
             });
     }

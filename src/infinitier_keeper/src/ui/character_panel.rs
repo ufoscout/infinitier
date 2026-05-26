@@ -49,7 +49,7 @@ impl CharacterPanel {
                     ui,
                     state.selected_tab,
                     cre,
-                    &state.save.gam,
+                    &state.save,
                     state.game_data.game(),
                 ),
                 Some(NpcCre::Ref(resref)) => {

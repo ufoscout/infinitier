@@ -121,10 +121,7 @@ fn main() {
         std::process::exit(1);
     });
     let imported_gam = ImportedGam::load(gam, &game_data).unwrap_or_else(|e| {
-        eprintln!(
-            "Failed to resolve save '{}': {e}",
-            core_save.name,
-        );
+        eprintln!("Failed to resolve save '{}': {e}", core_save.name,);
         std::process::exit(1);
     });
 

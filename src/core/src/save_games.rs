@@ -118,11 +118,7 @@ impl SaveGames {
 pub fn scan_save_games(fs: &CaseInsensitiveFS) -> SaveGames {
     let mut saves: Vec<SaveGame> = Vec::new();
     for save_dir in SAVE_DIRS {
-        for sav in fs.list_files(
-            save_dir,
-            ResourceType::Sav.get_extension(),
-            true,
-        ) {
+        for sav in fs.list_files(save_dir, ResourceType::Sav.get_extension(), true) {
             let Some(save) = build_save_game(fs, &sav) else {
                 continue;
             };

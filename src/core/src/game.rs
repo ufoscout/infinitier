@@ -29,7 +29,6 @@ pub struct GameData {
 }
 
 impl GameData {
-    
     /// Return the underlying file system
     pub fn fs(&self) -> &CaseInsensitiveFS {
         &self.fs
@@ -39,7 +38,6 @@ impl GameData {
     pub fn len(&self) -> usize {
         self.resources.len()
     }
-
 
     /// Return true if there are no resources
     pub fn is_empty(&self) -> bool {
@@ -75,7 +73,8 @@ impl GameData {
         r#type: ResourceType,
     ) -> io::Result<Option<ImportedResource>> {
         self.get_by_name_and_type(name, r#type)
-            .map(|resource| resource.import(self)).transpose()
+            .map(|resource| resource.import(self))
+            .transpose()
     }
 
     /// Return every resource of `r#type`. Lookup is constant-time via
@@ -573,7 +572,7 @@ impl GameDataBuilder {
             ResourceType::Wav.get_extension(),
             false,
         )?;
-        
+
         let tlk = self.add_resources_from_dir(
             &mut game_data,
             "",
@@ -583,12 +582,12 @@ impl GameDataBuilder {
 
         if tlk == 0 {
             // Workaround for no tlk found in root directory
-           self.add_resources_from_dir(
+            self.add_resources_from_dir(
                 &mut game_data,
                 "lang/en_us",
                 ResourceType::Tlk.get_extension(),
                 false,
-            )?; 
+            )?;
         }
 
         self.add_resources_from_dir(&mut game_data, "override", None, false)?;

@@ -7,7 +7,8 @@
 //! will flesh out in follow-up work.
 
 use eframe::egui;
-use infinitier_core::resource::{Game, cre::Cre, gam::Gam};
+use infinitier_core::imported_resource::gam::ImportedGam;
+use infinitier_core::resource::{Game, cre::Cre};
 
 mod abilities;
 mod appearance;
@@ -106,7 +107,7 @@ impl CharacterTab {
 
 /// Render the content area of the active tab. The tab strip itself
 /// is owned by the parent panel — this just dispatches.
-pub fn show_tab(ui: &mut egui::Ui, tab: CharacterTab, cre: &Cre, gam: &Gam, game: Game) {
+pub fn show_tab(ui: &mut egui::Ui, tab: CharacterTab, cre: &Cre, gam: &ImportedGam, game: Game) {
     match tab {
         CharacterTab::Abilities => AbilitiesTab.show(ui, cre, gam, game),
         CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, gam, game),

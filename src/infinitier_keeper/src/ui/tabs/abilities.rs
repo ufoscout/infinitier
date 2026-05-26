@@ -7,16 +7,15 @@
 //! the on-disk fields, so the source of truth is the parsed header.
 
 use eframe::egui;
+use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::Game;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
-use infinitier_core::resource::gam::Gam;
 
 pub struct AbilitiesTab;
 
 impl AbilitiesTab {
-    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, gam: &Gam, _game: Game) {
+    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, gam: &ImportedGam, _game: Game) {
         egui::ScrollArea::vertical().show(ui, |ui| {
-
             ui.columns(3, |cols| {
                 section(&mut cols[0], "Ability scores", |ui| ability_scores(ui, cre));
                 cols[0].add_space(8.0);
@@ -76,7 +75,7 @@ fn ability_scores(ui: &mut egui::Ui, cre: &Cre) {
         });
 }
 
-fn combat_stats(ui: &mut egui::Ui, cre: &Cre, gam: &Gam) {
+fn combat_stats(ui: &mut egui::Ui, cre: &Cre, gam: &ImportedGam) {
     egui::Grid::new("abilities_combat")
         .num_columns(2)
         .spacing([16.0, 4.0])
@@ -381,7 +380,6 @@ fn row(ui: &mut egui::Ui, label: &str, value: &str) {
     ui.strong(value);
     ui.end_row();
 }
-
 
 fn format_iwd2_class_levels(h: &CreHeaderV22) -> String {
     let entries = [
