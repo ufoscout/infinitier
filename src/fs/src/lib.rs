@@ -65,11 +65,7 @@ impl CaseInsensitiveFS {
         fallbacks: Vec<String>,
     ) -> io::Result<CaseInsensitiveFS> {
         let roots = roots.pathbufs();
-        let mut paths = BTreeMap::new();
-        for root in roots.iter() {
-            paths.append(&mut list_real_entries_recursive(root)?);
-        }
-
+        let paths = index_roots(&roots)?;
         Ok(CaseInsensitiveFS {
             roots,
             fallbacks,
@@ -81,6 +77,75 @@ impl CaseInsensitiveFS {
     /// In case of conflicts, the last root is used.
     pub fn get_roots(&self) -> &[PathBuf] {
         &self.roots
+    }
+
+    /// Re-walks the filesystem and refreshes the indexed path map.
+    ///
+    /// - `refresh(None)` rebuilds the full index from scratch by
+    ///   re-walking every [`get_roots`](Self::get_roots) entry.
+    /// - `refresh(Some(subpath))` only re-walks `subpath` under each
+    ///   root; entries whose key is `subpath` or sits underneath it
+    ///   (`subpath/…`) are dropped first, then replaced with whatever
+    ///   the rescan finds. Untouched siblings keep their existing
+    ///   entries — so a per-save-folder refresh after a write doesn't
+    ///   force a full re-walk of the multi-thousand-file game folder.
+    ///
+    /// `subpath` is normalised the same way as
+    /// [`get_path_opt`](Self::get_path_opt) — case-insensitive,
+    /// backslash-converted, leading-slash-stripped. An empty or
+    /// all-slash `subpath` is treated as `None` (full refresh).
+    pub fn refresh(&mut self, subpath: Option<&str>) -> io::Result<()> {
+        let normalized = subpath.map(CiPath::normalize).filter(|s| !s.is_empty());
+
+        let fresh = match &normalized {
+            None => index_roots(&self.roots)?,
+            Some(sub) => self.rescan_subpath(sub)?,
+        };
+
+        self.paths = Arc::new(match normalized {
+            // Full refresh — the rescan already covers every root.
+            None => fresh,
+            Some(sub) => {
+                // Drop stale entries under the refreshed subtree, then
+                // splice in the fresh ones. Anything outside the
+                // subtree survives untouched.
+                let prefix = format!("{sub}/");
+                let mut merged: BTreeMap<String, PathBuf> = (*self.paths).clone();
+                merged.retain(|key, _| !(key == sub.as_str() || key.starts_with(&prefix)));
+                merged.extend(fresh);
+                merged
+            }
+        });
+        Ok(())
+    }
+
+    /// Internal helper: re-walk `normalized_sub` under every root.
+    /// Roots where the subpath doesn't exist contribute no entries;
+    /// that's the mechanism for picking up on-disk deletions inside
+    /// the subtree.
+    fn rescan_subpath(&self, normalized_sub: &str) -> io::Result<BTreeMap<String, PathBuf>> {
+        let mut paths = BTreeMap::new();
+        for root in &self.roots {
+            let target = root.join(normalized_sub);
+            if target.is_dir() {
+                let canonical_root = root.canonicalize()?;
+                let canonical_target = target.canonicalize()?;
+                recurse(&canonical_root, &canonical_target, &mut paths)?;
+            } else if target.is_file() {
+                let canonical_root = root.canonicalize()?;
+                let canonical_target = target.canonicalize()?;
+                if let Ok(rel) = canonical_target.strip_prefix(&canonical_root)
+                    && let Some(s) = rel.to_str()
+                {
+                    paths.insert(s.to_lowercase(), canonical_target);
+                }
+            }
+            // Doesn't exist on this root: leave it. The caller's
+            // retain() step has already dropped any stale entries —
+            // an on-disk deletion inside the subtree is correctly
+            // reflected as the entry going away.
+        }
+        Ok(paths)
     }
 
     /// Returns a `CiPath` for the file or directory at the given path relative to root.
@@ -236,6 +301,17 @@ impl CiPath {
     pub fn base_name_without_extension(&self) -> &str {
         self.base_name().split('.').next().unwrap()
     }
+}
+
+/// Walk every root in input order and merge their recursive listings
+/// into a single path index. Shared by [`CaseInsensitiveFS::new_with_fallback`]
+/// (initial build) and [`CaseInsensitiveFS::refresh`] (full rebuild).
+fn index_roots(roots: &[PathBuf]) -> io::Result<BTreeMap<String, PathBuf>> {
+    let mut paths = BTreeMap::new();
+    for root in roots {
+        paths.append(&mut list_real_entries_recursive(root)?);
+    }
+    Ok(paths)
 }
 
 /// Reads a directory and returns a map of all the files in it
@@ -658,5 +734,90 @@ mod tests {
             assert!(has(&files, root.join("INNER/file1.json")));
             assert!(has(&files, root.join("INNER/inner/file1.ini")));
         }
+    }
+
+    #[test]
+    fn refresh_full_picks_up_added_and_dropped_files() {
+        let temp = tempfile::tempdir().unwrap();
+        File::create(temp.path().join("seed.txt")).unwrap();
+        let mut fs = CaseInsensitiveFS::new(temp.path()).unwrap();
+
+        assert!(fs.get_path_opt("seed.txt").is_some());
+        assert!(fs.get_path_opt("added.txt").is_none());
+
+        // Mutate the filesystem outside the FS's knowledge.
+        File::create(temp.path().join("added.txt")).unwrap();
+        std::fs::remove_file(temp.path().join("seed.txt")).unwrap();
+
+        // refresh(None) — full rebuild — sees both edits.
+        fs.refresh(None).unwrap();
+        assert!(fs.get_path_opt("added.txt").is_some());
+        assert!(fs.get_path_opt("seed.txt").is_none());
+    }
+
+    #[test]
+    fn refresh_subpath_only_touches_that_subtree() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir(root.join("save")).unwrap();
+        File::create(root.join("save/a.txt")).unwrap();
+        File::create(root.join("untouched.txt")).unwrap();
+        let mut fs = CaseInsensitiveFS::new(root).unwrap();
+
+        // Both visible after initial index.
+        assert!(fs.get_path_opt("save/a.txt").is_some());
+        assert!(fs.get_path_opt("untouched.txt").is_some());
+
+        // Delete BOTH on disk, but ask for a subpath-scoped refresh.
+        std::fs::remove_file(root.join("save/a.txt")).unwrap();
+        std::fs::remove_file(root.join("untouched.txt")).unwrap();
+        fs.refresh(Some("save")).unwrap();
+
+        // `save/a.txt` removal is visible — the subtree was rescanned
+        // and the entry is gone.
+        assert!(fs.get_path_opt("save/a.txt").is_none());
+        // `untouched.txt` was outside the refreshed subtree, so its
+        // stale entry survives — the FS doesn't know it's gone.
+        assert!(fs.get_path_opt("untouched.txt").is_some());
+    }
+
+    #[test]
+    fn refresh_subpath_picks_up_new_files_under_subtree() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir(root.join("save")).unwrap();
+        let mut fs = CaseInsensitiveFS::new(root).unwrap();
+        assert!(fs.get_path_opt("save/new.txt").is_none());
+
+        File::create(root.join("save/new.txt")).unwrap();
+        fs.refresh(Some("Save")).unwrap(); // case-insensitive
+        assert!(fs.get_path_opt("save/new.txt").is_some());
+    }
+
+    #[test]
+    fn refresh_subpath_treats_empty_normalized_as_full_refresh() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut fs = CaseInsensitiveFS::new(temp.path()).unwrap();
+
+        File::create(temp.path().join("appeared.txt")).unwrap();
+        // "/" normalises to "" — should behave like full refresh.
+        fs.refresh(Some("/")).unwrap();
+        assert!(fs.get_path_opt("appeared.txt").is_some());
+    }
+
+    #[test]
+    fn refresh_subpath_drops_entries_when_subpath_no_longer_exists() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir(root.join("save")).unwrap();
+        File::create(root.join("save/a.txt")).unwrap();
+        File::create(root.join("save/b.txt")).unwrap();
+        let mut fs = CaseInsensitiveFS::new(root).unwrap();
+
+        // Whole-directory deletion: a/b should both go away after refresh.
+        std::fs::remove_dir_all(root.join("save")).unwrap();
+        fs.refresh(Some("save")).unwrap();
+        assert!(fs.get_path_opt("save/a.txt").is_none());
+        assert!(fs.get_path_opt("save/b.txt").is_none());
     }
 }

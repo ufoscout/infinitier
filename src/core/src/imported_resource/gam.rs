@@ -90,7 +90,7 @@ pub struct ImportedGamNpc {
 #[derive(Debug, Clone)]
 pub enum NpcCre {
     /// Embedded CRE blob, parsed from `gam_file[cre_offset .. cre_offset + cre_size]`.
-    Cre(Cre),
+    Cre(Box<Cre>),
     /// External CRE referenced by resref. The string is
     /// [`GamNpc::character_name`] trimmed of trailing NUL bytes /
     /// whitespace.
@@ -287,7 +287,7 @@ fn resolve_npc(
             name: &format!("gam_npc[{index}]"),
         }
         .import(&DataSource::new(cre_bytes))?;
-        Some(NpcCre::Cre(parsed))
+        Some(NpcCre::Cre(Box::new(parsed)))
     } else if !resref.is_empty() {
         // No embedded CRE but the slot still carries a name — treat
         // it as an external resref the engine will resolve against
