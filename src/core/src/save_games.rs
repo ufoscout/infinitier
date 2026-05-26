@@ -54,9 +54,8 @@ pub struct SaveGame {
     /// The `.SAV` file (per-area state). Always present — this is
     /// the file [`scan_save_games`] keys the discovery on.
     pub sav: DataSource,
-    /// The `.GAM` file (campaign-wide state). `None` when no GAM
-    /// sits next to the SAV (a broken / partial save).
-    pub gam: Option<DataSource>,
+    /// The `.GAM` file (campaign-wide state).
+    pub gam: DataSource,
     /// Area screenshot — the engine-named BMP next to the SAV
     /// (`BALDUR.BMP`, `ICEWIND.BMP`, `ICEWIND2.BMP`, `TORMENT.BMP`).
     /// `None` when absent.
@@ -159,7 +158,7 @@ fn build_save_game(fs: &CaseInsensitiveFS, sav: &CiPath) -> Option<SaveGame> {
         .list_files(parent_key, Some("gam"), false)
         .into_iter()
         .next()
-        .map(|p| DataSource::new(p.path().to_path_buf()));
+        .map(|p| DataSource::new(p.path().to_path_buf()))?;
     let worldmap = fs
         .list_files(parent_key, Some("wmp"), false)
         .into_iter()
@@ -272,7 +271,6 @@ mod tests {
         let target = saves
             .by_name("888888890-Alone with Imoen")
             .expect("fixture save must be present");
-        assert!(target.gam.is_some(), "BALDUR.GAM must be picked up");
         assert!(target.screenshot.is_some(), "BALDUR.BMP must be picked up");
         assert!(target.worldmap.is_some(), "WORLDMAP.WMP must be picked up");
         assert_eq!(

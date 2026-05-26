@@ -1,6 +1,5 @@
 use infinitier_cre_resource::Cre;
 use infinitier_fnt_resource::Fnt;
-use infinitier_gam_resource::Gam;
 use infinitier_ids_resource::Ids;
 use infinitier_ini_resource::Ini;
 use infinitier_itm_resource::Itm;
@@ -13,6 +12,7 @@ use infinitier_wed_resource::Wed;
 
 use bam::ImportedBam;
 use bcs::ImportedBcs;
+use gam::ImportedGam;
 use image::ImportedImage;
 use movie::MovieSource;
 use sound::SoundDecoder;
@@ -20,6 +20,7 @@ use tis::ImportedTis;
 
 pub mod bam;
 pub mod bcs;
+pub mod gam;
 pub mod image;
 pub mod movie;
 pub mod sound;
@@ -38,7 +39,7 @@ pub enum ImportedResource {
     Dlg,
     Eff,
     Fnt(Fnt),
-    Gam(Box<Gam>),
+    Gam(Box<ImportedGam>),
     Glsl,
     Gui,
     Ids(Ids),

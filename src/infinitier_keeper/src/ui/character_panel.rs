@@ -1,13 +1,14 @@
 //! Central per-character editor panel.
 //!
 //! Owns the tab strip across the top and dispatches to the currently
-//! selected tab module. Renders an empty / error placeholder when
-//! the user has not yet selected a party slot or the slot's embedded
-//! CRE blob did not parse.
+//! selected tab module. Renders an empty / error placeholder when the
+//! user has not yet selected a party slot, the slot is empty, or it
+//! references an external CRE we haven't resolved (those don't carry
+//! an in-band record to show).
 
 use eframe::egui;
+use infinitier_core::imported_resource::gam::{ImportedGamNpc, NpcCre};
 
-use crate::save::PartyMember;
 use crate::state::AppState;
 use crate::ui::tabs::{CharacterTab, show_tab};
 
@@ -20,7 +21,7 @@ impl CharacterPanel {
                 ui.label("Select a party member on the left to view their data.");
                 return;
             };
-            let Some(member) = state.save.party.get(idx) else {
+            let Some(member) = state.save.party_npcs.get(idx) else {
                 ui.colored_label(
                     egui::Color32::RED,
                     "Stale selection — party member not found.",
@@ -44,19 +45,27 @@ impl CharacterPanel {
             ui.separator();
 
             match &member.cre {
-                Ok(cre) => show_tab(ui, state.selected_tab, cre, &state.save.gam, state.game_data.game()),
-                Err(err) => {
-                    ui.colored_label(
-                        egui::Color32::from_rgb(180, 90, 90),
-                        format!("Could not parse this slot's CRE blob: {err}"),
-                    );
+                Some(NpcCre::Cre(cre)) => show_tab(
+                    ui,
+                    state.selected_tab,
+                    cre,
+                    &state.save.gam,
+                    state.game_data.game(),
+                ),
+                Some(NpcCre::Ref(resref)) => {
+                    ui.label(format!(
+                        "External CRE '{resref}' — embedded record not present in this GAM.",
+                    ));
+                }
+                None => {
+                    ui.label("Empty party slot — no creature record to edit.");
                 }
             }
         });
     }
 }
 
-fn member_title(idx: usize, member: &PartyMember) -> String {
+fn member_title(idx: usize, member: &ImportedGamNpc) -> String {
     if member.display_name.is_empty() {
         format!("Party slot {}", idx + 1)
     } else {

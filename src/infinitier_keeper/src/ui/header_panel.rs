@@ -25,7 +25,7 @@ impl HeaderPanel {
                 });
                 ui.horizontal_wrapped(|ui| {
                     ui.strong("Save:");
-                    ui.label(&state.save.name);
+                    ui.label(&state.save_name);
                     ui.separator();
                     ui.strong("Version:");
                     ui.label(format!("{:?}", state.save.gam.version));

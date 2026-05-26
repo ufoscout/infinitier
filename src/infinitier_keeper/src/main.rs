@@ -1,5 +1,4 @@
 mod app;
-mod save;
 mod state;
 mod ui;
 
@@ -7,8 +6,11 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use eframe::egui;
-use infinitier_core::imported_resource::ImportedResource;
-use infinitier_core::{fs::CaseInsensitiveFS, game::GameDataBuilder, game_detect::detect_game};
+use infinitier_core::fs::{CaseInsensitiveFS, Importer};
+use infinitier_core::game::GameDataBuilder;
+use infinitier_core::game_detect::detect_game;
+use infinitier_core::imported_resource::gam::ImportedGam;
+use infinitier_core::resource::gam::GamImporter;
 
 use crate::app::KeeperApp;
 use crate::state::AppState;
@@ -105,39 +107,30 @@ fn main() {
             })
     };
 
-    // dialog.tlk is loaded through the GameData too — same FS, same
-    // case-insensitive lookup. Failures are non-fatal: we fall back
-    // to the GAM long-name / engine script-name chain.
-    let tlk = match game_data.import_by_name_and_type("dialog", infinitier_core::resource::ResourceType::Tlk) {
-        Ok(Some(ImportedResource::Tlk(t))) => {
-            log::info!(
-                "Loaded dialog.tlk: lang_id={} entries={}",
-                t.language_id,
-                t.len(),
-            );
-            Some(t)
-        }
-        Ok(_) => {
-            log::warn!(
-                "No dialog.tlk found under [{}] — party-member names will fall back to engine script-names.",
-                display_paths(&args.game_path),
-            );
-            None
-        }
-        Err(e) => {
-            log::warn!("Failed to load dialog.tlk: {e}");
-            None
-        }
-    };
-
-    let save = save::load_save(&core_save, game.engine(), tlk.as_ref()).unwrap_or_else(|e| {
-        log::error!("Failed to load save '{}': {e}", core_save.name);
+    // Parse the GAM through its DataSource (from the discovered save
+    // folder) then resolve it via `ImportedGam` so every embedded CRE
+    // is pre-parsed and every NPC name is TLK-resolved. Strict mode:
+    // a corrupt embedded CRE aborts the open with a clear error.
+    let gam = GamImporter {
+        name: &core_save.name,
+        engine: game.engine(),
+    }
+    .import(&core_save.gam)
+    .unwrap_or_else(|e| {
+        eprintln!("Failed to import GAM for '{}': {e}", core_save.name);
+        std::process::exit(1);
+    });
+    let imported_gam = ImportedGam::load(gam, &game_data).unwrap_or_else(|e| {
+        eprintln!(
+            "Failed to resolve save '{}' (corrupt embedded CRE?): {e}",
+            core_save.name,
+        );
         std::process::exit(1);
     });
 
-    let title = format!("Infinitier Keeper — {:?} — {}", game, save.name,);
+    let title = format!("Infinitier Keeper — {:?} — {}", game, core_save.name);
 
-    let state = AppState::new(game_data, save);
+    let state = AppState::new(game_data, core_save.name, Box::new(imported_gam));
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

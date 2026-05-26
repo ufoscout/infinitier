@@ -93,6 +93,14 @@ impl GameData {
         crate::save_games::scan_save_games(&self.fs)
     }
 
+    /// Locate and load the game's `dialog.tlk`.
+    pub fn dialog_tlk(&self) -> io::Result<infinitier_tlk_resource::Tlk> {
+        match self.import_by_name_and_type("dialog", ResourceType::Tlk)? {
+            Some(ImportedResource::Tlk(tlk)) => Ok(tlk),
+            _ => Err(io::Error::from(io::ErrorKind::NotFound)),
+        }
+    }
+
     /// Creates a GameData from a list of resources
     pub fn new(resources: Vec<GameResource>, game_type: Game, fs: CaseInsensitiveFS) -> Self {
         let mut game_data = GameData {
@@ -251,7 +259,8 @@ impl GameResource {
                 engine: game_data.game().engine(),
             }
             .import(ds)
-            .map(|gam| ImportedResource::Gam(Box::new(gam))),
+            .and_then(|gam| crate::imported_resource::gam::ImportedGam::load(gam, game_data))
+            .map(|imported| ImportedResource::Gam(Box::new(imported))),
             ResourceType::Glsl => Ok(ImportedResource::Glsl),
             ResourceType::Gui => Ok(ImportedResource::Gui),
             ResourceType::Ids => IdsImporter { name: &self.name }
