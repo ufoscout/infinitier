@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use eframe::egui;
+use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::{fs::CaseInsensitiveFS, game::GameDataBuilder, game_detect::detect_game};
 
 use crate::app::KeeperApp;
@@ -107,8 +108,8 @@ fn main() {
     // dialog.tlk is loaded through the GameData too — same FS, same
     // case-insensitive lookup. Failures are non-fatal: we fall back
     // to the GAM long-name / engine script-name chain.
-    let tlk = match game_data.dialog_tlk() {
-        Ok(Some(t)) => {
+    let tlk = match game_data.import_by_name_and_type("dialog", infinitier_core::resource::ResourceType::Tlk) {
+        Ok(Some(ImportedResource::Tlk(t))) => {
             log::info!(
                 "Loaded dialog.tlk: lang_id={} entries={}",
                 t.language_id,
@@ -116,7 +117,7 @@ fn main() {
             );
             Some(t)
         }
-        Ok(None) => {
+        Ok(_) => {
             log::warn!(
                 "No dialog.tlk found under [{}] — party-member names will fall back to engine script-names.",
                 display_paths(&args.game_path),

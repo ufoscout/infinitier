@@ -9,7 +9,7 @@ use infinitier_key_resource::KeyImporter;
 use infinitier_wav_decoder::WavDecoder;
 use log::{debug, warn};
 
-use crate::imported_resource::{movie, sound::SoundDecoder};
+use crate::imported_resource::{ImportedResource, movie, sound::SoundDecoder};
 
 pub type ResourceId = usize;
 
@@ -61,6 +61,16 @@ impl GameData {
             .and_then(|&id| self.resources.get(id))
     }
 
+    /// Import a resource by name and type
+    pub fn import_by_name_and_type(
+        &self,
+        name: &str,
+        r#type: ResourceType,
+    ) -> io::Result<Option<ImportedResource>> {
+        self.get_by_name_and_type(name, r#type)
+            .map(|resource| resource.import(self)).transpose()
+    }
+
     /// Return every resource of `r#type`. Lookup is constant-time via
     /// the pre-built type index; iteration is then linear in the number
     /// of matches. Yields nothing when no resource of that type exists.
@@ -74,47 +84,6 @@ impl GameData {
     /// Discover the save games visible on `fs`.
     pub fn save_games(&self) -> crate::save_games::SaveGames {
         crate::save_games::scan_save_games(&self.fs)
-    }
-
-    /// Locate and load the game's `dialog.tlk`. Returns `Ok(None)` when
-    /// no `dialog.tlk` is reachable through the FS; `Err` when one is
-    /// found but the parser rejects it.
-    ///
-    /// Search order:
-    ///
-    /// 1. `lang/en_us/dialog.tlk` — canonical Enhanced Edition layout
-    ///    with English. Preferred on auto-detect because most callers
-    ///    surface English labels.
-    /// 2. Any `lang/<locale>/dialog.tlk` — first one the FS reports.
-    /// 3. `dialog.tlk` at the game-folder root — the older non-EE
-    ///    layout.
-    pub fn dialog_tlk(&self) -> io::Result<Option<infinitier_tlk_resource::Tlk>> {
-        use infinitier_tlk_resource::TlkImporter;
-
-        let load = |path: &infinitier_fs::CiPath,
-                    label: &str|
-         -> io::Result<infinitier_tlk_resource::Tlk> {
-            TlkImporter { name: label }.import(&DataSource::new(path.path()))
-        };
-
-        // 1. lang/en_us/dialog.tlk
-        if let Some(p) = self.fs.get_path_opt("lang/en_us/dialog.tlk") {
-            return load(&p, "lang/en_us/dialog.tlk").map(Some);
-        }
-        // 2. Any other lang/<locale>/dialog.tlk. The CaseInsensitiveFS
-        //    indexes every file recursively, so a single list_files
-        //    sweep over `lang/` picks up every locale.
-        for cipath in self.fs.list_files("lang", Some("tlk"), true) {
-            if cipath.base_name() == "dialog.tlk" {
-                let label = cipath.as_str().to_string();
-                return load(&cipath, &label).map(Some);
-            }
-        }
-        // 3. dialog.tlk at the game-folder root (vanilla layout).
-        if let Some(p) = self.fs.get_path_opt("dialog.tlk") {
-            return load(&p, "dialog.tlk").map(Some);
-        }
-        Ok(None)
     }
 
     /// Creates a GameData from a list of resources
