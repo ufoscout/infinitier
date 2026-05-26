@@ -29,10 +29,17 @@ pub struct GameData {
 }
 
 impl GameData {
+    
+    /// Return the underlying file system
+    pub fn fs(&self) -> &CaseInsensitiveFS {
+        &self.fs
+    }
+
     /// Return the number of resources
     pub fn len(&self) -> usize {
         self.resources.len()
     }
+
 
     /// Return true if there are no resources
     pub fn is_empty(&self) -> bool {

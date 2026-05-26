@@ -11,12 +11,12 @@ impl HeaderPanel {
             .show_inside(ui, |ui| {
                 ui.horizontal_wrapped(|ui| {
                     ui.strong("Game:");
-                    ui.label(format!("{:?}", state.game));
+                    ui.label(format!("{:?}", state.game_data.game()));
                     ui.separator();
                     ui.strong("Game folder:");
                     ui.label(
                         state
-                            .game_path
+                            .game_data.fs().get_roots()
                             .iter()
                             .map(|p| p.display().to_string())
                             .collect::<Vec<_>>()

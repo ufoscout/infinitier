@@ -51,7 +51,7 @@ fn main() {
 
     let game = detect_game(
         &CaseInsensitiveFS::new(args.game_path.as_slice()).unwrap_or_else(|e| {
-            eprintln!(
+            log::error!(
                 "Failed to open game folder(s) [{}]: {e}",
                 display_paths(&args.game_path),
             );
@@ -59,7 +59,7 @@ fn main() {
         }),
     )
     .unwrap_or_else(|| {
-        eprintln!(
+        log::error!(
             "Cannot detect game type at [{}]",
             display_paths(&args.game_path),
         );
@@ -69,7 +69,7 @@ fn main() {
     let game_data = GameDataBuilder::new(args.game_path.as_slice(), game)
         .and_then(|b| b.build())
         .unwrap_or_else(|e| {
-            eprintln!(
+            log::error!(
                 "Failed to load game data from [{}]: {e}",
                 display_paths(&args.game_path),
             );
@@ -79,7 +79,7 @@ fn main() {
     let save_games = game_data.save_games();
     let core_save = if let Ok(idx) = args.savegame.parse::<usize>() {
         save_games.by_index(idx).cloned().unwrap_or_else(|| {
-            eprintln!(
+            log::error!(
                 "savegame index {idx} out of range — {} save(s) discovered",
                 save_games.len(),
             );
@@ -90,7 +90,7 @@ fn main() {
             .by_name(&args.savegame)
             .cloned()
             .unwrap_or_else(|| {
-                eprintln!(
+                log::error!(
                     "savegame '{}' not found — {} save(s) discovered: {}",
                     args.savegame,
                     save_games.len(),
@@ -131,13 +131,13 @@ fn main() {
     };
 
     let save = save::load_save(&core_save, game.engine(), tlk.as_ref()).unwrap_or_else(|e| {
-        eprintln!("Failed to load save '{}': {e}", core_save.name);
+        log::error!("Failed to load save '{}': {e}", core_save.name);
         std::process::exit(1);
     });
 
     let title = format!("Infinitier Keeper — {:?} — {}", game, save.name,);
 
-    let state = AppState::new(game, args.game_path.clone(), game_data, save);
+    let state = AppState::new(game_data, save);
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -176,6 +176,6 @@ fn main() {
             Ok(Box::new(KeeperApp::new(state)))
         }),
     ) {
-        eprintln!("Failed to run keeper: {e}");
+        log::error!("Failed to run keeper: {e}");
     }
 }

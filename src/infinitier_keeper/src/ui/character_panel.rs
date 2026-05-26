@@ -44,7 +44,7 @@ impl CharacterPanel {
             ui.separator();
 
             match &member.cre {
-                Ok(cre) => show_tab(ui, state.selected_tab, cre, &state.save.gam, state.game),
+                Ok(cre) => show_tab(ui, state.selected_tab, cre, &state.save.gam, state.game_data.game()),
                 Err(err) => {
                     ui.colored_label(
                         egui::Color32::from_rgb(180, 90, 90),
