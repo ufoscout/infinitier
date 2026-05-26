@@ -97,7 +97,10 @@ impl GameData {
     pub fn dialog_tlk(&self) -> io::Result<infinitier_tlk_resource::Tlk> {
         match self.import_by_name_and_type("dialog", ResourceType::Tlk)? {
             Some(ImportedResource::Tlk(tlk)) => Ok(tlk),
-            _ => Err(io::Error::from(io::ErrorKind::NotFound)),
+            _ => Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "dialog.tlk not found in game data",
+            )),
         }
     }
 
@@ -570,12 +573,24 @@ impl GameDataBuilder {
             ResourceType::Wav.get_extension(),
             false,
         )?;
-        self.add_resources_from_dir(
+        
+        let tlk = self.add_resources_from_dir(
             &mut game_data,
             "",
             ResourceType::Tlk.get_extension(),
             false,
         )?;
+
+        if tlk == 0 {
+            // Workaround for no tlk found in root directory
+           self.add_resources_from_dir(
+                &mut game_data,
+                "lang/en_us",
+                ResourceType::Tlk.get_extension(),
+                false,
+            )?; 
+        }
+
         self.add_resources_from_dir(&mut game_data, "override", None, false)?;
 
         Ok(game_data)
@@ -587,7 +602,8 @@ impl GameDataBuilder {
         dir_name: &str,
         extension: Option<&str>,
         recursive: bool,
-    ) -> io::Result<()> {
+    ) -> io::Result<usize> {
+        let mut count = 0; // number of resources found 
         debug!("Searching for resources in {}/{:?}", dir_name, extension);
         for resource in self.fs.list_files(dir_name, extension, recursive) {
             let real = resource.path();
@@ -611,8 +627,9 @@ impl GameDataBuilder {
                 r#type,
                 name,
             });
+            count += 1;
         }
-        Ok(())
+        Ok(count)
     }
 }
 
