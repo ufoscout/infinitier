@@ -335,6 +335,20 @@ impl GamEngineData {
             GamEngineData::Pst(_) => Engine::Pst,
         }
     }
+
+    /// Party-wide reputation lives on the GAM, in `reputation × 10`
+    /// units. Returns the player-facing value (0..=20 typically).
+    pub fn reputation(&self) -> u32 {
+        let raw = match self {
+            GamEngineData::Bg(d) => d.reputation,
+            GamEngineData::Bg2(d) => d.reputation,
+            GamEngineData::Ee(d) => d.reputation,
+            GamEngineData::Iwd(d) => d.reputation,
+            GamEngineData::Iwd2(d) => d.reputation,
+            GamEngineData::Pst(d) => d.reputation,
+        };
+        raw / 10
+    }
 }
 
 /// BG1 (V1.1) engine extension. Layout follows IESDP `gam_v1.1.htm`

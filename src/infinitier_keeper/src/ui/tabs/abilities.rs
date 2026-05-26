@@ -9,18 +9,14 @@
 use eframe::egui;
 use infinitier_core::resource::Game;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
-use infinitier_core::resource::gam::{Gam, GamEngineData};
+use infinitier_core::resource::gam::Gam;
 
 pub struct AbilitiesTab;
 
 impl AbilitiesTab {
     pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, gam: &Gam, _game: Game) {
         egui::ScrollArea::vertical().show(ui, |ui| {
-            // Three even columns spanning the available width — using
-            // `ui.columns` (rather than `horizontal_top` + nested
-            // `vertical`s) is what actually constrains each column to
-            // 1/N of the width; otherwise the first vertical greedily
-            // takes everything.
+
             ui.columns(3, |cols| {
                 section(&mut cols[0], "Ability scores", |ui| ability_scores(ui, cre));
                 cols[0].add_space(8.0);
@@ -40,20 +36,6 @@ impl AbilitiesTab {
             });
         });
     }
-}
-
-/// Party-wide reputation lives on the GAM, in `reputation × 10`
-/// units. Returns the player-facing value (0..=20 typically).
-fn party_reputation(gam: &Gam) -> u32 {
-    let raw = match &gam.engine_data {
-        GamEngineData::Bg(d) => d.reputation,
-        GamEngineData::Bg2(d) => d.reputation,
-        GamEngineData::Ee(d) => d.reputation,
-        GamEngineData::Iwd(d) => d.reputation,
-        GamEngineData::Iwd2(d) => d.reputation,
-        GamEngineData::Pst(d) => d.reputation,
-    };
-    raw / 10
 }
 
 fn section(ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui)) {
@@ -102,19 +84,16 @@ fn combat_stats(ui: &mut egui::Ui, cre: &Cre, gam: &Gam) {
         .show(ui, |ui| {
             row(ui, "Current HP", &cre.current_hit_points().to_string());
             row(ui, "Max HP", &cre.maximum_hit_points().to_string());
-            // Gold + reputation are party-wide and live on the GAM,
-            // not the per-character CRE (the CRE fields are typically
-            // 0 for party members). We pull from the GAM so the
-            // numbers match what the engine actually uses.
+            // Gold + reputation are party-wide.
             let party_gold = gam.header.party_gold;
-            let rep = party_reputation(gam);
+            let rep = gam.engine_data.reputation();
             match &cre.header {
                 CreHeader::V10(h) => {
                     row(ui, "AC (natural)", &h.armor_class_natural.to_string());
                     row(ui, "AC (effective)", &h.armor_class_effective.to_string());
                     row(ui, "THAC0", &h.thac0.to_string());
-                    row(ui, "Attacks", &format_attacks(h.number_of_attacks));
-                    row(ui, "Reputation", &rep.to_string());
+                    row(ui, "Attacks", &h.number_of_attacks.to_string());
+                    row(ui, "Reputation (party)", &rep.to_string());
                     row(ui, "Gold (party)", &party_gold.to_string());
                     row(ui, "Fatigue", &h.fatigue.to_string());
                     row(ui, "Intoxication", &h.intoxication.to_string());
@@ -124,8 +103,8 @@ fn combat_stats(ui: &mut egui::Ui, cre: &Cre, gam: &Gam) {
                     row(ui, "AC (natural)", &h.armor_class_natural.to_string());
                     row(ui, "AC (effective)", &h.armor_class_effective.to_string());
                     row(ui, "THAC0", &h.thac0.to_string());
-                    row(ui, "Attacks", &format_attacks(h.number_of_attacks));
-                    row(ui, "Reputation", &rep.to_string());
+                    row(ui, "Attacks", &h.number_of_attacks.to_string());
+                    row(ui, "Reputation (party)", &rep.to_string());
                     row(ui, "Gold (party)", &party_gold.to_string());
                     row(ui, "Fatigue", &h.fatigue.to_string());
                     row(ui, "Intoxication", &h.intoxication.to_string());
@@ -135,8 +114,8 @@ fn combat_stats(ui: &mut egui::Ui, cre: &Cre, gam: &Gam) {
                     row(ui, "AC (natural)", &h.armor_class_natural.to_string());
                     row(ui, "AC (effective)", &h.armor_class_effective.to_string());
                     row(ui, "THAC0", &h.thac0.to_string());
-                    row(ui, "Attacks", &format_attacks(h.number_of_attacks));
-                    row(ui, "Reputation", &rep.to_string());
+                    row(ui, "Attacks", &h.number_of_attacks.to_string());
+                    row(ui, "Reputation (party)", &rep.to_string());
                     row(ui, "Gold (party)", &party_gold.to_string());
                     row(ui, "Fatigue", &h.fatigue.to_string());
                     row(ui, "Intoxication", &h.intoxication.to_string());
@@ -151,8 +130,8 @@ fn combat_stats(ui: &mut egui::Ui, cre: &Cre, gam: &Gam) {
                         "Base Attack Bonus",
                         &h.base_attack_bonus_bab_for_non.to_string(),
                     );
-                    row(ui, "Attacks", &format_attacks(h.number_of_attacks));
-                    row(ui, "Reputation", &rep.to_string());
+                    row(ui, "Attacks", &h.number_of_attacks.to_string());
+                    row(ui, "Reputation (party)", &rep.to_string());
                     row(ui, "Gold (party)", &party_gold.to_string());
                     row(ui, "Fatigue", &h.fatigue.to_string());
                     row(ui, "Intoxication", &h.intoxication.to_string());
@@ -403,21 +382,6 @@ fn row(ui: &mut egui::Ui, label: &str, value: &str) {
     ui.end_row();
 }
 
-/// Decode the CRE `number_of_attacks` byte into the player-facing
-/// attacks-per-round string. Per IESDP: 0..=5 are literal counts,
-/// 6..=10 encode the half-attack offsets (6 = ½, 7 = 3/2, 8 = 5/2,
-/// 9 = 7/2, 10 = 9/2). Anything else falls through as a raw count.
-fn format_attacks(raw: u8) -> String {
-    match raw {
-        0..=5 => raw.to_string(),
-        6 => "0.5".to_string(),
-        7 => "1.5".to_string(),
-        8 => "2.5".to_string(),
-        9 => "3.5".to_string(),
-        10 => "4.5".to_string(),
-        _ => raw.to_string(),
-    }
-}
 
 fn format_iwd2_class_levels(h: &CreHeaderV22) -> String {
     let entries = [

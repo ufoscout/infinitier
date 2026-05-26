@@ -31,6 +31,130 @@ fn write_resref(out: &mut [u8], s: &str) {
     out[..n].copy_from_slice(&encoded[..n]);
 }
 
+/// Typed view of the CRE "Number of attacks" byte (offset `0x0053`
+/// in V1.0 / V1.2 / V9.0, `0x0051` in V2.2). Encodes the IESDP rule:
+///
+/// - `0..=5` are literal counts (0..=5 attacks per round)
+/// - `6..=10` encode the half-attack offsets:
+///   `6 = ½`, `7 = 3/2`, `8 = 5/2`, `9 = 7/2`, `10 = 9/2`
+///
+/// Any byte outside `0..=10` is undocumented; it survives parsing
+/// as [`NumberOfAttacks::Unknown`] so the round-trip stays byte-exact
+/// even for malformed / modded creature records.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumberOfAttacks {
+    /// 0 attacks per round.
+    Zero,
+    /// 1 attack per round.
+    One,
+    /// 2 attacks per round.
+    Two,
+    /// 3 attacks per round.
+    Three,
+    /// 4 attacks per round.
+    Four,
+    /// 5 attacks per round.
+    Five,
+    /// ½ attack per round (one attack every other round).
+    Half,
+    /// 3/2 attacks per round (1.5).
+    ThreeHalves,
+    /// 5/2 attacks per round (2.5).
+    FiveHalves,
+    /// 7/2 attacks per round (3.5).
+    SevenHalves,
+    /// 9/2 attacks per round (4.5).
+    NineHalves,
+    /// Out-of-range raw byte (`11..=255`). Preserved verbatim for
+    /// round-trip parsing; semantics are engine-defined and not
+    /// surfaced as a "real" attack count.
+    Unknown(u8),
+}
+
+impl NumberOfAttacks {
+    /// Decode the raw on-disk byte into a typed variant.
+    pub fn from_u8(raw: u8) -> Self {
+        match raw {
+            0 => NumberOfAttacks::Zero,
+            1 => NumberOfAttacks::One,
+            2 => NumberOfAttacks::Two,
+            3 => NumberOfAttacks::Three,
+            4 => NumberOfAttacks::Four,
+            5 => NumberOfAttacks::Five,
+            6 => NumberOfAttacks::Half,
+            7 => NumberOfAttacks::ThreeHalves,
+            8 => NumberOfAttacks::FiveHalves,
+            9 => NumberOfAttacks::SevenHalves,
+            10 => NumberOfAttacks::NineHalves,
+            other => NumberOfAttacks::Unknown(other),
+        }
+    }
+
+    /// Encode back into the on-disk byte. Round-trips bijectively
+    /// against [`Self::from_u8`] for every byte in `0x00..=0xFF`.
+    pub fn to_u8(self) -> u8 {
+        match self {
+            NumberOfAttacks::Zero => 0,
+            NumberOfAttacks::One => 1,
+            NumberOfAttacks::Two => 2,
+            NumberOfAttacks::Three => 3,
+            NumberOfAttacks::Four => 4,
+            NumberOfAttacks::Five => 5,
+            NumberOfAttacks::Half => 6,
+            NumberOfAttacks::ThreeHalves => 7,
+            NumberOfAttacks::FiveHalves => 8,
+            NumberOfAttacks::SevenHalves => 9,
+            NumberOfAttacks::NineHalves => 10,
+            NumberOfAttacks::Unknown(b) => b,
+        }
+    }
+
+    /// Player-facing attacks-per-round as a `f32`. The documented
+    /// variants map to the IESDP table; [`Self::Unknown`] is exposed
+    /// as `raw_byte as f32` so callers that just want a number for
+    /// display still get something sensible.
+    pub fn per_round(self) -> f32 {
+        match self {
+            NumberOfAttacks::Zero => 0.0,
+            NumberOfAttacks::One => 1.0,
+            NumberOfAttacks::Two => 2.0,
+            NumberOfAttacks::Three => 3.0,
+            NumberOfAttacks::Four => 4.0,
+            NumberOfAttacks::Five => 5.0,
+            NumberOfAttacks::Half => 0.5,
+            NumberOfAttacks::ThreeHalves => 1.5,
+            NumberOfAttacks::FiveHalves => 2.5,
+            NumberOfAttacks::SevenHalves => 3.5,
+            NumberOfAttacks::NineHalves => 4.5,
+            NumberOfAttacks::Unknown(b) => f32::from(b),
+        }
+    }
+}
+
+impl std::fmt::Display for NumberOfAttacks {
+    /// Display an attacks-per-round value as an integer when whole
+    /// (`"2"`) or as a one-decimal float when fractional (`"1.5"`).
+    /// `Unknown(b)` renders as the raw byte (`"42"`) so out-of-range
+    /// values are still visible to the UI rather than silently
+    /// hidden.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NumberOfAttacks::Zero => write!(f, "0"),
+            NumberOfAttacks::One => write!(f, "1"),
+            NumberOfAttacks::Two => write!(f, "2"),
+            NumberOfAttacks::Three => write!(f, "3"),
+            NumberOfAttacks::Four => write!(f, "4"),
+            NumberOfAttacks::Five => write!(f, "5"),
+            NumberOfAttacks::Half => write!(f, "0.5"),
+            NumberOfAttacks::ThreeHalves => write!(f, "1.5"),
+            NumberOfAttacks::FiveHalves => write!(f, "2.5"),
+            NumberOfAttacks::SevenHalves => write!(f, "3.5"),
+            NumberOfAttacks::NineHalves => write!(f, "4.5"),
+            NumberOfAttacks::Unknown(b) => write!(f, "{b}"),
+        }
+    }
+}
+
 // ============================================================
 //  V1_0 — 126 fields, header = 724 B
 // ============================================================
@@ -100,7 +224,7 @@ pub struct CreHeaderV10 {
     /// 0x0052 (1 B): THAC0 (1-25)
     pub thac0: u8,
     /// 0x0053 (1 B): Number of attacks (0-10)
-    pub number_of_attacks: u8,
+    pub number_of_attacks: NumberOfAttacks,
     /// 0x0054 (1 B): Save versus death (0-20)
     pub save_versus_death: u8,
     /// 0x0055 (1 B): Save versus wands (0-20)
@@ -331,7 +455,7 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
         armor_class_piercing_attacks_modifier: read_i16(0x004E),
         armor_class_slashing_attacks_modifier: read_i16(0x0050),
         thac0: read_u8(0x0052),
-        number_of_attacks: read_u8(0x0053),
+        number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0053)),
         save_versus_death: read_u8(0x0054),
         save_versus_wands: read_u8(0x0055),
         save_versus_polymorph: read_u8(0x0056),
@@ -473,7 +597,7 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x0050..0x0052].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
     buf[0x0052] = h.thac0;
-    buf[0x0053] = h.number_of_attacks;
+    buf[0x0053] = h.number_of_attacks.to_u8();
     buf[0x0054] = h.save_versus_death;
     buf[0x0055] = h.save_versus_wands;
     buf[0x0056] = h.save_versus_polymorph;
@@ -657,7 +781,7 @@ pub struct CreHeaderV12 {
     /// 0x0052 (1 B): THAC0 (1-25)
     pub thac0: u8,
     /// 0x0053 (1 B): Number of attacks (0-10)
-    pub number_of_attacks: u8,
+    pub number_of_attacks: NumberOfAttacks,
     /// 0x0054 (1 B): Save versus death (0-20)
     pub save_versus_death: u8,
     /// 0x0055 (1 B): Save versus wands (0-20)
@@ -975,7 +1099,7 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
         armor_class_piercing_attacks_modifier: read_i16(0x004E),
         armor_class_slashing_attacks_modifier: read_i16(0x0050),
         thac0: read_u8(0x0052),
-        number_of_attacks: read_u8(0x0053),
+        number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0053)),
         save_versus_death: read_u8(0x0054),
         save_versus_wands: read_u8(0x0055),
         save_versus_polymorph: read_u8(0x0056),
@@ -1157,7 +1281,7 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x0050..0x0052].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
     buf[0x0052] = h.thac0;
-    buf[0x0053] = h.number_of_attacks;
+    buf[0x0053] = h.number_of_attacks.to_u8();
     buf[0x0054] = h.save_versus_death;
     buf[0x0055] = h.save_versus_wands;
     buf[0x0056] = h.save_versus_polymorph;
@@ -1455,7 +1579,7 @@ pub struct CreHeaderV90 {
     /// 0x0052 (1 B): THAC0 (1-25)
     pub thac0: u8,
     /// 0x0053 (1 B): Number of attacks (0-10)
-    pub number_of_attacks: u8,
+    pub number_of_attacks: NumberOfAttacks,
     /// 0x0054 (1 B): Save versus death (0-20)
     pub save_versus_death: u8,
     /// 0x0055 (1 B): Save versus wands (0-20)
@@ -1710,7 +1834,7 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
         armor_class_piercing_attacks_modifier: read_i16(0x004E),
         armor_class_slashing_attacks_modifier: read_i16(0x0050),
         thac0: read_u8(0x0052),
-        number_of_attacks: read_u8(0x0053),
+        number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0053)),
         save_versus_death: read_u8(0x0054),
         save_versus_wands: read_u8(0x0055),
         save_versus_polymorph: read_u8(0x0056),
@@ -1861,7 +1985,7 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x0050..0x0052].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
     buf[0x0052] = h.thac0;
-    buf[0x0053] = h.number_of_attacks;
+    buf[0x0053] = h.number_of_attacks.to_u8();
     buf[0x0054] = h.save_versus_death;
     buf[0x0055] = h.save_versus_wands;
     buf[0x0056] = h.save_versus_polymorph;
@@ -2076,7 +2200,7 @@ pub struct CreHeaderV22 {
     /// 0x0050 (1 B): Base Attack Bonus (BAB) for non party characters
     pub base_attack_bonus_bab_for_non: u8,
     /// 0x0051 (1 B): Number of attacks (0-10)
-    pub number_of_attacks: u8,
+    pub number_of_attacks: NumberOfAttacks,
     /// 0x0052 (1 B): Save versus Fortitude (0-20)
     pub save_versus_fortitude: u8,
     /// 0x0053 (1 B): Save versus Reflex (0-20)
@@ -2722,7 +2846,7 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
         armor_class_piercing_attacks_modifier: read_i16(0x004C),
         armor_class_slashing_attacks_modifier: read_i16(0x004E),
         base_attack_bonus_bab_for_non: read_u8(0x0050),
-        number_of_attacks: read_u8(0x0051),
+        number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0051)),
         save_versus_fortitude: read_u8(0x0052),
         save_versus_reflex: read_u8(0x0053),
         save_versus_will: read_u8(0x0054),
@@ -3072,7 +3196,7 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x004C..0x004E].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
     buf[0x0050] = h.base_attack_bonus_bab_for_non;
-    buf[0x0051] = h.number_of_attacks;
+    buf[0x0051] = h.number_of_attacks.to_u8();
     buf[0x0052] = h.save_versus_fortitude;
     buf[0x0053] = h.save_versus_reflex;
     buf[0x0054] = h.save_versus_will;
