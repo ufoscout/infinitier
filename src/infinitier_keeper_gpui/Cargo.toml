@@ -1,0 +1,27 @@
+[package]
+name = "infinitier_keeper_gpui"
+version = "0.0.5"
+edition = "2024"
+license = "GPL-3.0-or-later"
+authors = ["Francesco Cina <ufoscout@gmail.com>"]
+homepage = "https://github.com/ufoscout/infinitier"
+repository = "https://github.com/ufoscout/infinitier"
+description = "GPUI / gpui-component port of the Infinitier save-game editor."
+readme = "readme.md"
+keywords = ["save-game", "editor", "infinity-engine", "baldurs-gate", "gui"]
+publish = false
+
+[dependencies]
+# Path dep into the main workspace's core crate. Its own deps still
+# resolve via the main workspace's `[workspace.dependencies]` table.
+infinitier_core = { path = "../core" }
+
+clap = { version = "4", features = ["derive"] }
+env_logger = "0.11"
+log = "0.4"
+
+# Zed's UI framework, plus longbridge's component library on top of it.
+# Both versions are pinned to the published crates.io releases (no git
+# deps) so the build is reproducible.
+gpui = "0.2"
+gpui-component = {git = "https://github.com/longbridge/gpui-component.git", branch = "main", package = "gpui-component"}
