@@ -1,0 +1,55 @@
+import { Palette, Button } from "std-widgets.slint";
+
+// One title/value column inside the header strip. Caption is muted +
+// small; value is bright + bold (unless `compact` is set, then the
+// value renders smaller — used for the long Folder path).
+component HeaderField inherits VerticalLayout {
+    in property <string> caption;
+    in property <string> value;
+    in property <bool> compact: false;
+    spacing: 2px;
+    Text {
+        text: caption;
+        color: Palette.foreground;
+        opacity: 0.55;
+        font-size: 11px;
+    }
+    Text {
+        text: value;
+        color: Palette.foreground;
+        font-size: compact ? 11px : 14px;
+        font-weight: compact ? 400 : 700;
+    }
+}
+
+// Top-of-window metadata strip — game, save, version, folder paths.
+// Also hosts the "Toggle theme" button that demonstrates runtime
+// Palette switching from Rust.
+export component HeaderPanel inherits Rectangle {
+    in property <string> game-label;
+    in property <string> game-folder;
+    in property <string> save-name;
+    in property <string> gam-version;
+    callback toggle-scheme();
+
+    height: 70px;
+    background: Palette.alternate-background;
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 24px;
+        alignment: start;
+
+        HeaderField { caption: "Game"; value: game-label; }
+        HeaderField { caption: "Folder"; value: game-folder; compact: true; }
+        HeaderField { caption: "Save"; value: save-name; }
+        HeaderField { caption: "GAM"; value: gam-version; compact: true; }
+
+        // Flex spacer pushes the button to the right edge.
+        Rectangle { horizontal-stretch: 1; }
+
+        Button {
+            text: "Toggle theme";
+            clicked => { root.toggle-scheme(); }
+        }
+    }
+}

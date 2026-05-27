@@ -142,7 +142,6 @@ fn main() {
         &title,
         options,
         Box::new(move |cc| {
-            re_ui::apply_style_and_install_loaders(&cc.egui_ctx);
             cc.egui_ctx.set_visuals(egui::Visuals::light());
 
             // Same Linux/X11 DPI workaround as the explorer crate.

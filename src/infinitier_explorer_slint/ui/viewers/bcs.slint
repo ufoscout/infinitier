@@ -1,0 +1,49 @@
+import { Palette, ScrollView } from "std-widgets.slint";
+
+// BCS script viewer. Slint can't easily reproduce egui's per-token
+// recoloured `TextEdit` without a custom highlighter, so we present
+// the decompiled BAF as plain monospaced text inside a scroll area.
+export component BcsViewer inherits Rectangle {
+    in property <string> baf;
+    in property <string> file-size;
+    in property <string> cr-blocks;
+    in property <string> baf-lines;
+    in property <string> origin;
+
+    VerticalLayout {
+        // Source
+        ScrollView {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 12px;
+                Text {
+                    text: baf;
+                    color: Palette.foreground;
+                    font-family: "monospace";
+                    font-size: 13px;
+                    wrap: word-wrap;
+                    horizontal-stretch: 1;
+                }
+            }
+        }
+
+        // Bottom info bar
+        Rectangle {
+            height: 28px;
+            background: Palette.alternate-background;
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 16px;
+                alignment: start;
+                Text { text: cr-blocks; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: baf-lines; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: file-size; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: origin; color: Palette.foreground; vertical-alignment: center; opacity: 0.7; }
+            }
+        }
+    }
+}

@@ -1,0 +1,20 @@
+import { Palette } from "std-widgets.slint";
+
+// One field row: label on the left, value on the right.
+// Labels are muted via `opacity` because `Palette` doesn't expose a
+// separate `text-muted` color the way the custom Theme did.
+export component Row inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    height: 22px;
+    HorizontalLayout {
+        spacing: 12px;
+        Text {
+            text: label;
+            color: Palette.foreground;
+            opacity: 0.65;
+            horizontal-stretch: 1;
+        }
+        Text { text: value; color: Palette.foreground; font-weight: 700; }
+    }
+}

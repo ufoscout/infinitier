@@ -1,0 +1,58 @@
+import { Palette, ScrollView } from "std-widgets.slint";
+import { KeyValue } from "../models.slint";
+import { Section } from "../widgets/section.slint";
+
+// FNT viewer — NearInfinity-style struct table. The four "rows" of
+// the NI screenshot become a single Section.
+export component FntViewer inherits Rectangle {
+    in property <[KeyValue]> rows;
+    in property <string> note;
+    in property <string> raw-dump;
+    in property <string> file-size;
+    in property <string> body-size;
+    in property <string> origin;
+
+    VerticalLayout {
+        ScrollView {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 12px;
+                spacing: 12px;
+                Section { title: "FNT — struct view"; rows: rows; }
+                if note != "": Text {
+                    text: note;
+                    color: Palette.foreground;
+                    opacity: 0.6;
+                    wrap: word-wrap;
+                }
+                if raw-dump != "": Text {
+                    text: "Raw (post-header body)";
+                    color: Palette.foreground;
+                    font-weight: 700;
+                }
+                if raw-dump != "": Text {
+                    text: raw-dump;
+                    color: Palette.foreground;
+                    font-family: "monospace";
+                    font-size: 12px;
+                }
+            }
+        }
+
+        Rectangle {
+            height: 28px;
+            background: Palette.alternate-background;
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 16px;
+                alignment: start;
+                Text { text: file-size; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: body-size; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: origin; color: Palette.foreground; vertical-alignment: center; opacity: 0.7; }
+            }
+        }
+    }
+}

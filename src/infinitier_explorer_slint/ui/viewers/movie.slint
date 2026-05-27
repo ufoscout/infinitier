@@ -1,0 +1,118 @@
+import { Palette, Button } from "std-widgets.slint";
+
+// Movie player. The Rust side pumps decoded frames into `bitmap`
+// every Timer tick; the transport buttons drive playback start /
+// pause / resume / stop.
+export component MovieViewer inherits Rectangle {
+    in property <image> bitmap;
+    in property <string> name;
+    in property <string> format;
+    in property <string> dims;
+    in property <string> fps;
+    in property <float> progress;
+    in property <string> position-text;
+    in property <string> duration-text;
+    in property <bool> is-playing;
+    in property <bool> has-movie;
+    in property <string> decode-error;
+
+    callback play-pause-clicked();
+    callback stop-clicked();
+
+    VerticalLayout {
+        // Video area. Match the egui viewer's "shrink-to-fit, never
+        // upscale" behaviour for the rendered frame.
+        HorizontalLayout {
+            vertical-stretch: 1;
+            padding: 12px;
+            Rectangle {
+                horizontal-stretch: 1;
+                clip: true;
+                Image {
+                    source: bitmap;
+                    image-fit: contain;
+                    width: min(parent.width, self.source.width * 1px);
+                    height: min(parent.height, self.source.height * 1px);
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+
+        // Transport strip
+        Rectangle {
+            height: 90px;
+            background: Palette.alternate-background;
+            VerticalLayout {
+                padding: 8px;
+                spacing: 6px;
+                alignment: center;
+
+                if decode-error != "": Text {
+                    text: decode-error;
+                    color: #d04040;
+                    horizontal-alignment: center;
+                }
+
+                if decode-error == "": HorizontalLayout {
+                    alignment: center;
+                    spacing: 12px;
+                    Button {
+                        text: is-playing ? "⏸  Pause" : "▶  Play";
+                        enabled: has-movie;
+                        clicked => { play-pause-clicked(); }
+                    }
+                    Button {
+                        text: "⏹  Stop";
+                        enabled: has-movie;
+                        clicked => { stop-clicked(); }
+                    }
+                }
+
+                if decode-error == "": Rectangle {
+                    width: 480px;
+                    height: 22px;
+                    background: Palette.background;
+                    border-radius: 4px;
+                    Rectangle {
+                        x: 0;
+                        y: 0;
+                        width: parent.width * progress;
+                        height: parent.height;
+                        background: Palette.accent-background;
+                        border-radius: 4px;
+                    }
+                    Text {
+                        x: 0;
+                        y: 0;
+                        width: parent.width;
+                        height: parent.height;
+                        text: position-text + " / " + duration-text;
+                        color: Palette.foreground;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Bottom info bar
+        Rectangle {
+            height: 28px;
+            background: Palette.alternate-background;
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 16px;
+                alignment: start;
+                Text { text: name; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: format; color: Palette.foreground; vertical-alignment: center; font-weight: 700; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: dims; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: fps; color: Palette.foreground; vertical-alignment: center; }
+            }
+        }
+    }
+}

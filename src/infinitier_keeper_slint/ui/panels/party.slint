@@ -1,0 +1,35 @@
+import { ListView, Palette } from "std-widgets.slint";
+import { PartyMember } from "../models.slint";
+
+// Left rail listing every party-NPC slot. Selected row is highlighted
+// with `Palette.accent-background`; clicks emit `clicked(int)`.
+export component PartyPanel inherits Rectangle {
+    in property <[PartyMember]> party;
+    in property <int> selected;
+    callback clicked(int);
+
+    width: 240px;
+    background: Palette.alternate-background;
+
+    VerticalLayout {
+        padding: 10px;
+        spacing: 6px;
+        Text { text: "Party"; color: Palette.foreground; font-weight: 700; }
+        Rectangle { height: 1px; background: Palette.border; }
+        ListView {
+            for member[i] in party: Rectangle {
+                height: 26px;
+                background: i == selected ? Palette.accent-background : transparent;
+                HorizontalLayout {
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    Text {
+                        text: (i + 1) + ". " + (member.display == "" ? "<empty>" : member.display);
+                        color: i == selected ? Palette.accent-foreground : Palette.foreground;
+                    }
+                }
+                TouchArea { clicked => { clicked(i); } }
+            }
+        }
+    }
+}

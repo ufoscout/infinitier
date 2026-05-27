@@ -1,0 +1,26 @@
+[package]
+name = "infinitier_explorer_slint"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+description = "Slint port of infinitier_explorer — browse resources from Infinity Engine games."
+readme = "readme.md"
+keywords = ["resource-browser", "infinity-engine", "baldurs-gate", "gui", "slint"]
+
+[dependencies]
+infinitier_core = { path = "../core" }
+
+bytesize = { workspace = true }
+clap = { workspace = true }
+env_logger = { workspace = true }
+image = { workspace = true }
+log = { workspace = true }
+rodio = { workspace = true }
+
+slint = { version = "1.16" }
+
+[build-dependencies]
+slint-build = "1.16"

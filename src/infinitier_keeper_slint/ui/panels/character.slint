@@ -1,0 +1,100 @@
+import { Palette } from "std-widgets.slint";
+import { KeyValue, TabLabel } from "../models.slint";
+import { AbilitiesTab } from "../tabs/abilities.slint";
+import { StubTab } from "../tabs/stub.slint";
+
+// Right pane: character title, tab strip, then either the Abilities
+// grid or a stub message. Clicks on the tab strip emit
+// `tab-clicked(int)`; Rust updates `active-tab-name` and the relevant
+// content properties.
+export component CharacterPanel inherits VerticalLayout {
+    // Title row binding
+    in property <string> character-title;
+
+    // Tab strip bindings
+    in property <[TabLabel]> tabs;
+    in property <int> selected-tab;
+    in property <string> active-tab-name;
+    callback tab-clicked(int);
+
+    // Abilities body bindings — set by Rust when the abilities tab is
+    // active and the selected slot carries an embedded CRE.
+    in property <[KeyValue]> ability-scores;
+    in property <[KeyValue]> combat-stats;
+    in property <[KeyValue]> experience-levels;
+    in property <[KeyValue]> morale-rows;
+    in property <[KeyValue]> skill-rows;
+    in property <string> skills-title;
+
+    // Stub / fallback message — wins whenever non-empty.
+    in property <string> body-message;
+
+    horizontal-stretch: 1;
+
+    // Title row
+    Rectangle {
+        height: 34px;
+        background: Palette.alternate-background;
+        HorizontalLayout {
+            padding: 8px;
+            Text {
+                text: character-title;
+                color: Palette.foreground;
+                font-weight: 700;
+                font-size: 16px;
+            }
+        }
+    }
+
+    // Tab strip
+    Rectangle {
+        background: Palette.alternate-background;
+        HorizontalLayout {
+            padding: 6px;
+            spacing: 4px;
+            alignment: start;
+            for tab[ti] in tabs: Rectangle {
+                background: ti == selected-tab
+                    ? Palette.accent-background
+                    : Palette.control-background;
+                border-radius: 4px;
+                height: 26px;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    Text {
+                        text: tab.name;
+                        color: ti == selected-tab
+                            ? Palette.accent-foreground
+                            : Palette.control-foreground;
+                    }
+                }
+                TouchArea { clicked => { tab-clicked(ti); } }
+            }
+        }
+    }
+
+    Rectangle { height: 1px; background: Palette.border; }
+
+    // Tab content area
+    Rectangle {
+        background: Palette.background;
+        horizontal-stretch: 1;
+        vertical-stretch: 1;
+
+        if active-tab-name == "Abilities" && body-message == "": AbilitiesTab {
+            ability-scores: root.ability-scores;
+            combat-stats: root.combat-stats;
+            experience-levels: root.experience-levels;
+            morale-rows: root.morale-rows;
+            skill-rows: root.skill-rows;
+            skills-title: root.skills-title;
+        }
+
+        if active-tab-name != "Abilities" || body-message != "": StubTab {
+            text: body-message != ""
+                ? body-message
+                : active-tab-name + " — not implemented yet.";
+        }
+    }
+}

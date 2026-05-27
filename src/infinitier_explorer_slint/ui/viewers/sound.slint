@@ -1,0 +1,111 @@
+import { Palette, Button } from "std-widgets.slint";
+
+// Sound player with Play/Pause + Stop transport. The progress bar is
+// drawn as a Rectangle pair rather than `ProgressIndicator` so the
+// label can sit on top of it without extra padding magic.
+export component SoundViewer inherits Rectangle {
+    in property <string> name;
+    in property <string> format;
+    in property <string> info;
+    in property <float> progress;
+    in property <string> position-text;
+    in property <string> duration-text;
+    in property <bool> is-playing;
+    in property <bool> has-audio;
+    in property <bool> audio-missing;
+    in property <string> decode-error;
+
+    callback play-pause-clicked();
+    callback stop-clicked();
+
+    HorizontalLayout {
+        alignment: center;
+        VerticalLayout {
+            alignment: center;
+            spacing: 16px;
+            padding: 24px;
+
+            Text {
+                text: "Sound Player";
+                color: Palette.foreground;
+                font-weight: 700;
+                font-size: 20px;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: name;
+                color: Palette.foreground;
+                opacity: 0.85;
+                font-family: "monospace";
+                horizontal-alignment: center;
+            }
+            Text {
+                text: format;
+                color: Palette.foreground;
+                opacity: 0.7;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: info;
+                color: Palette.foreground;
+                opacity: 0.7;
+                horizontal-alignment: center;
+            }
+
+            // Decode-error or audio-missing notice replaces the
+            // transport block entirely.
+            if decode-error != "": Text {
+                text: decode-error;
+                color: #d04040;
+                horizontal-alignment: center;
+            }
+            if decode-error == "" && audio-missing: Text {
+                text: "No audio output device available — playback disabled.";
+                color: #c08020;
+                horizontal-alignment: center;
+            }
+
+            // Progress bar (custom Rectangle pair).
+            if decode-error == "" && !audio-missing: Rectangle {
+                width: 440px;
+                height: 26px;
+                background: Palette.alternate-background;
+                border-radius: 4px;
+                Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: parent.width * progress;
+                    height: parent.height;
+                    background: Palette.accent-background;
+                    border-radius: 4px;
+                }
+                Text {
+                    x: 0;
+                    y: 0;
+                    width: parent.width;
+                    height: parent.height;
+                    text: position-text + " / " + duration-text;
+                    color: Palette.foreground;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Transport buttons.
+            if decode-error == "" && !audio-missing: HorizontalLayout {
+                alignment: center;
+                spacing: 12px;
+                Button {
+                    text: is-playing ? "⏸  Pause" : "▶  Play";
+                    enabled: has-audio;
+                    clicked => { play-pause-clicked(); }
+                }
+                Button {
+                    text: "⏹  Stop";
+                    enabled: has-audio;
+                    clicked => { stop-clicked(); }
+                }
+            }
+        }
+    }
+}

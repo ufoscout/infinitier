@@ -1,0 +1,77 @@
+import { Palette, ScrollView } from "std-widgets.slint";
+import { TableRow } from "../models.slint";
+
+// Generic table viewer used for 2DA / IDS / INI. Rust pushes a
+// `headers` model and a `rows` model whose `cells` arrays line up.
+export component TableViewer inherits Rectangle {
+    in property <[string]> headers;
+    in property <[TableRow]> rows;
+    in property <string> title;
+    in property <string> subtitle;
+
+    VerticalLayout {
+        Rectangle {
+            height: 36px;
+            background: Palette.alternate-background;
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 12px;
+                alignment: start;
+                Text {
+                    text: title;
+                    color: Palette.foreground;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: subtitle;
+                    color: Palette.foreground;
+                    opacity: 0.6;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        ScrollView {
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 8px;
+                spacing: 2px;
+                // Header row
+                Rectangle {
+                    height: 22px;
+                    background: Palette.alternate-background;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        for h in headers: Text {
+                            text: h;
+                            color: Palette.foreground;
+                            font-weight: 700;
+                            font-size: 12px;
+                            horizontal-stretch: 1;
+                            overflow: elide;
+                        }
+                    }
+                }
+                Rectangle { height: 1px; background: Palette.border; }
+
+                // Body rows
+                for row in rows: Rectangle {
+                    height: 20px;
+                    HorizontalLayout {
+                        spacing: 8px;
+                        for cell in row.cells: Text {
+                            text: cell;
+                            color: Palette.foreground;
+                            font-family: "monospace";
+                            font-size: 12px;
+                            horizontal-stretch: 1;
+                            overflow: elide;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

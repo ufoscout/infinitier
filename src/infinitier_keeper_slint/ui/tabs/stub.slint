@@ -1,0 +1,14 @@
+import { Palette } from "std-widgets.slint";
+
+// Placeholder body shown for tabs that don't have real content yet,
+// or for slots that aren't editable (empty party slot, external CRE
+// reference). Caller supplies the message via `text`.
+export component StubTab inherits HorizontalLayout {
+    in property <string> text;
+    padding: 24px;
+    Text {
+        text: text;
+        color: Palette.foreground;
+        opacity: 0.6;
+    }
+}

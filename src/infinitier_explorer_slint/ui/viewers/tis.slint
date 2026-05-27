@@ -1,0 +1,163 @@
+import { Palette, Slider, CheckBox } from "std-widgets.slint";
+
+// TIS tileset viewer.
+//
+// The composite image is uploaded by Rust whenever the columns change
+// (throttled by the playback timer). The grid is *drawn here* as
+// Slint `Rectangle`s in screen coordinates so every line is exactly
+// 1 logical pixel regardless of the displayed image scale — baking
+// 1-source-pixel lines into the composite and then downscaling caused
+// uneven aliasing where some lines disappeared and others doubled.
+export component TisViewer inherits Rectangle {
+    in property <image> bitmap;
+    in property <string> dims;
+    in property <string> file-size;
+    in property <string> variant;
+    in property <string> tile-count;
+    in property <string> grid-dims;
+    in property <string> origin;
+    in property <string> warning;
+    in property <int> columns;
+    in property <int> columns-min;
+    in property <int> columns-max;
+    in property <bool> show-grid;
+    in property <int> tile-dim;
+    in property <[int]> grid-vlines;
+    in property <[int]> grid-hlines;
+
+    callback columns-changed(int);
+    callback show-grid-changed(bool);
+
+    VerticalLayout {
+        // ── Top control bar ─────────────────────────────────────
+        Rectangle {
+            height: 64px;
+            background: Palette.alternate-background;
+            HorizontalLayout {
+                padding: 6px;
+                spacing: 16px;
+                alignment: start;
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: "Tiles per row: " + columns + " / " + columns-max;
+                        color: Palette.foreground;
+                        opacity: 0.6;
+                        font-size: 11px;
+                    }
+                    slider := Slider {
+                        minimum: columns-min;
+                        maximum: columns-max;
+                        value: columns;
+                        width: 320px;
+                        changed(_) => { columns-changed(round(slider.value)); }
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    grid-check := CheckBox {
+                        text: "Show grid";
+                        checked: show-grid;
+                        toggled => { show-grid-changed(grid-check.checked); }
+                    }
+                }
+                if warning != "": VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: warning;
+                        color: #dca000;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // ── Image area + grid overlay ───────────────────────────
+        //
+        // Geometry is computed once per parent resize: `scale` caps at
+        // 1.0 so the image never enlarges past its natural size; the
+        // grid rectangles are positioned via `i * tile-pitch` where
+        // `tile-pitch` matches what `image-fit: contain` paints.
+        HorizontalLayout {
+            vertical-stretch: 1;
+            padding: 12px;
+            area := Rectangle {
+                horizontal-stretch: 1;
+                clip: true;
+
+                property <length> natural-w: img.source.width * 1px;
+                property <length> natural-h: img.source.height * 1px;
+                property <float> scale: min(
+                    1.0,
+                    min(
+                        self.width / max(natural-w, 1px),
+                        self.height / max(natural-h, 1px),
+                    ),
+                );
+                property <length> display-w: natural-w * scale;
+                property <length> display-h: natural-h * scale;
+                property <length> origin-x: (self.width - display-w) / 2;
+                property <length> origin-y: (self.height - display-h) / 2;
+                property <length> tile-pitch: tile-dim * 1px * scale;
+
+                img := Image {
+                    source: bitmap;
+                    image-fit: contain;
+                    x: area.origin-x;
+                    y: area.origin-y;
+                    width: area.display-w;
+                    height: area.display-h;
+                }
+
+                if show-grid: Rectangle {
+                    x: area.origin-x;
+                    y: area.origin-y;
+                    width: area.display-w;
+                    height: area.display-h;
+
+                    // Vertical lines (one per column boundary + borders).
+                    for col in grid-vlines: Rectangle {
+                        x: col * area.tile-pitch;
+                        y: 0;
+                        width: 1px;
+                        height: area.display-h;
+                        background: #ffffffb4;
+                    }
+                    // Horizontal lines (one per row boundary + borders).
+                    for row in grid-hlines: Rectangle {
+                        x: 0;
+                        y: row * area.tile-pitch;
+                        width: area.display-w;
+                        height: 1px;
+                        background: #ffffffb4;
+                    }
+                }
+            }
+        }
+
+        // ── Bottom info bar ─────────────────────────────────────
+        Rectangle {
+            height: 28px;
+            background: Palette.alternate-background;
+            HorizontalLayout {
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 16px;
+                alignment: start;
+                Text { text: dims; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: file-size; color: Palette.foreground; vertical-alignment: center; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: "TIS"; color: Palette.foreground; vertical-alignment: center; font-weight: 700; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: variant; color: Palette.foreground; vertical-alignment: center; opacity: 0.7; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: tile-count; color: Palette.foreground; vertical-alignment: center; opacity: 0.7; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: grid-dims; color: Palette.foreground; vertical-alignment: center; opacity: 0.7; }
+                Rectangle { width: 1px; background: Palette.border; vertical-stretch: 1; }
+                Text { text: origin; color: Palette.foreground; vertical-alignment: center; opacity: 0.7; }
+            }
+        }
+    }
+}

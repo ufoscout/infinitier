@@ -1,0 +1,19 @@
+import { Palette } from "std-widgets.slint";
+
+// Generic centred-message viewer. Used for the empty state and as the
+// "X Viewer" placeholder for resource types whose egui counterpart is
+// just a `ui.label("X Viewer")`.
+export component MessageViewer inherits Rectangle {
+    in property <string> text;
+    HorizontalLayout {
+        alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Text {
+                text: text;
+                color: Palette.foreground;
+                opacity: 0.7;
+            }
+        }
+    }
+}

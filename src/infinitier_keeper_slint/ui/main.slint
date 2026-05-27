@@ -1,0 +1,94 @@
+// Root window — composes the three panels. All chrome paints come
+// from the built-in `Palette` global (re-exported below so Rust can
+// reach it via `window.global::<slint::Palette>()` to flip
+// dark/light at runtime).
+
+import { Palette } from "std-widgets.slint";
+import { KeyValue, PartyMember, TabLabel } from "models.slint";
+import { HeaderPanel } from "panels/header.slint";
+import { PartyPanel } from "panels/party.slint";
+import { CharacterPanel } from "panels/character.slint";
+
+export { Palette }
+export { KeyValue, PartyMember, TabLabel }
+
+export component MainWindow inherits Window {
+    title: "Infinitier Keeper — Slint Palette spike";
+    preferred-width: 1400px;
+    preferred-height: 800px;
+    background: Palette.background;
+    default-font-family: "sans-serif";
+
+    // ── Header bindings ───────────────────────────────────────────
+    in property <string> game-label: "—";
+    in property <string> game-folder: "—";
+    in property <string> save-name: "—";
+    in property <string> gam-version: "—";
+
+    // ── Party bindings ────────────────────────────────────────────
+    in property <[PartyMember]> party: [];
+    in-out property <int> selected-party: -1;
+
+    // ── Tab strip ─────────────────────────────────────────────────
+    in property <[TabLabel]> tabs: [];
+    in-out property <int> selected-tab: 0;
+    in property <string> active-tab-name: "Abilities";
+
+    // ── Per-character body content ────────────────────────────────
+    in property <string> character-title: "—";
+
+    in property <[KeyValue]> ability-scores: [];
+    in property <[KeyValue]> combat-stats: [];
+    in property <[KeyValue]> experience-levels: [];
+    in property <[KeyValue]> morale-rows: [];
+    in property <[KeyValue]> skill-rows: [];
+    in property <string> skills-title: "Skills";
+
+    in property <string> body-message: "";
+
+    // ── Callbacks back into Rust ──────────────────────────────────
+    callback party-clicked(int);
+    callback tab-clicked(int);
+    // Fired by the "Toggle theme" button in the header. Rust flips
+    // `slint::Palette::color-scheme` in response — see
+    // `src/app.rs::toggle_color_scheme`.
+    callback toggle-scheme();
+
+    VerticalLayout {
+        spacing: 0px;
+
+        HeaderPanel {
+            game-label: root.game-label;
+            game-folder: root.game-folder;
+            save-name: root.save-name;
+            gam-version: root.gam-version;
+            toggle-scheme => { root.toggle-scheme(); }
+        }
+
+        Rectangle { height: 1px; background: Palette.border; }
+
+        HorizontalLayout {
+            spacing: 0px;
+            PartyPanel {
+                party: root.party;
+                selected: root.selected-party;
+                clicked(i) => { root.party-clicked(i); }
+            }
+            Rectangle { width: 1px; background: Palette.border; }
+            CharacterPanel {
+                character-title: root.character-title;
+                tabs: root.tabs;
+                selected-tab: root.selected-tab;
+                active-tab-name: root.active-tab-name;
+                tab-clicked(i) => { root.tab-clicked(i); }
+                ability-scores: root.ability-scores;
+                combat-stats: root.combat-stats;
+                experience-levels: root.experience-levels;
+                morale-rows: root.morale-rows;
+                skill-rows: root.skill-rows;
+                skills-title: root.skills-title;
+                body-message: root.body-message;
+            }
+        }
+    }
+}

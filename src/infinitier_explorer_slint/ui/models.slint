@@ -1,0 +1,33 @@
+// Data structs shared across the UI tree and between Rust and Slint.
+
+// One row in the resource tree (flat list). Two kinds:
+// - `is-group` = true: an extension header. `id` is the group index in
+//   `AppState::group_order`. Clicking flips its expansion state and
+//   forces a rebuild of the tree model.
+// - `is-group` = false: a resource leaf. `id` is the resource index in
+//   `GameData::resources()`. Clicking selects it for the viewer.
+export struct TreeNode {
+    label: string,
+    is-group: bool,
+    expanded: bool,
+    id: int,
+}
+
+// Generic label/value pair used by section-style viewers (FNT etc.).
+export struct KeyValue {
+    label: string,
+    value: string,
+}
+
+// A single row in a viewer-side table (2DA, IDS, INI). Each viewer
+// pushes a `[TableRow]` model whose cells line up with the column
+// headers it has pushed alongside.
+export struct TableRow {
+    cells: [string],
+}
+
+// One BAM cycle entry — its index and a label for the cycle combo box.
+export struct CycleEntry {
+    label: string,
+    frame-count: int,
+}

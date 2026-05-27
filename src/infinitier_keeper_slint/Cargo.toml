@@ -1,5 +1,5 @@
 [package]
-name = "infinitier_keeper"
+name = "infinitier_keeper_slint"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
@@ -10,13 +10,17 @@ description = "Cross-engine save-game editor for Infinity Engine games (BG, BG:E
 readme = "readme.md"
 keywords = ["save-game", "editor", "infinity-engine", "baldurs-gate", "gui"]
 
+
 [dependencies]
-infinitier_core = { workspace = true }
+# Path dep into the main workspace's core crate. Its own deps still
+# resolve via the main workspace's `[workspace.dependencies]` table.
+infinitier_core = { path = "../core" }
 
-clap = { workspace = true }
-eframe = { workspace = true }
-env_logger = { workspace = true }
-log = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+env_logger = "0.11"
+log = "0.4"
 
-[dev-dependencies]
-infinitier_test_utils = { workspace = true }
+slint = { version = "1.16" }
+
+[build-dependencies]
+slint-build = "1.16"

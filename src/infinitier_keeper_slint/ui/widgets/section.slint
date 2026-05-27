@@ -1,0 +1,20 @@
+import { Palette } from "std-widgets.slint";
+import { KeyValue } from "../models.slint";
+import { Row } from "row.slint";
+
+// One labelled card containing a list of KeyValue rows.
+export component Section inherits Rectangle {
+    in property <string> title;
+    in property <[KeyValue]> rows;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Palette.border;
+    background: Palette.alternate-background;
+    VerticalLayout {
+        padding: 10px;
+        spacing: 4px;
+        Text { text: title; color: Palette.foreground; font-weight: 700; font-size: 14px; }
+        Rectangle { height: 1px; background: Palette.border; }
+        for row in rows: Row { label: row.label; value: row.value; }
+    }
+}

@@ -5,7 +5,9 @@ members = [
     "src/core",
     "src/datasource",
     "src/infinitier_explorer",
+    "src/infinitier_explorer_slint",
     "src/infinitier_keeper",
+    "src/infinitier_keeper_slint",
     "src/fs",
     "src/test_utils",
     "src/resources/*",
@@ -77,7 +79,6 @@ itertools = "0.14"
 log = "0.4"
 parking_lot = "0.12"
 rand = "0.10"
-re_ui = "0.32"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
@@ -145,9 +146,5 @@ opt-level = 2
 opt-level = 2
 [profile.dev.package.infinitier_wbm_decoder]
 opt-level = 2
-# The third-party VP8 decoder also runs per-pixel hot loops; force
-# opt-level 2 for it in dev/test for the same reason as the in-tree
-# codec crates.
-[profile.dev.package.oxideav-vp8]
-opt-level = 2
+
 
