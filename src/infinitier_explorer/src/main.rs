@@ -71,7 +71,7 @@ fn main() {
         &title,
         options,
         Box::new(move |cc| {
-            cc.egui_ctx.set_visuals(egui::Visuals::light());
+            infinitier_egui_common::theme::apply(&cc.egui_ctx, &infinitier_egui_common::theme::DARK);
 
             // On Linux/X11, winit reads xrandr physical dimensions (~189 DPI on HiDPI
             // laptops) rather than the X server's pre-configured DPI (~96 DPI), causing

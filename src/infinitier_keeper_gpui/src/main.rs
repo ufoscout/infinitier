@@ -3,7 +3,6 @@
 mod app;
 mod load;
 mod state;
-mod themes;
 mod ui;
 
 use std::path::PathBuf;
@@ -45,7 +44,6 @@ fn main() {
 
     Application::new().run(move |cx| {
         gpui_component::init(cx);
-        themes::init(cx);
 
         let options = WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds {

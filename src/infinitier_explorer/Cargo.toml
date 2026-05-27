@@ -9,6 +9,7 @@ repository.workspace = true
 
 [dependencies]
 infinitier_core = { workspace = true }
+infinitier_egui_common = { workspace = true }
 
 bytesize = { workspace = true }
 clap = { workspace = true }

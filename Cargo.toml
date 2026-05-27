@@ -4,10 +4,11 @@ members = [
     "src/common",
     "src/core",
     "src/datasource",
+    "src/egui_common",
     "src/infinitier_explorer",
-    "src/infinitier_explorer_slint",
+    "src/infinitier_explorer_gpui",
     "src/infinitier_keeper",
-    "src/infinitier_keeper_slint",
+    "src/infinitier_keeper_gpui",
     "src/fs",
     "src/test_utils",
     "src/resources/*",
@@ -36,6 +37,7 @@ infinitier_wbm_decoder = { path = "src/codecs/wbm_decoder", version = "0.0.5"  }
 infinitier_common = { path = "src/common", version = "0.0.5" }
 infinitier_core = { path = "src/core", version = "0.0.5"  }
 infinitier_datasource = { path = "src/datasource", version = "0.0.5"  }
+infinitier_egui_common = { path = "src/egui_common", version = "0.0.5" }
 infinitier_fs = { path = "src/fs", version = "0.0.5"  }
 infinitier_keeper = { path = "src/infinitier_keeper", version = "0.0.5"  }
 infinitier_test_utils = { path = "src/test_utils" }

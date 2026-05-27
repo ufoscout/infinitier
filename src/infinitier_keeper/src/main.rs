@@ -142,7 +142,7 @@ fn main() {
         &title,
         options,
         Box::new(move |cc| {
-            cc.egui_ctx.set_visuals(egui::Visuals::light());
+            infinitier_egui_common::theme::apply(&cc.egui_ctx, &infinitier_egui_common::theme::DARK);
 
             // Same Linux/X11 DPI workaround as the explorer crate.
             #[cfg(target_os = "linux")]

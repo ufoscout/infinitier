@@ -8,6 +8,7 @@
 
 use eframe::egui;
 use infinitier_core::imported_resource::gam::{ImportedGamNpc, NpcCre};
+use infinitier_egui_common::theme;
 
 use crate::state::AppState;
 use crate::ui::tabs::{CharacterTab, show_tab};
@@ -29,20 +30,18 @@ impl CharacterPanel {
                 return;
             };
             ui.heading(member_title(idx, member));
-            ui.separator();
+            ui.add_space(8.0);
 
-            // Tab strip
+            // Tab strip — Slint-style chip buttons.
             ui.horizontal_wrapped(|ui| {
                 for tab in CharacterTab::ALL {
-                    if ui
-                        .selectable_label(state.selected_tab == *tab, tab.label())
-                        .clicked()
-                    {
+                    let selected = state.selected_tab == *tab;
+                    if theme::chip(ui, tab.label(), selected, theme::ChipKind::Tab).clicked() {
                         state.selected_tab = *tab;
                     }
                 }
             });
-            ui.separator();
+            ui.add_space(8.0);
 
             match &member.cre {
                 Some(NpcCre::Cre(cre)) => show_tab(

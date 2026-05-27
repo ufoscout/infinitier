@@ -20,8 +20,5 @@ clap = { version = "4", features = ["derive"] }
 env_logger = "0.11"
 log = "0.4"
 
-# Zed's UI framework, plus longbridge's component library on top of it.
-# Both versions are pinned to the published crates.io releases (no git
-# deps) so the build is reproducible.
 gpui = "0.2"
-gpui-component = {git = "https://github.com/longbridge/gpui-component.git", branch = "main", package = "gpui-component"}
+gpui-component = "0.5"
