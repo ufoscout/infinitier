@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_all_ini_files() {
-        let paths = get_all_in_folder_by_extension(ini_folder(), "ini");
+        let paths = get_all_in_folder_by_extension(ini_folder(), "ini", false);
         assert!(!paths.is_empty(), "no INI files found");
 
         for ini_path in paths {

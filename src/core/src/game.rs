@@ -321,7 +321,8 @@ impl GameResource {
             ResourceType::Unknown(id) => Ok(ImportedResource::Unknown(id)),
             ResourceType::Vef => Ok(ImportedResource::Vef),
             ResourceType::Vvc => Ok(ImportedResource::Vvc),
-            ResourceType::Wav => Ok(WavImporter{ name: &self.name }.import(ds)
+            ResourceType::Wav => Ok(WavImporter { name: &self.name }
+                .import(ds)
                 .map(SoundDecoder::Wav)
                 .map(ImportedResource::Sound)?),
             ResourceType::Wbm => Ok(ImportedResource::Wbm(movie::MovieSource::new(

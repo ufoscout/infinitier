@@ -382,8 +382,7 @@ pub fn render(this: &mut ExplorerApp, cx: &mut Context<ExplorerApp>) -> impl Int
                             .cursor_pointer()
                             .hover(|s| s.bg(sidebar_accent))
                             .on_click(cx.listener(move |this, _, _, cx| {
-                                this.tree_view.focused_row =
-                                    Some(FocusedRow::Header { group_ix });
+                                this.tree_view.focused_row = Some(FocusedRow::Header { group_ix });
                                 if !this.tree_view.expanded_groups.remove(ext) {
                                     this.tree_view.expanded_groups.insert(ext);
                                 }

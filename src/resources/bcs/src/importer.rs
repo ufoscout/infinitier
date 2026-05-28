@@ -591,7 +591,7 @@ mod tests {
         // in its sibling JSON snapshot. The round-trip side of the
         // corpus check lives in `exporter::tests`.
         let bcs_folder = get_assets_path().join("BCS");
-        let paths = get_all_in_folder_by_extension(&bcs_folder, "bcs");
+        let paths = get_all_in_folder_by_extension(&bcs_folder, "bcs", false);
         assert!(!paths.is_empty(), "no BCS files found");
 
         for bcs_path in paths {

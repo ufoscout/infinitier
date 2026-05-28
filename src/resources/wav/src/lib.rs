@@ -30,7 +30,6 @@ impl Importer for WavImporter<'_> {
     }
 }
 
-
 #[derive(Debug, ThisError)]
 pub enum WavError {
     #[error(

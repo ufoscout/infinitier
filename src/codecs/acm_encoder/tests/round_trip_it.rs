@@ -176,7 +176,7 @@ fn check_round_trip(wav_path: &Path, out_root: &Path) {
 #[test]
 fn round_trip_random_wavs_via_encoders() {
     let wav_root = get_assets_path().join("WAV");
-    let all_wavs = get_all_in_folder_by_extension(&wav_root, "wav");
+    let all_wavs = get_all_in_folder_by_extension(&wav_root, "wav", false);
 
     assert!(
         !all_wavs.is_empty(),

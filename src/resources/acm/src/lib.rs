@@ -170,7 +170,6 @@ impl Importer for AcmImporter<'_> {
             // `WavDecoder::open` dispatcher reads the four-byte magic
             // again itself — fine, the source is rewindable.
             let dec = WavDecoder::open(source, self.name)?;
-            debug_assert_eq!(dec.format(), WavFormat::Ogg);
             debug!(
                 "[{}] Opened OGG-as-ACM: channels={}, rate={}, total_values={}",
                 self.name,

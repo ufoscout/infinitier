@@ -175,7 +175,7 @@ mod tests {
         // formatting drift (extra whitespace, separator differences)
         // that the parser would happily absorb.
         let bcs_folder = get_assets_path().join("BCS");
-        let paths = get_all_in_folder_by_extension(&bcs_folder, "bcs");
+        let paths = get_all_in_folder_by_extension(&bcs_folder, "bcs", false);
         assert!(!paths.is_empty(), "no BCS files found");
 
         for bcs_path in paths {
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn test_export_to_file_roundtrip() {
         let bcs_folder = get_assets_path().join("BCS");
-        let paths = get_all_in_folder_by_extension(&bcs_folder, "bcs");
+        let paths = get_all_in_folder_by_extension(&bcs_folder, "bcs", false);
         assert!(!paths.is_empty(), "no BCS files found");
         // Pick the first available BCS — the corpus check above already
         // covers full coverage; this test exists to exercise

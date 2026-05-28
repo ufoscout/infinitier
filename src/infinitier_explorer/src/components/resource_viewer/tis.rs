@@ -30,8 +30,8 @@ use std::sync::Arc;
 
 use bytesize::ByteSize;
 use gpui::{
-    AnyElement, Bounds, Context, IntoElement, ObjectFit, ParentElement, Pixels, Point,
-    RenderImage, Size, Styled, StyledImage as _, Window, canvas, div, fill, hsla, img, px,
+    AnyElement, Bounds, Context, IntoElement, ObjectFit, ParentElement, Pixels, Point, RenderImage,
+    Size, Styled, StyledImage as _, Window, canvas, div, fill, hsla, img, px,
 };
 use gpui_component::{ActiveTheme, Sizable, button::Button, h_flex, v_flex};
 use image::Frame;
@@ -208,9 +208,7 @@ fn picture_area(
                 .object_fit(ObjectFit::ScaleDown),
         );
     }
-    if show_grid
-        && let Some((iw, ih)) = image_dims
-    {
+    if show_grid && let Some((iw, ih)) = image_dims {
         slot = slot.child(grid_overlay(iw, ih, tile_dim));
     }
     slot

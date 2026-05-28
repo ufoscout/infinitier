@@ -4,12 +4,11 @@
 //! Any blocks that still need 0xb (raw 8×8 = 64 B) are reported.
 
 use std::fs;
-use std::path::PathBuf;
 
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::MveDecoder;
 use infinitier_mve_encoder::{FromAssetsOptions, encode_from_assets};
-use infinitier_test_utils::{get_assets_path, get_target_path};
+use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, get_target_path};
 
 #[test]
 fn noise_encodes_losslessly_with_phase_6() {
@@ -18,13 +17,7 @@ fn noise_encodes_losslessly_with_phase_6() {
         eprintln!("noise asset missing — skipping");
         return;
     }
-    let mut pngs: Vec<PathBuf> = fs::read_dir(&asset)
-        .unwrap()
-        .filter_map(|r| r.ok())
-        .map(|e| e.path())
-        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("png"))
-        .collect();
-    pngs.sort();
+    let pngs = get_all_in_folder_by_extension(&asset, "png", false);
     let wav = asset.join("audio.wav");
     let out = get_target_path().join("mve_encoder");
     fs::create_dir_all(&out).unwrap();

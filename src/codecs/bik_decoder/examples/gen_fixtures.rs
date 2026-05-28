@@ -183,8 +183,8 @@ fn main() {
     assert!(folder.is_dir(), "missing folder {}", folder.display());
 
     let mut paths = Vec::new();
-    paths.extend(get_all_in_folder_by_extension(&folder, "bik"));
-    paths.extend(get_all_in_folder_by_extension(&folder, "mve"));
+    paths.extend(get_all_in_folder_by_extension(&folder, "bik", false));
+    paths.extend(get_all_in_folder_by_extension(&folder, "mve", false));
     paths.sort();
     assert!(
         !paths.is_empty(),

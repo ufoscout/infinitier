@@ -168,7 +168,7 @@ mod tests {
         // Strongest guarantee: every shipped INI asset round-trips through
         // import → export → import without semantic loss.
         let ini_folder = get_assets_path().join("INI");
-        let paths = get_all_in_folder_by_extension(&ini_folder, "ini");
+        let paths = get_all_in_folder_by_extension(&ini_folder, "ini", false);
         assert!(!paths.is_empty(), "no INI files found");
 
         for ini_path in paths {

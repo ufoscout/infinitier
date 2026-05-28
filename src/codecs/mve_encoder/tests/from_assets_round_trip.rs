@@ -21,7 +21,7 @@ use image::ImageReader;
 use infinitier_datasource::DataSource;
 use infinitier_mve_decoder::MveDecoder;
 use infinitier_mve_encoder::{FromAssetsOptions, encode_from_assets};
-use infinitier_test_utils::{get_assets_path, get_target_path};
+use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path, get_target_path};
 
 #[test]
 fn round_trip_every_asset_folder() {
@@ -73,13 +73,7 @@ fn round_trip_every_asset_folder() {
 }
 
 fn sorted_pngs(dir: &Path) -> Vec<PathBuf> {
-    let mut v: Vec<PathBuf> = fs::read_dir(dir)
-        .unwrap()
-        .filter_map(|r| r.ok())
-        .map(|e| e.path())
-        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("png"))
-        .collect();
-    v.sort();
+    let v = get_all_in_folder_by_extension(dir, "png", false);
     assert!(!v.is_empty(), "no PNG frames in {}", dir.display());
     v
 }
