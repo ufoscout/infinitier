@@ -1,11 +1,20 @@
-use super::ResourceViewerTrait;
-use eframe::egui;
-use infinitier_core::{
-    game::{GameResource, ResourceId},
-    imported_resource::movie::{MovieDecoder, MovieFormat, MovieSource, MovieVideoFrame},
-};
-use log::error;
-use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
+//! Streaming movie player (MVE / WBM). GPUI port of the egui
+//! `MovieViewer`.
+//!
+//! Decoding pipeline is identical to the egui version: a background
+//! thread feeds two bounded queues (interleaved `f32` audio samples
+//! and decoded RGBA video frames) pre-buffered ~3 s; a
+//! `rodio::Source` pulls audio; the UI pulls due video frames on
+//! every paint. The differences from the egui port are at the
+//! presentation edge:
+//!
+//! - Video frames land in `Option<Arc<RenderImage>>` (gpui's image
+//!   primitive) instead of `egui::TextureHandle::set`. We pre-swap
+//!   RGBA → BGRA in place, same trick the image / bam viewers use.
+//! - Repaints come from `window.request_animation_frame()` instead
+//!   of `ctx.request_repaint_after`.
+//! - Transport buttons + progress bar come from `gpui-component`.
+
 use std::collections::VecDeque;
 use std::num::NonZero;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,56 +22,44 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-/// Target prebuffer for the producer thread, in microseconds. Three
-/// seconds of video frames + audio samples are kept in front of the
-/// consumer at all times.
+use gpui::{
+    AnyElement, Context, IntoElement, ObjectFit, ParentElement, RenderImage, Styled,
+    StyledImage as _, Window, div, img,
+};
+use gpui_component::{
+    ActiveTheme, Disableable, Sizable, button::Button, h_flex, progress::Progress, v_flex,
+};
+use image::{Frame, ImageBuffer, Rgba};
+use infinitier_core::{
+    game::{GameResource, ResourceId},
+    imported_resource::movie::{MovieDecoder, MovieFormat, MovieSource, MovieVideoFrame},
+};
+use log::error;
+use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
+use smallvec::SmallVec;
+
+use super::ResourceViewerTrait;
+use crate::app::ExplorerApp;
+
 const PREBUFFER_US: u64 = 3_000_000;
-
-/// Worst-case audio capacity (3 s @ 48 kHz stereo). Allocated up front;
-/// the actual sample rate is detected from the first audio chunk.
 const AUDIO_CAPACITY: usize = 3 * 48_000 * 2;
-
-/// How long to wait for the producer thread to surface the file's
-/// audio format (channels + sample rate) before giving up and playing
-/// without sound. Both MVE and BIK files in the wild always emit audio
-/// metadata within the first frame or two, so 250 ms is plenty.
 const AUDIO_FMT_TIMEOUT_MS: u64 = 250;
 
-/// Streaming movie player.
-///
-/// On Play, the viewer:
-/// 1. Opens a fresh [`MovieDecoder`] from the saved [`MovieSource`].
-///    The decoder dispatches MVE vs. BIK based on the file's magic.
-/// 2. Spawns a producer thread that feeds two queues — interleaved
-///    `f32` audio samples and decoded RGBA video frames — pre-buffered
-///    to ~3 seconds.
-/// 3. Attaches a [`MovieAudioSource`] to the rodio sink which pulls
-///    audio from the audio queue, and on every UI tick the central
-///    panel pulls the next due frame from the video queue.
-///
-/// Stop signals the thread, drains the rodio sink, joins the thread
-/// (so the decoder is fully released), and clears the texture. The
-/// `Drop` impl does the same so threads don't survive viewer changes.
 pub struct MovieViewer {
     source: MovieSource,
-    /// Container format detected at metadata-probe time. Surfaced in
-    /// the bottom info bar; `None` when the file failed to open and
-    /// the format never got identified.
     format: Option<MovieFormat>,
     width: u16,
     height: u16,
     frame_duration_us: u32,
-    /// Total stream duration captured at metadata-probe time.
     total_duration: Duration,
-    /// Fallback for the bottom info bar when the file can't be opened
-    /// for metadata.
     decode_error: Option<String>,
 
     audio: Option<Audio>,
     playback: Option<Playback>,
-    /// Texture that holds the most recently shown video frame. Reused
-    /// across frames so we don't allocate a new GPU resource every tick.
-    texture: Option<egui::TextureHandle>,
+    /// Most recently uploaded video frame. Reused across frames by
+    /// rebuilding a fresh `Arc<RenderImage>` whenever a new
+    /// `MovieVideoFrame` is pulled from the producer queue.
+    current_frame: Option<Arc<RenderImage>>,
 }
 
 struct Audio {
@@ -72,13 +69,8 @@ struct Audio {
 
 impl MovieViewer {
     pub fn new(source: MovieSource) -> Self {
-        // Open once just to extract metadata for the info bar. Drop the
-        // decoder immediately — actual playback opens a fresh one.
-        // Both per-format decoders surface dimensions, frame duration
-        // and total length without needing any frame to be pulled
-        // first (BIK reads the header; MVE does a one-shot metadata
-        // scan in its constructor), so `info()` is fully populated as
-        // soon as `open` returns.
+        // Open once just to extract metadata for the info bar. Drop
+        // the decoder immediately — actual playback opens a fresh one.
         let (format, width, height, frame_duration_us, total_duration, decode_error) =
             match source.open() {
                 Ok(dec) => {
@@ -105,7 +97,7 @@ impl MovieViewer {
             decode_error,
             audio: init_audio(),
             playback: None,
-            texture: None,
+            current_frame: None,
         }
     }
 
@@ -125,10 +117,7 @@ impl MovieViewer {
             }
         };
 
-        // Three seconds worth of video frames, with a small floor so
-        // very short clips still buffer ahead.
         let video_capacity = ((PREBUFFER_US / self.frame_duration_us as u64) as usize).max(8);
-
         let state = Arc::new(PlaybackState::new(AUDIO_CAPACITY, video_capacity));
 
         let handle = {
@@ -139,9 +128,6 @@ impl MovieViewer {
                 .expect("failed to spawn movie decoder thread")
         };
 
-        // Wire audio if the producer surfaces a format quickly. If it
-        // doesn't (no audio in the first frames, or stop arrived early),
-        // fall through and play silent video.
         if let Some(audio) = self.audio.as_ref()
             && let Some((channels, sample_rate)) =
                 state.wait_for_audio_fmt(Duration::from_millis(AUDIO_FMT_TIMEOUT_MS))
@@ -152,7 +138,6 @@ impl MovieViewer {
                 channels,
                 sample_rate,
             });
-            // Brief warm-up so the very first samples aren't silence.
             for _ in 0..50 {
                 if !state.audio_queue.lock().unwrap().is_empty() {
                     break;
@@ -185,7 +170,7 @@ impl MovieViewer {
         {
             error!("movie decoder thread panicked: {e:?}");
         }
-        self.texture = None;
+        self.current_frame = None;
     }
 
     fn pause(&mut self) {
@@ -235,10 +220,10 @@ impl MovieViewer {
         elapsed
     }
 
-    /// Pop video frames whose presentation time has passed and upload
-    /// the latest one (we may pop several if the UI was lagging) into
-    /// the GPU texture.
-    fn advance_frames(&mut self, ctx: &egui::Context) {
+    /// Pop any video frames whose presentation time has passed and
+    /// upload the latest one (we may pop several if the UI was
+    /// lagging) into a fresh `Arc<RenderImage>` for the next paint.
+    fn advance_frames(&mut self) {
         let Some(playback) = self.playback.as_mut() else {
             return;
         };
@@ -247,8 +232,6 @@ impl MovieViewer {
             return;
         }
 
-        // Inline `playback_position` here so we can keep the `&mut
-        // Playback` borrow alive while we compute it.
         let now = Instant::now();
         let mut elapsed = now
             .duration_since(playback.epoch)
@@ -274,22 +257,10 @@ impl MovieViewer {
         playback.state.video_cond.notify_all();
 
         if let Some(frame) = latest {
-            let img = egui::ColorImage::from_rgba_unmultiplied(
-                [frame.width as usize, frame.height as usize],
-                &frame.pixels,
-            );
-            match self.texture.as_mut() {
-                Some(handle) => handle.set(img, egui::TextureOptions::LINEAR),
-                None => {
-                    self.texture =
-                        Some(ctx.load_texture("movie-frame", img, egui::TextureOptions::LINEAR));
-                }
-            }
+            self.current_frame = Some(frame_to_render_image(frame));
         }
     }
 
-    /// Detect natural EOS: producer has flagged it AND both queues are
-    /// drained, AND audio sink (if any) is empty. Then teardown.
     fn poll_for_eos(&mut self) {
         let Some(playback) = self.playback.as_ref() else {
             return;
@@ -308,10 +279,223 @@ impl MovieViewer {
 
 impl Drop for MovieViewer {
     fn drop(&mut self) {
-        // Make sure the producer thread is fully gone before the
-        // viewer's heap allocations go away.
         self.stop_playback();
     }
+}
+
+impl ResourceViewerTrait for MovieViewer {
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        _resource: &GameResource,
+        window: &mut Window,
+        cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        // Pull due video frames every tick, then detect natural EOS.
+        self.advance_frames();
+        self.poll_for_eos();
+
+        // While playing (or paused but with frames being slung), keep
+        // repainting so the video and the progress bar update.
+        if self.playback.is_some() {
+            window.request_animation_frame();
+        }
+
+        let border = cx.theme().border;
+
+        let picture = picture_area(self.current_frame.clone(), &self.decode_error);
+        let transport = transport_bar(self, cx);
+        let info = info_bar(self, cx);
+
+        v_flex()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .child(picture)
+            .child(div().h_px().bg(border))
+            .child(transport)
+            .child(div().h_px().bg(border))
+            .child(info)
+            .into_any_element()
+    }
+}
+
+fn picture_area(
+    image: Option<Arc<RenderImage>>,
+    decode_error: &Option<String>,
+) -> impl IntoElement + use<> {
+    let mut slot = div()
+        .flex_1()
+        .min_h_0()
+        .w_full()
+        .relative()
+        .overflow_hidden();
+    if let Some(err) = decode_error {
+        slot = slot.child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .bottom_0()
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(gpui::rgb(0xff5555))
+                .child(err.clone()),
+        );
+    } else if let Some(tex) = image {
+        slot = slot.child(
+            img(tex)
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .bottom_0()
+                .size_full()
+                .object_fit(ObjectFit::ScaleDown),
+        );
+    } else {
+        slot = slot.child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .bottom_0()
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_color(gpui::rgba(0x88888888))
+                .child("Movie Player"),
+        );
+    }
+    slot
+}
+
+fn transport_bar(viewer: &MovieViewer, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let is_playing = viewer.is_playing();
+    let has_movie = viewer.frame_duration_us > 0 && viewer.decode_error.is_none();
+    let pos = viewer.playback_position();
+    let duration = viewer.total_duration;
+    let progress_pct = if duration.as_secs_f64() > 0.0 {
+        (pos.as_secs_f64() / duration.as_secs_f64()).clamp(0.0, 1.0) as f32 * 100.0
+    } else {
+        0.0
+    };
+    let label = if is_playing {
+        "⏸  Pause"
+    } else {
+        "▶  Play"
+    };
+
+    h_flex()
+        .w_full()
+        .px_3()
+        .py_2()
+        .gap_3()
+        .items_center()
+        .bg(theme.secondary)
+        .child(
+            Button::new("movie-play")
+                .label(label)
+                .small()
+                .disabled(!has_movie)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    let viewer = movie_viewer_mut(this);
+                    if viewer.playback.is_none() {
+                        viewer.start_playback();
+                    } else if viewer.is_paused() {
+                        viewer.resume();
+                    } else {
+                        viewer.pause();
+                    }
+                    cx.notify();
+                })),
+        )
+        .child(
+            Button::new("movie-stop")
+                .label("⏹  Stop")
+                .small()
+                .disabled(!has_movie)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    movie_viewer_mut(this).stop_playback();
+                    cx.notify();
+                })),
+        )
+        .child(
+            div()
+                .flex_1()
+                .child(Progress::new().value(progress_pct).bg(theme.accent)),
+        )
+        .child(div().text_color(theme.muted_foreground).child(format!(
+            "{} / {}",
+            format_duration(pos),
+            format_duration(duration)
+        )))
+}
+
+fn info_bar(viewer: &MovieViewer, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let fps = if viewer.frame_duration_us > 0 {
+        1_000_000.0 / viewer.frame_duration_us as f64
+    } else {
+        0.0
+    };
+
+    let mut row = h_flex()
+        .w_full()
+        .px_3()
+        .py_1p5()
+        .gap_2()
+        .items_center()
+        .bg(theme.secondary)
+        .child(cell(viewer.source.name.clone()))
+        .child(separator(theme.border));
+    if let Some(fmt) = viewer.format {
+        row = row
+            .child(cell(fmt.to_string()))
+            .child(separator(theme.border));
+    }
+    row.child(cell(format!("{}×{}", viewer.width, viewer.height)))
+        .child(separator(theme.border))
+        .child(cell(format!("{fps:.2} fps")))
+        .child(separator(theme.border))
+        .child(cell(format_duration(viewer.total_duration)))
+}
+
+fn cell(text: String) -> impl IntoElement {
+    div().child(text)
+}
+
+fn separator(color: gpui::Hsla) -> impl IntoElement {
+    div().w_px().h_4().bg(color)
+}
+
+/// Wrap an RGBA8 video frame into the BGRA `RenderImage` gpui expects.
+/// Same R↔B swap pattern as the image / bam viewers.
+fn frame_to_render_image(frame: MovieVideoFrame) -> Arc<RenderImage> {
+    let mut buffer: ImageBuffer<Rgba<u8>, Vec<u8>> =
+        ImageBuffer::from_raw(frame.width as u32, frame.height as u32, frame.pixels)
+            .expect("movie frame pixel buffer length disagrees with declared dimensions");
+    for pixel in buffer.chunks_exact_mut(4) {
+        pixel.swap(0, 2);
+    }
+    let f = Frame::new(buffer);
+    Arc::new(RenderImage::new(SmallVec::from_elem(f, 1)))
+}
+
+fn movie_viewer_mut(app: &mut ExplorerApp) -> &mut MovieViewer {
+    let trait_obj = &mut app
+        .viewer
+        .inner
+        .as_mut()
+        .expect("movie click fired without an active viewer")
+        .viewer;
+    (trait_obj.as_mut() as &mut dyn std::any::Any)
+        .downcast_mut::<MovieViewer>()
+        .expect("active viewer is not a MovieViewer")
 }
 
 fn init_audio() -> Option<Audio> {
@@ -325,25 +509,17 @@ fn init_audio() -> Option<Audio> {
     })
 }
 
-// ─── Producer thread + shared state ───────────────────────────────────────────
+// ─── Producer thread + shared state (ported verbatim from egui) ──────
 
-/// Active playback session. Dropped on Stop and on Drop of the viewer.
 struct Playback {
     state: Arc<PlaybackState>,
     handle: Option<thread::JoinHandle<()>>,
-    /// Wall-clock instant that playback (re)started at.
     epoch: Instant,
-    /// Total time spent paused in this session, accumulated each Resume.
     paused_for: Duration,
-    /// If currently paused, when the pause began. `None` when running.
     pause_started: Option<Instant>,
-    /// How many video frames the UI has popped from the queue. Used to
-    /// decide which frames are still due.
     frames_consumed: u64,
 }
 
-/// Bounded shared state between the producer thread and the UI / audio
-/// callback thread.
 struct PlaybackState {
     audio_queue: Mutex<VecDeque<f32>>,
     audio_cond: Condvar,
@@ -353,16 +529,10 @@ struct PlaybackState {
     video_cond: Condvar,
     video_capacity: usize,
 
-    /// Audio format (channels, sample_rate) extracted from the first
-    /// audio chunk. `None` until the producer sees one — the UI waits
-    /// briefly on `audio_fmt_cond` so the rodio source is constructed
-    /// with the right rate.
     audio_fmt: Mutex<Option<(NonZero<u16>, NonZero<u32>)>>,
     audio_fmt_cond: Condvar,
 
-    /// Producer reached natural end-of-stream (or hit an error).
     eos: AtomicBool,
-    /// UI thread asked the producer to exit ASAP.
     stop: AtomicBool,
 }
 
@@ -384,15 +554,11 @@ impl PlaybackState {
 
     fn signal_stop(&self) {
         self.stop.store(true, Ordering::Release);
-        // Wake every parked waiter (producer parked on a full queue,
-        // UI parked on the audio fmt).
         self.audio_cond.notify_all();
         self.video_cond.notify_all();
         self.audio_fmt_cond.notify_all();
     }
 
-    /// Wait up to `timeout` for the producer to emit an audio format.
-    /// Returns `None` on timeout / EOS-without-audio / stop.
     fn wait_for_audio_fmt(&self, timeout: Duration) -> Option<(NonZero<u16>, NonZero<u32>)> {
         let q = self.audio_fmt.lock().unwrap();
         let (q, _) = self
@@ -413,9 +579,6 @@ fn decoder_loop(state: Arc<PlaybackState>, mut decoder: MovieDecoder) {
             return;
         }
 
-        // Park until there's room for another video frame. The audio
-        // queue's own backpressure is handled inside the audio push
-        // below.
         {
             let mut q = state.video_queue.lock().unwrap();
             while q.len() >= state.video_capacity && !state.stop.load(Ordering::Acquire) {
@@ -446,7 +609,6 @@ fn decoder_loop(state: Arc<PlaybackState>, mut decoder: MovieDecoder) {
         };
 
         for chunk in &frame.audio {
-            // Surface the audio format the first time we see one.
             {
                 let mut fmt = state.audio_fmt.lock().unwrap();
                 if fmt.is_none()
@@ -479,8 +641,6 @@ fn decoder_loop(state: Arc<PlaybackState>, mut decoder: MovieDecoder) {
     }
 }
 
-// ─── rodio Source pulling audio out of the playback state ─────────────────────
-
 struct MovieAudioSource {
     state: Arc<PlaybackState>,
     channels: ChannelCount,
@@ -500,7 +660,6 @@ impl Iterator for MovieAudioSource {
         if self.state.eos.load(Ordering::Acquire) {
             return None;
         }
-        // Underrun: brief wait so we don't immediately inject silence.
         let (mut q, _) = self
             .state
             .audio_cond
@@ -529,149 +688,6 @@ impl Source for MovieAudioSource {
     }
     fn total_duration(&self) -> Option<Duration> {
         None
-    }
-}
-
-// ─── UI ───────────────────────────────────────────────────────────────────────
-
-impl ResourceViewerTrait for MovieViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
-        // Pull due video frames every tick.
-        self.advance_frames(ui.ctx());
-        // Detect natural end-of-stream and tear down.
-        self.poll_for_eos();
-
-        // ── Bottom info bar ────────────────────────────────────────────────
-        egui::Panel::bottom("movie_info_panel").show_inside(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(&self.source.name);
-                ui.separator();
-                if let Some(fmt) = self.format {
-                    ui.label(fmt.to_string());
-                    ui.separator();
-                }
-                ui.label(format!("{}×{}", self.width, self.height));
-                ui.separator();
-                let fps = if self.frame_duration_us > 0 {
-                    1_000_000.0 / self.frame_duration_us as f64
-                } else {
-                    0.0
-                };
-                ui.label(format!("{fps:.2} fps"));
-                ui.separator();
-                ui.label(format_duration(self.total_duration));
-            });
-        });
-
-        // ── Transport bar (above the info bar) ─────────────────────────────
-        let is_playing = self.is_playing();
-        let has_movie = self.frame_duration_us > 0 && self.decode_error.is_none();
-        let pos = self.playback_position();
-
-        let mut click_play_pause = false;
-        let mut click_stop = false;
-
-        egui::Panel::bottom("movie_transport_panel").show_inside(ui, |ui| {
-            ui.add_space(6.0);
-            ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                ui.allocate_ui_with_layout(
-                    egui::vec2(220.0, 0.0),
-                    egui::Layout::left_to_right(egui::Align::Center),
-                    |ui| {
-                        let label = if is_playing {
-                            "⏸  Pause"
-                        } else {
-                            "▶  Play"
-                        };
-                        if ui
-                            .add_enabled(has_movie, egui::Button::new(label))
-                            .clicked()
-                        {
-                            click_play_pause = true;
-                        }
-                        if ui
-                            .add_enabled(has_movie, egui::Button::new("⏹  Stop"))
-                            .clicked()
-                        {
-                            click_stop = true;
-                        }
-                    },
-                );
-                ui.add_space(6.0);
-
-                // ── Progress bar ──
-                let total_secs = self.total_duration.as_secs_f64();
-                let progress = if total_secs > 0.0 {
-                    (pos.as_secs_f64() / total_secs).clamp(0.0, 1.0) as f32
-                } else {
-                    0.0
-                };
-
-                ui.add(
-                    egui::ProgressBar::new(progress)
-                        .desired_width(420.0)
-                        .text(format!(
-                            "{} / {}",
-                            format_duration(pos),
-                            format_duration(self.total_duration)
-                        )),
-                );
-                ui.add_space(4.0);
-            });
-        });
-
-        // ── Central area: video frame ──────────────────────────────────────
-        let texture = self.texture.as_ref().cloned();
-        let decode_error = self.decode_error.clone();
-        let width = self.width;
-        let height = self.height;
-
-        egui::CentralPanel::default()
-            .frame(egui::Frame::NONE)
-            .show_inside(ui, |ui| {
-                ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                    ui.add_space(8.0);
-                    if let Some(err) = decode_error.as_deref() {
-                        ui.colored_label(egui::Color32::LIGHT_RED, err);
-                        return;
-                    }
-                    if let Some(tex) = texture.as_ref() {
-                        // Fit-to-area while preserving aspect ratio.
-                        let avail = ui.available_size();
-                        let scale = (avail.x / width.max(1) as f32)
-                            .min(avail.y / height.max(1) as f32)
-                            .max(0.0);
-                        let display_size = egui::vec2(width as f32 * scale, height as f32 * scale);
-                        ui.add(egui::Image::new(tex).fit_to_exact_size(display_size));
-                    } else {
-                        ui.heading("Movie Player");
-                        ui.add_space(12.0);
-                        ui.label(format!("{width}×{height}"));
-                    }
-                });
-            });
-
-        // Apply transport actions outside the UI closures.
-        if click_play_pause {
-            if self.playback.is_none() {
-                self.start_playback();
-            } else if self.is_paused() {
-                self.resume();
-            } else {
-                self.pause();
-            }
-        }
-        if click_stop {
-            self.stop_playback();
-        }
-
-        // While playing (or paused but with frames being slung), keep
-        // repainting so the video and the progress bar update.
-        if self.playback.is_some() {
-            ui.ctx().request_repaint_after(Duration::from_millis(
-                (self.frame_duration_us as u64 / 1_000).max(16),
-            ));
-        }
     }
 }
 

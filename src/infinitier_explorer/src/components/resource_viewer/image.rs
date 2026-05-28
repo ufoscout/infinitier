@@ -1,93 +1,173 @@
-use super::ResourceViewerTrait;
+//! Raster-image viewer (BMP / PVRZ / MOS / PNG). Port of the egui
+//! `ImageViewer`: same info bar + scale-to-fit, never-upscale picture
+//! area, but the texture upload goes through `gpui::RenderImage` /
+//! `img()` instead of `egui::TextureHandle`.
+//!
+//! The decoded image data is converted from RGBA → BGRA in-place at
+//! construction time (gpui's renderer expects BGRA, see
+//! `gpui/elements/img.rs`), wrapped in an `Arc<RenderImage>`, and
+//! reused on every frame.
+
+use std::sync::Arc;
+
 use bytesize::ByteSize;
-use eframe::egui::{self, TextureHandle};
+use gpui::{
+    AnyElement, Context, IntoElement, ObjectFit, ParentElement, RenderImage, StyledImage as _,
+    Window, img,
+};
+use gpui::{Styled, div};
+use gpui_component::{ActiveTheme, h_flex, v_flex};
+use image::Frame;
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     imported_resource::image::ImportedImage,
 };
+use smallvec::SmallVec;
 
-/// One viewer for every raster image type that lands in
-/// [`crate::imported_resource::ImportedResource::Image`] — BMP and PVRZ
-/// today, more later. The constructor uploads the RGBA8 buffer to a GPU
-/// texture once; subsequent frames only paint.
+use super::ResourceViewerTrait;
+use crate::app::ExplorerApp;
+
 pub struct ImageViewer {
-    cached: TextureHandle,
-    /// Short uppercase label of the source format (e.g. `"BMP"`),
-    /// rendered as one cell of the info bar.
+    /// BGRA texture cached for the lifetime of this viewer.
+    cached: Arc<RenderImage>,
+    width: u32,
+    height: u32,
+    /// Short uppercase label of the source format (e.g. `"BMP"`).
     format_label: &'static str,
-    /// Human-readable detail line (bit depth / compression / DXT
-    /// variant), rendered as the next info-bar cell.
+    /// Human-readable detail line (bit depth / compression / DXT variant).
     format_description: String,
 }
 
 impl ImageViewer {
-    pub fn new(img: ImportedImage, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
-        let w = img.width() as usize;
-        let h = img.height() as usize;
-        let color_image = egui::ColorImage::from_rgba_unmultiplied([w, h], img.image.as_raw());
-        let cached = ui.ctx().load_texture(
-            format!("image_{resource_id}"),
-            color_image,
-            egui::TextureOptions::default(),
-        );
+    pub fn new(img: ImportedImage) -> Self {
+        let width = img.width();
+        let height = img.height();
+        let format_label = img.format_label();
+        let format_description = img.format_description();
+
+        // gpui's renderer wants BGRA; `ImportedImage` always lands as
+        // RGBA8 regardless of source. Swap R↔B in place — same trick
+        // gpui itself uses in `elements/img.rs` for decoded buffers.
+        let mut buffer = img.image;
+        for pixel in buffer.chunks_exact_mut(4) {
+            pixel.swap(0, 2);
+        }
+
+        let frame = Frame::new(buffer);
+        let cached = Arc::new(RenderImage::new(SmallVec::from_elem(frame, 1)));
 
         Self {
             cached,
-            format_label: img.format_label(),
-            format_description: img.format_description(),
+            width,
+            height,
+            format_label,
+            format_description,
         }
     }
 }
 
 impl ResourceViewerTrait for ImageViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
-        let texture = &self.cached;
-
-        egui::Panel::bottom("image_info_panel").show_inside(ui, |ui| {
-            ui.horizontal(|ui| {
-                let [w, h] = texture.size();
-                ui.label(format!("{w} × {h} px"));
-                ui.separator();
-                match resource.file_size {
-                    Some(size) => {
-                        ui.label(ByteSize(size).to_string());
-                    }
-                    None => {
-                        ui.label("? B");
-                    }
-                }
-                ui.separator();
-                ui.label(self.format_label);
-                ui.separator();
-                ui.label(&self.format_description);
-                ui.separator();
-                match &resource.data_origin {
-                    DataOrigin::Bif { name } => {
-                        ui.label(format!("BIF: {name}"));
-                    }
-                    DataOrigin::Dir { name, path } => {
-                        ui.label(format!("{name}: {}", path.path().display()));
-                    }
-                    DataOrigin::Missing => {
-                        ui.label("Missing");
-                    }
-                }
-            });
-        });
-
-        let available = ui.available_size();
-        let natural = texture.size_vec2();
-        let scale = (available.x / natural.x)
-            .min(available.y / natural.y)
-            .min(1.0);
-        let display = natural * scale;
-
-        let y_offset = ((available.y - display.y) / 2.0).max(0.0);
-        if y_offset > 0.0 {
-            ui.add_space(y_offset);
-        }
-        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-            ui.add(egui::Image::new(texture).fit_to_exact_size(display));
-        });
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        resource: &GameResource,
+        _window: &mut Window,
+        cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        let theme = cx.theme();
+        // `flex_1 + min_h_0` (not `size_full`) is what makes the
+        // picture-area shrink-to-fit work — `size_full` resolves the
+        // percentage against the central panel's *content* box, but a
+        // descendant `flex_1` then claims that full height and the
+        // image, centred inside the oversized slot, falls below the
+        // viewport. Same shape `keeper_gpui::ui::character` uses for
+        // its tab body.
+        v_flex()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .child(picture_area(self.cached.clone()))
+            .child(div().h_px().bg(theme.border))
+            .child(info_bar(self, resource, cx))
+            .into_any_element()
     }
+}
+
+/// The scale-to-fit, centred picture area. We pin the `img` element
+/// to the four edges of a `relative + overflow_hidden` container with
+/// `.absolute()` so taffy can't expand the slot to satisfy the image's
+/// intrinsic aspect ratio — without that escape hatch the picture
+/// area grew taller than the viewport and `ObjectFit::ScaleDown`'s
+/// centring placed the image below the visible window.
+/// `ObjectFit::ScaleDown` itself handles the actual scale + centre
+/// of the pixels within the pinned bounds.
+fn picture_area(image: Arc<RenderImage>) -> impl IntoElement {
+    div()
+        .flex_1()
+        .min_h_0()
+        .w_full()
+        .relative()
+        .overflow_hidden()
+        .child(
+            // `size_full()` *and* the four-edge inset are both
+            // required. Without explicit width/height, `Img` falls
+            // through to natural image dimensions (see its
+            // `request_layout`) and the insets get ignored — the
+            // image then paints at its native size in the top-left.
+            // Without the insets, an absolute child has no defined
+            // containing block to size against.
+            img(image)
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .bottom_0()
+                .size_full()
+                .object_fit(ObjectFit::ScaleDown),
+        )
+}
+
+/// Bottom info bar — dimensions, file size, format label, format
+/// description, data origin. Same row of cells the egui viewer paints.
+fn info_bar(
+    viewer: &ImageViewer,
+    resource: &GameResource,
+    cx: &mut Context<ExplorerApp>,
+) -> impl IntoElement {
+    let theme = cx.theme();
+
+    let file_size = match resource.file_size {
+        Some(size) => ByteSize(size).to_string(),
+        None => "? B".to_string(),
+    };
+    let origin = match &resource.data_origin {
+        DataOrigin::Bif { name } => format!("BIF: {name}"),
+        DataOrigin::Dir { name, path } => format!("{name}: {}", path.path().display()),
+        DataOrigin::Missing => "Missing".to_string(),
+    };
+
+    h_flex()
+        .w_full()
+        .px_3()
+        .py_1p5()
+        .gap_2()
+        .items_center()
+        .bg(theme.secondary)
+        .child(cell(format!("{} × {} px", viewer.width, viewer.height)))
+        .child(separator(theme.border))
+        .child(cell(file_size))
+        .child(separator(theme.border))
+        .child(cell(viewer.format_label.to_string()))
+        .child(separator(theme.border))
+        .child(cell(viewer.format_description.clone()))
+        .child(separator(theme.border))
+        .child(cell(origin))
+}
+
+fn cell(text: String) -> impl IntoElement {
+    div().child(text)
+}
+
+fn separator(color: gpui::Hsla) -> impl IntoElement {
+    div().w_px().h_4().bg(color)
 }

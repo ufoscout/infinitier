@@ -1,32 +1,28 @@
+//! FNT viewer. GPUI port of the egui `FntViewer`.
+//!
+//! Mirrors NearInfinity's `FntResource` panel cell-for-cell:
+//! - Scrollable centre area containing
+//!   - a four-column struct table (Attribute / Value / Offset / Size),
+//!   - a one-line note clarifying that FNT is a 4-byte envelope and
+//!     the rest of the file is engine-internal opaque data,
+//!   - a hex dump of the first 256 bytes past the header.
+//! - Bottom info bar with the FNT label, extra-letter count, file
+//!   size, body size, and data origin.
+
 use bytesize::ByteSize;
-use eframe::egui::{self, RichText};
+use gpui::{
+    AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, SharedString,
+    StatefulInteractiveElement, Styled, Window, div, px,
+};
+use gpui_component::{ActiveTheme, h_flex, v_flex};
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     resource::fnt::{Fnt, HEADER_LEN},
 };
 
 use super::ResourceViewerTrait;
+use crate::app::ExplorerApp;
 
-/// FNT viewer modelled on NearInfinity's `FntResource` struct view.
-///
-/// FNT is a 4-byte "font envelope": just a `# extra letters` count.
-/// The `Letters` BAM and `Extra letters` BMP that NI shows are not
-/// stored in the file — they're synthesised from the FNT's own
-/// resource name (`DIALOG.FNT` ⇒ `DIALOG.BAM` + `DIALOG.BMP`). The
-/// importer does the same.
-///
-/// Layout:
-/// - **Top**: a four-column `Attribute / Value / Offset / Size`
-///   grid mirroring NI's "Edit" tab (the screenshot the user shared).
-/// - **Middle**: an annotated header (in case the file is bigger than
-///   4 bytes — vanilla EE FNTs are 23–100 KB) telling the user that
-///   the trailing bytes are engine-internal opaque data.
-/// - **Bottom info bar**: file size, body size, data origin — same
-///   shape as the other viewers.
-///
-/// No bitmap rendering: NI itself doesn't render the FNT glyphs (the
-/// linked BAM/BMP are opened as their own resources), and the opaque
-/// trailing bytes use an undocumented float layout.
 pub struct FntViewer {
     fnt: Fnt,
 }
@@ -38,145 +34,224 @@ impl FntViewer {
 }
 
 impl ResourceViewerTrait for FntViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
-        // ── Bottom info bar ────────────────────────────────────────
-        egui::Panel::bottom("fnt_info_panel").show_inside(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("FNT");
-                ui.separator();
-                ui.label(format!("# extra letters: {}", self.fnt.extra_letters_count));
-                ui.separator();
-                match resource.file_size {
-                    Some(size) => ui.label(ByteSize(size).to_string()),
-                    None => ui.label("? B"),
-                };
-                ui.separator();
-                ui.label(format!("body: {} B (opaque)", self.fnt.body().len()));
-                ui.separator();
-                match &resource.data_origin {
-                    DataOrigin::Bif { name } => ui.label(format!("BIF: {name}")),
-                    DataOrigin::Dir { name, path } => {
-                        ui.label(format!("{name}: {}", path.path().display()))
-                    }
-                    DataOrigin::Missing => ui.label("Missing"),
-                };
-            });
-        });
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        resource: &GameResource,
+        _window: &mut Window,
+        cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        let border = cx.theme().border;
 
-        // ── Main scroll area ───────────────────────────────────────
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            ui.add_space(8.0);
-            self.show_struct_table(ui);
-            ui.add_space(12.0);
-            self.show_format_note(ui);
-            ui.add_space(12.0);
-            self.show_body_preview(ui);
-        });
+        let scroll = div()
+            .id("fnt-scroll")
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .overflow_y_scroll()
+            .p_4()
+            .child(struct_table(&self.fnt, cx))
+            .child(div().h_4())
+            .child(format_note(&self.fnt, cx))
+            .child(div().h_4())
+            .child(body_preview(&self.fnt, cx));
+
+        let info = info_bar(&self.fnt, resource, cx);
+
+        v_flex()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .child(scroll)
+            .child(div().h_px().bg(border))
+            .child(info)
+            .into_any_element()
     }
 }
 
-impl FntViewer {
-    /// NI-style struct table — same columns as the screenshot.
-    fn show_struct_table(&self, ui: &mut egui::Ui) {
-        ui.add_space(4.0);
-        egui::Grid::new("fnt_struct_grid")
-            .num_columns(4)
-            .striped(true)
-            .spacing([16.0, 4.0])
-            .show(ui, |ui| {
-                // Header row.
-                ui.label(RichText::new("Attribute").strong());
-                ui.label(RichText::new("Value").strong());
-                ui.label(RichText::new("Offset").strong());
-                ui.label(RichText::new("Size").strong());
-                ui.end_row();
+/// NI-style struct table — Attribute / Value / Offset / Size columns.
+/// Same three data rows the egui viewer paints.
+fn struct_table(fnt: &Fnt, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let header_bg = theme.secondary;
+    let row_bg_alt = theme.muted;
 
-                // # extra letters — the only field actually read from the file.
-                ui.label("# extra letters");
-                ui.label(self.fnt.extra_letters_count.to_string());
-                ui.label("0 h");
-                ui.label(HEADER_LEN.to_string());
-                ui.end_row();
+    v_flex()
+        .w_full()
+        .gap_0()
+        .border_1()
+        .border_color(theme.border)
+        .rounded(theme.radius)
+        .child(table_header_row(header_bg))
+        .child(table_row(
+            "# extra letters",
+            fnt.extra_letters_count.to_string(),
+            "0 h",
+            HEADER_LEN.to_string(),
+            row_bg_alt,
+        ))
+        .child(table_row(
+            "Letters",
+            fnt.letters_bam.clone(),
+            "0 h",
+            "8".to_string(),
+            theme.transparent,
+        ))
+        .child(table_row(
+            "Extra letters",
+            fnt.extra_letters_bmp.clone(),
+            "0 h",
+            "8".to_string(),
+            row_bg_alt,
+        ))
+}
 
-                // Letters — synthesised BAM ref. NI shows offset 0 / size 8
-                // because that's a `ResourceRef`'s nominal layout, even
-                // though the bytes never appear in the FNT.
-                ui.label("Letters");
-                ui.label(&self.fnt.letters_bam);
-                ui.label("0 h");
-                ui.label("8");
-                ui.end_row();
+fn table_header_row(bg: gpui::Hsla) -> impl IntoElement {
+    h_flex()
+        .w_full()
+        .px_3()
+        .py_2()
+        .gap_3()
+        .bg(bg)
+        .font_weight(FontWeight::BOLD)
+        .child(div().min_w(px(160.)).child("Attribute"))
+        .child(div().flex_1().child("Value"))
+        .child(div().min_w(px(80.)).child("Offset"))
+        .child(div().min_w(px(60.)).child("Size"))
+}
 
-                // Extra letters — synthesised BMP ref, same convention.
-                ui.label("Extra letters");
-                ui.label(&self.fnt.extra_letters_bmp);
-                ui.label("0 h");
-                ui.label("8");
-                ui.end_row();
+fn table_row(
+    attribute: impl Into<SharedString>,
+    value: impl Into<SharedString>,
+    offset: impl Into<SharedString>,
+    size: impl Into<SharedString>,
+    bg: gpui::Hsla,
+) -> impl IntoElement {
+    h_flex()
+        .w_full()
+        .px_3()
+        .py_2()
+        .gap_3()
+        .bg(bg)
+        .child(div().min_w(px(160.)).child(attribute.into()))
+        .child(div().flex_1().child(value.into()))
+        .child(div().min_w(px(80.)).child(offset.into()))
+        .child(div().min_w(px(60.)).child(size.into()))
+}
+
+/// One-line clarifier — keeps users from wondering why the file is
+/// 100 KB on disk but the table only shows three fields.
+fn format_note(fnt: &Fnt, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let body_len = fnt.body().len();
+    let theme = cx.theme();
+    if body_len == 0 {
+        return div().child("");
+    }
+    div().text_color(theme.muted_foreground).child(format!(
+        "Note: FNT is a stub. Glyph data lives in {} and {}; the {body_len} bytes \
+         past offset 0x04 in this file are engine-internal and not parsed \
+         (NearInfinity treats them the same way).",
+        fnt.letters_bam, fnt.extra_letters_bmp,
+    ))
+}
+
+/// First N bytes of the un-parsed body as a hex dump — same content
+/// NI's "Raw" tab would surface.
+fn body_preview(fnt: &Fnt, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    const PREVIEW_BYTES: usize = 256;
+    let theme = cx.theme();
+
+    let body = fnt.body();
+    let mut col = v_flex().w_full().gap_1().child(
+        div()
+            .font_weight(FontWeight::BOLD)
+            .text_size(px(16.))
+            .child("Raw (post-header body)"),
+    );
+    if body.is_empty() {
+        return col.child("(no body bytes)");
+    }
+    let shown = body.len().min(PREVIEW_BYTES);
+    col = col.child(div().text_color(theme.muted_foreground).child(format!(
+        "Showing first {shown} of {} bytes (offset 0x{HEADER_LEN:X} in file).",
+        body.len(),
+    )));
+
+    let mut dump = String::with_capacity(shown * 4);
+    for (i, chunk) in body[..shown].chunks(16).enumerate() {
+        dump.push_str(&format!("{:08x}  ", HEADER_LEN + i * 16));
+        for b in chunk {
+            dump.push_str(&format!("{:02x} ", b));
+        }
+        for _ in chunk.len()..16 {
+            dump.push_str("   ");
+        }
+        dump.push(' ');
+        for &b in chunk {
+            dump.push(if (32..127).contains(&b) {
+                b as char
+            } else {
+                '.'
             });
+        }
+        dump.push('\n');
     }
 
-    /// One-line clarifier — keeps users from wondering why the file is
-    /// 100 KB on disk but the viewer only shows three fields.
-    fn show_format_note(&self, ui: &mut egui::Ui) {
-        let body_len = self.fnt.body().len();
-        if body_len == 0 {
-            return;
-        }
-        ui.colored_label(
-            egui::Color32::from_rgb(160, 160, 160),
-            format!(
-                "Note: FNT is a stub. Glyph data lives in {} and {}; \
-                 the {body_len} bytes past offset 0x04 in this file are \
-                 engine-internal and not parsed (NearInfinity treats them \
-                 the same way).",
-                self.fnt.letters_bam, self.fnt.extra_letters_bmp,
-            ),
-        );
-    }
+    col.child(
+        div()
+            .w_full()
+            .p_3()
+            .bg(theme.secondary)
+            .rounded(theme.radius)
+            .border_1()
+            .border_color(theme.border)
+            .font_family(cx.theme().mono_font_family.clone())
+            .text_size(cx.theme().mono_font_size)
+            .child(dump),
+    )
+}
 
-    /// First N bytes of the un-parsed body as a hex dump — same
-    /// content NI's "Raw" tab would surface.
-    fn show_body_preview(&self, ui: &mut egui::Ui) {
-        const PREVIEW_BYTES: usize = 256;
+fn info_bar(
+    fnt: &Fnt,
+    resource: &GameResource,
+    cx: &mut Context<ExplorerApp>,
+) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let file_size = match resource.file_size {
+        Some(size) => ByteSize(size).to_string(),
+        None => "? B".to_string(),
+    };
+    let origin = match &resource.data_origin {
+        DataOrigin::Bif { name } => format!("BIF: {name}"),
+        DataOrigin::Dir { name, path } => format!("{name}: {}", path.path().display()),
+        DataOrigin::Missing => "Missing".to_string(),
+    };
 
-        ui.label(RichText::new("Raw (post-header body)").strong().size(16.0));
-        ui.add_space(4.0);
-        let body = self.fnt.body();
-        if body.is_empty() {
-            ui.label("(no body bytes)");
-            return;
-        }
-        let shown = body.len().min(PREVIEW_BYTES);
-        ui.label(format!(
-            "Showing first {shown} of {} bytes (offset 0x{HEADER_LEN:X} in file).",
-            body.len(),
-        ));
-        ui.add_space(4.0);
+    h_flex()
+        .w_full()
+        .px_3()
+        .py_1p5()
+        .gap_2()
+        .items_center()
+        .bg(theme.secondary)
+        .child(cell("FNT".to_string()))
+        .child(separator(theme.border))
+        .child(cell(format!(
+            "# extra letters: {}",
+            fnt.extra_letters_count
+        )))
+        .child(separator(theme.border))
+        .child(cell(file_size))
+        .child(separator(theme.border))
+        .child(cell(format!("body: {} B (opaque)", fnt.body().len())))
+        .child(separator(theme.border))
+        .child(cell(origin))
+}
 
-        let mut dump = String::with_capacity(shown * 4);
-        for (i, chunk) in body[..shown].chunks(16).enumerate() {
-            dump.push_str(&format!("{:08x}  ", HEADER_LEN + i * 16));
-            for b in chunk {
-                dump.push_str(&format!("{:02x} ", b));
-            }
-            for _ in chunk.len()..16 {
-                dump.push_str("   ");
-            }
-            dump.push(' ');
-            for &b in chunk {
-                dump.push(if (32..127).contains(&b) {
-                    b as char
-                } else {
-                    '.'
-                });
-            }
-            dump.push('\n');
-        }
-        ui.add(
-            egui::TextEdit::multiline(&mut dump.as_str())
-                .desired_width(f32::INFINITY)
-                .font(egui::TextStyle::Monospace),
-        );
-    }
+fn cell(text: String) -> impl IntoElement {
+    div().child(text)
+}
+
+fn separator(color: gpui::Hsla) -> impl IntoElement {
+    div().w_px().h_4().bg(color)
 }

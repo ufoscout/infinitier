@@ -1,11 +1,11 @@
-use super::ResourceViewerTrait;
-use eframe::egui;
-use infinitier_core::{
-    game::{GameResource, ResourceId},
-    imported_resource::sound::{SoundDecoder, SoundFormat, SoundInfo},
-};
-use log::error;
-use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
+//! Sound player. GPUI port of the egui `SoundViewer`.
+//!
+//! The decode + audio pipeline is reused verbatim from the egui
+//! version (background producer thread + bounded shared queue +
+//! `rodio::Source` consumer); only the UI bits change to use
+//! `gpui-component` widgets and `window.request_animation_frame()`
+//! for the playhead.
+
 use std::collections::VecDeque;
 use std::num::NonZero;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,21 +13,25 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
 
-/// How many `i16` samples the decoder thread reads in one `read_samples`
-/// call. A small chunk keeps lock-hold time short and lets the producer
-/// react to a Stop request promptly.
+use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, Window, div, px};
+use gpui_component::{
+    ActiveTheme, Disableable, Sizable, button::Button, h_flex, progress::Progress, v_flex,
+};
+use infinitier_core::{
+    game::{GameResource, ResourceId},
+    imported_resource::sound::{SoundDecoder, SoundFormat, SoundInfo},
+};
+use log::error;
+use rodio::{ChannelCount, DeviceSinkBuilder, MixerDeviceSink, Player, SampleRate, Source};
+
+use super::ResourceViewerTrait;
+use crate::app::ExplorerApp;
+
+/// How many `i16` samples the decoder thread reads in one
+/// `read_samples` call. A small chunk keeps lock-hold time short and
+/// lets the producer react to a Stop request promptly.
 const CHUNK_SAMPLES: usize = 2048;
 
-/// Player for any [`SoundDecoder`] — i.e. ACM, RIFF/WAVE, or WAVC.
-///
-/// Decoding runs on a dedicated background thread that streams samples
-/// in `CHUNK_SAMPLES`-sized blocks via `SoundDecoder::read_samples` and
-/// pushes them into a bounded shared queue holding ~2 seconds of audio.
-/// The rodio source pulls from that queue on the audio callback thread,
-/// so the full clip is never resident in memory.
-///
-/// On Stop and on Drop the thread is signalled to exit and joined so
-/// the decoder can be reused (Stop) or fully released (Drop).
 pub struct SoundViewer {
     info: SoundInfo,
     name: String,
@@ -37,8 +41,8 @@ pub struct SoundViewer {
     /// thread on Play, returned via the `JoinHandle` when the thread
     /// exits, then stashed back here (after a `reset`).
     decoder: Option<SoundDecoder>,
-    /// Audio output, kept on the viewer so playback persists across UI
-    /// frames. `None` if the system has no usable audio device.
+    /// Audio output, kept on the viewer so playback persists across
+    /// UI frames. `None` if the system has no usable audio device.
     audio: Option<Audio>,
     /// Active producer thread + shared buffer. `None` when not playing.
     playback: Option<Playback>,
@@ -58,22 +62,18 @@ impl SoundViewer {
         let name = decoder.name().to_string();
         let format = decoder.format();
         let duration = compute_duration(&info);
-        let audio = init_audio();
-
         Self {
             info,
             name,
             format,
             duration,
             decoder: Some(decoder),
-            audio,
+            audio: init_audio(),
             playback: None,
             decode_error: None,
         }
     }
 
-    /// Spawn the producer thread and wire a streaming source into the
-    /// rodio sink. Idempotent — does nothing if already playing.
     fn start_playback(&mut self) {
         if self.playback.is_some() {
             return;
@@ -93,8 +93,6 @@ impl SoundViewer {
             return;
         };
 
-        // 2 seconds of interleaved samples, with a small floor so very
-        // low-rate fixtures still get a sensible buffer.
         let capacity = (2 * self.info.sample_rate as usize * self.info.channels as usize).max(8192);
         let buffer = Arc::new(AudioBuffer::new(capacity));
 
@@ -113,9 +111,6 @@ impl SoundViewer {
             total_duration: self.duration,
         };
 
-        // Append the source first (still paused), give the producer a
-        // moment to fill some samples, then unpause — avoids silence at
-        // the very start of playback.
         audio.sink.pause();
         audio.sink.append(source);
         for _ in 0..50 {
@@ -132,9 +127,6 @@ impl SoundViewer {
         });
     }
 
-    /// Tear down the active playback: signal the producer thread to
-    /// exit, drain the rodio sink, join the thread, and put the
-    /// decoder back into `self.decoder` after rewinding it.
     fn stop_playback(&mut self) {
         let Some(mut playback) = self.playback.take() else {
             return;
@@ -153,8 +145,6 @@ impl SoundViewer {
         }
     }
 
-    /// Detect natural end-of-stream — buffer EOS flagged + sink drained
-    /// — and reclaim the decoder so the next Play press starts clean.
     fn poll_for_eos(&mut self) {
         let Some(playback) = self.playback.as_mut() else {
             return;
@@ -166,8 +156,6 @@ impl SoundViewer {
             .map(|h| h.is_finished())
             .unwrap_or(true);
         if sink_empty && thread_done {
-            // Take the playback out so we can join the handle. `join`
-            // here does not block — `is_finished` was true above.
             let mut playback = self.playback.take().unwrap();
             if let Some(handle) = playback.handle.take()
                 && let Ok(mut decoder) = handle.join()
@@ -179,6 +167,37 @@ impl SoundViewer {
             }
         }
     }
+
+    fn is_playing(&self) -> bool {
+        self.playback.is_some()
+            && self
+                .audio
+                .as_ref()
+                .map(|a| !a.sink.is_paused() && !a.sink.empty())
+                .unwrap_or(false)
+    }
+
+    fn current_position(&self) -> Duration {
+        match self.audio.as_ref() {
+            Some(a) if !a.sink.empty() => a.sink.get_pos(),
+            _ => Duration::ZERO,
+        }
+    }
+
+    fn toggle_play_pause(&mut self) {
+        let Some(audio) = self.audio.as_ref() else {
+            return;
+        };
+        if self.playback.is_some() {
+            if audio.sink.is_paused() {
+                audio.sink.play();
+            } else {
+                audio.sink.pause();
+            }
+        } else {
+            self.start_playback();
+        }
+    }
 }
 
 impl Drop for SoundViewer {
@@ -188,6 +207,177 @@ impl Drop for SoundViewer {
         self.stop_playback();
     }
 }
+
+impl ResourceViewerTrait for SoundViewer {
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        _resource: &GameResource,
+        window: &mut Window,
+        cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        // Reclaim the decoder if playback finished naturally between
+        // frames so the next Play press starts clean.
+        self.poll_for_eos();
+
+        // Keep the window repainting while the sink is producing so
+        // the progress bar tracks playback in real time.
+        if self.is_playing() {
+            window.request_animation_frame();
+        }
+
+        let border = cx.theme().border;
+
+        let player = central_player(self, cx);
+        let info = info_bar(self, cx);
+
+        v_flex()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .child(player)
+            .child(div().h_px().bg(border))
+            .child(info)
+            .into_any_element()
+    }
+}
+
+/// Central player area — title, status / progress, transport buttons.
+fn central_player(viewer: &SoundViewer, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let has_decode_error = viewer.decode_error.is_some();
+    let decode_error_msg = viewer.decode_error.clone();
+    let audio_missing = viewer.audio.is_none();
+    let pos = viewer.current_position();
+    let duration = viewer.duration;
+    let is_playing = viewer.is_playing();
+    let has_audio = viewer.decoder.is_some() || viewer.playback.is_some();
+
+    let progress_pct = if duration.as_secs_f64() > 0.0 {
+        (pos.as_secs_f64() / duration.as_secs_f64()).clamp(0.0, 1.0) as f32 * 100.0
+    } else {
+        0.0
+    };
+
+    let mut col = v_flex()
+        .flex_1()
+        .min_h_0()
+        .w_full()
+        .gap_3()
+        .items_center()
+        .justify_center()
+        .p_6()
+        .child(
+            div()
+                .text_size(px(20.))
+                .font_weight(gpui::FontWeight::BOLD)
+                .child("Sound Player"),
+        );
+
+    if has_decode_error {
+        col = col.child(
+            div()
+                .text_color(gpui::rgb(0xff5555))
+                .child(decode_error_msg.unwrap_or_default()),
+        );
+        return col;
+    }
+    if audio_missing {
+        col = col.child(
+            div()
+                .text_color(gpui::rgb(0xddaa00))
+                .child("No audio output device available — playback disabled."),
+        );
+        return col;
+    }
+
+    col.child(
+        div()
+            .w(px(420.))
+            .child(Progress::new().value(progress_pct).bg(theme.accent)),
+    )
+    .child(div().text_color(theme.muted_foreground).child(format!(
+        "{} / {}",
+        format_duration(pos),
+        format_duration(duration)
+    )))
+    .child(
+        h_flex()
+            .gap_2()
+            .child({
+                let label = if is_playing {
+                    "⏸  Pause"
+                } else {
+                    "▶  Play"
+                };
+                Button::new("sound-play")
+                    .label(label)
+                    .small()
+                    .disabled(!has_audio)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        sound_viewer_mut(this).toggle_play_pause();
+                        cx.notify();
+                    }))
+            })
+            .child(
+                Button::new("sound-stop")
+                    .label("⏹  Stop")
+                    .small()
+                    .disabled(!has_audio)
+                    .on_click(cx.listener(|this, _, _, cx| {
+                        sound_viewer_mut(this).stop_playback();
+                        cx.notify();
+                    })),
+            ),
+    )
+}
+
+/// Bottom info bar — same cells the egui viewer paints.
+fn info_bar(viewer: &SoundViewer, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    h_flex()
+        .w_full()
+        .px_3()
+        .py_1p5()
+        .gap_2()
+        .items_center()
+        .bg(theme.secondary)
+        .child(cell(viewer.name.clone()))
+        .child(separator(theme.border))
+        .child(cell(viewer.format.to_string()))
+        .child(separator(theme.border))
+        .child(cell(format!("{} Hz", viewer.info.sample_rate)))
+        .child(separator(theme.border))
+        .child(cell(format!("{} ch", viewer.info.channels)))
+        .child(separator(theme.border))
+        .child(cell(format!("{}-bit", viewer.info.bits_per_sample)))
+        .child(separator(theme.border))
+        .child(cell(format!("{} samples", viewer.info.frames())))
+        .child(separator(theme.border))
+        .child(cell(format_duration(viewer.duration)))
+}
+
+fn cell(text: String) -> impl IntoElement {
+    div().child(text)
+}
+
+fn separator(color: gpui::Hsla) -> impl IntoElement {
+    div().w_px().h_4().bg(color)
+}
+
+fn sound_viewer_mut(app: &mut ExplorerApp) -> &mut SoundViewer {
+    let trait_obj = &mut app
+        .viewer
+        .inner
+        .as_mut()
+        .expect("sound click fired without an active viewer")
+        .viewer;
+    (trait_obj.as_mut() as &mut dyn std::any::Any)
+        .downcast_mut::<SoundViewer>()
+        .expect("active viewer is not a SoundViewer")
+}
+
+// ─── Streaming buffer + producer thread (ported verbatim from egui) ──
 
 #[inline]
 fn i16_to_f32(s: i16) -> f32 {
@@ -203,30 +393,20 @@ fn compute_duration(info: &SoundInfo) -> Duration {
 
 fn init_audio() -> Option<Audio> {
     let mut device = DeviceSinkBuilder::open_default_sink().ok()?;
-    // Avoid a noisy "device dropped while still streaming" log when the
-    // viewer is replaced — the explorer flips between viewers regularly.
     device.log_on_drop(false);
     let sink = Player::connect_new(device.mixer());
-    sink.pause(); // start paused; user presses Play to begin
+    sink.pause();
     Some(Audio {
         _stream: device,
         sink,
     })
 }
 
-// ─── Streaming buffer + producer thread ───────────────────────────────────────
-
-/// Bounded SPMC-style queue protected by a `Mutex` + `Condvar`. The
-/// producer waits when the queue is full; the consumer (audio source)
-/// never waits — it returns silence on underrun and `None` once the
-/// producer has flagged end-of-stream.
 struct AudioBuffer {
     queue: Mutex<VecDeque<f32>>,
     cond: Condvar,
     capacity: usize,
-    /// Producer thread reached natural end-of-stream (or hit an error).
     eos: AtomicBool,
-    /// UI thread (Stop or Drop) has asked the producer to exit promptly.
     stop: AtomicBool,
 }
 
@@ -251,17 +431,12 @@ impl AudioBuffer {
     }
 }
 
-/// Pull samples from `decoder` in `CHUNK_SAMPLES`-sized blocks and push
-/// them into `buffer`. Returns the decoder so the UI can rewind it for
-/// the next playback.
 fn decoder_loop(buffer: Arc<AudioBuffer>, mut decoder: SoundDecoder) -> SoundDecoder {
     let mut chunk = vec![0i16; CHUNK_SAMPLES];
     loop {
         if buffer.stop.load(Ordering::Acquire) {
             return decoder;
         }
-
-        // Park the thread until the queue has room for another chunk.
         {
             let mut q = buffer.queue.lock().unwrap();
             while q.len() + chunk.len() > buffer.capacity && !buffer.stop.load(Ordering::Acquire) {
@@ -295,14 +470,11 @@ fn decoder_loop(buffer: Arc<AudioBuffer>, mut decoder: SoundDecoder) -> SoundDec
     }
 }
 
-/// Active playback state held by the viewer while the decoder thread
-/// is alive.
 struct Playback {
     buffer: Arc<AudioBuffer>,
     handle: Option<thread::JoinHandle<SoundDecoder>>,
 }
 
-/// rodio Source pulling samples out of [`AudioBuffer`].
 struct StreamingSource {
     buffer: Arc<AudioBuffer>,
     channels: ChannelCount,
@@ -316,16 +488,12 @@ impl Iterator for StreamingSource {
     fn next(&mut self) -> Option<f32> {
         let mut q = self.buffer.queue.lock().unwrap();
         if let Some(s) = q.pop_front() {
-            // Wake the producer in case it was parked on a full queue.
             self.buffer.cond.notify_all();
             return Some(s);
         }
-        // Empty queue — was that "underrun" or "natural EOS"?
         if self.buffer.eos.load(Ordering::Acquire) {
             return None;
         }
-        // Underrun. Briefly wait for samples instead of immediately
-        // injecting silence, but never block the audio thread for long.
         let (mut q, _) = self
             .buffer
             .cond
@@ -354,171 +522,6 @@ impl Source for StreamingSource {
     }
     fn total_duration(&self) -> Option<Duration> {
         Some(self.total_duration)
-    }
-}
-
-// ─── UI ───────────────────────────────────────────────────────────────────────
-
-impl ResourceViewerTrait for SoundViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
-        // Reclaim the decoder if playback finished naturally between frames.
-        self.poll_for_eos();
-
-        // ── Bottom info bar ────────────────────────────────────────────────
-        egui::Panel::bottom("sound_info_panel").show_inside(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(&self.name);
-                ui.separator();
-                ui.label(self.format.to_string());
-                ui.separator();
-                ui.label(format!("{} Hz", self.info.sample_rate));
-                ui.separator();
-                ui.label(format!("{} ch", self.info.channels));
-                ui.separator();
-                ui.label(format!("{}-bit", self.info.bits_per_sample));
-                ui.separator();
-                ui.label(format!("{} samples", self.info.frames()));
-                ui.separator();
-                ui.label(format_duration(self.duration));
-            });
-        });
-
-        // ── Central player ─────────────────────────────────────────────────
-        // Snapshot read-only state up-front so the UI closure doesn't
-        // need to borrow `self` immutably at the same time as the click
-        // handlers borrow it mutably.
-        let duration = self.duration;
-        let has_decode_error = self.decode_error.is_some();
-        let decode_error_msg = self.decode_error.clone();
-        let audio_missing = self.audio.is_none();
-        let pos = self.current_position();
-        let is_playing = self.is_playing();
-        let has_audio = self.decoder.is_some() || self.playback.is_some();
-
-        let mut click_play_pause = false;
-        let mut click_stop = false;
-
-        egui::CentralPanel::default()
-            .frame(egui::Frame::NONE)
-            .show_inside(ui, |ui| {
-                ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                    ui.add_space(24.0);
-                    ui.heading("Sound Player");
-                    ui.add_space(16.0);
-
-                    if has_decode_error {
-                        ui.colored_label(
-                            egui::Color32::LIGHT_RED,
-                            decode_error_msg.as_deref().unwrap_or(""),
-                        );
-                        return;
-                    }
-
-                    if audio_missing {
-                        ui.colored_label(
-                            egui::Color32::YELLOW,
-                            "No audio output device available — playback disabled.",
-                        );
-                        return;
-                    }
-
-                    // ── Progress bar ──
-                    let total_secs = duration.as_secs_f64();
-                    let progress = if total_secs > 0.0 {
-                        (pos.as_secs_f64() / total_secs).clamp(0.0, 1.0) as f32
-                    } else {
-                        0.0
-                    };
-
-                    ui.add(
-                        egui::ProgressBar::new(progress)
-                            .desired_width(420.0)
-                            .text(format!(
-                                "{} / {}",
-                                format_duration(pos),
-                                format_duration(duration)
-                            )),
-                    );
-                    ui.add_space(14.0);
-
-                    // ── Transport buttons (single Play/Pause toggle + Stop) ──
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(220.0, 0.0),
-                        egui::Layout::left_to_right(egui::Align::Center),
-                        |ui| {
-                            let label = if is_playing {
-                                "⏸  Pause"
-                            } else {
-                                "▶  Play"
-                            };
-                            if ui
-                                .add_enabled(has_audio, egui::Button::new(label))
-                                .clicked()
-                            {
-                                click_play_pause = true;
-                            }
-                            if ui
-                                .add_enabled(has_audio, egui::Button::new("⏹  Stop"))
-                                .clicked()
-                            {
-                                click_stop = true;
-                            }
-                        },
-                    );
-
-                    if is_playing {
-                        // Repaint while playing so the progress bar
-                        // tracks playback in real time.
-                        ui.ctx().request_repaint_after(Duration::from_millis(100));
-                    }
-                });
-            });
-
-        // Apply transport actions outside the UI closure so the methods
-        // get exclusive access to `self`.
-        if click_play_pause {
-            self.toggle_play_pause();
-        }
-        if click_stop {
-            self.stop_playback();
-        }
-    }
-}
-
-impl SoundViewer {
-    fn is_playing(&self) -> bool {
-        self.playback.is_some()
-            && self
-                .audio
-                .as_ref()
-                .map(|a| !a.sink.is_paused() && !a.sink.empty())
-                .unwrap_or(false)
-    }
-
-    fn current_position(&self) -> Duration {
-        match self.audio.as_ref() {
-            Some(a) if !a.sink.empty() => a.sink.get_pos(),
-            _ => Duration::ZERO,
-        }
-    }
-
-    fn toggle_play_pause(&mut self) {
-        let Some(audio) = self.audio.as_ref() else {
-            return;
-        };
-        if self.playback.is_some() {
-            // Already streaming — just toggle the sink. The producer
-            // thread keeps filling the buffer (and parks on the
-            // condvar when it fills up), so we don't tear it down.
-            if audio.sink.is_paused() {
-                audio.sink.play();
-            } else {
-                audio.sink.pause();
-            }
-        } else {
-            // Cold start: spawn the producer + attach a fresh source.
-            self.start_playback();
-        }
     }
 }
 

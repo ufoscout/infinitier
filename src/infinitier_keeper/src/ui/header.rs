@@ -32,7 +32,11 @@ pub fn render(this: &KeeperApp, cx: &mut Context<KeeperApp>) -> impl IntoElement
         .border_b_1()
         .border_color(border)
         .child(theme_toggle_button(cx))
-        .child(field(cx, "Game", format!("{:?}", this.state.game_data.game())))
+        .child(field(
+            cx,
+            "Game",
+            format!("{:?}", this.state.game_data.game()),
+        ))
         .child(field(cx, "Folder", roots))
         .child(field(cx, "Save", this.state.save_name.clone()))
         .child(field(

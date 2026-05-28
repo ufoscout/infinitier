@@ -1,92 +1,70 @@
-use super::ResourceViewerTrait;
+//! BAM animation viewer. GPUI port of the egui `BamViewer`.
+//!
+//! Shape:
+//! - Picture area (scaled-to-fit, never upscale, centred) showing the
+//!   composited current frame.
+//! - Control strip: prev/next cycle, prev/next frame, play/pause.
+//! - Info bar: frame size, center, file size, BAM variant, frame and
+//!   cycle counts, data origin.
+//!
+//! Texture cache: one `Arc<RenderImage>` per visited `(cycle,
+//! frame_in_cycle)` pair, built on demand from
+//! `ImportedBam::render_frame_centered` and converted RGBA→BGRA in
+//! place (gpui's renderer expects BGRA — see `gpui/elements/img.rs`).
+//!
+//! Playback: when `playing`, the wall-clock `epoch` + `anchor_frame`
+//! drive the current frame index each tick; we call
+//! `window.request_animation_frame()` from the render fn so the
+//! window keeps repainting at the BAM frame rate.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Instant;
+
 use bytesize::ByteSize;
-use eframe::egui::{self, TextureHandle};
+use gpui::{
+    AnyElement, Context, IntoElement, ObjectFit, ParentElement, RenderImage, Styled,
+    StyledImage as _, Window, div, img, px,
+};
+use gpui_component::{ActiveTheme, Disableable, Sizable, button::Button, h_flex, v_flex};
+use image::Frame;
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     imported_resource::bam::ImportedBam,
     resource::bam::{BamV1, Type},
 };
-use std::time::Instant;
+use smallvec::SmallVec;
+
+use super::ResourceViewerTrait;
+use crate::app::ExplorerApp;
 
 pub struct BamViewer {
     bam: ImportedBam,
-    texture: TextureHandle,
     selected_cycle: usize,
     selected_frame_in_cycle: usize,
-    /// (cycle, frame_in_cycle) currently uploaded to `texture`.
-    rendered: Option<(usize, usize)>,
-    /// `Some` while looping; carries the wall-clock anchor used to
-    /// derive which frame is due. Cleared when paused/stopped.
+    /// Lazy BGRA texture cache keyed on (cycle, frame_in_cycle). The
+    /// composited frame can be expensive to build (palette dispatch +
+    /// per-cycle canvas alignment), so we only do it once per visited
+    /// pair and re-use the `Arc<RenderImage>` thereafter.
+    texture_cache: HashMap<(usize, usize), Arc<RenderImage>>,
+    /// `Some` while looping; wall-clock anchor used to derive which
+    /// frame is due. Cleared when paused.
     playback: Option<Playback>,
 }
 
 struct Playback {
-    /// Wall-clock instant of the anchor.
     epoch: Instant,
-    /// `selected_frame_in_cycle` at `epoch`. Future frame indices are
-    /// derived as `(anchor_frame + elapsed / BamV1::DEFAULT_FRAME_DURATION) % len`.
     anchor_frame: usize,
 }
 
 impl BamViewer {
-    pub fn new(bam: ImportedBam, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
-        let texture = ui.ctx().load_texture(
-            format!("bam_{resource_id}"),
-            egui::ColorImage::from_rgba_unmultiplied([1, 1], &[0, 0, 0, 0]),
-            egui::TextureOptions::default(),
-        );
-
-        let mut view = Self {
+    pub fn new(bam: ImportedBam) -> Self {
+        Self {
             bam,
-            texture,
             selected_cycle: 0,
             selected_frame_in_cycle: 0,
-            rendered: None,
+            texture_cache: HashMap::new(),
             playback: None,
-        };
-        view.refresh_texture();
-        view
-    }
-
-    /// Resolve the current (cycle, frame_in_cycle) selection to a global
-    /// frame index in `bam.frames`.
-    fn current_global_frame_index(&self) -> Option<usize> {
-        let cycle = self.bam.cycles.get(self.selected_cycle)?;
-        cycle
-            .frame_indices
-            .get(self.selected_frame_in_cycle)
-            .copied()
-    }
-
-    /// Re-upload the current frame to the GPU texture if the selection
-    /// changed since the last upload. The frame is composited into the
-    /// cycle's shared canvas so its anchor stays pinned across frames.
-    /// When the current selection has no renderable frame (no cycles, or
-    /// the cycle's `frame_indices` is empty) the texture is cleared so
-    /// the previous frame doesn't linger on screen.
-    fn refresh_texture(&mut self) {
-        let key = (self.selected_cycle, self.selected_frame_in_cycle);
-        if self.rendered == Some(key) {
-            return;
-        }
-        self.rendered = Some(key);
-        match self
-            .bam
-            .render_frame_centered(self.selected_cycle, self.selected_frame_in_cycle)
-        {
-            Some(image) => {
-                let color = egui::ColorImage::from_rgba_unmultiplied(
-                    [image.width() as usize, image.height() as usize],
-                    image.as_raw(),
-                );
-                self.texture.set(color, egui::TextureOptions::default());
-            }
-            None => {
-                self.texture.set(
-                    egui::ColorImage::from_rgba_unmultiplied([1, 1], &[0, 0, 0, 0]),
-                    egui::TextureOptions::default(),
-                );
-            }
         }
     }
 
@@ -98,9 +76,51 @@ impl BamViewer {
             .unwrap_or(0)
     }
 
-    /// Anchor the playback clock to the current selection. Called every
-    /// time the user touches the cycle/frame selectors so playback
-    /// resumes from where they left it instead of jumping.
+    fn current_global_frame_index(&self) -> Option<usize> {
+        let cycle = self.bam.cycles.get(self.selected_cycle)?;
+        cycle
+            .frame_indices
+            .get(self.selected_frame_in_cycle)
+            .copied()
+    }
+
+    /// Resolve / build the texture for the current selection. The
+    /// composited buffer is RGBA8 from the importer; we swap R↔B in
+    /// place before handing it to gpui.
+    fn current_texture(&mut self) -> Option<Arc<RenderImage>> {
+        let key = (self.selected_cycle, self.selected_frame_in_cycle);
+        if let Some(tex) = self.texture_cache.get(&key) {
+            return Some(tex.clone());
+        }
+        let composed = self
+            .bam
+            .render_frame_centered(self.selected_cycle, self.selected_frame_in_cycle)?;
+        let mut buffer = composed;
+        // RGBA → BGRA (gpui's renderer expects BGRA). Also flatten
+        // any *fully* transparent pixel's RGB to zero — BAM v1 stores
+        // its "magic green" transparency colour as `(0, 255, 0, 0)`
+        // and gpui's renderer samples the texture *before* alpha is
+        // applied, so without this the green channel bleeds into
+        // sprite edges as a halo when the frame is scaled (egui
+        // doesn't show this because it premultiplies on upload).
+        for pixel in buffer.chunks_exact_mut(4) {
+            if pixel[3] == 0 {
+                pixel[0] = 0;
+                pixel[1] = 0;
+                pixel[2] = 0;
+            } else {
+                pixel.swap(0, 2);
+            }
+        }
+        let frame = Frame::new(buffer);
+        let tex = Arc::new(RenderImage::new(SmallVec::from_elem(frame, 1)));
+        self.texture_cache.insert(key, tex.clone());
+        Some(tex)
+    }
+
+    /// Re-seat the playback clock to the current selection. Called
+    /// every time the user touches the cycle / frame selectors so
+    /// playback continues from where they left it.
     fn rebase_playback(&mut self) {
         if let Some(p) = self.playback.as_mut() {
             p.epoch = Instant::now();
@@ -108,9 +128,7 @@ impl BamViewer {
         }
     }
 
-    /// Advance `selected_frame_in_cycle` based on wall-clock elapsed
-    /// since the playback anchor. No-op when paused or when the current
-    /// cycle is empty.
+    /// Advance `selected_frame_in_cycle` from wall-clock elapsed.
     fn tick_playback(&mut self) {
         let Some(p) = self.playback.as_ref() else {
             return;
@@ -126,191 +144,307 @@ impl BamViewer {
 }
 
 impl ResourceViewerTrait for BamViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
-        // Advance the frame counter from the playback clock before drawing.
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        resource: &GameResource,
+        window: &mut Window,
+        cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        // Advance the frame counter from the playback clock before
+        // drawing so the rendered frame matches the wall-clock tick.
         self.tick_playback();
 
-        // ── Bottom info bar ───────────────────────────────────────────────────
-        let global_idx = self.current_global_frame_index();
-        let current_frame = global_idx.and_then(|i| self.bam.frames.get(i));
-        let (frame_w, frame_h, center_x, center_y) = match current_frame {
-            Some(f) => (f.width, f.height, f.center_x, f.center_y),
-            None => (0, 0, 0, 0),
-        };
-        let frames_count = self.bam.frames.len();
-        let cycles_count = self.bam.cycles.len();
-        let bam_type_label = match self.bam.bam_type {
-            Type::BamV1 => "BAM V1",
-            Type::BamV2 => "BAM V2",
-            Type::BamC => "BAMC",
-        };
+        // Copy out the theme colour we paint statically. Hsla is
+        // `Copy`, so we can release the immutable `cx` borrow before
+        // the `control_strip` / `info_bar` calls below take it
+        // mutably (they touch `cx.theme()` + `cx.listener`).
+        let border = cx.theme().border;
+        let texture = self.current_texture();
 
-        egui::Panel::bottom("bam_info_panel").show_inside(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(format!("{frame_w} × {frame_h} px"));
-                ui.separator();
-                ui.label(format!("center ({center_x}, {center_y})"));
-                ui.separator();
-                match resource.file_size {
-                    Some(size) => {
-                        ui.label(ByteSize(size).to_string());
-                    }
-                    None => {
-                        ui.label("? B");
-                    }
-                }
-                ui.separator();
-                ui.label(bam_type_label);
-                ui.separator();
-                ui.label(format!("{frames_count} frames"));
-                ui.separator();
-                ui.label(format!("{cycles_count} cycles"));
-                ui.separator();
-                match &resource.data_origin {
-                    DataOrigin::Bif { name } => {
-                        ui.label(format!("BIF: {name}"));
-                    }
-                    DataOrigin::Dir { name, path } => {
-                        ui.label(format!("{name}: {}", path.path().display()));
-                    }
-                    DataOrigin::Missing => {
-                        ui.label("Missing");
-                    }
-                }
-            });
-        });
+        let image_area = picture_area(texture);
+        let controls = control_strip(self, cx);
+        let info = info_bar(self, resource, cx);
 
-        // ── Selector bar (above the info bar) ─────────────────────────────────
-        let mut toggle_play = false;
-        egui::Panel::bottom("bam_selector_panel").show_inside(ui, |ui| {
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                let is_playing = self.playback.is_some();
-                let can_play = self.frames_in_selected_cycle() > 1;
-                let label = if is_playing {
-                    "⏸  Pause"
-                } else {
-                    "▶  Play"
-                };
-                if ui.add_enabled(can_play, egui::Button::new(label)).clicked() {
-                    toggle_play = true;
-                }
-
-                ui.separator();
-
-                ui.label("Cycle:");
-                let cycles_count = self.bam.cycles.len();
-                let cycle_label = if cycles_count == 0 {
-                    "—".to_string()
-                } else {
-                    let frames_in_cycle = self
-                        .bam
-                        .cycles
-                        .get(self.selected_cycle)
-                        .map(|c| c.frame_indices.len())
-                        .unwrap_or(0);
-                    format!(
-                        "{} / {} ({} frames)",
-                        self.selected_cycle, cycles_count, frames_in_cycle
-                    )
-                };
-                let mut cycle_changed = false;
-                egui::ComboBox::from_id_salt("bam_cycle_combo")
-                    .selected_text(cycle_label)
-                    .show_ui(ui, |ui| {
-                        for (i, cycle) in self.bam.cycles.iter().enumerate() {
-                            let label = format!("{} ({} frames)", i, cycle.frame_indices.len());
-                            if ui
-                                .selectable_label(self.selected_cycle == i, label)
-                                .clicked()
-                            {
-                                self.selected_cycle = i;
-                                let len = cycle.frame_indices.len();
-                                if len == 0 {
-                                    self.selected_frame_in_cycle = 0;
-                                } else if self.selected_frame_in_cycle >= len {
-                                    self.selected_frame_in_cycle = len - 1;
-                                }
-                                cycle_changed = true;
-                            }
-                        }
-                    });
-                if cycle_changed {
-                    self.rebase_playback();
-                }
-
-                ui.separator();
-
-                ui.label("Frame:");
-                let frames_in_cycle = self.frames_in_selected_cycle();
-                if frames_in_cycle > 1 {
-                    let max = frames_in_cycle - 1;
-                    let response = ui.add(
-                        egui::Slider::new(&mut self.selected_frame_in_cycle, 0..=max)
-                            .text(format!("/ {max}")),
-                    );
-                    if response.changed() {
-                        self.rebase_playback();
-                    }
-                } else if frames_in_cycle == 1 {
-                    self.selected_frame_in_cycle = 0;
-                    ui.label("0 / 0");
-                } else {
-                    ui.label("—");
-                }
-
-                if let Some(idx) = self.current_global_frame_index() {
-                    ui.separator();
-                    ui.label(format!("(frame #{idx})"));
-                }
-            });
-            ui.add_space(4.0);
-        });
-
-        if toggle_play {
-            if self.playback.is_some() {
-                self.playback = None;
-            } else if self.frames_in_selected_cycle() > 1 {
-                self.playback = Some(Playback {
-                    epoch: Instant::now(),
-                    anchor_frame: self.selected_frame_in_cycle,
-                });
-            }
-        }
-
-        // Re-render if the selection changed this tick.
-        self.refresh_texture();
-
-        // Keep repainting while playing so frames advance on schedule.
+        // Keep the window repainting while playing.
         if self.playback.is_some() {
-            ui.ctx()
-                .request_repaint_after(BamV1::DEFAULT_FRAME_DURATION);
+            window.request_animation_frame();
         }
 
-        // ── Central area: the rendered frame ──────────────────────────────────
-        if self.current_global_frame_index().is_none() {
-            ui.centered_and_justified(|ui| {
-                ui.label("No frames to display");
-            });
-            return;
-        }
-
-        let available = ui.available_size();
-        let natural = self.texture.size_vec2();
-        if natural.x <= 0.0 || natural.y <= 0.0 {
-            return;
-        }
-        let scale = (available.x / natural.x)
-            .min(available.y / natural.y)
-            .min(1.0);
-        let display = natural * scale;
-
-        let y_offset = ((available.y - display.y) / 2.0).max(0.0);
-        if y_offset > 0.0 {
-            ui.add_space(y_offset);
-        }
-        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-            ui.add(egui::Image::new(&self.texture).fit_to_exact_size(display));
-        });
+        v_flex()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .child(image_area)
+            .child(controls)
+            .child(div().h_px().bg(border))
+            .child(info)
+            .into_any_element()
     }
+}
+
+/// Image slot using the same absolute-positioned `img` trick the
+/// `ImageViewer` does, so taffy can't expand the slot to satisfy the
+/// composited frame's intrinsic aspect ratio.
+fn picture_area(texture: Option<Arc<RenderImage>>) -> impl IntoElement {
+    let mut slot = div()
+        .flex_1()
+        .min_h_0()
+        .w_full()
+        .relative()
+        .overflow_hidden();
+    if let Some(tex) = texture {
+        slot = slot.child(
+            img(tex)
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .bottom_0()
+                .size_full()
+                .object_fit(ObjectFit::ScaleDown),
+        );
+    } else {
+        slot = slot.child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .right_0()
+                .bottom_0()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child("No frames to display"),
+        );
+    }
+    slot
+}
+
+/// Selector strip: cycle prev/next, frame prev/next, play/pause.
+/// Each control mutates the viewer through `cx.listener`, then
+/// re-bases the playback clock so loops don't jump when the user
+/// scrubs by hand.
+fn control_strip(viewer: &BamViewer, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let cycle_count = viewer.bam.cycles.len();
+    let frames_in_cycle = viewer.frames_in_selected_cycle();
+    let cycle_label = if cycle_count == 0 {
+        "—".to_string()
+    } else {
+        format!(
+            "Cycle {} / {} ({} frames)",
+            viewer.selected_cycle,
+            cycle_count.saturating_sub(1),
+            frames_in_cycle
+        )
+    };
+    let frame_label = if frames_in_cycle == 0 {
+        "Frame — / —".to_string()
+    } else {
+        format!(
+            "Frame {} / {}",
+            viewer.selected_frame_in_cycle,
+            frames_in_cycle.saturating_sub(1)
+        )
+    };
+    let global_idx_label = match viewer.current_global_frame_index() {
+        Some(i) => format!("(frame #{i})"),
+        None => String::new(),
+    };
+    let is_playing = viewer.playback.is_some();
+    let can_play = frames_in_cycle > 1;
+    let play_label = if is_playing { "Pause" } else { "Play" };
+
+    h_flex()
+        .w_full()
+        .px_2()
+        .py_1()
+        .gap_2()
+        .items_center()
+        .bg(theme.secondary)
+        .child(
+            Button::new("bam-prev-cycle")
+                .label("◀ Cycle")
+                .small()
+                .on_click(cx.listener(|this, _, _, cx| {
+                    let viewer = bam_viewer_mut(this);
+                    if viewer.bam.cycles.is_empty() {
+                        return;
+                    }
+                    let last = viewer.bam.cycles.len() - 1;
+                    viewer.selected_cycle = if viewer.selected_cycle == 0 {
+                        last
+                    } else {
+                        viewer.selected_cycle - 1
+                    };
+                    let len = viewer.frames_in_selected_cycle();
+                    if viewer.selected_frame_in_cycle >= len {
+                        viewer.selected_frame_in_cycle = len.saturating_sub(1);
+                    }
+                    viewer.rebase_playback();
+                    cx.notify();
+                })),
+        )
+        .child(div().min_w(px(150.)).child(cycle_label))
+        .child(
+            Button::new("bam-next-cycle")
+                .label("Cycle ▶")
+                .small()
+                .on_click(cx.listener(|this, _, _, cx| {
+                    let viewer = bam_viewer_mut(this);
+                    if viewer.bam.cycles.is_empty() {
+                        return;
+                    }
+                    let last = viewer.bam.cycles.len() - 1;
+                    viewer.selected_cycle = if viewer.selected_cycle >= last {
+                        0
+                    } else {
+                        viewer.selected_cycle + 1
+                    };
+                    let len = viewer.frames_in_selected_cycle();
+                    if viewer.selected_frame_in_cycle >= len {
+                        viewer.selected_frame_in_cycle = len.saturating_sub(1);
+                    }
+                    viewer.rebase_playback();
+                    cx.notify();
+                })),
+        )
+        .child(div().w_4())
+        .child(
+            Button::new("bam-prev-frame")
+                .label("◀")
+                .small()
+                .on_click(cx.listener(|this, _, _, cx| {
+                    let viewer = bam_viewer_mut(this);
+                    let len = viewer.frames_in_selected_cycle();
+                    if len == 0 {
+                        return;
+                    }
+                    viewer.selected_frame_in_cycle = if viewer.selected_frame_in_cycle == 0 {
+                        len - 1
+                    } else {
+                        viewer.selected_frame_in_cycle - 1
+                    };
+                    viewer.rebase_playback();
+                    cx.notify();
+                })),
+        )
+        .child(div().min_w(px(110.)).child(frame_label))
+        .child(
+            Button::new("bam-next-frame")
+                .label("▶")
+                .small()
+                .on_click(cx.listener(|this, _, _, cx| {
+                    let viewer = bam_viewer_mut(this);
+                    let len = viewer.frames_in_selected_cycle();
+                    if len == 0 {
+                        return;
+                    }
+                    viewer.selected_frame_in_cycle = (viewer.selected_frame_in_cycle + 1) % len;
+                    viewer.rebase_playback();
+                    cx.notify();
+                })),
+        )
+        .child(div().w_4())
+        .child({
+            let mut btn = Button::new("bam-play").label(play_label).small();
+            if !can_play {
+                btn = btn.disabled(true);
+            }
+            btn.on_click(cx.listener(|this, _, _, cx| {
+                let viewer = bam_viewer_mut(this);
+                if viewer.playback.is_some() {
+                    viewer.playback = None;
+                } else if viewer.frames_in_selected_cycle() > 1 {
+                    viewer.playback = Some(Playback {
+                        epoch: Instant::now(),
+                        anchor_frame: viewer.selected_frame_in_cycle,
+                    });
+                }
+                cx.notify();
+            }))
+        })
+        .child(div().flex_1())
+        .child(
+            div()
+                .text_color(theme.muted_foreground)
+                .child(global_idx_label),
+        )
+}
+
+/// Bottom info bar — mirrors the cells the egui viewer paints.
+fn info_bar(
+    viewer: &BamViewer,
+    resource: &GameResource,
+    cx: &mut Context<ExplorerApp>,
+) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+
+    let current = viewer
+        .current_global_frame_index()
+        .and_then(|i| viewer.bam.frames.get(i));
+    let (frame_w, frame_h, center_x, center_y) = match current {
+        Some(f) => (f.width, f.height, f.center_x, f.center_y),
+        None => (0, 0, 0, 0),
+    };
+    let bam_type_label = match viewer.bam.bam_type {
+        Type::BamV1 => "BAM V1",
+        Type::BamV2 => "BAM V2",
+        Type::BamC => "BAMC",
+    };
+    let file_size = match resource.file_size {
+        Some(size) => ByteSize(size).to_string(),
+        None => "? B".to_string(),
+    };
+    let origin = match &resource.data_origin {
+        DataOrigin::Bif { name } => format!("BIF: {name}"),
+        DataOrigin::Dir { name, path } => format!("{name}: {}", path.path().display()),
+        DataOrigin::Missing => "Missing".to_string(),
+    };
+
+    h_flex()
+        .w_full()
+        .px_3()
+        .py_1p5()
+        .gap_2()
+        .items_center()
+        .bg(theme.secondary)
+        .child(cell(format!("{frame_w} × {frame_h} px")))
+        .child(separator(theme.border))
+        .child(cell(format!("center ({center_x}, {center_y})")))
+        .child(separator(theme.border))
+        .child(cell(file_size))
+        .child(separator(theme.border))
+        .child(cell(bam_type_label.to_string()))
+        .child(separator(theme.border))
+        .child(cell(format!("{} frames", viewer.bam.frames.len())))
+        .child(separator(theme.border))
+        .child(cell(format!("{} cycles", viewer.bam.cycles.len())))
+        .child(separator(theme.border))
+        .child(cell(origin))
+}
+
+fn cell(text: String) -> impl IntoElement {
+    div().child(text)
+}
+
+fn separator(color: gpui::Hsla) -> impl IntoElement {
+    div().w_px().h_4().bg(color)
+}
+
+/// Pull the currently-cached BAM viewer out of the dispatcher cache.
+/// Click handlers run inside `cx.listener` on `ExplorerApp`, not on
+/// the viewer itself, so we walk through the `Box<dyn …>` and
+/// downcast back to the concrete type.
+fn bam_viewer_mut(app: &mut ExplorerApp) -> &mut BamViewer {
+    let trait_obj = &mut app
+        .viewer
+        .inner
+        .as_mut()
+        .expect("BAM click fired without an active viewer")
+        .viewer;
+    (trait_obj.as_mut() as &mut dyn std::any::Any)
+        .downcast_mut::<BamViewer>()
+        .expect("active viewer is not a BamViewer")
 }

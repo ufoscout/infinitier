@@ -6,18 +6,14 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Cross-engine save-game editor for Infinity Engine games (BG, BG:EE, BG2, BG2:EE, IWD, IWD:EE, IWD2, PST, PST:EE)"
-readme = "readme.md"
-keywords = ["save-game", "editor", "infinity-engine", "baldurs-gate", "gui"]
+publish = false
 
 [dependencies]
 infinitier_core = { workspace = true }
-infinitier_egui_common = { workspace = true }
 
 clap = { workspace = true }
-eframe = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
 
-[dev-dependencies]
-infinitier_test_utils = { workspace = true }
+gpui = { workspace = true }
+gpui-component = { workspace = true }

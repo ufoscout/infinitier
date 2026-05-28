@@ -1,50 +1,18 @@
-//! Per-character editor tabs.
-//!
-//! Mirrors EEKeeper's tab strip across the top of the character
-//! editor. Each tab is its own module / unit-struct with a `show`
-//! method taking the parsed [`Cre`] plus the active [`Game`] — only
-//! [`AbilitiesTab`] has real content for now; the rest are stubs we
-//! will flesh out in follow-up work.
+//! Per-tab modules + the `CharacterTab` enum that drives the tab
+//! strip. The 15 variants mirror the Slint spike one-for-one;
+//! `Abilities` is the only fully-implemented tab — everything else is
+//! a "not implemented yet" stub.
 
-use eframe::egui;
+use gpui::{AnyElement, Context, IntoElement};
 use infinitier_core::imported_resource::gam::ImportedGam;
-use infinitier_core::resource::{Game, cre::Cre};
+use infinitier_core::resource::cre::Cre;
 
-mod abilities;
-mod appearance;
-mod characteristics;
-mod cleric;
-mod effects;
-mod global_variables;
-mod innate;
-mod inventory;
-mod journal_entries;
-mod local_variables;
-mod memorization;
-mod miscellaneous;
-mod proficiencies;
-mod resistances;
-mod wizard;
+use crate::app::KeeperApp;
 
-use abilities::AbilitiesTab;
-use appearance::AppearanceTab;
-use characteristics::CharacteristicsTab;
-use cleric::ClericTab;
-use effects::EffectsTab;
-use global_variables::GlobalVariablesTab;
-use innate::InnateTab;
-use inventory::InventoryTab;
-use journal_entries::JournalEntriesTab;
-use local_variables::LocalVariablesTab;
-use memorization::MemorizationTab;
-use miscellaneous::MiscellaneousTab;
-use proficiencies::ProficienciesTab;
-use resistances::ResistancesTab;
-use wizard::WizardTab;
+pub mod abilities;
+pub mod stub;
 
-/// Identifier for the active per-character tab. Order matches the
-/// EEKeeper tab strip.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CharacterTab {
     Abilities,
     Characteristics,
@@ -64,7 +32,6 @@ pub enum CharacterTab {
 }
 
 impl CharacterTab {
-    /// Tabs in EEKeeper display order.
     pub const ALL: &'static [CharacterTab] = &[
         CharacterTab::Abilities,
         CharacterTab::Characteristics,
@@ -83,8 +50,7 @@ impl CharacterTab {
         CharacterTab::Miscellaneous,
     ];
 
-    /// The human-readable label rendered on the tab strip.
-    pub fn label(&self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             CharacterTab::Abilities => "Abilities",
             CharacterTab::Characteristics => "Characteristics",
@@ -105,24 +71,19 @@ impl CharacterTab {
     }
 }
 
-/// Render the content area of the active tab. The tab strip itself
-/// is owned by the parent panel — this just dispatches.
-pub fn show_tab(ui: &mut egui::Ui, tab: CharacterTab, cre: &Cre, gam: &ImportedGam, game: Game) {
+/// Route to the right tab body. `Abilities` gets the full Slint-port
+/// rendering; every other variant falls through to `stub::render`
+/// with a "not implemented yet" message.
+pub fn dispatch(
+    tab: CharacterTab,
+    cre: &Cre,
+    gam: &ImportedGam,
+    cx: &mut Context<KeeperApp>,
+) -> AnyElement {
     match tab {
-        CharacterTab::Abilities => AbilitiesTab.show(ui, cre, gam, game),
-        CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, gam, game),
-        CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
-        CharacterTab::Inventory => InventoryTab.show(ui, cre, gam, game),
-        CharacterTab::Memorization => MemorizationTab.show(ui, cre, gam, game),
-        CharacterTab::Innate => InnateTab.show(ui, cre, gam, game),
-        CharacterTab::Wizard => WizardTab.show(ui, cre, gam, game),
-        CharacterTab::Cleric => ClericTab.show(ui, cre, gam, game),
-        CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, gam, game),
-        CharacterTab::Resistances => ResistancesTab.show(ui, cre, gam, game),
-        CharacterTab::Effects => EffectsTab.show(ui, cre, gam, game),
-        CharacterTab::LocalVariables => LocalVariablesTab.show(ui, cre, gam, game),
-        CharacterTab::GlobalVariables => GlobalVariablesTab.show(ui, cre, gam, game),
-        CharacterTab::JournalEntries => JournalEntriesTab.show(ui, cre, gam, game),
-        CharacterTab::Miscellaneous => MiscellaneousTab.show(ui, cre, gam, game),
+        CharacterTab::Abilities => abilities::render(cre, gam, cx).into_any_element(),
+        other => {
+            stub::render(format!("{} — not implemented yet.", other.label())).into_any_element()
+        }
     }
 }

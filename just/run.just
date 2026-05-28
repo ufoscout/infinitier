@@ -18,8 +18,7 @@ run_bg2:
 # Run Infinitier Explorer with local Baldur's Gate 2 - Enhanced Edition
 [group('run_explorer')]
 run_bg2ee:
-  cargo run -p infinitier_explorer_gpui -- "{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate - Enhanced Edition"
-  # cargo run -p infinitier_explorer_gpui -- "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate II - Enhanced Edition"
+  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate II - Enhanced Edition"
 
 # Run Infinitier Explorer with local Icewind Dale
 [group('run_explorer')]
@@ -67,7 +66,7 @@ run_bg2_keeper:
 # Run Infinitier Keeper with local Baldur's Gate 2 - Enhanced Edition
 [group('run_keeper')]
 run_bg2ee_keeper:
-  cargo run -p infinitier_keeper_gpui -- --savegame 0 --game-path "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate II - Enhanced Edition"
+  cargo run -p infinitier_keeper -- --savegame 0 --game-path "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate II - Enhanced Edition"
 
 # Run Infinitier Keeper with local Icewind Dale
 [group('run_keeper')]

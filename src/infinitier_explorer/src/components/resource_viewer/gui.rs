@@ -1,6 +1,8 @@
-use super::ResourceViewerTrait;
-use eframe::egui;
+use gpui::{AnyElement, Context, Window};
 use infinitier_core::game::{GameResource, ResourceId};
+
+use super::{ResourceViewerTrait, label};
+use crate::app::ExplorerApp;
 
 pub struct GuiViewer;
 
@@ -11,7 +13,13 @@ impl GuiViewer {
 }
 
 impl ResourceViewerTrait for GuiViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
-        ui.label("GUI Viewer");
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        _resource: &GameResource,
+        _window: &mut Window,
+        _cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        label("GUI Viewer")
     }
 }

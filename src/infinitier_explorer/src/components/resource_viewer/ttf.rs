@@ -1,201 +1,256 @@
-use std::sync::Arc;
+//! TTF viewer. GPUI port of the egui `TtfViewer`.
+//!
+//! Mirrors the egui viewer: header with the typeface's display name
+//! drawn in its own font at 36 px, a metadata grid (Version, Designer,
+//! Foundry, Copyright, PostScript), and a sample-text playground that
+//! renders a fixed sentence at five sizes so the reader can preview
+//! the font across typical UI ranges.
+//!
+//! Font installation goes through `cx.text_system().add_fonts(...)` —
+//! gpui's runtime-font-registration API — and uses the TTF's own
+//! `family_name` so `font_family(name)` resolves on the very next
+//! repaint. We install lazily on the first render so the dispatcher
+//! cache doesn't need to thread `cx` through `build_viewer`.
+//!
+//! The egui version makes the sample text editable via `TextEdit`.
+//! gpui-component's `Input` widget requires its own `Entity` and a
+//! focus dance — overkill for a one-line preview field, so this port
+//! ships with a fixed sentence. The sample text constant lives here
+//! so a future patch can swap it for an `Input` without touching the
+//! layout.
+
+use std::borrow::Cow;
 
 use bytesize::ByteSize;
-use eframe::egui::{self, FontData, FontDefinitions, FontFamily, FontId, RichText};
+use gpui::{
+    AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, SharedString,
+    StatefulInteractiveElement, Styled, Window, div, px,
+};
+use gpui_component::{ActiveTheme, h_flex, v_flex};
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     resource::ttf::Ttf,
 };
 
 use super::ResourceViewerTrait;
+use crate::app::ExplorerApp;
 
-/// TTF viewer.
-///
-/// Shows the font's `name`-table metadata and lets the user type a
-/// sample sentence rendered in the actual loaded font at several sizes.
-/// Rendering goes through egui's own text pipeline: at construction
-/// time we install the font into the egui context under a unique
-/// family name (derived from `resource_id`) and reference it via
-/// [`FontFamily::Name`] when drawing sample lines. That avoids pulling
-/// in a separate rasteriser and stays pure-Rust.
+const SAMPLE_TEXT: &str = "The quick brown fox jumps over the lazy dog. 0123456789";
+const SAMPLE_SIZES_PX: &[f32] = &[12.0, 16.0, 24.0, 36.0, 48.0];
+
 pub struct TtfViewer {
     ttf: Ttf,
-    /// Custom font family we installed into `egui::Context`'s
-    /// `FontDefinitions`. Used for every sample-text draw — but only
-    /// once [`TtfViewer::active_family`] confirms egui has actually
-    /// rebuilt its atlas around it (see comment there).
-    font_family: FontFamily,
-    sample_text: String,
-    sizes: Vec<f32>,
+    /// Cached as `SharedString` because we hand it to `font_family()`
+    /// on every frame and each render call would otherwise allocate.
+    family: SharedString,
+    /// `false` until the first `render` call has installed the font
+    /// in gpui's text system; flipped to `true` so subsequent renders
+    /// skip the registration. `add_fonts` is idempotent on the same
+    /// bytes anyway, but skipping saves the alloc.
+    installed: bool,
 }
 
 impl TtfViewer {
-    pub fn new(ttf: Ttf, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
-        let key = format!("ttf_viewer_{resource_id}");
-        install_font_in_egui(ui.ctx(), &key, &ttf);
-
+    pub fn new(ttf: Ttf) -> Self {
+        let family = SharedString::from(ttf.family_name.clone());
         Self {
             ttf,
-            font_family: FontFamily::Name(key.into()),
-            sample_text: "The quick brown fox jumps over the lazy dog. 0123456789".to_string(),
-            sizes: vec![12.0, 16.0, 24.0, 36.0, 48.0],
+            family,
+            installed: false,
         }
     }
 
-    /// Returns the font family the sample text should be drawn with on
-    /// this frame.
-    ///
-    /// `Context::set_fonts` is deferred: it queues the new font
-    /// definitions for the *next* frame's atlas rebuild, so the very
-    /// first `show()` after we call it would otherwise panic with
-    /// `FontFamily::Name(...) is not bound to any fonts` when we try
-    /// to lay out text. Checking the current `Fonts::families()` and
-    /// falling back to `Proportional` until our family appears makes
-    /// the first frame degrade gracefully; `request_repaint` ensures
-    /// egui re-renders as soon as the atlas catches up.
-    fn active_family(&self, ctx: &egui::Context) -> FontFamily {
-        let ready = ctx.fonts(|f| f.families().contains(&self.font_family));
-        if ready {
-            self.font_family.clone()
-        } else {
-            ctx.request_repaint();
-            FontFamily::Proportional
+    fn install_if_needed(&mut self, cx: &mut Context<ExplorerApp>) {
+        if self.installed {
+            return;
+        }
+        // Clone the raw bytes for gpui — the `Arc<Vec<u8>>` payload
+        // stays shared with anything else holding the `Ttf` (the
+        // importer's cache, the info-bar metadata, …).
+        let bytes: Vec<u8> = (*self.ttf.raw).clone();
+        match cx.text_system().add_fonts(vec![Cow::Owned(bytes)]) {
+            Ok(()) => self.installed = true,
+            Err(e) => log::warn!("[ttf] failed to install font {}: {e}", self.family),
         }
     }
 }
 
 impl ResourceViewerTrait for TtfViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
-        // ── Bottom info bar ────────────────────────────────────────
-        egui::Panel::bottom("ttf_info_panel").show_inside(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.label("TTF");
-                ui.separator();
-                ui.label(format!(
-                    "{} {}",
-                    self.ttf.family_name, self.ttf.subfamily_name
-                ));
-                ui.separator();
-                ui.label(format!("{} glyphs", self.ttf.glyph_count));
-                ui.separator();
-                ui.label(format!(
-                    "em={} asc={} desc={} line_gap={}",
-                    self.ttf.units_per_em, self.ttf.ascender, self.ttf.descender, self.ttf.line_gap,
-                ));
-                ui.separator();
-                if self.ttf.is_monospaced {
-                    ui.label("monospaced");
-                    ui.separator();
-                }
-                match resource.file_size {
-                    Some(size) => ui.label(ByteSize(size).to_string()),
-                    None => ui.label("? B"),
-                };
-                ui.separator();
-                match &resource.data_origin {
-                    DataOrigin::Bif { name } => ui.label(format!("BIF: {name}")),
-                    DataOrigin::Dir { name, path } => {
-                        ui.label(format!("{name}: {}", path.path().display()))
-                    }
-                    DataOrigin::Missing => ui.label("Missing"),
-                };
-            });
-        });
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        resource: &GameResource,
+        _window: &mut Window,
+        cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        self.install_if_needed(cx);
 
-        // Resolve which family we can actually use this frame — see
-        // `active_family` for the deferred-atlas-rebuild dance.
-        let family = self.active_family(ui.ctx());
+        let border = cx.theme().border;
 
-        // ── Main content: header card + sample-text playground ─────
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            self.show_header(ui, &family);
-            ui.separator();
-            self.show_sample_text(ui, &family);
-        });
+        let scroll = div()
+            .id("ttf-scroll")
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .overflow_y_scroll()
+            .p_4()
+            .child(header(self, cx))
+            .child(div().h_4())
+            .child(div().h_px().bg(border))
+            .child(div().h_4())
+            .child(metadata_grid(&self.ttf, cx))
+            .child(div().h_4())
+            .child(div().h_px().bg(border))
+            .child(div().h_4())
+            .child(sample_text(self, cx));
+
+        let info = info_bar(&self.ttf, resource, cx);
+
+        v_flex()
+            .flex_1()
+            .min_h_0()
+            .w_full()
+            .child(scroll)
+            .child(div().h_px().bg(border))
+            .child(info)
+            .into_any_element()
     }
 }
 
-impl TtfViewer {
-    /// Header card: the typeface's display name in its own font, plus
-    /// the optional designer / copyright / version strings underneath.
-    fn show_header(&self, ui: &mut egui::Ui, family: &FontFamily) {
-        ui.add_space(8.0);
-        ui.label(RichText::new(&self.ttf.full_name).font(FontId::new(36.0, family.clone())));
-        ui.add_space(4.0);
+/// Header — typeface's full name rendered in its own font at 36 px.
+fn header(viewer: &TtfViewer, _cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    div()
+        .font_family(viewer.family.clone())
+        .text_size(px(36.))
+        .child(viewer.ttf.full_name.clone())
+}
 
-        let mut details = Vec::new();
-        if let Some(v) = &self.ttf.version {
-            details.push(("Version", v.clone()));
-        }
-        if let Some(d) = &self.ttf.designer {
-            details.push(("Designer", d.clone()));
-        }
-        if let Some(m) = &self.ttf.manufacturer {
-            details.push(("Foundry", m.clone()));
-        }
-        if let Some(c) = &self.ttf.copyright {
-            details.push(("Copyright", c.clone()));
-        }
-        if let Some(ps) = &self.ttf.postscript_name {
-            details.push(("PostScript", ps.clone()));
-        }
-        egui::Grid::new("ttf_metadata_grid")
-            .num_columns(2)
-            .spacing([12.0, 4.0])
-            .show(ui, |ui| {
-                for (label, value) in details {
-                    ui.label(RichText::new(label).strong());
-                    ui.label(value);
-                    ui.end_row();
-                }
-            });
+/// Two-column metadata grid (label / value) for the optional `name`-table
+/// strings. Same five rows the egui viewer surfaces, when present.
+fn metadata_grid(ttf: &Ttf, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let mut details: Vec<(&'static str, String)> = Vec::new();
+    if let Some(v) = &ttf.version {
+        details.push(("Version", v.clone()));
+    }
+    if let Some(d) = &ttf.designer {
+        details.push(("Designer", d.clone()));
+    }
+    if let Some(m) = &ttf.manufacturer {
+        details.push(("Foundry", m.clone()));
+    }
+    if let Some(c) = &ttf.copyright {
+        details.push(("Copyright", c.clone()));
+    }
+    if let Some(ps) = &ttf.postscript_name {
+        details.push(("PostScript", ps.clone()));
     }
 
-    /// Sample-text panel: an editable string + one rendered line per
-    /// configured size. The same string is drawn at every size so the
-    /// reader sees how the font looks across the typical UI range.
-    fn show_sample_text(&mut self, ui: &mut egui::Ui, family: &FontFamily) {
-        ui.label(RichText::new("Sample text").strong());
-        ui.add(
-            egui::TextEdit::singleline(&mut self.sample_text)
-                .desired_width(f32::INFINITY)
-                .hint_text("Type a sample sentence…"),
+    let mut col = v_flex().w_full().gap_1();
+    for (label, value) in details {
+        col = col.child(
+            h_flex()
+                .w_full()
+                .gap_3()
+                .child(
+                    div()
+                        .min_w(px(110.))
+                        .font_weight(FontWeight::BOLD)
+                        .child(label),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .text_color(theme.muted_foreground)
+                        .child(value),
+                ),
         );
-        ui.add_space(8.0);
-
-        for &size in &self.sizes {
-            let label_text = if self.sample_text.is_empty() {
-                // egui collapses empty Text widgets; show a placeholder
-                // glyph row instead so the size sizing stays visible.
-                "(empty)".to_string()
-            } else {
-                self.sample_text.clone()
-            };
-            ui.label(format!("{size:>3.0} px:"));
-            ui.label(RichText::new(label_text).font(FontId::new(size, family.clone())));
-            ui.add_space(8.0);
-        }
     }
+    col
 }
 
-/// Install `ttf` into `ctx`'s font definitions under `key`, preserving
-/// every default font already configured. The font becomes available
-/// to draw calls via [`FontFamily::Name`]`(key)`.
-///
-/// Each call rebuilds egui's font atlas (the price of a font swap is
-/// paid by `set_fonts`). The viewer calls this exactly once at
-/// construction time, so the cost is paid on resource open rather than
-/// every frame.
-fn install_font_in_egui(ctx: &egui::Context, key: &str, ttf: &Ttf) {
-    let mut fonts = FontDefinitions::default();
-    // Clone the raw bytes for egui — the Arc'd payload stays shared
-    // with anything else holding the `Ttf` (we don't take it from
-    // under the importer).
-    let data = FontData::from_owned((*ttf.raw).clone());
-    fonts.font_data.insert(key.to_string(), Arc::new(data));
-    fonts.families.insert(
-        FontFamily::Name(key.to_string().into()),
-        vec![key.to_string()],
+/// Sample-text playground — fixed sentence rendered in the font at
+/// five sizes, each row prefixed with a muted size label.
+fn sample_text(viewer: &TtfViewer, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+    let mut col = v_flex().w_full().gap_2().child(
+        div()
+            .font_weight(FontWeight::BOLD)
+            .text_size(px(16.))
+            .child("Sample text"),
     );
-    ctx.set_fonts(fonts);
+
+    for &size in SAMPLE_SIZES_PX {
+        col = col.child(
+            v_flex()
+                .gap_0p5()
+                .child(
+                    div()
+                        .text_color(theme.muted_foreground)
+                        .text_size(px(11.))
+                        .child(format!("{size:.0} px")),
+                )
+                .child(
+                    div()
+                        .font_family(viewer.family.clone())
+                        .text_size(px(size))
+                        .child(SharedString::from(SAMPLE_TEXT)),
+                ),
+        );
+    }
+
+    col
+}
+
+fn info_bar(
+    ttf: &Ttf,
+    resource: &GameResource,
+    cx: &mut Context<ExplorerApp>,
+) -> impl IntoElement + use<> {
+    let theme = cx.theme();
+
+    let file_size = match resource.file_size {
+        Some(size) => ByteSize(size).to_string(),
+        None => "? B".to_string(),
+    };
+    let origin = match &resource.data_origin {
+        DataOrigin::Bif { name } => format!("BIF: {name}"),
+        DataOrigin::Dir { name, path } => format!("{name}: {}", path.path().display()),
+        DataOrigin::Missing => "Missing".to_string(),
+    };
+
+    let mut row = h_flex()
+        .w_full()
+        .px_3()
+        .py_1p5()
+        .gap_2()
+        .items_center()
+        .bg(theme.secondary)
+        .child(cell("TTF".to_string()))
+        .child(separator(theme.border))
+        .child(cell(format!("{} {}", ttf.family_name, ttf.subfamily_name)))
+        .child(separator(theme.border))
+        .child(cell(format!("{} glyphs", ttf.glyph_count)))
+        .child(separator(theme.border))
+        .child(cell(format!(
+            "em={} asc={} desc={} line_gap={}",
+            ttf.units_per_em, ttf.ascender, ttf.descender, ttf.line_gap,
+        )))
+        .child(separator(theme.border));
+    if ttf.is_monospaced {
+        row = row
+            .child(cell("monospaced".to_string()))
+            .child(separator(theme.border));
+    }
+    row.child(cell(file_size))
+        .child(separator(theme.border))
+        .child(cell(origin))
+}
+
+fn cell(text: String) -> impl IntoElement {
+    div().child(text)
+}
+
+fn separator(color: gpui::Hsla) -> impl IntoElement {
+    div().w_px().h_4().bg(color)
 }

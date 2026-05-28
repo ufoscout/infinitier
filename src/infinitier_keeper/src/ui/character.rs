@@ -20,7 +20,10 @@ pub fn render(this: &KeeperApp, cx: &mut Context<KeeperApp>) -> impl IntoElement
     let secondary = theme.secondary;
     let border = theme.border;
 
-    let title = match this.selected_party.and_then(|i| this.state.imported_gam.party_npcs.get(i)) {
+    let title = match this
+        .selected_party
+        .and_then(|i| this.state.imported_gam.party_npcs.get(i))
+    {
         Some(m) if !m.display_name.is_empty() => {
             format!("{}. {}", m.index + 1, m.display_name)
         }
@@ -110,13 +113,15 @@ fn render_body(this: &KeeperApp, cx: &mut Context<KeeperApp>) -> impl IntoElemen
     };
 
     match &member.cre {
-        Some(NpcCre::Cre(cre)) => tabs::dispatch(this.selected_tab, cre, &this.state.imported_gam, cx)
-            .into_any_element(),
+        Some(NpcCre::Cre(cre)) => {
+            tabs::dispatch(this.selected_tab, cre, &this.state.imported_gam, cx).into_any_element()
+        }
         Some(NpcCre::Ref(resref)) => tabs::stub::render(format!(
             "External CRE '{resref}' — embedded record not present in this GAM.",
         ))
         .into_any_element(),
-        None => tabs::stub::render("Empty party slot — no creature record to edit.")
-            .into_any_element(),
+        None => {
+            tabs::stub::render("Empty party slot — no creature record to edit.").into_any_element()
+        }
     }
 }

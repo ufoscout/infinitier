@@ -28,24 +28,9 @@ pub fn load(args: &Args) -> std::io::Result<KeeperState> {
             ))
         })?
     } else {
-        save_games
-            .by_name(&args.savegame)
-            .cloned()
-            .ok_or_else(|| {
-                std::io::Error::other(format!("savegame '{}' not found", args.savegame))
-            })?
-    };
-
-    let tlk = match game_data.dialog_tlk() {
-        Ok(t) => Some(t),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            log::warn!("No dialog.tlk found; falling back to engine script-names.");
-            None
-        }
-        Err(e) => {
-            log::warn!("Failed to load dialog.tlk: {e}");
-            None
-        }
+        save_games.by_name(&args.savegame).cloned().ok_or_else(|| {
+            std::io::Error::other(format!("savegame '{}' not found", args.savegame))
+        })?
     };
 
     let gam = GamImporter {
@@ -53,7 +38,7 @@ pub fn load(args: &Args) -> std::io::Result<KeeperState> {
         engine: game.engine(),
     }
     .import(&core_save.gam)?;
-    let imported_gam = ImportedGam::load_with_tlk(gam, tlk.as_ref())?;
+    let imported_gam = ImportedGam::load(gam, &game_data)?;
 
     Ok(KeeperState {
         game_data,

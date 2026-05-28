@@ -30,7 +30,11 @@ pub fn render(this: &KeeperApp, cx: &mut Context<KeeperApp>) -> impl IntoElement
         .child(div().h_px().bg(theme.sidebar_border));
 
     if this.state.imported_gam.party_npcs.is_empty() {
-        col = col.child(div().text_color(theme.muted_foreground).child("No party members in this save."));
+        col = col.child(
+            div()
+                .text_color(theme.muted_foreground)
+                .child("No party members in this save."),
+        );
         return col;
     }
 

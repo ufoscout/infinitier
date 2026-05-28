@@ -1,9 +1,11 @@
-use super::ResourceViewerTrait;
-use eframe::egui;
+use gpui::{AnyElement, Context, Window};
 use infinitier_core::{
     game::{GameResource, ResourceId},
     resource::ini::Ini,
 };
+
+use super::{ResourceViewerTrait, label};
+use crate::app::ExplorerApp;
 
 pub struct IniViewer {
     _ini: Ini,
@@ -16,7 +18,13 @@ impl IniViewer {
 }
 
 impl ResourceViewerTrait for IniViewer {
-    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
-        ui.label("INI Viewer");
+    fn render(
+        &mut self,
+        _resource_id: ResourceId,
+        _resource: &GameResource,
+        _window: &mut Window,
+        _cx: &mut Context<ExplorerApp>,
+    ) -> AnyElement {
+        label("INI Viewer")
     }
 }
