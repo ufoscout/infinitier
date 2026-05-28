@@ -1,18 +1,21 @@
 // Codecs
-pub mod acm {
-    pub use infinitier_acm_decoder::*;
-}
 pub mod bik {
     pub use infinitier_bik_decoder::*;
 }
 pub mod mve {
     pub use infinitier_mve_decoder::*;
 }
+pub mod wbm {
+    pub use infinitier_wbm_decoder::*;
+}
 
 // Common
 pub use infinitier_common::*;
 
 // Resources
+pub mod acm {
+    pub use infinitier_acm_resource::*;
+}
 pub mod bam {
     pub use infinitier_bam_resource::*;
 }

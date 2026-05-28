@@ -5,7 +5,8 @@
 use std::fmt;
 use std::io;
 
-use infinitier_acm_decoder::AcmDecoder;
+use infinitier_acm_resource::Acm;
+use infinitier_acm_resource::AcmDecoder;
 use infinitier_wav_resource::{WavDecoder, WavFormat};
 
 /// Sound information
@@ -141,5 +142,19 @@ impl From<AcmDecoder> for SoundDecoder {
 impl From<WavDecoder> for SoundDecoder {
     fn from(d: WavDecoder) -> Self {
         SoundDecoder::Wav(d)
+    }
+}
+
+/// Lift an [`Acm`] (the value an [`AcmImporter`](infinitier_acm_resource::AcmImporter)
+/// returns) into a [`SoundDecoder`]. Real ACM streams land on the
+/// [`SoundDecoder::Acm`] branch; OGG-under-`.acm` streams land on
+/// [`SoundDecoder::Wav`] (because that branch already knows how to
+/// drive Symphonia's Ogg/Vorbis path).
+impl From<Acm> for SoundDecoder {
+    fn from(a: Acm) -> Self {
+        match a {
+            Acm::Acm(d) => SoundDecoder::Acm(d),
+            Acm::Ogg(d) => SoundDecoder::Wav(d),
+        }
     }
 }

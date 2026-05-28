@@ -3143,6 +3143,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinitier_acm_resource"
+version = "0.0.7"
+dependencies = [
+ "infinitier_acm_decoder",
+ "infinitier_datasource",
+ "infinitier_test_utils",
+ "infinitier_wav_resource",
+ "log",
+ "sha2 0.11.0",
+]
+
+[[package]]
 name = "infinitier_bam_resource"
 version = "0.0.7"
 dependencies = [
@@ -3220,7 +3232,7 @@ name = "infinitier_core"
 version = "0.0.7"
 dependencies = [
  "image",
- "infinitier_acm_decoder",
+ "infinitier_acm_resource",
  "infinitier_bam_resource",
  "infinitier_bcs_resource",
  "infinitier_bif_resource",

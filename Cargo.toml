@@ -39,6 +39,7 @@ infinitier_keeper = { path = "src/infinitier_keeper", version = "0.0.7"  }
 infinitier_test_utils = { path = "src/test_utils" }
 
 # Resources
+infinitier_acm_resource = { path = "src/resources/acm", version = "0.0.7"  }
 infinitier_bam_resource = { path = "src/resources/bam", version = "0.0.7"  }
 infinitier_bcs_resource = { path = "src/resources/bcs", version = "0.0.7"  }
 infinitier_bif_resource = { path = "src/resources/bif", version = "0.0.7"  }

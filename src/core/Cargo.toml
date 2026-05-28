@@ -16,12 +16,12 @@ infinitier_datasource = { workspace = true }
 infinitier_fs = { workspace = true }
 
 # Codecs
-infinitier_acm_decoder = { workspace = true }
 infinitier_bik_decoder = { workspace = true }
 infinitier_mve_decoder = { workspace = true }
 infinitier_wbm_decoder = { workspace = true }
 
 # Resources
+infinitier_acm_resource = { workspace = true }
 infinitier_bam_resource = { workspace = true }
 infinitier_bcs_resource = { workspace = true }
 infinitier_bif_resource = { workspace = true }

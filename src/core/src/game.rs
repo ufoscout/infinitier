@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io, sync::Arc};
 
-use infinitier_acm_decoder::AcmDecoder;
+use infinitier_acm_resource::AcmImporter;
 use infinitier_bif_resource::{BifEmbeddedResource, BifImporter};
 use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
@@ -224,13 +224,10 @@ impl GameResource {
             .as_ref()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no datasource available"))?;
         match self.r#type {
-            ResourceType::Acm => Ok(AcmDecoder::open(
-                ds,
-                infinitier_acm_decoder::OutputChannels::Original,
-                &self.name,
-            )
-            .map(SoundDecoder::Acm)
-            .map(ImportedResource::Sound)?),
+            ResourceType::Acm => AcmImporter { name: &self.name }
+                .import(ds)
+                .map(SoundDecoder::from)
+                .map(ImportedResource::Sound),
             ResourceType::Are => Ok(ImportedResource::Are),
             ResourceType::Bah => Ok(ImportedResource::Bah),
             ResourceType::Bam => BamImporter { name: &self.name }
