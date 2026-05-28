@@ -1,12 +1,12 @@
 [package]
-name = "infinitier_wav_decoder"
+name = "infinitier_wav_resource"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-description = "Decoder for the WAV / WAVC sound file formats used in Infinity Engine games"
+description = "Importer / streaming decoder for the WAV / WAVC / OGG sound resources used in Infinity Engine games"
 readme = "readme.md"
 keywords = ["wav", "wavc", "audio", "infinity-engine", "baldurs-gate"]
 

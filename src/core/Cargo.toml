@@ -19,7 +19,6 @@ infinitier_fs = { workspace = true }
 infinitier_acm_decoder = { workspace = true }
 infinitier_bik_decoder = { workspace = true }
 infinitier_mve_decoder = { workspace = true }
-infinitier_wav_decoder = { workspace = true }
 infinitier_wbm_decoder = { workspace = true }
 
 # Resources
@@ -43,6 +42,7 @@ infinitier_tis_resource = { workspace = true }
 infinitier_tlk_resource = { workspace = true }
 infinitier_ttf_resource = { workspace = true }
 infinitier_two_da_resource = { workspace = true }
+infinitier_wav_resource = { workspace = true }
 infinitier_wed_resource = { workspace = true }
 
 image = { workspace = true }

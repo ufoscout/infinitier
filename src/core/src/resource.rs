@@ -8,9 +8,6 @@ pub mod bik {
 pub mod mve {
     pub use infinitier_mve_decoder::*;
 }
-pub mod wav {
-    pub use infinitier_wav_decoder::*;
-}
 
 // Common
 pub use infinitier_common::*;
@@ -78,6 +75,9 @@ pub mod ttf {
 }
 pub mod two_da {
     pub use infinitier_two_da_resource::*;
+}
+pub mod wav {
+    pub use infinitier_wav_resource::*;
 }
 pub mod wed {
     pub use infinitier_wed_resource::*;

@@ -27,7 +27,6 @@ infinitier_acm_encoder = { path = "src/codecs/acm_encoder", version = "0.0.7"  }
 infinitier_bik_decoder = { path = "src/codecs/bik_decoder", version = "0.0.7"  }
 infinitier_mve_decoder = { path = "src/codecs/mve_decoder", version = "0.0.7"  }
 infinitier_mve_encoder = { path = "src/codecs/mve_encoder", version = "0.0.7"  }
-infinitier_wav_decoder = { path = "src/codecs/wav_decoder", version = "0.0.7"  }
 infinitier_wbm_decoder = { path = "src/codecs/wbm_decoder", version = "0.0.7"  }
 
 # Core
@@ -60,6 +59,7 @@ infinitier_tis_resource = { path = "src/resources/tis", version = "0.0.7"  }
 infinitier_tlk_resource = { path = "src/resources/tlk", version = "0.0.7"  }
 infinitier_ttf_resource = { path = "src/resources/ttf", version = "0.0.7"  }
 infinitier_two_da_resource = { path = "src/resources/two_da", version = "0.0.7"  }
+infinitier_wav_resource = { path = "src/resources/wav", version = "0.0.7"  }
 infinitier_wed_resource = { path = "src/resources/wed", version = "0.0.7"  }
 
 bitflags = { version = "2", features = ["serde"] }
@@ -140,8 +140,6 @@ opt-level = 2
 [profile.dev.package.infinitier_mve_decoder]
 opt-level = 2
 [profile.dev.package.infinitier_mve_encoder]
-opt-level = 2
-[profile.dev.package.infinitier_wav_decoder]
 opt-level = 2
 [profile.dev.package.infinitier_wbm_decoder]
 opt-level = 2

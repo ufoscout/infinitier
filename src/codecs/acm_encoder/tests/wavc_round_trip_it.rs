@@ -1,6 +1,6 @@
 //! WAVC container round-trip tests for the encoder.
 //!
-//! Each encoder variant is exercised through `infinitier_wav_decoder`,
+//! Each encoder variant is exercised through `infinitier_wav_resource`,
 //! so both the 28-byte WAVC header and the inner ACM bitstream are
 //! validated end-to-end by an independent reader.
 
@@ -13,7 +13,7 @@ use infinitier_acm_encoder::{
 };
 use infinitier_datasource::DataSource;
 use infinitier_test_utils::{get_all_in_folder_by_extension, get_assets_path};
-use infinitier_wav_decoder::{WavDecoder, WavFormat};
+use infinitier_wav_resource::{WavDecoder, WavFormat};
 
 /// Verify the 28-byte WAVC header is well-formed regardless of which
 /// encoder body produced the ACM payload.
@@ -199,7 +199,7 @@ fn encode_wav_wavc_round_trips_bundled_fixture() {
         if orig_spec.bits_per_sample != 16 {
             // The WAVC encoder pipeline assumes 16-bit input. Other bit
             // depths (e.g. CHANT.WAV is 8-bit) get their own coverage in
-            // `infinitier_wav_decoder`'s tests.
+            // `infinitier_wav_resource`'s tests.
             eprintln!(
                 "skip {}: bits_per_sample {} ≠ 16",
                 pick.display(),

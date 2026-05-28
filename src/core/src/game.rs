@@ -6,7 +6,7 @@ use infinitier_common::{Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CiPath, roots::Roots};
 use infinitier_key_resource::KeyImporter;
-use infinitier_wav_decoder::WavDecoder;
+use infinitier_wav_resource::WavImporter;
 use log::{debug, warn};
 
 use crate::imported_resource::{ImportedResource, movie, sound::SoundDecoder};
@@ -324,7 +324,7 @@ impl GameResource {
             ResourceType::Unknown(id) => Ok(ImportedResource::Unknown(id)),
             ResourceType::Vef => Ok(ImportedResource::Vef),
             ResourceType::Vvc => Ok(ImportedResource::Vvc),
-            ResourceType::Wav => Ok(WavDecoder::open(ds, &self.name)
+            ResourceType::Wav => Ok(WavImporter{ name: &self.name }.import(ds)
                 .map(SoundDecoder::Wav)
                 .map(ImportedResource::Sound)?),
             ResourceType::Wbm => Ok(ImportedResource::Wbm(movie::MovieSource::new(

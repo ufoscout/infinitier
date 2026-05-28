@@ -64,7 +64,7 @@ fn check_round_trip(wav_path: &Path, out_root: &Path) {
     // Skip non-16-bit fixtures: `read_wav` and the acm encoders below
     // both assume 16-bit signed PCM. Other bit depths (e.g.
     // `CHANT.WAV` is 8-bit) get their own coverage in
-    // `infinitier_wav_decoder`'s tests.
+    // `infinitier_wav_resource`'s tests.
     {
         let probe = hound::WavReader::new(Cursor::new(&orig_bytes)).expect("parse wav");
         let bits = probe.spec().bits_per_sample;

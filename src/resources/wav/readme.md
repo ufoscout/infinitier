@@ -1,4 +1,4 @@
-# infinitier_wav_decoder
+# infinitier_wav_resource
 
 Streaming decoder for the two `*.WAV` flavours shipped by Infinity Engine games:
 
@@ -25,7 +25,7 @@ size.
 ### Stream samples block-by-block
 
 ```rust,no_run
-use infinitier_wav_decoder::WavDecoder;
+use infinitier_wav_resource::WavDecoder;
 use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Decode all samples / write to a real WAV file
 
 ```rust,no_run
-use infinitier_wav_decoder::WavDecoder;
+use infinitier_wav_resource::WavDecoder;
 use infinitier_datasource::DataSource;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

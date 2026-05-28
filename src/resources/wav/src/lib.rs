@@ -13,9 +13,23 @@ use symphonia::core::meta::MetadataOptions;
 use thiserror::Error as ThisError;
 
 use infinitier_acm_decoder::{AcmDecoder, OutputChannels};
-use infinitier_datasource::{DataSource, DataTrait, ReadExt, Reader};
+use infinitier_datasource::{DataSource, DataTrait, Importer, ReadExt, Reader};
 
 pub type Result<T> = std::result::Result<T, WavError>;
+
+/// A WAV / WAVC / OGG sound resource importer.
+pub struct WavImporter<'a> {
+    pub name: &'a str,
+}
+
+impl Importer for WavImporter<'_> {
+    type T = WavDecoder;
+
+    fn import(&self, source: &DataSource) -> io::Result<Self::T> {
+        Ok(WavDecoder::open(source, self.name)?)
+    }
+}
+
 
 #[derive(Debug, ThisError)]
 pub enum WavError {

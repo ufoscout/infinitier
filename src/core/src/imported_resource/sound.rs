@@ -6,7 +6,7 @@ use std::fmt;
 use std::io;
 
 use infinitier_acm_decoder::AcmDecoder;
-use infinitier_wav_decoder::{WavDecoder, WavFormat};
+use infinitier_wav_resource::{WavDecoder, WavFormat};
 
 /// Sound information
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -2,7 +2,7 @@ use std::fs;
 
 use infinitier_datasource::DataSource;
 use infinitier_test_utils::get_assets_path;
-use infinitier_wav_decoder::{WavDecoder, WavFormat, WavInfo};
+use infinitier_wav_resource::{WavDecoder, WavFormat, WavInfo};
 use sha2::{Digest, Sha256};
 
 /// Test that can decode WAVC files
