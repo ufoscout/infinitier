@@ -6,6 +6,9 @@ members = [
     "src/datasource",
     "src/infinitier_explorer",
     "src/infinitier_keeper",
+    "src/egui_common",
+    "src/infinitier_explorer_egui",
+    "src/infinitier_keeper_egui",
     "src/fs",
     "src/test_utils",
     "src/resources/*",
@@ -111,6 +114,9 @@ oxideav-core = "0.1"
 gpui = "0.2"
 gpui-component = "0.5"
 smallvec = "1"
+eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow
+egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
+egui_ltreeview = "0.7"
 
 
 [profile.dev]
