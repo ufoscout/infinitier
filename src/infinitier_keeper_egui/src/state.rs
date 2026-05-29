@@ -1,6 +1,8 @@
 //! App-wide mutable state, separated from the egui scaffolding so
 //! the UI panels can borrow it without coupling to the eframe shell.
 
+use std::path::PathBuf;
+
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::gam::ImportedGam;
 
@@ -19,6 +21,10 @@ pub struct AppState {
     /// has no notion of "where on disk did this come from" — the
     /// name lives on the enclosing save folder, not the GAM file.
     pub save_name: String,
+    /// Absolute path of the open save folder. Used by the Save
+    /// action to compute the destination folder (sibling of this
+    /// one) and to enumerate the files to copy.
+    pub save_folder_path: PathBuf,
     /// Loaded save state, with every embedded CRE parsed and every
     /// NPC name resolved through `dialog.tlk` when one was
     /// reachable.
@@ -31,7 +37,12 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(game_data: GameData, save_name: String, save: Box<ImportedGam>) -> Self {
+    pub fn new(
+        game_data: GameData,
+        save_name: String,
+        save_folder_path: PathBuf,
+        save: Box<ImportedGam>,
+    ) -> Self {
         let selected_party_index = if save.party_npcs.is_empty() {
             None
         } else {
@@ -40,6 +51,7 @@ impl AppState {
         Self {
             game_data,
             save_name,
+            save_folder_path,
             save,
             selected_party_index,
             selected_tab: CharacterTab::Abilities,

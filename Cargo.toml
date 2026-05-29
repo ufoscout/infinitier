@@ -37,8 +37,6 @@ infinitier_common = { path = "src/common", version = "0.0.7" }
 infinitier_core = { path = "src/core", version = "0.0.7"  }
 infinitier_datasource = { path = "src/datasource", version = "0.0.7"  }
 infinitier_egui_common = { path = "src/egui_common", version = "0.0.7" }
-egui-components = { path = "/home/ufo/workspaces/github_ufoscout/egui-components/crates/components" }
-egui-components-theme = { path = "/home/ufo/workspaces/github_ufoscout/egui-components/crates/theme" }
 infinitier_fs = { path = "src/fs", version = "0.0.7"  }
 infinitier_keeper = { path = "src/infinitier_keeper", version = "0.0.7"  }
 infinitier_test_utils = { path = "src/test_utils" }
@@ -119,6 +117,12 @@ smallvec = "1"
 eframe = { version = "0.34", features = ["wgpu"] }  # use wgpu backend instead of glow
 egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
 egui_ltreeview = "0.7"
+egui-components = { git = "https://github.com/ufoscout/egui-components", branch = "main" }
+# Bundles the Inter typeface (OFL-1.1, https://rsms.me/inter) as a
+# `pub const REGULAR: &[u8]`. The active weight is selected via the
+# crate's Cargo features (`regular`, `bold`, `medium`, …) — only
+# one may be enabled at a time; the constant name stays the same.
+ttf-inter = { version = "0.1", default-features = false, features = ["regular"] }
 
 
 [profile.dev]

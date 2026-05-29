@@ -7,70 +7,71 @@
 //! an in-band record to show).
 
 use eframe::egui;
-use egui_components::{Avatar, Label, LabelTone, Size, Tabs};
+use egui_components::{Label, LabelTone, Size, Tabs};
 use infinitier_core::imported_resource::gam::{ImportedGamNpc, NpcCre};
 
+use crate::components::editable_fields::KeeperEditors;
 use crate::state::AppState;
 use crate::ui::tabs::{CharacterTab, show_tab};
 
 pub struct CharacterPanel;
 
 impl CharacterPanel {
-    pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState) {
+    pub fn show(
+        &self,
+        ui: &mut egui::Ui,
+        state: &mut AppState,
+        editors: &mut KeeperEditors,
+    ) {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             let Some(idx) = state.selected_party_index else {
                 ui.label("Select a party member on the left to view their data.");
                 return;
             };
-            let Some(member) = state.save.party_npcs.get(idx) else {
+
+            // Header (display name + slot label) — pulled into local
+            // owned values so the `&state.save.party_npcs` borrow is
+            // released before `show_tab` takes `&mut state`.
+            let header: Option<HeaderInfo> = state
+                .save
+                .party_npcs
+                .get(idx)
+                .map(|m| HeaderInfo::from(m, idx));
+            let Some(header) = header else {
                 ui.colored_label(
                     egui::Color32::RED,
                     "Stale selection — party member not found.",
                 );
                 return;
             };
-            // Header: initials avatar + bold name + muted "Slot N".
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 12.0;
-                let display = member_display_name(member, idx);
-                ui.add(Avatar::from_name(&display).size(44.0));
-                ui.vertical(|ui| {
-                    ui.add(Label::new(&display).strong().size(Size::Large));
-                    ui.add(
-                        Label::new(format!("Party slot {}", idx + 1))
-                            .tone(LabelTone::Muted)
-                            .size(Size::Small),
-                    );
-                });
-            });
+            ui.add(Label::new(&header.display_name).strong().size(Size::Large));
+            ui.add(
+                Label::new(format!("Party slot {}", idx + 1))
+                    .tone(LabelTone::Muted)
+                    .size(Size::Small),
+            );
             ui.add_space(8.0);
 
-            // Tab strip — pill variant matches the GPUI keeper's tab
-            // chips, with the active tab using the accent fill.
+            // Tab strip — segmented variant gives a single bordered
+            // bar with each tab as a button-style cell.
             let mut selected_idx = CharacterTab::ALL
                 .iter()
                 .position(|t| *t == state.selected_tab)
                 .unwrap_or(0);
             let labels: Vec<&'static str> =
                 CharacterTab::ALL.iter().map(|t| t.label()).collect();
-            ui.add(Tabs::new(&mut selected_idx).tabs(labels).pill());
+            ui.add(Tabs::new(&mut selected_idx).tabs(labels).segmented());
             state.selected_tab = CharacterTab::ALL[selected_idx];
             ui.add_space(8.0);
 
-            match &member.cre {
-                Some(NpcCre::Cre(cre)) => show_tab(
-                    ui,
-                    state.selected_tab,
-                    cre,
-                    &state.save,
-                    state.game_data.game(),
-                ),
-                Some(NpcCre::Ref(resref)) => {
+            match header.cre_kind {
+                CreKind::Embedded => show_tab(ui, state, editors),
+                CreKind::ExternalRef(resref) => {
                     ui.label(format!(
                         "External CRE '{resref}' — embedded record not present in this GAM.",
                     ));
                 }
-                None => {
+                CreKind::Empty => {
                     ui.label("Empty party slot — no creature record to edit.");
                 }
             }
@@ -78,10 +79,35 @@ impl CharacterPanel {
     }
 }
 
-fn member_display_name(member: &ImportedGamNpc, idx: usize) -> String {
-    if member.display_name.is_empty() {
-        format!("Slot {}", idx + 1)
-    } else {
-        member.display_name.clone()
+/// Owned summary of the active party-member row. Decouples the
+/// header-render path from the `&state.save` borrow so `show_tab`
+/// can take `&mut state` next.
+struct HeaderInfo {
+    display_name: String,
+    cre_kind: CreKind,
+}
+
+enum CreKind {
+    Embedded,
+    ExternalRef(String),
+    Empty,
+}
+
+impl HeaderInfo {
+    fn from(member: &ImportedGamNpc, idx: usize) -> Self {
+        let display_name = if member.display_name.is_empty() {
+            format!("Slot {}", idx + 1)
+        } else {
+            member.display_name.clone()
+        };
+        let cre_kind = match member.cre.as_ref() {
+            Some(NpcCre::Cre(_)) => CreKind::Embedded,
+            Some(NpcCre::Ref(resref)) => CreKind::ExternalRef(resref.clone()),
+            None => CreKind::Empty,
+        };
+        Self {
+            display_name,
+            cre_kind,
+        }
     }
 }

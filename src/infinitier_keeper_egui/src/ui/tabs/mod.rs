@@ -7,8 +7,11 @@
 //! will flesh out in follow-up work.
 
 use eframe::egui;
-use infinitier_core::imported_resource::gam::ImportedGam;
+use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
 use infinitier_core::resource::{Game, cre::Cre};
+
+use crate::components::editable_fields::KeeperEditors;
+use crate::state::AppState;
 
 mod abilities;
 mod appearance;
@@ -105,11 +108,35 @@ impl CharacterTab {
     }
 }
 
-/// Render the content area of the active tab. The tab strip itself
-/// is owned by the parent panel — this just dispatches.
-pub fn show_tab(ui: &mut egui::Ui, tab: CharacterTab, cre: &Cre, gam: &ImportedGam, game: Game) {
-    match tab {
-        CharacterTab::Abilities => AbilitiesTab.show(ui, cre, gam, game),
+/// Render the content area of the active tab. The Abilities tab
+/// needs mutable access to commit edits, so it's dispatched
+/// directly with `&mut AppState + &mut KeeperEditors`. Every other
+/// tab is still read-only — we pull the immutable triple
+/// `(cre, gam, game)` out of `state` once and forward it to the
+/// stub.
+pub fn show_tab(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+) {
+    if state.selected_tab == CharacterTab::Abilities {
+        AbilitiesTab.show(ui, state, editors);
+        return;
+    }
+    let Some(idx) = state.selected_party_index else {
+        return;
+    };
+    let Some(member) = state.save.party_npcs.get(idx) else {
+        return;
+    };
+    let Some(NpcCre::Cre(boxed)) = member.cre.as_ref() else {
+        return;
+    };
+    let cre: &Cre = boxed.as_ref();
+    let gam: &ImportedGam = &state.save;
+    let game: Game = state.game_data.game();
+    match state.selected_tab {
+        CharacterTab::Abilities => unreachable!(),
         CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, gam, game),
         CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
         CharacterTab::Inventory => InventoryTab.show(ui, cre, gam, game),

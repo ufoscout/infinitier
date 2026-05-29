@@ -128,7 +128,12 @@ fn main() {
 
     let title = format!("Infinitier Keeper — {:?} — {}", game, core_save.name);
 
-    let state = AppState::new(game_data, core_save.name, Box::new(imported_gam));
+    let state = AppState::new(
+        game_data,
+        core_save.name,
+        core_save.folder_path,
+        Box::new(imported_gam),
+    );
 
     // Force the wgpu GL backend. On Linux the default would be
     // Vulkan, which has shown rendering glitches during window
@@ -142,7 +147,13 @@ fn main() {
         viewport: egui::ViewportBuilder::default()
             .with_title(&title)
             .with_clamp_size_to_monitor_size(true)
-            .with_maximized(true),
+            .with_maximized(true)
+            // Floor the window dimensions so the header strip
+            // (Save button, four field columns, theme toggle) and
+            // the three-column abilities layout always have enough
+            // room to lay out without overflowing into negative
+            // widths (egui panics on those).
+            .with_min_inner_size(egui::vec2(900.0, 540.0)),
         renderer: eframe::Renderer::Wgpu,
         wgpu_options,
         ..Default::default()
@@ -152,7 +163,8 @@ fn main() {
         &title,
         options,
         Box::new(move |cc| {
-            egui_components_theme::Theme::dark().install(&cc.egui_ctx);
+            install_inter_font(&cc.egui_ctx);
+            egui_components::theme::Theme::dark().install(&cc.egui_ctx);
 
             // Same Linux/X11 DPI workaround as the explorer crate.
             #[cfg(target_os = "linux")]
@@ -178,4 +190,27 @@ fn main() {
     ) {
         log::error!("Failed to run keeper: {e}");
     }
+}
+
+/// Replace egui's default proportional font (`Ubuntu-Light`, which
+/// looks washed out on a light background) with Inter — the same
+/// typeface shadcn / gpui-component use. Bytes come from the
+/// `ttf-inter` crate, so we're not adding any binary assets to this
+/// repo. egui's built-in fallback chain (emoji, monospace, the
+/// original Ubuntu-Light) stays in place for any glyph Inter
+/// doesn't cover.
+fn install_inter_font(ctx: &egui::Context) {
+    use std::sync::Arc;
+
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        "Inter".to_owned(),
+        Arc::new(egui::FontData::from_static(ttf_inter::REGULAR)),
+    );
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "Inter".to_owned());
+    ctx.set_fonts(fonts);
 }

@@ -1,353 +1,488 @@
-//! Abilities tab — mirrors the EEKeeper "Abilities" view.
+//! Abilities tab — every visible row is editable.
 //!
-//! Display is read-only and per-engine: the CRE header variant
-//! (`V1.0`, `V1.2`, `V9.0`, `V2.2`) drives which fields exist and
-//! how they are labelled. We render straight off `Cre.header` rather
-//! than introducing accessors for every byte — the layout matches
-//! the on-disk fields, so the source of truth is the parsed header.
+//! Mirrors the GPUI keeper's editable layout (3 columns of cards,
+//! per-section field filter via [`EditableField::section`] +
+//! [`EditableField::is_visible`], live "effective THAC0 / AC / Max HP"
+//! summaries derived from the *in-flight* input text so the totals
+//! update on every keystroke). The actual text-buffer plumbing
+//! lives on [`KeeperEditors`]; this module only paints rows and
+//! routes commits through the editor.
+//!
+//! egui's borrow rules want us to NOT hold a `&Cre` while we call
+//! `editors.show_input(..., &mut state, ...)` — so each card pulls a
+//! [`CreSnapshot`] of the immutable values it needs (labels,
+//! visibility flags, current bytes for the live-bonus math), drops
+//! the `&state.save` borrow, and then renders the rows.
+
+use std::collections::HashMap;
 
 use eframe::egui;
-use egui_components::Card;
-use infinitier_core::imported_resource::gam::ImportedGam;
-use infinitier_core::resource::Game;
+use egui_components::{Card, Label, LabelTone, Select, Size};
+use infinitier_core::engine_caps;
+use infinitier_core::imported_resource::gam::NpcCre;
+use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
 
-use crate::ui::helpers;
+use crate::components::cre_fields;
+use crate::components::editable_fields::{
+    AttacksOption, EditableField, KeeperEditors, Section, commit_attacks,
+};
+use crate::state::AppState;
+
+const INPUT_WIDTH: f32 = 110.0;
 
 pub struct AbilitiesTab;
 
 impl AbilitiesTab {
-    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, gam: &ImportedGam, _game: Game) {
+    pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEditors) {
+        let Some(snapshot) = CreSnapshot::capture(state) else {
+            ui.label("Empty party slot — no creature record to edit.");
+            return;
+        };
+        let engine = state.game_data.game().engine();
+
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.columns(3, |cols| {
-                section(&mut cols[0], "Ability scores", |ui| ability_scores(ui, cre));
+                ability_scores_card(&mut cols[0], &snapshot, state, editors, engine);
                 cols[0].add_space(8.0);
-                section(&mut cols[0], "Combat & status", |ui| {
-                    combat_stats(ui, cre, gam)
-                });
+                combat_status_card(&mut cols[0], &snapshot, state, editors, engine);
 
-                section(&mut cols[1], "Experience & levels", |ui| {
-                    experience_levels(ui, cre)
-                });
+                experience_levels_card(&mut cols[1], &snapshot, state, editors);
                 cols[1].add_space(8.0);
-                section(&mut cols[1], "Morale", |ui| morale(ui, cre));
+                morale_card(&mut cols[1], &snapshot, state, editors);
 
-                section(&mut cols[2], skills_section_title(cre), |ui| {
-                    skills(ui, cre)
-                });
+                skills_card(&mut cols[2], &snapshot, state, editors);
             });
         });
     }
 }
 
-fn section(ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui)) {
-    Card::new().title(title).divider().show(ui, body);
+// ── Card builders ────────────────────────────────────────────────────
+
+fn ability_scores_card(
+    ui: &mut egui::Ui,
+    snap: &CreSnapshot,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+    engine: Engine,
+) {
+    Card::new()
+        .title("Ability scores")
+        .divider()
+        .show(ui, |ui| {
+            // Live bonuses derived from in-flight input text — falls
+            // back to the committed CRE values when a field is empty.
+            let strength = read_u8(editors, EditableField::Strength, snap.strength);
+            let strength_pct = read_u8(
+                editors,
+                EditableField::StrengthPct,
+                snap.strength_pct.unwrap_or(0),
+            );
+            let dexterity = read_u8(editors, EditableField::Dexterity, snap.dexterity);
+            let constitution =
+                read_u8(editors, EditableField::Constitution, snap.constitution);
+            let bonuses = engine_caps::ability_bonuses(
+                engine,
+                strength,
+                strength_pct,
+                dexterity,
+                constitution,
+            );
+
+            editable_row(
+                ui,
+                EditableField::Strength,
+                snap,
+                state,
+                editors,
+                Some(format_bonus(engine, BonusKind::ToHit, bonuses.thac0_from_strength)),
+            );
+            if snap.is_visible(EditableField::StrengthPct) {
+                editable_row(ui, EditableField::StrengthPct, snap, state, editors, None);
+            }
+            editable_row(
+                ui,
+                EditableField::Dexterity,
+                snap,
+                state,
+                editors,
+                Some(format_bonus(engine, BonusKind::Ac, bonuses.ac_from_dexterity)),
+            );
+            editable_row(
+                ui,
+                EditableField::Constitution,
+                snap,
+                state,
+                editors,
+                Some(format_bonus(
+                    engine,
+                    BonusKind::HpPerLevel,
+                    bonuses.hp_per_level_from_constitution,
+                )),
+            );
+            editable_row(ui, EditableField::Intelligence, snap, state, editors, None);
+            editable_row(ui, EditableField::Wisdom, snap, state, editors, None);
+            editable_row(ui, EditableField::Charisma, snap, state, editors, None);
+
+            // "Total" — derived, read-only.
+            read_only_row(ui, "Total", &snap.ability_total.to_string());
+        });
 }
 
-fn ability_scores(ui: &mut egui::Ui, cre: &Cre) {
-    let str_score = cre.strength();
-    row(ui, "Strength", &str_score.to_string());
-    // AD&D exceptional-strength % bonus. IWD2 d20 drops it
-    // (returns None) — render "—" so the layout stays uniform.
-    match cre.strength_bonus() {
-        Some(b) => row(ui, "Strength %", &b.to_string()),
-        None => row(ui, "Strength %", "—"),
+fn combat_status_card(
+    ui: &mut egui::Ui,
+    snap: &CreSnapshot,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+    engine: Engine,
+) {
+    Card::new()
+        .title("Combat & status")
+        .divider()
+        .show(ui, |ui| {
+            let strength = read_u8(editors, EditableField::Strength, snap.strength);
+            let strength_pct = read_u8(
+                editors,
+                EditableField::StrengthPct,
+                snap.strength_pct.unwrap_or(0),
+            );
+            let dexterity = read_u8(editors, EditableField::Dexterity, snap.dexterity);
+            let constitution =
+                read_u8(editors, EditableField::Constitution, snap.constitution);
+            let bonuses = engine_caps::ability_bonuses(
+                engine,
+                strength,
+                strength_pct,
+                dexterity,
+                constitution,
+            );
+            let thac0_base = read_i8(editors, EditableField::Thac0, snap.thac0_or_bab);
+            let ac_base = read_i16(editors, EditableField::AcNatural, snap.ac_natural);
+            let max_hp_base = read_u16(editors, EditableField::MaxHp, snap.max_hit_points);
+            let level = i32::from(snap.primary_level);
+            let effective_thac0: i32 = match engine {
+                Engine::Iwd2 => i32::from(thac0_base) + i32::from(bonuses.thac0_from_strength),
+                _ => i32::from(thac0_base) - i32::from(bonuses.thac0_from_strength),
+            };
+            let effective_ac: i32 = i32::from(ac_base) + i32::from(bonuses.ac_from_dexterity);
+            let effective_max_hp: i32 = i32::from(max_hp_base)
+                + level * i32::from(bonuses.hp_per_level_from_constitution);
+
+            for &field in EditableField::ALL {
+                if field.section() != Section::CombatStatus || !snap.is_visible(field) {
+                    continue;
+                }
+                let bonus = match field {
+                    EditableField::Thac0 => Some(format!("(effective: {effective_thac0})")),
+                    EditableField::AcNatural => Some(format!("(effective: {effective_ac})")),
+                    EditableField::MaxHp => Some(format!("(effective: {effective_max_hp})")),
+                    _ => None,
+                };
+                editable_row(ui, field, snap, state, editors, bonus);
+            }
+        });
+}
+
+fn experience_levels_card(
+    ui: &mut egui::Ui,
+    snap: &CreSnapshot,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+) {
+    Card::new()
+        .title("Experience & levels")
+        .divider()
+        .show(ui, |ui| {
+            for &field in EditableField::ALL {
+                if field.section() != Section::ExperienceLevels || !snap.is_visible(field) {
+                    continue;
+                }
+                editable_row(ui, field, snap, state, editors, None);
+            }
+            if let Some((total, breakdown)) = &snap.iwd2_levels {
+                read_only_row(ui, "Total levels", &total.to_string());
+                read_only_row(ui, "Per-class levels", breakdown);
+            }
+        });
+}
+
+fn morale_card(
+    ui: &mut egui::Ui,
+    snap: &CreSnapshot,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+) {
+    Card::new().title("Morale").divider().show(ui, |ui| {
+        let mut painted = false;
+        for &field in EditableField::ALL {
+            if field.section() != Section::Morale || !snap.is_visible(field) {
+                continue;
+            }
+            editable_row(ui, field, snap, state, editors, None);
+            painted = true;
+        }
+        if !painted {
+            read_only_row(ui, "Morale system", "disabled (d20)");
+        }
+    });
+}
+
+fn skills_card(
+    ui: &mut egui::Ui,
+    snap: &CreSnapshot,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+) {
+    if let Some(rows) = &snap.iwd2_skills {
+        Card::new().title("d20 Skills").divider().show(ui, |ui| {
+            for (label, value) in rows {
+                read_only_row(ui, label, value);
+            }
+        });
+        return;
     }
-    row(ui, "Dexterity", &cre.dexterity().to_string());
-    row(ui, "Constitution", &cre.constitution().to_string());
-    row(ui, "Intelligence", &cre.intelligence().to_string());
-    row(ui, "Wisdom", &cre.wisdom().to_string());
-    row(ui, "Charisma", &cre.charisma().to_string());
-    // EEKeeper's "Total" line — sum of the six core scores.
-    let total = u32::from(cre.strength())
-        + u32::from(cre.dexterity())
-        + u32::from(cre.constitution())
-        + u32::from(cre.intelligence())
-        + u32::from(cre.wisdom())
-        + u32::from(cre.charisma());
-    row(ui, "Total", &total.to_string());
+    Card::new()
+        .title("Thief Skills")
+        .divider()
+        .show(ui, |ui| {
+            for &field in EditableField::ALL {
+                if field.section() != Section::ThiefSkills || !snap.is_visible(field) {
+                    continue;
+                }
+                editable_row(ui, field, snap, state, editors, None);
+            }
+        });
 }
 
-fn combat_stats(ui: &mut egui::Ui, cre: &Cre, gam: &ImportedGam) {
-    row(ui, "Current HP", &cre.current_hit_points().to_string());
-    row(ui, "Max HP", &cre.maximum_hit_points().to_string());
-    // Gold + reputation are party-wide.
-    let party_gold = gam.header.party_gold;
-    let rep = gam.engine_data.reputation();
-    match &cre.header {
-        CreHeader::V10(h) => {
-            row(ui, "AC (natural)", &h.armor_class_natural.to_string());
-            row(ui, "AC (effective)", &h.armor_class_effective.to_string());
-            row(ui, "THAC0", &h.thac0.to_string());
-            row(ui, "Attacks", &h.number_of_attacks.to_string());
-            row(ui, "Reputation (party)", &rep.to_string());
-            row(ui, "Gold (party)", &party_gold.to_string());
-            row(ui, "Fatigue", &h.fatigue.to_string());
-            row(ui, "Intoxication", &h.intoxication.to_string());
-            row(ui, "Luck", &h.luck.to_string());
-        }
-        CreHeader::V12(h) => {
-            row(ui, "AC (natural)", &h.armor_class_natural.to_string());
-            row(ui, "AC (effective)", &h.armor_class_effective.to_string());
-            row(ui, "THAC0", &h.thac0.to_string());
-            row(ui, "Attacks", &h.number_of_attacks.to_string());
-            row(ui, "Reputation (party)", &rep.to_string());
-            row(ui, "Gold (party)", &party_gold.to_string());
-            row(ui, "Fatigue", &h.fatigue.to_string());
-            row(ui, "Intoxication", &h.intoxication.to_string());
-            row(ui, "Luck", &h.luck.to_string());
-        }
-        CreHeader::V90(h) => {
-            row(ui, "AC (natural)", &h.armor_class_natural.to_string());
-            row(ui, "AC (effective)", &h.armor_class_effective.to_string());
-            row(ui, "THAC0", &h.thac0.to_string());
-            row(ui, "Attacks", &h.number_of_attacks.to_string());
-            row(ui, "Reputation (party)", &rep.to_string());
-            row(ui, "Gold (party)", &party_gold.to_string());
-            row(ui, "Fatigue", &h.fatigue.to_string());
-            row(ui, "Intoxication", &h.intoxication.to_string());
-            row(ui, "Luck", &h.luck.to_string());
-        }
-        CreHeader::V22(h) => {
-            // IWD2: single AC field (no "natural" vs "effective"
-            // split); THAC0 is replaced by Base Attack Bonus.
-            row(ui, "AC", &h.armor_class.to_string());
-            row(
-                ui,
-                "Base Attack Bonus",
-                &h.base_attack_bonus_bab_for_non.to_string(),
+// ── Row primitives ───────────────────────────────────────────────────
+
+fn editable_row(
+    ui: &mut egui::Ui,
+    field: EditableField,
+    snap: &CreSnapshot,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+    bonus: Option<String>,
+) {
+    let label = snap.label(field);
+    // CRITICAL: bound the row by `allocate_ui_with_layout(vec2(w, 0), …)`
+    // so the inner `right_to_left` block can't grow vertically. Without
+    // this, the sub-region inherits the card body's full remaining
+    // height and each row balloons to hundreds of px tall.
+    let avail_w = ui.available_width();
+    ui.allocate_ui_with_layout(
+        egui::vec2(avail_w, 0.0),
+        egui::Layout::right_to_left(egui::Align::Center),
+        |ui| {
+            if field == EditableField::Attacks {
+                show_attacks_dropdown(ui, state, editors);
+            } else {
+                editors.show_input(ui, field, state, INPUT_WIDTH);
+            }
+            if let Some(text) = bonus {
+                ui.add_space(8.0);
+                ui.add(
+                    Label::new(text)
+                        .tone(LabelTone::Muted)
+                        .size(Size::Small),
+                );
+            }
+            ui.add_space(8.0);
+            // Nested left-to-right block claims the leftover space on
+            // the left side; the truncating label inside ellipsizes
+            // when the column is narrow rather than colliding with
+            // the bonus / input on the right.
+            ui.with_layout(
+                egui::Layout::left_to_right(egui::Align::Center),
+                |ui| {
+                    let theme = egui_components::theme::Theme::get(ui.ctx());
+                    let rich = egui::RichText::new(label)
+                        .color(theme.colors.muted_foreground)
+                        .font(egui::FontId::proportional(theme.metrics.font_size_md));
+                    ui.add(egui::Label::new(rich).truncate());
+                },
             );
-            row(ui, "Attacks", &h.number_of_attacks.to_string());
-            row(ui, "Reputation (party)", &rep.to_string());
-            row(ui, "Gold (party)", &party_gold.to_string());
-            row(ui, "Fatigue", &h.fatigue.to_string());
-            row(ui, "Intoxication", &h.intoxication.to_string());
-            row(ui, "Luck", &h.luck.to_string());
-        }
-    }
+        },
+    );
 }
 
-fn experience_levels(ui: &mut egui::Ui, cre: &Cre) {
-    match &cre.header {
-        CreHeader::V10(h) => {
-            row(
-                ui,
-                "Experience",
-                &h.creature_power_level_for_summoning_spells.to_string(),
+fn read_only_row(ui: &mut egui::Ui, label: &str, value: &str) {
+    let avail_w = ui.available_width();
+    ui.allocate_ui_with_layout(
+        egui::vec2(avail_w, 0.0),
+        egui::Layout::right_to_left(egui::Align::Center),
+        |ui| {
+            ui.add(Label::new(value).strong());
+            ui.add_space(8.0);
+            ui.with_layout(
+                egui::Layout::left_to_right(egui::Align::Center),
+                |ui| {
+                    let theme = egui_components::theme::Theme::get(ui.ctx());
+                    let rich = egui::RichText::new(label)
+                        .color(theme.colors.muted_foreground)
+                        .font(egui::FontId::proportional(theme.metrics.font_size_md));
+                    ui.add(egui::Label::new(rich).truncate());
+                },
             );
-            row(
-                ui,
-                "Exp for kill",
-                &h.xp_gained_for_killing_this_creature.to_string(),
-            );
-            row(
-                ui,
-                "Level (1st class)",
-                &h.level_first_class_highest_attained_level.to_string(),
-            );
-            row(
-                ui,
-                "Level (2nd class)",
-                &h.level_second_class_highest_attained_level.to_string(),
-            );
-            row(
-                ui,
-                "Level (3rd class)",
-                &h.level_third_class_highest_attained_level.to_string(),
-            );
-        }
-        CreHeader::V12(h) => {
-            // PST splits XP across primary / secondary / tertiary
-            // class pools (the Nameless One's class-switching system).
-            row(
-                ui,
-                "Experience (primary)",
-                &h.creature_power_level_for_summoning_spells.to_string(),
-            );
-            row(
-                ui,
-                "Experience (2nd class)",
-                &h.xp_secondary_class.to_string(),
-            );
-            row(
-                ui,
-                "Experience (3rd class)",
-                &h.xp_tertiary_class.to_string(),
-            );
-            row(
-                ui,
-                "Exp for kill",
-                &h.xp_gained_for_killing_this_creature.to_string(),
-            );
-            row(
-                ui,
-                "Level (1st class)",
-                &h.highest_attained_level_in_class.to_string(),
-            );
-            row(
-                ui,
-                "Level (2nd class)",
-                &h.highest_attained_level_in_class_2.to_string(),
-            );
-            row(
-                ui,
-                "Level (3rd class)",
-                &h.highest_attained_level_in_class_3.to_string(),
-            );
-        }
-        CreHeader::V90(h) => {
-            row(
-                ui,
-                "Experience",
-                &h.creature_power_level_for_summoning_spells.to_string(),
-            );
-            row(
-                ui,
-                "Exp for kill",
-                &h.xp_gained_for_killing_this_creature.to_string(),
-            );
-            row(
-                ui,
-                "Level (1st class)",
-                &h.highest_attained_level_in_class.to_string(),
-            );
-            row(
-                ui,
-                "Level (2nd class)",
-                &h.highest_attained_level_in_class_2.to_string(),
-            );
-            row(
-                ui,
-                "Level (3rd class)",
-                &h.highest_attained_level_in_class_3.to_string(),
-            );
-        }
-        CreHeader::V22(h) => {
-            // IWD2 uses a single shared XP pool; the per-class level
-            // breakdown sits in the dedicated levels section below.
-            row(
-                ui,
-                "Experience",
-                &h.creature_power_level_for_summoning_spells.to_string(),
-            );
-            row(
-                ui,
-                "Exp for kill",
-                &h.xp_gained_for_killing_this_creature.to_string(),
-            );
-            row(ui, "Total levels", &h.total_levels.to_string());
-            row(ui, "Per-class levels", &format_iwd2_class_levels(h));
-        }
-    }
+        },
+    );
 }
 
-fn morale(ui: &mut egui::Ui, cre: &Cre) {
-    match &cre.header {
-        CreHeader::V10(h) => {
-            row(
-                ui,
-                "Morale",
-                &h.morale_default_value_is_10_capped.to_string(),
-            );
-            row(
-                ui,
-                "Morale break",
-                &h.morale_break_see_here_for_further.to_string(),
-            );
-            row(
-                ui,
-                "Morale recovery",
-                &h.morale_recovery_time_see_here_for.to_string(),
-            );
-        }
-        CreHeader::V12(h) => {
-            row(ui, "Morale", &h.morale.to_string());
-            row(ui, "Morale break", &h.morale_break.to_string());
-            row(ui, "Morale recovery", &h.morale_recovery_time.to_string());
-        }
-        CreHeader::V90(h) => {
-            row(ui, "Morale", &h.morale.to_string());
-            row(ui, "Morale break", &h.morale_break.to_string());
-            row(ui, "Morale recovery", &h.morale_recovery_time.to_string());
-        }
-        CreHeader::V22(_) => {
-            // IWD2 has no morale system on creatures in the same way;
-            // the legacy bytes are still in the header but unused by
-            // gameplay. Surface a placeholder so the section stays
-            // consistent across versions.
-            row(ui, "Morale system disabled (d20)", "—");
-        }
-    }
-}
-
-fn skills_section_title(cre: &Cre) -> &'static str {
-    match &cre.header {
-        CreHeader::V22(_) => "d20 Skills",
-        _ => "Thief Skills",
-    }
-}
-
-fn skills(ui: &mut egui::Ui, cre: &Cre) {
-    match &cre.header {
-        CreHeader::V10(h) => {
-            // V1.0 / EE has both Hide in Shadows and Move Silently as
-            // distinct skills (alongside the AD&D thief set).
-            row(ui, "Hide in Shadows", &h.hide_in_shadows_base.to_string());
-            row(ui, "Move Silently", &h.move_silently.to_string());
-            row(ui, "Open Locks", &h.lockpicking.to_string());
-            row(ui, "Find Traps", &h.find_disarm_traps.to_string());
-            row(ui, "Set Traps", &h.set_traps.to_string());
-            row(ui, "Pick Pockets", &h.pick_pockets.to_string());
-            row(ui, "Detect Illusions", &h.detect_illusion.to_string());
-            row(ui, "Lore", &h.lore.to_string());
-        }
-        CreHeader::V12(h) => {
-            // PST: a single "stealth" skill replaces the
-            // Hide/Move-Silently pair.
-            row(ui, "Stealth", &h.stealth.to_string());
-            row(ui, "Open Locks", &h.lockpicking.to_string());
-            row(ui, "Find Traps", &h.find_disarm_traps.to_string());
-            row(ui, "Set Traps", &h.set_traps.to_string());
-            row(ui, "Pick Pockets", &h.pick_pockets.to_string());
-            row(ui, "Detect Illusions", &h.detect_illusion.to_string());
-            row(ui, "Lore", &h.lore.to_string());
-        }
-        CreHeader::V90(h) => {
-            row(ui, "Hide in Shadows", &h.hide_in_shadows_base.to_string());
-            row(ui, "Stealth", &h.stealth.to_string());
-            row(ui, "Open Locks", &h.lockpicking.to_string());
-            row(ui, "Find Traps", &h.find_disarm_traps.to_string());
-            row(ui, "Set Traps", &h.set_traps.to_string());
-            row(ui, "Pick Pockets", &h.pick_pockets.to_string());
-            row(ui, "Detect Illusions", &h.detect_illusion.to_string());
-            row(ui, "Lore", &h.lore.to_string());
-        }
-        CreHeader::V22(h) => {
-            row(ui, "Alchemy", &h.alchemy.to_string());
-            row(ui, "Animal Empathy", &h.animal_empathy.to_string());
-            row(ui, "Bluff", &h.bluff.to_string());
-            row(ui, "Concentration", &h.concentration.to_string());
-            row(ui, "Diplomacy", &h.diplomacy.to_string());
-            row(ui, "Disable Device", &h.disable_device.to_string());
-            row(ui, "Hide", &h.hide.to_string());
-            row(ui, "Intimidate", &h.intimidate.to_string());
-            row(ui, "Knowledge (Arcana)", &h.knowledge_arcana.to_string());
-            row(ui, "Move Silently", &h.move_silently.to_string());
-            row(ui, "Pick Pocket", &h.pick_pocket.to_string());
-            row(ui, "Search", &h.search.to_string());
-            row(ui, "Spellcraft", &h.spellcraft.to_string());
-            row(ui, "Use Magic Device", &h.use_magic_device.to_string());
-            row(ui, "Wilderness Lore", &h.wilderness_law.to_string());
-        }
+fn show_attacks_dropdown(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+) {
+    let labels: Vec<&'static str> = AttacksOption::ALL.iter().map(|o| o.label).collect();
+    let previous = editors.attacks_idx;
+    Select::new("attacks", &mut editors.attacks_idx)
+        .options(labels.iter().copied())
+        .placeholder("…")
+        .width(INPUT_WIDTH)
+        .show(ui);
+    if editors.attacks_idx != previous
+        && let Some(idx) = editors.attacks_idx
+    {
+        commit_attacks(idx, state);
     }
 }
 
-/// Thin shim so every call in this file uses the same name. The real
-/// rendering — muted label left + bold value right-aligned to the
-/// card edge — lives in [`crate::ui::helpers::kv_row`].
-fn row(ui: &mut egui::Ui, label: &str, value: &str) {
-    helpers::kv_row(ui, label, value);
+// ── Helpers for live-bonus computation ───────────────────────────────
+
+fn read_u8(editors: &KeeperEditors, field: EditableField, fallback: u8) -> u8 {
+    editors
+        .text(field)
+        .trim()
+        .parse::<u32>()
+        .map(|n| n.min(u8::MAX as u32) as u8)
+        .unwrap_or(fallback)
 }
+
+fn read_i8(editors: &KeeperEditors, field: EditableField, fallback: i8) -> i8 {
+    editors
+        .text(field)
+        .trim()
+        .parse::<i32>()
+        .map(|n| n.clamp(i8::MIN as i32, i8::MAX as i32) as i8)
+        .unwrap_or(fallback)
+}
+
+fn read_i16(editors: &KeeperEditors, field: EditableField, fallback: i16) -> i16 {
+    editors
+        .text(field)
+        .trim()
+        .parse::<i32>()
+        .map(|n| n.clamp(i16::MIN as i32, i16::MAX as i32) as i16)
+        .unwrap_or(fallback)
+}
+
+fn read_u16(editors: &KeeperEditors, field: EditableField, fallback: u16) -> u16 {
+    editors
+        .text(field)
+        .trim()
+        .parse::<u32>()
+        .map(|n| n.min(u16::MAX as u32) as u16)
+        .unwrap_or(fallback)
+}
+
+// ── Bonus formatter ──────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+enum BonusKind {
+    ToHit,
+    Ac,
+    HpPerLevel,
+}
+
+fn format_bonus(engine: Engine, kind: BonusKind, value: i8) -> String {
+    let suffix = match kind {
+        BonusKind::ToHit => match engine {
+            Engine::Iwd2 => "to hit",
+            _ => "THAC0",
+        },
+        BonusKind::Ac => "AC",
+        BonusKind::HpPerLevel => "HP/lvl",
+    };
+    format!("{value:+} {suffix}")
+}
+
+// ── Snapshot — immutable copy of everything we need from the CRE ─────
+
+/// Everything the abilities tab reads from the active CRE / GAM.
+/// Captured up-front so the rest of the rendering path can take
+/// `&mut state` without conflicting with a long-held `&Cre`.
+struct CreSnapshot {
+    strength: u8,
+    strength_pct: Option<u8>,
+    dexterity: u8,
+    constitution: u8,
+    thac0_or_bab: i8,
+    ac_natural: i16,
+    max_hit_points: u16,
+    primary_level: u8,
+    ability_total: u32,
+    labels: HashMap<EditableField, &'static str>,
+    visible: HashMap<EditableField, bool>,
+    /// IWD2-only read-only block. `None` on AD&D engines.
+    iwd2_skills: Option<Vec<(&'static str, String)>>,
+    /// IWD2-only "Total levels" + per-class breakdown row.
+    iwd2_levels: Option<(u8, String)>,
+}
+
+impl CreSnapshot {
+    fn capture(state: &AppState) -> Option<Self> {
+        let idx = state.selected_party_index?;
+        let member = state.save.party_npcs.get(idx)?;
+        let cre = match member.cre.as_ref()? {
+            NpcCre::Cre(boxed) => boxed.as_ref(),
+            NpcCre::Ref(_) => return None,
+        };
+        let mut labels = HashMap::with_capacity(EditableField::ALL.len());
+        let mut visible = HashMap::with_capacity(EditableField::ALL.len());
+        for &f in EditableField::ALL {
+            labels.insert(f, f.label(cre));
+            visible.insert(f, f.is_visible(cre));
+        }
+        let ability_total = u32::from(cre.strength())
+            + u32::from(cre.dexterity())
+            + u32::from(cre.constitution())
+            + u32::from(cre.intelligence())
+            + u32::from(cre.wisdom())
+            + u32::from(cre.charisma());
+        let (iwd2_skills, iwd2_levels) = match &cre.header {
+            CreHeader::V22(h) => (
+                Some(iwd2_d20_skills(h)),
+                Some((h.total_levels, format_iwd2_class_levels(h))),
+            ),
+            _ => (None, None),
+        };
+        Some(Self {
+            strength: cre.strength(),
+            strength_pct: cre.strength_bonus(),
+            dexterity: cre.dexterity(),
+            constitution: cre.constitution(),
+            thac0_or_bab: cre_fields::thac0_or_bab(cre),
+            ac_natural: cre_fields::ac_natural(cre),
+            max_hit_points: cre_fields::max_hit_points(cre),
+            primary_level: cre_fields::primary_level(cre),
+            ability_total,
+            labels,
+            visible,
+            iwd2_skills,
+            iwd2_levels,
+        })
+    }
+
+    fn label(&self, field: EditableField) -> &'static str {
+        self.labels.get(&field).copied().unwrap_or("?")
+    }
+
+    fn is_visible(&self, field: EditableField) -> bool {
+        self.visible.get(&field).copied().unwrap_or(false)
+    }
+}
+
+// ── IWD2 read-only helpers ───────────────────────────────────────────
 
 fn format_iwd2_class_levels(h: &CreHeaderV22) -> String {
     let entries = [
@@ -363,10 +498,38 @@ fn format_iwd2_class_levels(h: &CreHeaderV22) -> String {
         ("Sorcerer", h.sorcerer_levels),
         ("Wizard", h.wizard_levels),
     ];
-    entries
+    let parts: Vec<String> = entries
         .iter()
         .filter(|(_, lvl)| *lvl > 0)
         .map(|(name, lvl)| format!("{name} {lvl}"))
-        .collect::<Vec<_>>()
-        .join(", ")
+        .collect();
+    if parts.is_empty() {
+        "—".into()
+    } else {
+        parts.join(", ")
+    }
 }
+
+fn iwd2_d20_skills(h: &CreHeaderV22) -> Vec<(&'static str, String)> {
+    vec![
+        ("Alchemy", h.alchemy.to_string()),
+        ("Animal Empathy", h.animal_empathy.to_string()),
+        ("Bluff", h.bluff.to_string()),
+        ("Concentration", h.concentration.to_string()),
+        ("Diplomacy", h.diplomacy.to_string()),
+        ("Disable Device", h.disable_device.to_string()),
+        ("Hide", h.hide.to_string()),
+        ("Intimidate", h.intimidate.to_string()),
+        ("Knowledge (Arcana)", h.knowledge_arcana.to_string()),
+        ("Move Silently", h.move_silently.to_string()),
+        ("Pick Pocket", h.pick_pocket.to_string()),
+        ("Search", h.search.to_string()),
+        ("Spellcraft", h.spellcraft.to_string()),
+        ("Use Magic Device", h.use_magic_device.to_string()),
+        ("Wilderness Lore", h.wilderness_law.to_string()),
+    ]
+}
+
+// `Cre` is needed by the snapshot constructor; suppress the unused-import lint.
+#[allow(dead_code)]
+fn _phantom(_: &Cre) {}

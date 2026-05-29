@@ -15,7 +15,7 @@
 
 use eframe::egui;
 use egui_components::{Avatar, Card, Label, LabelTone, Size, Slider};
-use egui_components_theme::Theme;
+use egui_components::theme::Theme;
 use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::cre::Cre;
 
