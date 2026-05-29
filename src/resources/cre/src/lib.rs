@@ -22,7 +22,9 @@ mod header_generated;
 mod importer;
 
 pub use exporter::CreExporter;
-pub use header_generated::{CreHeaderV10, CreHeaderV12, CreHeaderV22, CreHeaderV90};
+pub use header_generated::{
+    CreHeaderV10, CreHeaderV12, CreHeaderV22, CreHeaderV90, NumberOfAttacks,
+};
 pub use importer::CreImporter;
 
 /// 4-byte signature at offset 0 of every CRE file (note the trailing
@@ -186,6 +188,85 @@ impl Cre {
             CreHeader::V12(h) => h.charisma,
             CreHeader::V90(h) => h.charisma,
             CreHeader::V22(h) => h.charisma,
+        }
+    }
+
+    // ── Setters ────────────────────────────────────────────────────
+    //
+    // Same per-variant dispatch as the getters above. Callers are
+    // expected to clamp to the engine's gameplay range
+    // (`infinitier_core::engine_caps::ability_caps`) before writing;
+    // we don't enforce it here so the importer can stay bit-exact
+    // round-trip with whatever the file contains.
+
+    /// Overwrite the strength score.
+    pub fn set_strength(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.strength = value,
+            CreHeader::V12(h) => h.strength = value,
+            CreHeader::V90(h) => h.strength = value,
+            CreHeader::V22(h) => h.strength = value,
+        }
+    }
+
+    /// Overwrite the AD&D extraordinary-strength percentile.
+    /// Silently no-ops on V2.2 headers (IWD2 d20 has no such field).
+    pub fn set_strength_bonus(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.strength_bonus = value,
+            CreHeader::V12(h) => h.strength_bonus = value,
+            CreHeader::V90(h) => h.strength_bonus = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+
+    /// Overwrite the intelligence score.
+    pub fn set_intelligence(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.intelligence = value,
+            CreHeader::V12(h) => h.intelligence = value,
+            CreHeader::V90(h) => h.intelligence = value,
+            CreHeader::V22(h) => h.intelligence = value,
+        }
+    }
+
+    /// Overwrite the wisdom score.
+    pub fn set_wisdom(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.wisdom = value,
+            CreHeader::V12(h) => h.wisdom = value,
+            CreHeader::V90(h) => h.wisdom = value,
+            CreHeader::V22(h) => h.wisdom = value,
+        }
+    }
+
+    /// Overwrite the dexterity score.
+    pub fn set_dexterity(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.dexterity = value,
+            CreHeader::V12(h) => h.dexterity = value,
+            CreHeader::V90(h) => h.dexterity = value,
+            CreHeader::V22(h) => h.dexterity = value,
+        }
+    }
+
+    /// Overwrite the constitution score.
+    pub fn set_constitution(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.constitution = value,
+            CreHeader::V12(h) => h.constitution = value,
+            CreHeader::V90(h) => h.constitution = value,
+            CreHeader::V22(h) => h.constitution = value,
+        }
+    }
+
+    /// Overwrite the charisma score.
+    pub fn set_charisma(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.charisma = value,
+            CreHeader::V12(h) => h.charisma = value,
+            CreHeader::V90(h) => h.charisma = value,
+            CreHeader::V22(h) => h.charisma = value,
         }
     }
 

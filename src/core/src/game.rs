@@ -62,7 +62,7 @@ impl GameData {
     /// Get a resource by name and type
     pub fn get_by_name_and_type(&self, name: &str, r#type: ResourceType) -> Option<&GameResource> {
         self.name_type_index
-            .get(&(name.to_string(), r#type))
+            .get(&(name.to_lowercase(), r#type))
             .and_then(|&id| self.resources.get(id))
     }
 
@@ -72,7 +72,7 @@ impl GameData {
         name: &str,
         r#type: ResourceType,
     ) -> io::Result<Option<ImportedResource>> {
-        self.get_by_name_and_type(name, r#type)
+        self.get_by_name_and_type(&name, r#type)
             .map(|resource| resource.import(self))
             .transpose()
     }
@@ -665,7 +665,7 @@ mod tests {
     fn test_resource_found() {
         let game_data = build_bg2();
         let resource = game_data
-            .get_by_name_and_type("ar0714", ResourceType::Wed)
+            .get_by_name_and_type("AR0714", ResourceType::Wed)
             .unwrap();
         assert_eq!(
             DataOrigin::Bif {

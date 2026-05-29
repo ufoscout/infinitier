@@ -7,6 +7,7 @@ use gpui::{Context, FontWeight, IntoElement, ParentElement, SharedString, Styled
 use gpui_component::{ActiveTheme, Sizable, Theme, ThemeMode, button::Button, h_flex, v_flex};
 
 use crate::app::KeeperApp;
+use crate::ui::save_action;
 
 pub fn render(this: &KeeperApp, cx: &mut Context<KeeperApp>) -> impl IntoElement {
     let roots = this
@@ -43,6 +44,12 @@ pub fn render(this: &KeeperApp, cx: &mut Context<KeeperApp>) -> impl IntoElement
             cx,
             "GAM",
             format!("{:?}", this.state.imported_gam.version),
+        ))
+        // Right-aligned save button. `flex_1 + justify_end` consumes
+        // the slack between the metadata fields and the right edge so
+        // the button sits there regardless of window width.
+        .child(save_action::header_right_slot(
+            save_action::render_save_button(cx),
         ))
 }
 

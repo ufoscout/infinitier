@@ -19,7 +19,7 @@
 //! `by_name` lookups.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use infinitier_common::ResourceType;
 use infinitier_datasource::DataSource;
@@ -51,6 +51,13 @@ pub struct SaveGame {
     /// `888888890-Alone with Imoen`). Used as the `by_name` key on
     /// [`SaveGames`].
     pub name: String,
+    /// Absolute path of the save folder on disk. Resolved through
+    /// the [`CaseInsensitiveFS`] used to discover the save (so
+    /// callers don't need to re-canonicalise it). Used by tooling
+    /// that wants to copy / rename the whole save folder, e.g. the
+    /// keeper's "Save As" action — pure metadata, ignored by
+    /// resource-importer paths.
+    pub folder_path: PathBuf,
     /// The `.SAV` file (per-area state). Always present — this is
     /// the file [`scan_save_games`] keys the discovery on.
     pub sav: DataSource,
@@ -182,6 +189,7 @@ fn build_save_game(fs: &CaseInsensitiveFS, sav: &CiPath) -> Option<SaveGame> {
 
     Some(SaveGame {
         name,
+        folder_path: parent_path.to_path_buf(),
         sav: DataSource::new(sav.path().to_path_buf()),
         gam,
         screenshot: screenshot.map(|p| DataSource::new(p.path().to_path_buf())),

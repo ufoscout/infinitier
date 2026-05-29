@@ -43,6 +43,7 @@ pub fn load(args: &Args) -> std::io::Result<KeeperState> {
     Ok(KeeperState {
         game_data,
         save_name: core_save.name,
+        save_folder_path: core_save.folder_path,
         imported_gam,
     })
 }

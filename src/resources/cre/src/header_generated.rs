@@ -221,8 +221,10 @@ pub struct CreHeaderV10 {
     pub armor_class_piercing_attacks_modifier: i16,
     /// 0x0050 (2 B): Armor Class (Slashing Attacks Modifier)
     pub armor_class_slashing_attacks_modifier: i16,
-    /// 0x0052 (1 B): THAC0 (1-25)
-    pub thac0: u8,
+    /// 0x0052 (1 B): THAC0 — engine reinterprets the byte as
+    /// signed (`i8`), so high-level characters can store negative
+    /// values (e.g. a level-20 fighter sits around -5).
+    pub thac0: i8,
     /// 0x0053 (1 B): Number of attacks (0-10)
     pub number_of_attacks: NumberOfAttacks,
     /// 0x0054 (1 B): Save versus death (0-20)
@@ -454,7 +456,7 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
         armor_class_missile_attacks_modifier: read_i16(0x004C),
         armor_class_piercing_attacks_modifier: read_i16(0x004E),
         armor_class_slashing_attacks_modifier: read_i16(0x0050),
-        thac0: read_u8(0x0052),
+        thac0: read_i8(0x0052),
         number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0053)),
         save_versus_death: read_u8(0x0054),
         save_versus_wands: read_u8(0x0055),
@@ -596,7 +598,7 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x004C..0x004E].copy_from_slice(&h.armor_class_missile_attacks_modifier.to_le_bytes());
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x0050..0x0052].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
-    buf[0x0052] = h.thac0;
+    buf[0x0052] = h.thac0 as u8;
     buf[0x0053] = h.number_of_attacks.to_u8();
     buf[0x0054] = h.save_versus_death;
     buf[0x0055] = h.save_versus_wands;
@@ -778,8 +780,10 @@ pub struct CreHeaderV12 {
     pub armor_class_piercing_attacks_modifier: i16,
     /// 0x0050 (2 B): Armor Class (Slashing Attacks Modifier)
     pub armor_class_slashing_attacks_modifier: i16,
-    /// 0x0052 (1 B): THAC0 (1-25)
-    pub thac0: u8,
+    /// 0x0052 (1 B): THAC0 — engine reinterprets the byte as
+    /// signed (`i8`), so high-level characters can store negative
+    /// values (e.g. a level-20 fighter sits around -5).
+    pub thac0: i8,
     /// 0x0053 (1 B): Number of attacks (0-10)
     pub number_of_attacks: NumberOfAttacks,
     /// 0x0054 (1 B): Save versus death (0-20)
@@ -1098,7 +1102,7 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
         armor_class_missile_attacks_modifier: read_i16(0x004C),
         armor_class_piercing_attacks_modifier: read_i16(0x004E),
         armor_class_slashing_attacks_modifier: read_i16(0x0050),
-        thac0: read_u8(0x0052),
+        thac0: read_i8(0x0052),
         number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0053)),
         save_versus_death: read_u8(0x0054),
         save_versus_wands: read_u8(0x0055),
@@ -1280,7 +1284,7 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x004C..0x004E].copy_from_slice(&h.armor_class_missile_attacks_modifier.to_le_bytes());
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x0050..0x0052].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
-    buf[0x0052] = h.thac0;
+    buf[0x0052] = h.thac0 as u8;
     buf[0x0053] = h.number_of_attacks.to_u8();
     buf[0x0054] = h.save_versus_death;
     buf[0x0055] = h.save_versus_wands;
@@ -1576,8 +1580,10 @@ pub struct CreHeaderV90 {
     pub armor_class_piercing_attacks_modifier: i16,
     /// 0x0050 (2 B): Armor Class (Slashing Attacks Modifier)
     pub armor_class_slashing_attacks_modifier: i16,
-    /// 0x0052 (1 B): THAC0 (1-25)
-    pub thac0: u8,
+    /// 0x0052 (1 B): THAC0 — engine reinterprets the byte as
+    /// signed (`i8`), so high-level characters can store negative
+    /// values (e.g. a level-20 fighter sits around -5).
+    pub thac0: i8,
     /// 0x0053 (1 B): Number of attacks (0-10)
     pub number_of_attacks: NumberOfAttacks,
     /// 0x0054 (1 B): Save versus death (0-20)
@@ -1833,7 +1839,7 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
         armor_class_missile_attacks_modifier: read_i16(0x004C),
         armor_class_piercing_attacks_modifier: read_i16(0x004E),
         armor_class_slashing_attacks_modifier: read_i16(0x0050),
-        thac0: read_u8(0x0052),
+        thac0: read_i8(0x0052),
         number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0053)),
         save_versus_death: read_u8(0x0054),
         save_versus_wands: read_u8(0x0055),
@@ -1984,7 +1990,7 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x004C..0x004E].copy_from_slice(&h.armor_class_missile_attacks_modifier.to_le_bytes());
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x0050..0x0052].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
-    buf[0x0052] = h.thac0;
+    buf[0x0052] = h.thac0 as u8;
     buf[0x0053] = h.number_of_attacks.to_u8();
     buf[0x0054] = h.save_versus_death;
     buf[0x0055] = h.save_versus_wands;
@@ -2197,8 +2203,10 @@ pub struct CreHeaderV22 {
     pub armor_class_piercing_attacks_modifier: i16,
     /// 0x004E (2 B): Armor Class (Slashing Attacks Modifier)
     pub armor_class_slashing_attacks_modifier: i16,
-    /// 0x0050 (1 B): Base Attack Bonus (BAB) for non party characters
-    pub base_attack_bonus_bab_for_non: u8,
+    /// 0x0050 (1 B): Base Attack Bonus (BAB) for non party
+    /// characters. Stored as `i8` so it shares the THAC0 byte's
+    /// signed-byte interpretation; gameplay BAB is non-negative.
+    pub base_attack_bonus_bab_for_non: i8,
     /// 0x0051 (1 B): Number of attacks (0-10)
     pub number_of_attacks: NumberOfAttacks,
     /// 0x0052 (1 B): Save versus Fortitude (0-20)
@@ -2845,7 +2853,7 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
         armor_class_missile_attacks_modifier: read_i16(0x004A),
         armor_class_piercing_attacks_modifier: read_i16(0x004C),
         armor_class_slashing_attacks_modifier: read_i16(0x004E),
-        base_attack_bonus_bab_for_non: read_u8(0x0050),
+        base_attack_bonus_bab_for_non: read_i8(0x0050),
         number_of_attacks: NumberOfAttacks::from_u8(read_u8(0x0051)),
         save_versus_fortitude: read_u8(0x0052),
         save_versus_reflex: read_u8(0x0053),
@@ -3195,7 +3203,7 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x004A..0x004C].copy_from_slice(&h.armor_class_missile_attacks_modifier.to_le_bytes());
     buf[0x004C..0x004E].copy_from_slice(&h.armor_class_piercing_attacks_modifier.to_le_bytes());
     buf[0x004E..0x0050].copy_from_slice(&h.armor_class_slashing_attacks_modifier.to_le_bytes());
-    buf[0x0050] = h.base_attack_bonus_bab_for_non;
+    buf[0x0050] = h.base_attack_bonus_bab_for_non as u8;
     buf[0x0051] = h.number_of_attacks.to_u8();
     buf[0x0052] = h.save_versus_fortitude;
     buf[0x0053] = h.save_versus_reflex;

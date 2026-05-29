@@ -114,7 +114,8 @@ fn render_body(this: &KeeperApp, cx: &mut Context<KeeperApp>) -> impl IntoElemen
 
     match &member.cre {
         Some(NpcCre::Cre(cre)) => {
-            tabs::dispatch(this.selected_tab, cre, &this.state.imported_gam, cx).into_any_element()
+            tabs::dispatch(this, this.selected_tab, cre, &this.state.imported_gam, cx)
+                .into_any_element()
         }
         Some(NpcCre::Ref(resref)) => tabs::stub::render(format!(
             "External CRE '{resref}' — embedded record not present in this GAM.",

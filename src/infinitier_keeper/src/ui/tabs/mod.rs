@@ -75,13 +75,14 @@ impl CharacterTab {
 /// rendering; every other variant falls through to `stub::render`
 /// with a "not implemented yet" message.
 pub fn dispatch(
+    this: &KeeperApp,
     tab: CharacterTab,
     cre: &Cre,
     gam: &ImportedGam,
     cx: &mut Context<KeeperApp>,
 ) -> AnyElement {
     match tab {
-        CharacterTab::Abilities => abilities::render(cre, gam, cx).into_any_element(),
+        CharacterTab::Abilities => abilities::render(this, cre, gam, cx).into_any_element(),
         other => {
             stub::render(format!("{} — not implemented yet.", other.label())).into_any_element()
         }

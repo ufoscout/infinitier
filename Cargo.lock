@@ -3375,8 +3375,11 @@ dependencies = [
  "env_logger",
  "gpui",
  "gpui-component",
+ "image",
  "infinitier_core",
  "log",
+ "smallvec",
+ "tempfile",
 ]
 
 [[package]]
