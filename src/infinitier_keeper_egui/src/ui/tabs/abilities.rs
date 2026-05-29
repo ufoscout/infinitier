@@ -18,7 +18,6 @@ use std::collections::HashMap;
 
 use eframe::egui;
 use egui_components::{Card, Label, LabelTone, Select, Size};
-use infinitier_core::engine_caps;
 use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
@@ -81,8 +80,7 @@ fn ability_scores_card(
             let dexterity = read_u8(editors, EditableField::Dexterity, snap.dexterity);
             let constitution =
                 read_u8(editors, EditableField::Constitution, snap.constitution);
-            let bonuses = engine_caps::ability_bonuses(
-                engine,
+            let bonuses = state.engine_caps.ability_bonuses(
                 strength,
                 strength_pct,
                 dexterity,
@@ -149,8 +147,7 @@ fn combat_status_card(
             let dexterity = read_u8(editors, EditableField::Dexterity, snap.dexterity);
             let constitution =
                 read_u8(editors, EditableField::Constitution, snap.constitution);
-            let bonuses = engine_caps::ability_bonuses(
-                engine,
+            let bonuses = state.engine_caps.ability_bonuses(
                 strength,
                 strength_pct,
                 dexterity,

@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::gam::ImportedGam;
 
@@ -29,6 +30,12 @@ pub struct AppState {
     /// NPC name resolved through `dialog.tlk` when one was
     /// reachable.
     pub save: Box<ImportedGam>,
+    /// Cap ranges + bonus tables for the active engine. Built once
+    /// at startup via [`EngineCaps::new`], which reads `STRMOD.2DA`
+    /// / `STRMODEX.2DA` / `DEXMOD.2DA` / `HPCONBON.2DA` so modded
+    /// installs get their actual numbers instead of the vanilla
+    /// distribution.
+    pub engine_caps: EngineCaps,
     /// Selected party-member row, or `None` until the user clicks
     /// one.
     pub selected_party_index: Option<usize>,
@@ -42,6 +49,7 @@ impl AppState {
         save_name: String,
         save_folder_path: PathBuf,
         save: Box<ImportedGam>,
+        engine_caps: EngineCaps,
     ) -> Self {
         let selected_party_index = if save.party_npcs.is_empty() {
             None
@@ -53,6 +61,7 @@ impl AppState {
             save_name,
             save_folder_path,
             save,
+            engine_caps,
             selected_party_index,
             selected_tab: CharacterTab::Abilities,
         }

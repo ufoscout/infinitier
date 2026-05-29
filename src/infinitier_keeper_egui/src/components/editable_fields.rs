@@ -22,7 +22,7 @@
 use std::collections::HashMap;
 
 use eframe::egui;
-use infinitier_core::engine_caps::{self, AbilityRange, EngineCaps};
+use infinitier_core::engine_caps::{AbilityRange, EngineCaps};
 use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
 use infinitier_core::resource::cre::Cre;
 
@@ -522,21 +522,30 @@ impl KeeperEditors {
 }
 
 fn commit(field: EditableField, raw: &str, state: &mut AppState) {
-    let caps = engine_caps::caps_for(state.game_data.game().engine());
+    // Split-borrow: `state.engine_caps` (immutable) and
+    // `state.save` (mutable) are disjoint fields of `state`, so
+    // Rust lets us hold both simultaneously by destructuring
+    // explicit references.
+    let AppState {
+        engine_caps,
+        save,
+        selected_party_index,
+        ..
+    } = state;
     if field.is_gam_field() {
-        field.write_clamped_gam(&mut state.save, raw, &caps);
+        field.write_clamped_gam(save, raw, engine_caps);
         return;
     }
-    let Some(idx) = state.selected_party_index else {
+    let Some(idx) = *selected_party_index else {
         return;
     };
-    let Some(npc) = state.save.party_npcs.get_mut(idx) else {
+    let Some(npc) = save.party_npcs.get_mut(idx) else {
         return;
     };
     let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut() else {
         return;
     };
-    field.write_clamped_cre(boxed, raw, &caps);
+    field.write_clamped_cre(boxed, raw, engine_caps);
 }
 
 /// Commit the Attacks dropdown's current selection back to the CRE.

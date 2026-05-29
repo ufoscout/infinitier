@@ -17,7 +17,7 @@ use gpui::{AnyElement, Context, FontWeight, IntoElement, ParentElement, Styled, 
 use gpui_component::input::{Input, InputState};
 use gpui_component::select::Select;
 use gpui_component::{ActiveTheme, Sizable as _, h_flex, v_flex};
-use infinitier_core::engine_caps;
+use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
@@ -37,6 +37,7 @@ pub fn render(
         .as_ref()
         .expect("editors lazy-init runs in KeeperApp::render");
     let engine = this.state.game_data.game().engine();
+    let caps = &this.state.engine_caps;
 
     h_flex()
         .gap_3()
@@ -46,8 +47,8 @@ pub fn render(
             v_flex()
                 .flex_1()
                 .gap_3()
-                .child(ability_scores_card(engine, cre, editors, cx))
-                .child(combat_status_card(engine, cre, editors, cx)),
+                .child(ability_scores_card(engine, caps, cre, editors, cx))
+                .child(combat_status_card(engine, caps, cre, editors, cx)),
         )
         .child(
             v_flex()
@@ -68,6 +69,7 @@ pub fn render(
 
 fn ability_scores_card(
     engine: Engine,
+    caps: &EngineCaps,
     cre: &Cre,
     editors: &KeeperEditors,
     cx: &mut Context<KeeperApp>,
@@ -89,7 +91,7 @@ fn ability_scores_card(
         cx,
         cre.constitution(),
     );
-    let bonuses = engine_caps::ability_bonuses(engine, strength, strength_pct, dexterity, constitution);
+    let bonuses = caps.ability_bonuses(strength, strength_pct, dexterity, constitution);
 
     let mut rows: Vec<AnyElement> = Vec::with_capacity(EditableField::ALL.len() + 1);
     let show_percentile = EditableField::StrengthPct.is_visible(cre);
@@ -207,6 +209,7 @@ fn input_value_u16(
 
 fn combat_status_card(
     engine: Engine,
+    caps: &EngineCaps,
     cre: &Cre,
     editors: &KeeperEditors,
     cx: &mut Context<KeeperApp>,
@@ -226,7 +229,7 @@ fn combat_status_card(
         cx,
         cre.constitution(),
     );
-    let bonuses = engine_caps::ability_bonuses(engine, strength, strength_pct, dexterity, constitution);
+    let bonuses = caps.ability_bonuses(strength, strength_pct, dexterity, constitution);
 
     // Base values: read from the in-flight input where possible so
     // the totals also update while the user is editing THAC0 / AC /

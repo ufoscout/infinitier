@@ -8,7 +8,7 @@
 //! 1. Read the InputState's text.
 //! 2. Parse to the field's storage type (`u8`, `u16`, `i16`, `u32`).
 //! 3. Clamp through the matching range in
-//!    [`infinitier_core::engine_caps::caps_for`].
+//!    [`crate::state::KeeperState::engine_caps`].
 //! 4. Write to the current party member's CRE (or the GAM, for
 //!    reputation / gold).
 //! 5. Force a UI re-render so the next paint refreshes the input
@@ -23,12 +23,13 @@ use std::collections::HashMap;
 use gpui::{App, AppContext as _, Context, Entity, SharedString, Subscription, Window};
 use gpui_component::input::{InputEvent, InputState};
 use gpui_component::select::{SelectEvent, SelectItem, SelectState};
-use infinitier_core::engine_caps::{self, AbilityRange, EngineCaps};
+use infinitier_core::engine_caps::{AbilityRange, EngineCaps};
 use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
 use infinitier_core::resource::cre::Cre;
 
 use crate::app::KeeperApp;
 use crate::components::cre_fields;
+use crate::state::KeeperState;
 
 /// Logical grouping for the UI — every variant of [`EditableField`]
 /// maps to exactly one of these. The abilities tab renders a card
@@ -663,21 +664,22 @@ fn commit_on_blur_or_enter(
         return;
     }
     let raw = entity.read(cx).value().to_string();
-    let caps = engine_caps::caps_for(this.state.game_data.game().engine());
+    // Split-borrow `state.imported_gam` (mut) and
+    // `state.engine_caps` (immut) — disjoint fields of the same
+    // `KeeperState`, so destructuring lets us hold both at once.
+    let KeeperState {
+        imported_gam,
+        engine_caps,
+        ..
+    } = &mut this.state;
 
     if field.is_gam_field() {
-        field.write_clamped_gam(&mut this.state.imported_gam, &raw, &caps);
-    } else {
-        let Some(idx) = this.selected_party else {
-            return;
-        };
-        let Some(npc) = this.state.imported_gam.party_npcs.get_mut(idx) else {
-            return;
-        };
-        let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut() else {
-            return;
-        };
-        field.write_clamped_cre(boxed, &raw, &caps);
+        field.write_clamped_gam(imported_gam, &raw, engine_caps);
+    } else if let Some(idx) = this.selected_party
+        && let Some(npc) = imported_gam.party_npcs.get_mut(idx)
+        && let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut()
+    {
+        field.write_clamped_cre(boxed, &raw, engine_caps);
     }
 
     // Force a UI re-render at the next paint. `set_value` needs

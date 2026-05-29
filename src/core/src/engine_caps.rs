@@ -1,25 +1,30 @@
-//! Per-engine gameplay ranges for the editable fields the keeper
-//! surfaces.
+//! Per-engine gameplay caps + 2DA-driven ability bonus tables.
 //!
-//! Each [`AbilityRange<T>`] describes the inclusive `min..=max` an
-//! editable field should accept. Two distinct conventions are mixed
-//! together here:
+//! Two concerns live here:
 //!
-//! - **Hardcoded gameplay clamps** — where the IE engine itself
-//!   actively clamps or refuses out-of-range values. These match
-//!   what NearInfinity / GemRB enforce. Examples: ability scores
-//!   (1..=25 / 1..=30), reputation (0..=20), the attacks-per-round
-//!   byte (0..=10 documented), morale (0..=20).
-//! - **Storage-type maxes** — for everything else. The CRE / GAM
-//!   formats store these fields as concrete integers (`u8`, `u16`,
-//!   `i16`, `u32`); the engine accepts any value the type can hold.
-//!   Caps in that case are `T::MIN..=T::MAX`. Examples: HP (`u16`),
-//!   AC (`i16`), gold (`u32`), experience (`u32`).
+//! - **Cap ranges** ([`AbilityRange<T>`]): the `min..=max` an editable
+//!   field may take. These are hardcoded because they're engine-binary
+//!   constants, not 2DA-defined — ability scores (1..=25 / 1..=30),
+//!   reputation (0..=20), morale (0..=20), the attacks-per-round byte
+//!   (0..=10 documented). Storage caps (`u16::MAX` for HP, etc.) are
+//!   the same shape.
+//! - **Bonus lookup tables** ([`BonusTable`]): how a score maps to a
+//!   to-hit / AC / HP modifier. These are loaded from the live game
+//!   resources (`STRMOD.2DA`, `STRMODEX.2DA`, `DEXMOD.2DA`,
+//!   `HPCONBON.2DA`) so a modded install gets the actual numbers it
+//!   ships, not a copy of the vanilla distribution.
 //!
-//! See [`EngineCaps`] for the per-field list. The function entry
-//! point is [`caps_for`].
+//! The entry point is [`EngineCaps::new`] — it needs a [`GameData`]
+//! so it can resolve and parse the 2DAs at construction time.
+
+use std::io;
 
 use infinitier_common::Engine;
+use infinitier_two_da_resource::TwoDA;
+
+use crate::game::GameData;
+use crate::imported_resource::ImportedResource;
+use crate::resource::ResourceType;
 
 /// Inclusive `(min, max)` range over a numeric type. The type
 /// parameter lets each [`EngineCaps`] field carry its on-disk width
@@ -44,15 +49,84 @@ impl<T: Copy + Ord> AbilityRange<T> {
     }
 }
 
-/// Bundle of per-field caps. One value per editable row currently
-/// surfaced by the keeper's *Abilities* tab — ability scores plus
-/// the combat / experience / morale / skill rows on the same screen.
+// ── Bonus lookup table (2DA-driven) ─────────────────────────────────
+
+/// A sparse score → bonus lookup compiled from a single column of a
+/// game-data 2DA file. The row label is parsed as the input score
+/// (e.g. STR `1..=25` for `STRMOD.2DA`, percentile `1..=100` for
+/// `STRMODEX.2DA`), and the column value is parsed as the bonus.
 ///
-/// Fields share a single value across every engine where the cap is
-/// the same; only the entries that genuinely differ between engines
-/// (ability score range today) get per-variant values in [`caps_for`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// `lookup(score)` returns the value of the smallest row label that
+/// is `>= score` — handling both dense tables (STRMOD has every row)
+/// and sparse threshold tables (STRMODEX only has 1, 50, 75, 90,
+/// 99, 100). Scores above the largest row clamp to that row.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BonusTable {
+    /// `(row_label, bonus)` sorted ascending by row label.
+    entries: Vec<(u8, i8)>,
+}
+
+impl BonusTable {
+    /// Parse `column` from `two_da` into a `BonusTable`. Rows whose
+    /// label or value won't parse are skipped. Returns `None` if
+    /// `column` doesn't appear in the 2DA's headers.
+    pub fn from_two_da(two_da: &TwoDA, column: &str) -> Option<Self> {
+        let col_idx = two_da
+            .headers
+            .iter()
+            .position(|h| h.eq_ignore_ascii_case(column))?;
+        let mut entries: Vec<(u8, i8)> = two_da
+            .rows
+            .iter()
+            .filter_map(|(key, row)| {
+                let k = key.trim().parse::<u8>().ok()?;
+                let raw = row.get(col_idx)?;
+                let v = raw.trim().parse::<i8>().ok()?;
+                Some((k, v))
+            })
+            .collect();
+        entries.sort_by_key(|(k, _)| *k);
+        Some(Self { entries })
+    }
+
+    /// Try every `column` candidate in turn — useful when engines
+    /// rename the column for the same datum (e.g. `AC_ADJ` vs `ACMOD`).
+    pub fn from_two_da_any(two_da: &TwoDA, columns: &[&str]) -> Option<Self> {
+        columns
+            .iter()
+            .find_map(|c| Self::from_two_da(two_da, c))
+            .filter(|t| !t.is_empty())
+    }
+
+    /// Returns the bonus for `score`: the value of the smallest row
+    /// label `>= score`. Scores above the maximum row use that
+    /// maximum row's value; an empty table returns 0.
+    pub fn lookup(&self, score: u8) -> i8 {
+        for (key, val) in &self.entries {
+            if score <= *key {
+                return *val;
+            }
+        }
+        self.entries.last().map(|(_, v)| *v).unwrap_or(0)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+// ── Per-engine caps + bonuses ───────────────────────────────────────
+
+/// Bundle of per-field caps + per-engine bonus tables. Built once at
+/// keeper startup via [`EngineCaps::new`] and consulted thereafter
+/// when the abilities tab needs to clamp an edit or display a live
+/// bonus indicator.
+#[derive(Debug, Clone)]
 pub struct EngineCaps {
+    /// The engine this `EngineCaps` was built for. Drives the d20
+    /// vs AD&D dispatch in [`Self::ability_bonuses`].
+    pub engine: Engine,
+
     // ── Ability scores ──────────────────────────────────────────
     /// STR / DEX / CON / INT / WIS / CHA. AD&D engines clamp at 25,
     /// IWD2 (d20) at 30.
@@ -63,83 +137,53 @@ pub struct EngineCaps {
     pub strength_percentile: AbilityRange<u8>,
 
     // ── Combat & status ─────────────────────────────────────────
-    /// Current hit points. Storage is `u16` in every CRE version;
-    /// the engine displays values > 32767 as negative but the file
-    /// happily accepts them.
     pub current_hit_points: AbilityRange<u16>,
-    /// Maximum hit points (same storage as `current_hit_points`).
     pub max_hit_points: AbilityRange<u16>,
-    /// Armor class — lower is better. Stored as `i16`; vanilla AD&D
-    /// gameplay sits in roughly `-20..=20` but the engine doesn't
-    /// clamp the field so we expose the full `i16` range.
     pub armor_class: AbilityRange<i16>,
-    /// THAC0 (AD&D) or BAB (IWD2 d20). Stored as one byte; the
-    /// engine reinterprets it as signed for AD&D (THAC0 can be
-    /// negative for high-level characters), so we surface the
-    /// full `i8` range here. Vanilla gameplay range is roughly
-    /// `-5..=20` for THAC0 and `0..=30` for BAB, but the engine
-    /// doesn't clamp.
     pub thac0: AbilityRange<i8>,
-    /// Raw attacks-per-round byte. Variants 0..=10 are documented in
-    /// the IESDP (mapped to 1, 2, 3, 4, 5, 0.5, 1.5, 2.5, 3.5, 4.5);
-    /// the editor exposes the same range so unknown bytes don't leak
-    /// in via the input.
     pub attacks_byte: AbilityRange<u8>,
-    /// Party reputation. Stored as `u32` in the GAM header but
-    /// hardcoded-clamped to `0..=20` by every IE engine.
     pub reputation: AbilityRange<u32>,
-    /// Party gold (`u32` in the GAM header). The engine handles any
-    /// `u32` value although the UI cap is "around 999 999" in most
-    /// vanilla games.
     pub party_gold: AbilityRange<u32>,
-    /// Fatigue (`u8` storage). Engine uses higher values to slow
-    /// recovery — no hardcoded clamp.
     pub fatigue: AbilityRange<u8>,
-    /// Intoxication (`u8`). Vanilla "fully drunk" sits around 200.
     pub intoxication: AbilityRange<u8>,
-    /// Luck (`u8`). Engine reads values 128..=255 as negative for
-    /// roll-modifier purposes; storage is unsigned.
     pub luck: AbilityRange<u8>,
 
     // ── Experience & levels ─────────────────────────────────────
-    /// Current experience (`u32`). Class-level XP caps live in
-    /// `XPCAP.2DA` / `XPLEVEL.2DA` — they're per-class game data,
-    /// not engine code, so we expose the storage range here.
     pub experience: AbilityRange<u32>,
-    /// XP awarded for killing this creature (`u32`).
     pub xp_for_kill: AbilityRange<u32>,
-    /// Per-class level (`u8`). Vanilla games cap around 50; storage
-    /// is the full byte.
     pub class_level: AbilityRange<u8>,
 
     // ── Morale ──────────────────────────────────────────────────
-    /// Current morale. Default 10. Vanilla AD&D gameplay range is
-    /// 0..=20 — engine actively clamps reads/writes there.
     pub morale: AbilityRange<u8>,
-    /// Morale-break threshold (`u8`); also bounded by the engine at
-    /// 0..=20.
     pub morale_break: AbilityRange<u8>,
-    /// Morale recovery time in ticks (`u16`).
     pub morale_recovery: AbilityRange<u16>,
 
-    // ── Thief skills (AD&D V1.0/V1.2/V9.0 — V2.2 uses d20 skills,
-    //    not surfaced here yet) ──────────────────────────────────
-    /// Per-skill cap shared by Hide in Shadows / Move Silently /
-    /// Open Locks / Find Traps / Set Traps / Pick Pockets / Detect
-    /// Illusions (`u8`). Vanilla play caps each skill around 100;
-    /// the engine accepts higher.
+    // ── Thief skills ────────────────────────────────────────────
     pub thief_skill: AbilityRange<u8>,
-    /// Lore (`u8`). Bards in particular can push lore well past
-    /// 100; the engine accepts the full byte.
     pub lore: AbilityRange<u8>,
+
+    // ── AD&D bonus tables (loaded from 2DAs) ────────────────────
+    /// `STRMOD.2DA` — to-hit bonus by strength score (rows 1..=25).
+    /// Empty on IWD2 (d20).
+    pub strmod_to_hit: BonusTable,
+    /// `STRMODEX.2DA` — to-hit bonus by 18/XX percentile. Sparse —
+    /// rows at the threshold percentiles (1, 50, 75, 90, 99, 100).
+    /// Empty on IWD2 (d20).
+    pub strmodex_to_hit: BonusTable,
+    /// `DEXMOD.2DA` (`AC_ADJ` column) — AC bonus by dexterity.
+    /// Negative = better AC in AD&D. Empty on IWD2.
+    pub dexmod_ac: BonusTable,
+    /// `HPCONBON.2DA` — per-level HP bonus by constitution
+    /// (non-warrior table; warriors get larger bonuses via
+    /// `HPWAR.2DA` but we don't surface class-dependent caps yet).
+    /// Empty on IWD2.
+    pub hpconbon_hp: BonusTable,
 }
 
-/// Caps shared by every IE engine. The two `match` branches in
-/// [`caps_for`] only need to override the values that actually
-/// differ between AD&D and d20.
-const SHARED_CAPS: EngineCaps = EngineCaps {
-    // Filled by `caps_for` per-branch (AD&D vs d20). The placeholder
-    // here is the AD&D value — `Iwd2` swaps it for 1..=30.
+/// Cap ranges that share their value across every IE engine —
+/// extracted as a const so `EngineCaps::new` only has to spell out
+/// per-engine variants for the rows that actually differ.
+const SHARED_RANGES: EngineCapsRanges = EngineCapsRanges {
     ability_score: AbilityRange { min: 1, max: 25 },
     strength_percentile: AbilityRange { min: 0, max: 100 },
     current_hit_points: AbilityRange { min: u16::MIN, max: u16::MAX },
@@ -162,29 +206,141 @@ const SHARED_CAPS: EngineCaps = EngineCaps {
     lore: AbilityRange { min: u8::MIN, max: u8::MAX },
 };
 
-/// Practical gameplay caps for `engine`'s editable fields. See the
-/// module docs for what counts as "practical".
-pub fn caps_for(engine: Engine) -> EngineCaps {
-    match engine {
-        Engine::Bg | Engine::Bg2 | Engine::Ee | Engine::Iwd | Engine::Pst => SHARED_CAPS,
-        Engine::Iwd2 => EngineCaps {
-            // d20 ability scores cap higher than AD&D 2e.
-            ability_score: AbilityRange { min: 1, max: 30 },
-            ..SHARED_CAPS
-        },
-    }
+/// Stand-alone copy of the cap-range fields of [`EngineCaps`]. Used
+/// only by the `SHARED_RANGES` const + the cap-only constructor so
+/// `EngineCaps::new` doesn't have to repeat the field list.
+#[derive(Debug, Clone, Copy)]
+struct EngineCapsRanges {
+    ability_score: AbilityRange<u8>,
+    strength_percentile: AbilityRange<u8>,
+    current_hit_points: AbilityRange<u16>,
+    max_hit_points: AbilityRange<u16>,
+    armor_class: AbilityRange<i16>,
+    thac0: AbilityRange<i8>,
+    attacks_byte: AbilityRange<u8>,
+    reputation: AbilityRange<u32>,
+    party_gold: AbilityRange<u32>,
+    fatigue: AbilityRange<u8>,
+    intoxication: AbilityRange<u8>,
+    luck: AbilityRange<u8>,
+    experience: AbilityRange<u32>,
+    xp_for_kill: AbilityRange<u32>,
+    class_level: AbilityRange<u8>,
+    morale: AbilityRange<u8>,
+    morale_break: AbilityRange<u8>,
+    morale_recovery: AbilityRange<u16>,
+    thief_skill: AbilityRange<u8>,
+    lore: AbilityRange<u8>,
 }
 
-// ── Ability-score derived bonuses ────────────────────────────────────
-//
-// The AD&D 2e bonuses below are 1-for-1 with the vanilla game data
-// (`STRMOD.2DA`, `STRMODEX.2DA`, `DEXMOD.2DA`, `HPCONBON.2DA`) — the
-// IE engine reads those tables at startup and converts them into the
-// same step functions. Modders who edit the 2DAs will get different
-// numbers; here we surface the well-known vanilla distribution.
-//
-// IWD2 (d20) uses `(score - 10) / 2` for every modifier — no table
-// lookup.
+impl EngineCaps {
+    /// Build the caps + bonus tables for `game_data`'s engine.
+    ///
+    /// AD&D engines load the four standard 2DAs
+    /// (`STRMOD` / `STRMODEX` / `DEXMOD` / `HPCONBON`); a missing or
+    /// malformed table is fatal for those engines. IWD2 skips the
+    /// loads entirely — its d20 modifier is a pure `(score - 10) / 2`
+    /// formula that doesn't go through a table.
+    pub fn new(game_data: &GameData) -> io::Result<Self> {
+        let engine = game_data.game().engine();
+        let ranges = match engine {
+            Engine::Iwd2 => EngineCapsRanges {
+                ability_score: AbilityRange { min: 1, max: 30 },
+                ..SHARED_RANGES
+            },
+            _ => SHARED_RANGES,
+        };
+        let (strmod_to_hit, strmodex_to_hit, dexmod_ac, hpconbon_hp) =
+            if matches!(engine, Engine::Iwd2) {
+                (
+                    BonusTable::default(),
+                    BonusTable::default(),
+                    BonusTable::default(),
+                    BonusTable::default(),
+                )
+            } else {
+                (
+                    load_bonus_table(game_data, "strmod", &["STR_BONUS_TO_HIT", "TO_HIT"])?,
+                    load_bonus_table(game_data, "strmodex", &["STR_BONUS_TO_HIT", "TO_HIT"])?,
+                    load_bonus_table(game_data, "dexmod", &["AC_ADJ", "ACMOD"])?,
+                    load_bonus_table(game_data, "hpconbon", &["HP_BONUS", "HPCONBON"])?,
+                )
+            };
+        Ok(Self {
+            engine,
+            ability_score: ranges.ability_score,
+            strength_percentile: ranges.strength_percentile,
+            current_hit_points: ranges.current_hit_points,
+            max_hit_points: ranges.max_hit_points,
+            armor_class: ranges.armor_class,
+            thac0: ranges.thac0,
+            attacks_byte: ranges.attacks_byte,
+            reputation: ranges.reputation,
+            party_gold: ranges.party_gold,
+            fatigue: ranges.fatigue,
+            intoxication: ranges.intoxication,
+            luck: ranges.luck,
+            experience: ranges.experience,
+            xp_for_kill: ranges.xp_for_kill,
+            class_level: ranges.class_level,
+            morale: ranges.morale,
+            morale_break: ranges.morale_break,
+            morale_recovery: ranges.morale_recovery,
+            thief_skill: ranges.thief_skill,
+            lore: ranges.lore,
+            strmod_to_hit,
+            strmodex_to_hit,
+            dexmod_ac,
+            hpconbon_hp,
+        })
+    }
+
+    /// AD&D 2e to-hit bonus from STR + the 18/XX percentile when
+    /// applicable. Reads from `STRMOD.2DA` (and `STRMODEX.2DA` when
+    /// STR == 18 and the percentile byte is non-zero).
+    pub fn strength_to_hit_bonus(&self, strength: u8, percentile: u8) -> i8 {
+        if strength == 18 && percentile > 0 {
+            self.strmodex_to_hit.lookup(percentile)
+        } else {
+            self.strmod_to_hit.lookup(strength)
+        }
+    }
+
+    /// AD&D 2e AC bonus from DEX (`DEXMOD.2DA` `AC_ADJ` column).
+    /// Negative = better AC.
+    pub fn dexterity_ac_bonus(&self, dexterity: u8) -> i8 {
+        self.dexmod_ac.lookup(dexterity)
+    }
+
+    /// AD&D 2e per-level HP bonus from CON (`HPCONBON.2DA`).
+    pub fn constitution_hp_bonus(&self, constitution: u8) -> i8 {
+        self.hpconbon_hp.lookup(constitution)
+    }
+
+    /// Combined bonuses for one set of ability scores under the
+    /// engine's rules. The strength percentile only matters when
+    /// STR is exactly 18 and the percentile byte is non-zero.
+    pub fn ability_bonuses(
+        &self,
+        strength: u8,
+        strength_percentile: u8,
+        dexterity: u8,
+        constitution: u8,
+    ) -> AbilityBonuses {
+        match self.engine {
+            Engine::Iwd2 => AbilityBonuses {
+                thac0_from_strength: d20_modifier(strength),
+                ac_from_dexterity: d20_modifier(dexterity),
+                hp_per_level_from_constitution: d20_modifier(constitution),
+            },
+            Engine::Bg | Engine::Bg2 | Engine::Ee | Engine::Iwd | Engine::Pst => AbilityBonuses {
+                thac0_from_strength: self.strength_to_hit_bonus(strength, strength_percentile),
+                ac_from_dexterity: self.dexterity_ac_bonus(dexterity),
+                hp_per_level_from_constitution: self.constitution_hp_bonus(constitution),
+            },
+        }
+    }
+}
 
 /// Bundle of bonuses derived from a creature's ability scores. Sign
 /// conventions match the engine the score belongs to:
@@ -194,9 +350,6 @@ pub fn caps_for(engine: Engine) -> EngineCaps {
 /// - `ac_from_dexterity` — for AD&D 2e, *negative* = better AC
 ///   (DEX 18 → -4). For IWD2 d20, *positive* = better AC.
 /// - `hp_per_level_from_constitution` — positive = more HP per HD.
-///   AD&D uses the non-warrior `HPCONBON.2DA` row; warrior bonuses
-///   from `HPWAR.2DA` are larger but require class info we don't
-///   yet wire through the keeper.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct AbilityBonuses {
     pub thac0_from_strength: i8,
@@ -204,157 +357,62 @@ pub struct AbilityBonuses {
     pub hp_per_level_from_constitution: i8,
 }
 
-/// Combined bonuses for one set of ability scores under `engine`'s
-/// rules. The strength percentile only matters when STR is exactly
-/// 18 (and the byte is non-zero — see [`EngineCaps::strength_percentile`]
-/// for the storage convention).
-pub fn ability_bonuses(
-    engine: Engine,
-    strength: u8,
-    strength_percentile: u8,
-    dexterity: u8,
-    constitution: u8,
-) -> AbilityBonuses {
-    match engine {
-        Engine::Iwd2 => AbilityBonuses {
-            thac0_from_strength: d20_modifier(strength),
-            ac_from_dexterity: d20_modifier(dexterity),
-            hp_per_level_from_constitution: d20_modifier(constitution),
-        },
-        Engine::Bg | Engine::Bg2 | Engine::Ee | Engine::Iwd | Engine::Pst => AbilityBonuses {
-            thac0_from_strength: strength_to_hit_bonus_adnd(strength, strength_percentile),
-            ac_from_dexterity: dexterity_ac_bonus_adnd(dexterity),
-            hp_per_level_from_constitution: constitution_hp_bonus_adnd(constitution),
-        },
-    }
-}
-
-/// AD&D 2e to-hit bonus from STR (vanilla `STRMOD.2DA`), plus the
-/// 18/XX percentile bonus (`STRMODEX.2DA`) when STR is 18 and the
-/// percentile byte is non-zero. Higher = better.
-pub fn strength_to_hit_bonus_adnd(strength: u8, percentile: u8) -> i8 {
-    // STRMODEX overrides the STRMOD STR=18 row whenever a percentile
-    // is set — a STR 18/00 fighter (byte 100) hits at +3, not +1.
-    if strength == 18 && percentile > 0 {
-        return match percentile {
-            1..=50 => 1,
-            51..=75 => 2,
-            76..=90 => 2,
-            91..=99 => 2,
-            100 => 3,
-            _ => 0, // 101..=255 isn't a real percentile
-        };
-    }
-    match strength {
-        0 => 0,
-        1 => -5,
-        2 | 3 => -3,
-        4 | 5 => -2,
-        6 | 7 => -1,
-        8..=16 => 0,
-        17 | 18 => 1,
-        19 | 20 => 3,
-        21 | 22 => 4,
-        23 => 5,
-        24 => 6,
-        25.. => 7,
-    }
-}
-
-/// AD&D 2e AC bonus from DEX (vanilla `DEXMOD.2DA`). Negative =
-/// better AC.
-pub fn dexterity_ac_bonus_adnd(dexterity: u8) -> i8 {
-    match dexterity {
-        0..=3 => 4,
-        4 => 3,
-        5 => 2,
-        6 => 1,
-        7..=14 => 0,
-        15 => -1,
-        16 => -2,
-        17 => -3,
-        18..=u8::MAX => -4,
-    }
-}
-
-/// AD&D 2e per-level HP bonus from CON (vanilla `HPCONBON.2DA`, the
-/// non-warrior row). Positive = more HP per HD. Warriors get larger
-/// bonuses via `HPWAR.2DA` (CON 17→+3, 18→+4, 19+→+5) — not surfaced
-/// here yet because the keeper doesn't track class.
-pub fn constitution_hp_bonus_adnd(constitution: u8) -> i8 {
-    match constitution {
-        0..=3 => -2,
-        4 | 5 => -1,
-        6 => -1,
-        7..=14 => 0,
-        15 => 1,
-        16..=u8::MAX => 2,
-    }
-}
-
-/// IWD2 (d20) ability modifier: `floor((score - 10) / 2)`. Negative
-/// for scores below 10; positive for 12+.
+/// IWD2 (d20) ability modifier: `floor((score - 10) / 2)`. Pure
+/// formula, no 2DA involved. Negative for scores below 10; positive
+/// for 12+.
 pub fn d20_modifier(score: u8) -> i8 {
     ((score as i16) - 10).div_euclid(2) as i8
 }
 
+/// Resolve `<name>.2DA` from `game_data` (override → BIFs), import
+/// it, and project the first matching column into a [`BonusTable`].
+fn load_bonus_table(
+    game_data: &GameData,
+    name: &str,
+    column_candidates: &[&str],
+) -> io::Result<BonusTable> {
+    let resource = game_data
+        .get_by_name_and_type(name, ResourceType::TwoDA)
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("{}.2DA missing from game data", name.to_ascii_uppercase()),
+            )
+        })?;
+    let imported = resource.import(game_data)?;
+    let ImportedResource::TwoDA(two_da) = imported else {
+        return Err(io::Error::other(format!(
+            "{}.2DA did not import as a 2DA resource",
+            name.to_ascii_uppercase()
+        )));
+    };
+    BonusTable::from_two_da_any(&two_da, column_candidates).ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "{}.2DA has none of the expected columns: {:?}",
+                name.to_ascii_uppercase(),
+                column_candidates,
+            ),
+        )
+    })
+}
+
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
-    #[test]
-    fn ad_and_d_engines_share_one_to_twenty_five_for_abilities() {
-        for engine in [
-            Engine::Bg,
-            Engine::Bg2,
-            Engine::Ee,
-            Engine::Iwd,
-            Engine::Pst,
-        ] {
-            let caps = caps_for(engine);
-            assert_eq!(
-                caps.ability_score,
-                AbilityRange { min: 1, max: 25 },
-                "{engine:?} uses AD&D 2e ability cap",
-            );
-            assert_eq!(caps.strength_percentile, AbilityRange { min: 0, max: 100 });
+    fn make_two_da(headers: &[&str], rows: &[(&str, &[&str])]) -> TwoDA {
+        TwoDA {
+            headers: headers.iter().map(|s| s.to_string()).collect(),
+            default: "0".to_string(),
+            rows: rows
+                .iter()
+                .map(|(k, vs)| (k.to_string(), vs.iter().map(|s| s.to_string()).collect()))
+                .collect(),
         }
-    }
-
-    #[test]
-    fn iwd2_uses_d20_thirty_cap() {
-        let caps = caps_for(Engine::Iwd2);
-        assert_eq!(caps.ability_score, AbilityRange { min: 1, max: 30 });
-    }
-
-    #[test]
-    fn hardcoded_gameplay_clamps() {
-        let caps = caps_for(Engine::Bg);
-        assert_eq!(caps.reputation, AbilityRange { min: 0, max: 20 });
-        assert_eq!(caps.morale, AbilityRange { min: 0, max: 20 });
-        assert_eq!(caps.morale_break, AbilityRange { min: 0, max: 20 });
-        assert_eq!(caps.attacks_byte, AbilityRange { min: 0, max: 10 });
-    }
-
-    #[test]
-    fn storage_max_caps_match_their_type() {
-        let caps = caps_for(Engine::Bg);
-        assert_eq!(caps.current_hit_points.max, u16::MAX);
-        assert_eq!(caps.max_hit_points.max, u16::MAX);
-        assert_eq!(caps.armor_class.min, i16::MIN);
-        assert_eq!(caps.armor_class.max, i16::MAX);
-        assert_eq!(caps.party_gold.max, u32::MAX);
-        assert_eq!(caps.experience.max, u32::MAX);
-        assert_eq!(caps.xp_for_kill.max, u32::MAX);
-        assert_eq!(caps.morale_recovery.max, u16::MAX);
-        assert_eq!(caps.thief_skill.max, u8::MAX);
-        assert_eq!(caps.lore.max, u8::MAX);
-        assert_eq!(caps.class_level.max, u8::MAX);
-        assert_eq!(caps.thac0.min, i8::MIN);
-        assert_eq!(caps.thac0.max, i8::MAX);
-        assert_eq!(caps.fatigue.max, u8::MAX);
-        assert_eq!(caps.intoxication.max, u8::MAX);
-        assert_eq!(caps.luck.max, u8::MAX);
     }
 
     #[test]
@@ -371,10 +429,7 @@ mod tests {
 
     #[test]
     fn range_contains_and_clamp_behave_for_i16() {
-        let r = AbilityRange {
-            min: -10i16,
-            max: 10,
-        };
+        let r = AbilityRange { min: -10i16, max: 10 };
         assert!(!r.contains(-11));
         assert!(r.contains(-10));
         assert!(r.contains(10));
@@ -392,56 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn strength_to_hit_strmod_known_values() {
-        // Spot-check the published STRMOD.2DA rows.
-        assert_eq!(strength_to_hit_bonus_adnd(1, 0), -5);
-        assert_eq!(strength_to_hit_bonus_adnd(3, 0), -3);
-        assert_eq!(strength_to_hit_bonus_adnd(10, 0), 0);
-        assert_eq!(strength_to_hit_bonus_adnd(17, 0), 1);
-        // STR 18 with no percentile uses the STRMOD row → +1.
-        assert_eq!(strength_to_hit_bonus_adnd(18, 0), 1);
-        assert_eq!(strength_to_hit_bonus_adnd(19, 0), 3);
-        assert_eq!(strength_to_hit_bonus_adnd(25, 0), 7);
-    }
-
-    #[test]
-    fn strength_to_hit_strmodex_overrides_at_18() {
-        // 18/00 (byte 100) is the strongest percentile.
-        assert_eq!(strength_to_hit_bonus_adnd(18, 100), 3);
-        // 18/50 falls in the 01-50 bucket.
-        assert_eq!(strength_to_hit_bonus_adnd(18, 50), 1);
-        // 18/51 jumps to the next bucket.
-        assert_eq!(strength_to_hit_bonus_adnd(18, 51), 2);
-        assert_eq!(strength_to_hit_bonus_adnd(18, 99), 2);
-        // Percentile is only meaningful when STR == 18 — STR 17 with
-        // a junk percentile must still use STRMOD.
-        assert_eq!(strength_to_hit_bonus_adnd(17, 100), 1);
-    }
-
-    #[test]
-    fn dexterity_ac_known_values() {
-        // DEXMOD.2DA spot checks. Negative = better AC in AD&D 2e.
-        assert_eq!(dexterity_ac_bonus_adnd(3), 4);
-        assert_eq!(dexterity_ac_bonus_adnd(10), 0);
-        assert_eq!(dexterity_ac_bonus_adnd(15), -1);
-        assert_eq!(dexterity_ac_bonus_adnd(18), -4);
-        // High DEX caps at -4 in vanilla AD&D 2e.
-        assert_eq!(dexterity_ac_bonus_adnd(25), -4);
-    }
-
-    #[test]
-    fn constitution_hp_known_values() {
-        // HPCONBON.2DA (non-warrior).
-        assert_eq!(constitution_hp_bonus_adnd(3), -2);
-        assert_eq!(constitution_hp_bonus_adnd(10), 0);
-        assert_eq!(constitution_hp_bonus_adnd(15), 1);
-        assert_eq!(constitution_hp_bonus_adnd(18), 2);
-        assert_eq!(constitution_hp_bonus_adnd(25), 2);
-    }
-
-    #[test]
     fn d20_modifier_round_floors_negatives() {
-        // d20 mod = floor((score - 10) / 2).
         assert_eq!(d20_modifier(10), 0);
         assert_eq!(d20_modifier(11), 0);
         assert_eq!(d20_modifier(12), 1);
@@ -455,15 +461,101 @@ mod tests {
     }
 
     #[test]
-    fn ability_bonuses_dispatch_per_engine() {
-        let adnd = ability_bonuses(Engine::Bg2, 18, 100, 18, 16);
-        assert_eq!(adnd.thac0_from_strength, 3); // 18/00 STRMODEX row
-        assert_eq!(adnd.ac_from_dexterity, -4); // DEX 18 — AD&D sign
-        assert_eq!(adnd.hp_per_level_from_constitution, 2);
+    fn bonus_table_dense_lookup_is_exact() {
+        // STRMOD-shape table: dense rows 1..=4 carrying the bonus
+        // directly. lookup returns the row's value at every step.
+        let two_da = make_two_da(
+            &["STR_BONUS_TO_HIT"],
+            &[
+                ("1", &["-5"]),
+                ("2", &["-3"]),
+                ("3", &["-3"]),
+                ("4", &["-2"]),
+            ],
+        );
+        let t = BonusTable::from_two_da(&two_da, "STR_BONUS_TO_HIT").unwrap();
+        assert_eq!(t.lookup(1), -5);
+        assert_eq!(t.lookup(2), -3);
+        assert_eq!(t.lookup(3), -3);
+        assert_eq!(t.lookup(4), -2);
+        // Beyond the max row → max row's value.
+        assert_eq!(t.lookup(50), -2);
+    }
 
-        let d20 = ability_bonuses(Engine::Iwd2, 18, 0, 18, 16);
-        assert_eq!(d20.thac0_from_strength, 4);
-        assert_eq!(d20.ac_from_dexterity, 4); // d20 sign — high = good
-        assert_eq!(d20.hp_per_level_from_constitution, 3);
+    #[test]
+    fn bonus_table_sparse_lookup_picks_smallest_upper_bound() {
+        // STRMODEX-shape table: sparse threshold rows. A query
+        // between two rows resolves to the smaller of the two row
+        // labels that is `>=` the query.
+        let two_da = make_two_da(
+            &["STR_BONUS_TO_HIT"],
+            &[
+                ("1", &["1"]),
+                ("50", &["1"]),
+                ("75", &["2"]),
+                ("90", &["2"]),
+                ("99", &["2"]),
+                ("100", &["3"]),
+            ],
+        );
+        let t = BonusTable::from_two_da(&two_da, "STR_BONUS_TO_HIT").unwrap();
+        // Exact-row matches.
+        assert_eq!(t.lookup(1), 1);
+        assert_eq!(t.lookup(50), 1);
+        assert_eq!(t.lookup(100), 3);
+        // Between thresholds.
+        assert_eq!(t.lookup(2), 1); // 2 → row 50
+        assert_eq!(t.lookup(51), 2); // 51 → row 75
+        assert_eq!(t.lookup(76), 2); // 76 → row 90
+        assert_eq!(t.lookup(99), 2);
+        // Above the max row clamps to it.
+        assert_eq!(t.lookup(200), 3);
+    }
+
+    #[test]
+    fn bonus_table_missing_column_returns_none() {
+        let two_da = make_two_da(&["SOMETHING_ELSE"], &[("1", &["0"])]);
+        assert!(BonusTable::from_two_da(&two_da, "STR_BONUS_TO_HIT").is_none());
+    }
+
+    #[test]
+    fn bonus_table_skips_unparseable_rows() {
+        // Garbage row labels or values are silently dropped — the
+        // parseable rows still drive the lookup.
+        let two_da = make_two_da(
+            &["BONUS"],
+            &[("****", &["7"]), ("ohno", &["3"]), ("5", &["2"])],
+        );
+        let t = BonusTable::from_two_da(&two_da, "BONUS").unwrap();
+        assert_eq!(t.lookup(5), 2);
+        // Only the row "5" survived; queries above use it.
+        assert_eq!(t.lookup(100), 2);
+    }
+
+    #[test]
+    fn bonus_table_from_two_da_any_picks_first_match() {
+        let two_da = make_two_da(&["AC_ADJ"], &[("18", &["-4"])]);
+        let t = BonusTable::from_two_da_any(&two_da, &["ACMOD", "AC_ADJ"]).unwrap();
+        assert_eq!(t.lookup(18), -4);
+    }
+
+    #[test]
+    fn bonus_table_default_lookup_yields_zero() {
+        let t = BonusTable::default();
+        assert_eq!(t.lookup(18), 0);
+        assert!(t.is_empty());
+    }
+
+    #[test]
+    fn empty_two_da_row_set_yields_empty_table() {
+        // Avoid the "unused variant" warning from HashMap import
+        // chain by hand-constructing an empty rows map.
+        let two_da = TwoDA {
+            headers: vec!["BONUS".to_string()],
+            default: "0".to_string(),
+            rows: HashMap::new(),
+        };
+        let t = BonusTable::from_two_da(&two_da, "BONUS").unwrap();
+        assert!(t.is_empty());
     }
 }

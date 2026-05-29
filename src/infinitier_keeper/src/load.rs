@@ -4,6 +4,7 @@
 //! return type differs (raw `KeeperState`, no `Rc` wrapping — the GPUI
 //! entity ends up owning it directly).
 
+use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::fs::{CaseInsensitiveFS, Importer};
 use infinitier_core::game::GameDataBuilder;
 use infinitier_core::game_detect::detect_game;
@@ -39,11 +40,13 @@ pub fn load(args: &Args) -> std::io::Result<KeeperState> {
     }
     .import(&core_save.gam)?;
     let imported_gam = ImportedGam::load(gam, &game_data)?;
+    let engine_caps = EngineCaps::new(&game_data)?;
 
     Ok(KeeperState {
         game_data,
         save_name: core_save.name,
         save_folder_path: core_save.folder_path,
         imported_gam,
+        engine_caps,
     })
 }

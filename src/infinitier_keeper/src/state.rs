@@ -4,6 +4,7 @@
 
 use std::path::PathBuf;
 
+use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::gam::ImportedGam;
 
@@ -15,4 +16,8 @@ pub struct KeeperState {
     /// (sibling of this one) and to enumerate the files to copy.
     pub save_folder_path: PathBuf,
     pub imported_gam: ImportedGam,
+    /// Cap ranges + 2DA-driven bonus tables for the active engine.
+    /// Built once at startup via [`EngineCaps::new`] and consulted
+    /// by the abilities tab for clamping and live bonus display.
+    pub engine_caps: EngineCaps,
 }

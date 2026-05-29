@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use eframe::egui;
+use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::fs::{CaseInsensitiveFS, Importer};
 use infinitier_core::game::GameDataBuilder;
 use infinitier_core::game_detect::detect_game;
@@ -128,11 +129,19 @@ fn main() {
 
     let title = format!("Infinitier Keeper — {:?} — {}", game, core_save.name);
 
+    let engine_caps = EngineCaps::new(&game_data).unwrap_or_else(|e| {
+        log::error!(
+            "Failed to build EngineCaps from [{}]: {e}",
+            display_paths(&args.game_path),
+        );
+        std::process::exit(1);
+    });
     let state = AppState::new(
         game_data,
         core_save.name,
         core_save.folder_path,
         Box::new(imported_gam),
+        engine_caps,
     );
 
     // Force the wgpu GL backend. On Linux the default would be

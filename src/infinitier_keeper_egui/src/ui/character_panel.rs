@@ -44,13 +44,6 @@ impl CharacterPanel {
                 );
                 return;
             };
-            ui.add(Label::new(&header.display_name).strong().size(Size::Large));
-            ui.add(
-                Label::new(format!("Party slot {}", idx + 1))
-                    .tone(LabelTone::Muted)
-                    .size(Size::Small),
-            );
-            ui.add_space(8.0);
 
             // Tab strip — segmented variant gives a single bordered
             // bar with each tab as a button-style cell.
