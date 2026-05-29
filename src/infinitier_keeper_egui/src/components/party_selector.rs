@@ -169,18 +169,31 @@ impl PartySelector {
     }
 
     fn show_slider(&mut self, ui: &mut egui::Ui, state: &mut AppState, count: usize) {
+        // The egui-components `Slider` paints its track with
+        // `muted_background`, which is also the rail's panel fill —
+        // the track would otherwise vanish against the surrounding
+        // sidebar. Drop the slider inside a bordered `background`
+        // frame so the track contrasts cleanly.
+        let theme = Theme::get(ui.ctx());
         let max = (count.saturating_sub(1)) as f32;
-        let avail_w = ui.available_width();
-        let response = ui.add(
-            Slider::new(&mut self.slider_value, 0.0..=max).width(avail_w),
-        );
-        if response.changed() {
-            let idx = (self.slider_value.round() as i64).clamp(0, max as i64) as usize;
-            state.selected_party_index = Some(idx);
-            // Snap the local mirror so subsequent drag deltas see
-            // the rounded value rather than the raw float.
-            self.slider_value = idx as f32;
-        }
+        egui::Frame::new()
+            .fill(theme.colors.background)
+            .stroke(theme.border_stroke())
+            .corner_radius(theme.corner())
+            .inner_margin(egui::Margin::symmetric(10, 6))
+            .show(ui, |ui| {
+                let avail_w = ui.available_width();
+                let response = ui.add(
+                    Slider::new(&mut self.slider_value, 0.0..=max).width(avail_w),
+                );
+                if response.changed() {
+                    let idx = (self.slider_value.round() as i64).clamp(0, max as i64) as usize;
+                    state.selected_party_index = Some(idx);
+                    // Snap the local mirror so subsequent drag deltas
+                    // see the rounded value rather than the raw float.
+                    self.slider_value = idx as f32;
+                }
+            });
     }
 }
 
