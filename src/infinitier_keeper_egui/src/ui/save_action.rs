@@ -7,14 +7,15 @@
 //! into a fresh sibling folder and the GAM is re-exported so any
 //! in-memory edits land on disk.
 //!
-//! egui has no native dialog; we use [`egui::Window`] centred and
-//! non-resizable for the same visual shape.
+//! The dialog itself is an [`egui_components::Dialog`] — a themed
+//! modal backed by `egui::Modal` (backdrop, drop shadow, Esc / × to
+//! dismiss).
 
 use std::io;
 use std::path::{Path, PathBuf};
 
 use eframe::egui;
-use egui_components::{Button, Card, Input, Label, LabelTone, Variant};
+use egui_components::{Button, Dialog, Input, Label, LabelTone, Variant};
 use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::gam::GamExporter;
 use log::{error, info};
@@ -64,68 +65,93 @@ impl SaveAction {
     /// `state.save` to drive the actual export; closes itself on
     /// success.
     pub fn show(&mut self, ctx: &egui::Context, state: &AppState) {
-        if !self.open {
+        // Split-borrow `self` so the body closure can mutate
+        // `folder_name` / `error` while `Dialog::show` holds
+        // `&mut open` for backdrop / Esc / × dismiss handling.
+        let SaveAction {
+            open,
+            folder_name,
+            error,
+        } = self;
+        if !*open {
             return;
         }
-        // Track "still open" via egui's title-bar close button.
-        let mut still_open = true;
-        egui::Window::new("Save edited save game")
-            .open(&mut still_open)
-            .collapsible(false)
-            .resizable(false)
-            .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-            .default_width(420.0)
-            .show(ctx, |ui| {
-                Card::new().show(ui, |ui| {
-                    ui.add(Label::new(
-                        "Save the current save game (GAM, SAV, BMP, WMP) into a new sibling folder.",
-                    ));
-                    ui.add_space(6.0);
-                    ui.add(Label::new("Folder name:").tone(LabelTone::Muted));
-                    ui.add(Input::new(&mut self.folder_name));
-                    if let Some(err) = &self.error {
-                        ui.add_space(4.0);
-                        ui.colored_label(egui::Color32::from_rgb(0xE5, 0x4A, 0x4A), err);
+        // Action picked inside the dialog body; resolved after the
+        // dialog returns so we can re-borrow `error` / `open` /
+        // call helpers freely.
+        let mut action: Option<DialogAction> = None;
+        Dialog::new("Save edited save game")
+            .width(420.0)
+            .show(ctx, open, |ui| {
+                ui.add(Label::new(
+                    "Save the current save game (GAM, SAV, BMP, WMP) into a new sibling folder.",
+                ));
+                ui.add_space(6.0);
+                ui.add(Label::new("Folder name:").tone(LabelTone::Muted));
+                ui.add(Input::new(folder_name).width(380.0));
+                if let Some(err) = error.as_deref() {
+                    ui.add_space(4.0);
+                    ui.colored_label(egui::Color32::from_rgb(0xE5, 0x4A, 0x4A), err);
+                }
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    if ui.add(Button::secondary("Cancel")).clicked() {
+                        action = Some(DialogAction::Cancel);
                     }
-                    ui.add_space(10.0);
-                    ui.horizontal(|ui| {
-                        if ui.add(Button::secondary("Cancel")).clicked() {
-                            self.open = false;
-                        }
-                        if ui.add(Button::new("Save").variant(Variant::Primary)).clicked() {
-                            self.attempt_export(state);
-                        }
-                    });
+                    if ui
+                        .add(Button::new("Save").variant(Variant::Primary))
+                        .clicked()
+                    {
+                        action = Some(DialogAction::Save);
+                    }
                 });
             });
-        if !still_open {
-            self.open = false;
+        match action {
+            Some(DialogAction::Cancel) => *open = false,
+            Some(DialogAction::Save) => attempt_export(open, folder_name, error, state),
+            None => {}
         }
     }
+}
 
-    fn attempt_export(&mut self, state: &AppState) {
-        let name = self.folder_name.trim();
-        if name.is_empty() {
-            self.error = Some("Folder name can't be empty.".into());
-            return;
+/// Choice resolved from the dialog body. Carried back to the
+/// caller via `let mut action = None;` so we can `*open` / `error`
+/// after `Dialog::show` has released its `&mut open` borrow.
+enum DialogAction {
+    Cancel,
+    Save,
+}
+
+/// Free-function form of the export attempt — invoked after the
+/// dialog body returns, when we hold mutable references to every
+/// piece of `SaveAction` rather than `&mut self`.
+fn attempt_export(
+    open: &mut bool,
+    folder_name: &str,
+    error: &mut Option<String>,
+    state: &AppState,
+) {
+    let name = folder_name.trim();
+    if name.is_empty() {
+        *error = Some("Folder name can't be empty.".into());
+        return;
+    }
+    let Some(parent) = state.save_folder_path.parent() else {
+        *error = Some("Save folder has no parent directory.".into());
+        return;
+    };
+    match perform_save_export(name, &state.save_folder_path, parent, &state.save) {
+        Ok(dest) => {
+            info!("[save] wrote {}", dest.display());
+            *open = false;
+            *error = None;
         }
-        let Some(parent) = state.save_folder_path.parent() else {
-            self.error = Some("Save folder has no parent directory.".into());
-            return;
-        };
-        match perform_save_export(name, &state.save_folder_path, parent, &state.save) {
-            Ok(dest) => {
-                info!("[save] wrote {}", dest.display());
-                self.open = false;
-                self.error = None;
-            }
-            Err(e) => {
-                error!(
-                    "[save] failed to write '{name}' into {}: {e}",
-                    parent.display(),
-                );
-                self.error = Some(e.to_string());
-            }
+        Err(e) => {
+            error!(
+                "[save] failed to write '{name}' into {}: {e}",
+                parent.display(),
+            );
+            *error = Some(e.to_string());
         }
     }
 }
