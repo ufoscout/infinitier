@@ -2012,6 +2012,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-components"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "egui-components-theme",
+ "egui_ltreeview",
+]
+
+[[package]]
+name = "egui-components-theme"
+version = "0.1.0"
+dependencies = [
+ "egui",
+ "serde_json",
+]
+
+[[package]]
 name = "egui-wgpu"
 version = "0.34.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4076,9 +4093,10 @@ version = "0.0.7"
 dependencies = [
  "clap",
  "eframe",
+ "egui-components",
+ "egui-components-theme",
  "env_logger",
  "infinitier_core",
- "infinitier_egui_common",
  "infinitier_test_utils",
  "log",
 ]

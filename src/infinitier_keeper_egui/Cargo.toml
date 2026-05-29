@@ -12,10 +12,11 @@ keywords = ["save-game", "editor", "infinity-engine", "baldurs-gate", "gui"]
 
 [dependencies]
 infinitier_core = { workspace = true }
-infinitier_egui_common = { workspace = true }
 
 clap = { workspace = true }
 eframe = { workspace = true }
+egui-components = { workspace = true }
+egui-components-theme = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
 

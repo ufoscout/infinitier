@@ -1,4 +1,5 @@
 mod app;
+mod components;
 mod state;
 mod ui;
 
@@ -151,7 +152,7 @@ fn main() {
         &title,
         options,
         Box::new(move |cc| {
-            infinitier_egui_common::theme::apply(&cc.egui_ctx, &infinitier_egui_common::theme::DARK);
+            egui_components_theme::Theme::dark().install(&cc.egui_ctx);
 
             // Same Linux/X11 DPI workaround as the explorer crate.
             #[cfg(target_os = "linux")]

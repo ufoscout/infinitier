@@ -37,6 +37,8 @@ infinitier_common = { path = "src/common", version = "0.0.7" }
 infinitier_core = { path = "src/core", version = "0.0.7"  }
 infinitier_datasource = { path = "src/datasource", version = "0.0.7"  }
 infinitier_egui_common = { path = "src/egui_common", version = "0.0.7" }
+egui-components = { path = "/home/ufo/workspaces/github_ufoscout/egui-components/crates/components" }
+egui-components-theme = { path = "/home/ufo/workspaces/github_ufoscout/egui-components/crates/theme" }
 infinitier_fs = { path = "src/fs", version = "0.0.7"  }
 infinitier_keeper = { path = "src/infinitier_keeper", version = "0.0.7"  }
 infinitier_test_utils = { path = "src/test_utils" }

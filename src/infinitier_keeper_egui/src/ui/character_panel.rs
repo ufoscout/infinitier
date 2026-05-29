@@ -7,8 +7,8 @@
 //! an in-band record to show).
 
 use eframe::egui;
+use egui_components::{Avatar, Label, LabelTone, Size, Tabs};
 use infinitier_core::imported_resource::gam::{ImportedGamNpc, NpcCre};
-use infinitier_egui_common::theme;
 
 use crate::state::AppState;
 use crate::ui::tabs::{CharacterTab, show_tab};
@@ -29,18 +29,32 @@ impl CharacterPanel {
                 );
                 return;
             };
-            ui.heading(member_title(idx, member));
+            // Header: initials avatar + bold name + muted "Slot N".
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 12.0;
+                let display = member_display_name(member, idx);
+                ui.add(Avatar::from_name(&display).size(44.0));
+                ui.vertical(|ui| {
+                    ui.add(Label::new(&display).strong().size(Size::Large));
+                    ui.add(
+                        Label::new(format!("Party slot {}", idx + 1))
+                            .tone(LabelTone::Muted)
+                            .size(Size::Small),
+                    );
+                });
+            });
             ui.add_space(8.0);
 
-            // Tab strip — Slint-style chip buttons.
-            ui.horizontal_wrapped(|ui| {
-                for tab in CharacterTab::ALL {
-                    let selected = state.selected_tab == *tab;
-                    if theme::chip(ui, tab.label(), selected, theme::ChipKind::Tab).clicked() {
-                        state.selected_tab = *tab;
-                    }
-                }
-            });
+            // Tab strip — pill variant matches the GPUI keeper's tab
+            // chips, with the active tab using the accent fill.
+            let mut selected_idx = CharacterTab::ALL
+                .iter()
+                .position(|t| *t == state.selected_tab)
+                .unwrap_or(0);
+            let labels: Vec<&'static str> =
+                CharacterTab::ALL.iter().map(|t| t.label()).collect();
+            ui.add(Tabs::new(&mut selected_idx).tabs(labels).pill());
+            state.selected_tab = CharacterTab::ALL[selected_idx];
             ui.add_space(8.0);
 
             match &member.cre {
@@ -64,10 +78,10 @@ impl CharacterPanel {
     }
 }
 
-fn member_title(idx: usize, member: &ImportedGamNpc) -> String {
+fn member_display_name(member: &ImportedGamNpc, idx: usize) -> String {
     if member.display_name.is_empty() {
-        format!("Party slot {}", idx + 1)
+        format!("Slot {}", idx + 1)
     } else {
-        format!("{}. {}", idx + 1, member.display_name)
+        member.display_name.clone()
     }
 }

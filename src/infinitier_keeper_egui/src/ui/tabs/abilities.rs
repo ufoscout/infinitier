@@ -7,10 +7,12 @@
 //! the on-disk fields, so the source of truth is the parsed header.
 
 use eframe::egui;
+use egui_components::Card;
 use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::Game;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
-use infinitier_egui_common::theme;
+
+use crate::ui::helpers;
 
 pub struct AbilitiesTab;
 
@@ -39,13 +41,7 @@ impl AbilitiesTab {
 }
 
 fn section(ui: &mut egui::Ui, title: &str, body: impl FnOnce(&mut egui::Ui)) {
-    theme::card_frame(ui).show(ui, |ui| {
-        ui.label(theme::card_title(title));
-        ui.add_space(4.0);
-        ui.separator();
-        ui.add_space(4.0);
-        body(ui);
-    });
+    Card::new().title(title).divider().show(ui, body);
 }
 
 fn ability_scores(ui: &mut egui::Ui, cre: &Cre) {
@@ -347,11 +343,10 @@ fn skills(ui: &mut egui::Ui, cre: &Cre) {
 }
 
 /// Thin shim so every call in this file uses the same name. The real
-/// rendering — left-aligned muted label + right-aligned bold value —
-/// lives in `egui_common::theme::row` and matches the Slint
-/// `Row` widget exactly.
+/// rendering — muted label left + bold value right-aligned to the
+/// card edge — lives in [`crate::ui::helpers::kv_row`].
 fn row(ui: &mut egui::Ui, label: &str, value: &str) {
-    theme::row(ui, label, value);
+    helpers::kv_row(ui, label, value);
 }
 
 fn format_iwd2_class_levels(h: &CreHeaderV22) -> String {
