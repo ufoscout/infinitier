@@ -28,7 +28,7 @@ use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
 use infinitier_core::resource::cre::Cre;
 
 use crate::app::KeeperApp;
-use crate::cre_fields;
+use crate::components::cre_fields;
 
 /// Logical grouping for the UI — every variant of [`EditableField`]
 /// maps to exactly one of these. The abilities tab renders a card

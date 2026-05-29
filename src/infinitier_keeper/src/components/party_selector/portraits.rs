@@ -1,26 +1,3 @@
-//! Cache of decoded party-member portraits.
-//!
-//! NearInfinity's approach (which we mirror): the BMP shown for a
-//! party member comes from the resource named in the CRE header
-//! (`large_portrait_*` / `small_portrait_bmp`), resolved against the
-//! engine's resource manager. The lookup order is:
-//!
-//! 1. The game's resource index (`override/` first, then the BIF
-//!    archives via `chitin.key`). Standard NPCs ship their
-//!    portraits this way (e.g. `XOR1L.BMP` for Xan).
-//! 2. The `<game_root>/portraits/` folder, where IE drops custom
-//!    portraits when a player imports a `.chr`. The base game
-//!    doesn't index this folder so we scan it manually.
-//!
-//! The `PORTRTn.bmp` files in the save folder are NOT portraits —
-//! they're 54×84 thumbnails used by the save-game preview UI.
-//!
-//! Decoding + RGBA→BGRA conversion is non-trivial enough that we
-//! don't want to redo it every frame. Cache key is the lower-cased
-//! resref → `Option<Arc<RenderImage>>` (`None` means "tried to load
-//! and failed; don't retry"). Cache lives on
-//! [`crate::app::KeeperApp`] and is populated lazily during render.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -36,8 +13,9 @@ use infinitier_core::resource::bmp::BmpImporter;
 use infinitier_core::resource::cre::Cre;
 use smallvec::SmallVec;
 
-use crate::cre_fields;
+use crate::components::cre_fields;
 
+/// Cache of loaded CRE portraits.
 #[derive(Default)]
 pub struct PortraitCache {
     entries: HashMap<String, Option<Arc<RenderImage>>>,

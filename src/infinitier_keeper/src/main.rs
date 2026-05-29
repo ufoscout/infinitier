@@ -1,10 +1,8 @@
 //! GPUI port of infinitier_keeper.
 
 mod app;
-mod cre_fields;
-mod editable_fields;
+mod components;
 mod load;
-mod portraits;
 mod state;
 mod ui;
 

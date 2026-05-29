@@ -23,8 +23,8 @@ use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
 
 use crate::app::KeeperApp;
-use crate::cre_fields;
-use crate::editable_fields::{EditableField, KeeperEditors, Section};
+use crate::components::cre_fields;
+use crate::components::editable_fields::{EditableField, KeeperEditors, Section};
 
 pub fn render(
     this: &KeeperApp,
