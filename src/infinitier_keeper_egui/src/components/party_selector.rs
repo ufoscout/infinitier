@@ -57,7 +57,7 @@ impl PartySelector {
     /// and pulls the slider value from `state.selected_party_index`.
     /// Call once at the top of the host's frame.
     pub fn prepare(&mut self, state: &AppState, ctx: &egui::Context) {
-        self.slider_value = state.selected_party_index.unwrap_or(0) as f32;
+        self.slider_value = state.active().selected_party_index.unwrap_or(0) as f32;
         self.active_portrait = selected_cre(state)
             .and_then(|cre| self.portraits.for_cre(cre, &state.game_data, ctx));
     }
@@ -75,12 +75,12 @@ impl PartySelector {
                     .inner_margin(egui::Margin::same(10)),
             )
             .show_inside(ui, |ui| {
-                let party_count = state.save.party_npcs.len();
+                let party_count = state.active().save.party_npcs.len();
                 if party_count == 0 {
                     self.show_empty(ui);
                     return;
                 }
-                let selected = state.selected_party_index.unwrap_or(0);
+                let selected = state.active().selected_party_index.unwrap_or(0);
                 self.show_header(ui, state, selected);
                 ui.add_space(8.0);
                 self.show_portrait(ui, state, selected);
@@ -103,7 +103,7 @@ impl PartySelector {
     /// Bold name on the left, "selected+1 / count" counter on the
     /// right — same strip the GPUI keeper paints.
     fn show_header(&self, ui: &mut egui::Ui, state: &AppState, selected: usize) {
-        let count = state.save.party_npcs.len();
+        let count = state.active().save.party_npcs.len();
         let name = display_name(state, selected);
         ui.allocate_ui_with_layout(
             egui::vec2(ui.available_width(), 0.0),
@@ -217,7 +217,7 @@ impl PartySelector {
                 );
                 if response.changed() {
                     let idx = (self.slider_value.round() as i64).clamp(0, max as i64) as usize;
-                    state.selected_party_index = Some(idx);
+                    state.active_mut().selected_party_index = Some(idx);
                     // Snap the local mirror so subsequent drag deltas
                     // see the rounded value rather than the raw float.
                     self.slider_value = idx as f32;
@@ -227,8 +227,9 @@ impl PartySelector {
 }
 
 fn selected_cre(state: &AppState) -> Option<&Cre> {
-    let idx = state.selected_party_index?;
-    let npc = state.save.party_npcs.get(idx)?;
+    let active = state.active();
+    let idx = active.selected_party_index?;
+    let npc = active.save.party_npcs.get(idx)?;
     match npc.cre.as_ref()? {
         NpcCre::Cre(boxed) => Some(boxed.as_ref()),
         NpcCre::Ref(_) => None,
@@ -236,7 +237,7 @@ fn selected_cre(state: &AppState) -> Option<&Cre> {
 }
 
 fn display_name(state: &AppState, idx: usize) -> String {
-    let member = &state.save.party_npcs[idx];
+    let member = &state.active().save.party_npcs[idx];
     if member.display_name.is_empty() {
         format!("Slot {}", idx + 1)
     } else {

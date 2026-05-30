@@ -52,19 +52,21 @@ impl SaveAction {
     /// free `(Edited NNNN)` slot in the current save's parent dir.
     pub fn open(&mut self, state: &AppState) {
         self.error = None;
-        let parent = state
+        let active = state.active();
+        let parent = active
             .save_folder_path
             .parent()
             .map(Path::to_path_buf)
             .unwrap_or_default();
-        self.folder_name = suggest_save_name(&state.save_name, &parent);
+        self.folder_name = suggest_save_name(&active.save_name, &parent);
         self.open = true;
     }
 
     /// Paint the dialog if open. Reads `state.save_folder_path` +
-    /// `state.save` to drive the actual export; closes itself on
-    /// success.
-    pub fn show(&mut self, ctx: &egui::Context, state: &AppState) {
+    /// `state.save` to drive the actual export; on success it adopts
+    /// the new folder as the keeper's active save (so the next click
+    /// suggests `<new> (Edited NNNN)` and the title bar updates).
+    pub fn show(&mut self, ctx: &egui::Context, state: &mut AppState) {
         // Split-borrow `self` so the body closure can mutate
         // `folder_name` / `error` while `Dialog::show` holds
         // `&mut open` for backdrop / Esc / × dismiss handling.
@@ -124,25 +126,39 @@ enum DialogAction {
 
 /// Free-function form of the export attempt — invoked after the
 /// dialog body returns, when we hold mutable references to every
-/// piece of `SaveAction` rather than `&mut self`.
+/// piece of `SaveAction` rather than `&mut self`. On success it
+/// swaps `state.save_name` / `state.save_folder_path` to the new
+/// folder and pushes a fresh window title via the viewport so the
+/// next Save click anchors against the just-written save.
 fn attempt_export(
     open: &mut bool,
     folder_name: &str,
     error: &mut Option<String>,
-    state: &AppState,
+    state: &mut AppState,
 ) {
     let name = folder_name.trim();
     if name.is_empty() {
         *error = Some("Folder name can't be empty.".into());
         return;
     }
-    let Some(parent) = state.save_folder_path.parent() else {
+    let active = state.active();
+    let Some(parent) = active.save_folder_path.parent() else {
         *error = Some("Save folder has no parent directory.".into());
         return;
     };
-    match perform_save_export(name, &state.save_folder_path, parent, &state.save) {
+    // `parent` borrows `active.save_folder_path` — clone it so we can
+    // re-borrow `state` mutably below to swap the active save.
+    let parent = parent.to_path_buf();
+    match perform_save_export(name, &active.save_folder_path, &parent, &active.save) {
         Ok(dest) => {
             info!("[save] wrote {}", dest.display());
+            let active = state.active_mut();
+            active.save_name = name.to_string();
+            active.save_folder_path = dest;
+            // Tab title in the header strip reflects `save_name`, so
+            // the next frame already shows the new label. The window
+            // title doesn't carry the save name anymore, so there's
+            // no viewport title push to do here.
             *open = false;
             *error = None;
         }

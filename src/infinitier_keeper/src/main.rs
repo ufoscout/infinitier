@@ -46,12 +46,7 @@ fn main() {
         }
     };
 
-    let title: SharedString = format!(
-        "Infinitier Keeper - {:?} - [{}]",
-        state.game_data.game(),
-        state.save_name,
-    )
-    .into();
+    let title: SharedString = state.window_title().into();
 
     Application::new().run(move |cx| {
         gpui_component::init(cx);

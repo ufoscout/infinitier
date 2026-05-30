@@ -460,11 +460,12 @@ impl KeeperEditors {
     /// Per-frame sync. Refresh all in-flight text buffers from the
     /// active CRE / GAM whenever the selected slot changes.
     pub fn prepare(&mut self, state: &AppState) {
-        if self.bound_to == state.selected_party_index {
+        let selected = state.active().selected_party_index;
+        if self.bound_to == selected {
             return;
         }
         self.refresh_from_state(state);
-        self.bound_to = state.selected_party_index;
+        self.bound_to = selected;
     }
 
     fn refresh_from_state(&mut self, state: &AppState) {
@@ -478,7 +479,7 @@ impl KeeperEditors {
                 continue;
             }
             self.inputs
-                .insert(field, field.read_text(cre, &state.save));
+                .insert(field, field.read_text(cre, &state.active().save));
         }
         self.attacks_idx = AttacksOption::index_for_byte(cre_fields::attacks_byte(cre));
     }
@@ -513,7 +514,7 @@ impl KeeperEditors {
         if committed {
             commit(field, &buf, state);
             if let Some(cre) = selected_cre(state) {
-                buf = field.read_text(cre, &state.save);
+                buf = field.read_text(cre, &state.active().save);
             }
         }
         *self.inputs.entry(field).or_default() = buf;
@@ -522,24 +523,26 @@ impl KeeperEditors {
 }
 
 fn commit(field: EditableField, raw: &str, state: &mut AppState) {
-    // Split-borrow: `state.engine_caps` (immutable) and
-    // `state.save` (mutable) are disjoint fields of `state`, so
+    // Split-borrow: `state.engine_caps` (immutable) and the active
+    // tab's `save` (mutable) are disjoint fields of `state`, so
     // Rust lets us hold both simultaneously by destructuring
-    // explicit references.
+    // explicit references. `tabs[*active_tab]` reaches into one
+    // element of `tabs` — disjoint from `engine_caps`.
     let AppState {
         engine_caps,
-        save,
-        selected_party_index,
+        tabs,
+        active_tab,
         ..
     } = state;
+    let active = &mut tabs[*active_tab];
     if field.is_gam_field() {
-        field.write_clamped_gam(save, raw, engine_caps);
+        field.write_clamped_gam(&mut active.save, raw, engine_caps);
         return;
     }
-    let Some(idx) = *selected_party_index else {
+    let Some(idx) = active.selected_party_index else {
         return;
     };
-    let Some(npc) = save.party_npcs.get_mut(idx) else {
+    let Some(npc) = active.save.party_npcs.get_mut(idx) else {
         return;
     };
     let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut() else {
@@ -554,10 +557,11 @@ pub fn commit_attacks(idx: usize, state: &mut AppState) {
     let Some(option) = AttacksOption::ALL.get(idx) else {
         return;
     };
-    let Some(slot) = state.selected_party_index else {
+    let active = state.active_mut();
+    let Some(slot) = active.selected_party_index else {
         return;
     };
-    let Some(npc) = state.save.party_npcs.get_mut(slot) else {
+    let Some(npc) = active.save.party_npcs.get_mut(slot) else {
         return;
     };
     let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut() else {
@@ -567,8 +571,9 @@ pub fn commit_attacks(idx: usize, state: &mut AppState) {
 }
 
 fn selected_cre(state: &AppState) -> Option<&Cre> {
-    let idx = state.selected_party_index?;
-    let npc = state.save.party_npcs.get(idx)?;
+    let active = state.active();
+    let idx = active.selected_party_index?;
+    let npc = active.save.party_npcs.get(idx)?;
     match npc.cre.as_ref()? {
         NpcCre::Cre(boxed) => Some(boxed.as_ref()),
         NpcCre::Ref(_) => None,

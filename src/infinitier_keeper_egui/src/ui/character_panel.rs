@@ -24,15 +24,16 @@ impl CharacterPanel {
         editors: &mut KeeperEditors,
     ) {
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            let Some(idx) = state.selected_party_index else {
+            let active = state.active();
+            let Some(idx) = active.selected_party_index else {
                 ui.label("Select a party member on the left to view their data.");
                 return;
             };
 
             // Header (display name + slot label) — pulled into local
-            // owned values so the `&state.save.party_npcs` borrow is
+            // owned values so the `&active.save.party_npcs` borrow is
             // released before `show_tab` takes `&mut state`.
-            let header: Option<HeaderInfo> = state
+            let header: Option<HeaderInfo> = active
                 .save
                 .party_npcs
                 .get(idx)
@@ -49,12 +50,12 @@ impl CharacterPanel {
             // bar with each tab as a button-style cell.
             let mut selected_idx = CharacterTab::ALL
                 .iter()
-                .position(|t| *t == state.selected_tab)
+                .position(|t| *t == active.selected_tab)
                 .unwrap_or(0);
             let labels: Vec<&'static str> =
                 CharacterTab::ALL.iter().map(|t| t.label()).collect();
             ui.add(Tabs::new(&mut selected_idx).tabs(labels).segmented());
-            state.selected_tab = CharacterTab::ALL[selected_idx];
+            state.active_mut().selected_tab = CharacterTab::ALL[selected_idx];
             ui.add_space(8.0);
 
             match header.cre_kind {

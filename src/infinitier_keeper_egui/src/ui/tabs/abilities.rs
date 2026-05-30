@@ -429,8 +429,9 @@ struct CreSnapshot {
 
 impl CreSnapshot {
     fn capture(state: &AppState) -> Option<Self> {
-        let idx = state.selected_party_index?;
-        let member = state.save.party_npcs.get(idx)?;
+        let active = state.active();
+        let idx = active.selected_party_index?;
+        let member = active.save.party_npcs.get(idx)?;
         let cre = match member.cre.as_ref()? {
             NpcCre::Cre(boxed) => boxed.as_ref(),
             NpcCre::Ref(_) => return None,

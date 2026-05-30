@@ -106,12 +106,12 @@ impl PartySelector {
             let SliderEvent::Change(SliderValue::Single(v)) = event else {
                 return;
             };
-            let count = this.state.imported_gam.party_npcs.len();
+            let count = this.state.active().imported_gam.party_npcs.len();
             if count == 0 {
                 return;
             }
             let idx = (v.round() as i32).clamp(0, count.saturating_sub(1) as i32) as usize;
-            this.selected_party = Some(idx);
+            this.state.active_mut().selected_party = Some(idx);
             cx.notify();
         });
         self.slider = Some(state);
@@ -124,7 +124,8 @@ impl PartySelector {
     /// `ui::party::render` standalone function.
     pub fn render(&self, this: &KeeperApp, cx: &Context<KeeperApp>) -> impl IntoElement {
         let theme = cx.theme();
-        let party = &this.state.imported_gam.party_npcs;
+        let active = this.state.active();
+        let party = &active.imported_gam.party_npcs;
 
         let mut col = v_flex()
             .w(px(240.))
@@ -153,7 +154,7 @@ impl PartySelector {
         }
 
         let count = party.len();
-        let selected = this.selected_party.unwrap_or(0);
+        let selected = active.selected_party.unwrap_or(0);
         let member = &party[selected];
 
         // Top strip: bold name on the left, slot counter on the right.

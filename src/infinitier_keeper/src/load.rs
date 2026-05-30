@@ -12,7 +12,7 @@ use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::gam::GamImporter;
 
 use crate::Args;
-use crate::state::KeeperState;
+use crate::state::{KeeperState, SaveTab};
 
 pub fn load(args: &Args) -> std::io::Result<KeeperState> {
     let game = detect_game(&CaseInsensitiveFS::new(args.game_path.as_slice())?)
@@ -42,11 +42,12 @@ pub fn load(args: &Args) -> std::io::Result<KeeperState> {
     let imported_gam = ImportedGam::load(gam, &game_data)?;
     let engine_caps = EngineCaps::new(&game_data)?;
 
+    let initial_tab = SaveTab::new(core_save.name, core_save.folder_path, imported_gam);
+
     Ok(KeeperState {
         game_data,
-        save_name: core_save.name,
-        save_folder_path: core_save.folder_path,
-        imported_gam,
         engine_caps,
+        tabs: vec![initial_tab],
+        active_tab: 0,
     })
 }

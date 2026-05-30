@@ -15,14 +15,12 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use gpui::{
-    AppContext as _, Context, Entity, IntoElement, ParentElement, SharedString, Styled, Window,
-};
+use gpui::{AppContext as _, Context, Entity, ParentElement, SharedString, Styled, Window};
 use gpui_component::WindowExt as _;
 use gpui_component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_component::dialog::DialogButtonProps;
 use gpui_component::input::{Input, InputState};
-use gpui_component::{Icon, IconName, Sizable as _, h_flex, v_flex};
+use gpui_component::{Icon, IconName, Sizable as _, v_flex};
 use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::gam::GamExporter;
 use log::{error, info};
@@ -56,7 +54,8 @@ pub fn render_save_button(cx: &mut Context<KeeperApp>) -> Button {
 /// copy without touching `KeeperApp` mutably (it doesn't need to —
 /// the keeper's in-memory state doesn't change here).
 fn open_save_dialog(this: &KeeperApp, window: &mut Window, cx: &mut Context<KeeperApp>) {
-    let src = this.state.save_folder_path.clone();
+    let active = this.state.active();
+    let src = active.save_folder_path.clone();
     let parent = match src.parent() {
         Some(p) => p.to_path_buf(),
         None => {
@@ -67,7 +66,7 @@ fn open_save_dialog(this: &KeeperApp, window: &mut Window, cx: &mut Context<Keep
             return;
         }
     };
-    let suggested = suggest_save_name(&this.state.save_name, &parent);
+    let suggested = suggest_save_name(&active.save_name, &parent);
     // Captured into the on-ok closure so it can read the *current*
     // `ImportedGam` at click time — by then the user may have edited
     // ability scores or anything else, and we need the latest state.
@@ -116,10 +115,21 @@ fn open_save_dialog(this: &KeeperApp, window: &mut Window, cx: &mut Context<Keep
                 }
                 // Snapshot the latest in-memory GAM (with whatever
                 // ability edits the user has made) for re-export.
-                let gam_snapshot = view_for_ok.read(cx).state.imported_gam.clone();
+                let gam_snapshot = view_for_ok.read(cx).state.active().imported_gam.clone();
                 match perform_save_export(name, &src_for_ok, &parent_for_ok, &gam_snapshot) {
                     Ok(dest) => {
                         info!("[save] wrote {}", dest.display());
+                        // Adopt the new folder as the active save so
+                        // the next Save click anchors against it and
+                        // the save-tab strip's label refreshes. The
+                        // window title doesn't carry the save name
+                        // anymore, so no `set_window_title` push here.
+                        view_for_ok.update(cx, |this, cx| {
+                            let active = this.state.active_mut();
+                            active.save_name = name.to_string();
+                            active.save_folder_path = dest.clone();
+                            cx.notify();
+                        });
                         true
                     }
                     Err(e) => {
@@ -247,13 +257,6 @@ pub fn perform_save_export(
         std::fs::metadata(&gam_path).map(|m| m.len()).unwrap_or(0),
     );
     Ok(dest)
-}
-
-/// Right-side filler used inside the header's `h_flex` row so the
-/// save button is pinned at the right edge. Kept here so the header
-/// module doesn't need to know about the layout.
-pub fn header_right_slot(button: Button) -> impl IntoElement {
-    h_flex().flex_1().justify_end().child(button)
 }
 
 #[cfg(test)]

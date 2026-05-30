@@ -66,7 +66,7 @@ fn main() {
         viewport: egui::ViewportBuilder::default()
             .with_title(&title)
             .with_clamp_size_to_monitor_size(true)
-            .with_maximized(true),
+            .with_inner_size(egui::vec2(1400.0, 800.0)),
         renderer: eframe::Renderer::Wgpu,
         wgpu_options,
         ..Default::default()

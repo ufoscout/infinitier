@@ -635,10 +635,11 @@ fn commit_attacks_selection(
     let SelectEvent::Confirm(Some(byte)) = event else {
         return;
     };
-    let Some(idx) = this.selected_party else {
+    let active = this.state.active_mut();
+    let Some(idx) = active.selected_party else {
         return;
     };
-    let Some(npc) = this.state.imported_gam.party_npcs.get_mut(idx) else {
+    let Some(npc) = active.imported_gam.party_npcs.get_mut(idx) else {
         return;
     };
     let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut() else {
@@ -664,19 +665,23 @@ fn commit_on_blur_or_enter(
         return;
     }
     let raw = entity.read(cx).value().to_string();
-    // Split-borrow `state.imported_gam` (mut) and
-    // `state.engine_caps` (immut) — disjoint fields of the same
-    // `KeeperState`, so destructuring lets us hold both at once.
+    // Split-borrow: `engine_caps` (immut) and the active tab's
+    // `imported_gam` (mut) are disjoint fields of `KeeperState`,
+    // so destructuring lets us hold both at once. `tabs[*active_tab]`
+    // accesses one element of `tabs` (a single mut field), disjoint
+    // from `engine_caps`.
     let KeeperState {
-        imported_gam,
         engine_caps,
+        tabs,
+        active_tab,
         ..
     } = &mut this.state;
+    let active = &mut tabs[*active_tab];
 
     if field.is_gam_field() {
-        field.write_clamped_gam(imported_gam, &raw, engine_caps);
-    } else if let Some(idx) = this.selected_party
-        && let Some(npc) = imported_gam.party_npcs.get_mut(idx)
+        field.write_clamped_gam(&mut active.imported_gam, &raw, engine_caps);
+    } else if let Some(idx) = active.selected_party
+        && let Some(npc) = active.imported_gam.party_npcs.get_mut(idx)
         && let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut()
     {
         field.write_clamped_cre(boxed, &raw, engine_caps);

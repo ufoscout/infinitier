@@ -5,4 +5,5 @@
 pub mod character;
 pub mod header;
 pub mod save_action;
+pub mod save_tab_strip;
 pub mod tabs;

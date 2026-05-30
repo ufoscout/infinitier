@@ -119,23 +119,24 @@ pub fn show_tab(
     state: &mut AppState,
     editors: &mut KeeperEditors,
 ) {
-    if state.selected_tab == CharacterTab::Abilities {
+    let active = state.active();
+    if active.selected_tab == CharacterTab::Abilities {
         AbilitiesTab.show(ui, state, editors);
         return;
     }
-    let Some(idx) = state.selected_party_index else {
+    let Some(idx) = active.selected_party_index else {
         return;
     };
-    let Some(member) = state.save.party_npcs.get(idx) else {
+    let Some(member) = active.save.party_npcs.get(idx) else {
         return;
     };
     let Some(NpcCre::Cre(boxed)) = member.cre.as_ref() else {
         return;
     };
     let cre: &Cre = boxed.as_ref();
-    let gam: &ImportedGam = &state.save;
+    let gam: &ImportedGam = &active.save;
     let game: Game = state.game_data.game();
-    match state.selected_tab {
+    match active.selected_tab {
         CharacterTab::Abilities => unreachable!(),
         CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, gam, game),
         CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
