@@ -1,39 +1,37 @@
-//! Editor scaffolding for every editable row on the *Abilities*
-//! tab — combat / status / experience / morale / thief-skills, plus
-//! the 6 ability scores and the AD&D strength-percentile field.
+//! Per-field editor scaffolding for the egui keeper.
 //!
-//! Each row owns an [`InputState`] entity and a subscription that
-//! commits on Blur / Enter:
+//! Mirrors the GPUI keeper's `editable_fields` (same enum, same
+//! per-version dispatch, same clamping helpers) but with the
+//! immediate-mode plumbing collapsed to plain `HashMap<…, String>`
+//! buffers — egui has no InputState entities, no subscriptions, no
+//! lazy init. Each frame:
 //!
-//! 1. Read the InputState's text.
-//! 2. Parse to the field's storage type (`u8`, `u16`, `i16`, `u32`).
-//! 3. Clamp through the matching range in
-//!    [`crate::state::KeeperState::engine_caps`].
-//! 4. Write to the current party member's CRE (or the GAM, for
-//!    reputation / gold).
-//! 5. Force a UI re-render so the next paint refreshes the input
-//!    text to the clamped value.
+//! 1. [`KeeperEditors::prepare`] re-pulls the buffer values from the
+//!    current CRE / GAM if the selected party slot has changed
+//!    since the last frame (or if a commit just snapped a value to
+//!    its clamped form).
+//! 2. The abilities tab renders one [`KeeperEditors::show_input`]
+//!    per visible row, which wraps `egui::TextEdit::singleline`
+//!    around the buffer and commits on focus-loss / Enter.
 //!
-//! Per-version dispatch (V10 / V12 / V90 / V22) lives in
-//! [`crate::cre_fields`]; this module decides *which* field, in
-//! *which* units, with *which* range.
+//! The pattern is "take the String out of the map, hand it to the
+//! widget, put it back" — this satisfies the borrow checker (the
+//! TextEdit holds a `&mut String` while the rest of `self` needs to
+//! be mutable for `state.save` writes).
 
 use std::collections::HashMap;
 
-use gpui::{App, AppContext as _, Context, Entity, SharedString, Subscription, Window};
-use gpui_component::input::{InputEvent, InputState};
-use gpui_component::select::{SelectEvent, SelectItem, SelectState};
+use eframe::egui;
 use infinitier_core::engine_caps::{AbilityRange, EngineCaps};
 use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
 use infinitier_core::resource::cre::Cre;
 
-use crate::app::KeeperApp;
 use crate::components::cre_fields;
-use crate::state::KeeperState;
+use crate::state::AppState;
 
-/// Logical grouping for the UI — every variant of [`EditableField`]
-/// maps to exactly one of these. The abilities tab renders a card
-/// per [`Section`].
+/// Logical grouping for the abilities tab. Each card on screen
+/// corresponds to one [`Section`]; the tab iterates
+/// [`EditableField::ALL`] and filters by section + `is_visible`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     AbilityScores,
@@ -43,12 +41,9 @@ pub enum Section {
     ThiefSkills,
 }
 
-/// Every editable row the keeper knows about. Declaration order
-/// matches the screenshot layout — `Section::fields` walks them in
-/// this order so the cards' row sequence is stable.
+/// Every editable row the keeper knows about.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EditableField {
-    // ── Ability scores ──
     Strength,
     StrengthPct,
     Dexterity,
@@ -56,7 +51,6 @@ pub enum EditableField {
     Intelligence,
     Wisdom,
     Charisma,
-    // ── Combat & status ──
     CurrentHp,
     MaxHp,
     AcNatural,
@@ -68,17 +62,14 @@ pub enum EditableField {
     Fatigue,
     Intoxication,
     Luck,
-    // ── Experience & levels ──
     Experience,
     XpForKill,
     Level1,
     Level2,
     Level3,
-    // ── Morale ──
     Morale,
     MoraleBreak,
     MoraleRecovery,
-    // ── Thief skills ──
     HideInShadows,
     MoveSilently,
     Lockpicking,
@@ -90,8 +81,6 @@ pub enum EditableField {
 }
 
 impl EditableField {
-    /// Compile-time list of every variant. Order matches the cards on
-    /// the abilities tab.
     pub const ALL: &'static [EditableField] = &[
         EditableField::Strength,
         EditableField::StrengthPct,
@@ -164,9 +153,8 @@ impl EditableField {
         }
     }
 
-    /// `true` when the value lives on the GAM (party-wide) rather
-    /// than on the per-character CRE. Used by the commit handler to
-    /// decide which mutable borrow it needs.
+    /// `true` when the value lives on the party-wide GAM rather
+    /// than on the per-character CRE.
     fn is_gam_field(self) -> bool {
         matches!(self, Self::Reputation | Self::PartyGold)
     }
@@ -210,9 +198,6 @@ impl EditableField {
         }
     }
 
-    /// `true` when this field is meaningful for the given CRE
-    /// version. The UI hides rows that return `false` rather than
-    /// showing a blank input.
     pub fn is_visible(self, cre: &Cre) -> bool {
         match self {
             Self::StrengthPct => cre.strength_bonus().is_some(),
@@ -230,13 +215,10 @@ impl EditableField {
             Self::PickPockets => cre_fields::pick_pockets(cre).is_some(),
             Self::DetectIllusion => cre_fields::detect_illusion(cre).is_some(),
             Self::Lore => cre_fields::lore(cre).is_some(),
-            // Every other field is universal across CRE versions.
             _ => true,
         }
     }
 
-    /// Read the field as the text the InputState should display.
-    /// Empty string when the field isn't visible for this CRE.
     pub fn read_text(self, cre: &Cre, gam: &ImportedGam) -> String {
         match self {
             Self::Strength => cre.strength().to_string(),
@@ -276,73 +258,38 @@ impl EditableField {
         }
     }
 
-    /// Parse + clamp + write for the CRE-side fields. No-op (and
-    /// debug-asserts) for the GAM-side ones — those go through
-    /// [`Self::write_clamped_gam`] instead.
+    /// Parse + clamp + write to a CRE. No-op on GAM-side fields.
     fn write_clamped_cre(self, cre: &mut Cre, raw: &str, caps: &EngineCaps) {
         match self {
-            // ── u8 fields ──
-            Self::Strength => {
-                write_u8(raw, caps.ability_score, cre.strength(), |v| {
-                    cre.set_strength(v)
-                })
-            }
+            Self::Strength => write_u8(raw, caps.ability_score, cre.strength(), |v| cre.set_strength(v)),
             Self::StrengthPct => write_u8(
                 raw,
                 caps.strength_percentile,
                 cre.strength_bonus().unwrap_or(0),
                 |v| cre.set_strength_bonus(v),
             ),
-            Self::Dexterity => write_u8(raw, caps.ability_score, cre.dexterity(), |v| {
-                cre.set_dexterity(v)
-            }),
-            Self::Constitution => write_u8(raw, caps.ability_score, cre.constitution(), |v| {
-                cre.set_constitution(v)
-            }),
-            Self::Intelligence => write_u8(raw, caps.ability_score, cre.intelligence(), |v| {
-                cre.set_intelligence(v)
-            }),
-            Self::Wisdom => {
-                write_u8(raw, caps.ability_score, cre.wisdom(), |v| cre.set_wisdom(v))
-            }
-            Self::Charisma => write_u8(raw, caps.ability_score, cre.charisma(), |v| {
-                cre.set_charisma(v)
-            }),
-            Self::Thac0 => write_i8(raw, caps.thac0, cre_fields::thac0_or_bab(cre), |v| {
-                cre_fields::set_thac0_or_bab(cre, v)
-            }),
-            // Attacks is edited through a dropdown (see
-            // `commit_attacks_selection`), never via this text path.
+            Self::Dexterity => write_u8(raw, caps.ability_score, cre.dexterity(), |v| cre.set_dexterity(v)),
+            Self::Constitution => write_u8(raw, caps.ability_score, cre.constitution(), |v| cre.set_constitution(v)),
+            Self::Intelligence => write_u8(raw, caps.ability_score, cre.intelligence(), |v| cre.set_intelligence(v)),
+            Self::Wisdom => write_u8(raw, caps.ability_score, cre.wisdom(), |v| cre.set_wisdom(v)),
+            Self::Charisma => write_u8(raw, caps.ability_score, cre.charisma(), |v| cre.set_charisma(v)),
+            Self::Thac0 => write_i8(raw, caps.thac0, cre_fields::thac0_or_bab(cre), |v| cre_fields::set_thac0_or_bab(cre, v)),
+            // Attacks is edited through a dropdown — never via this path.
             Self::Attacks => debug_assert!(false, "Attacks uses a dropdown, not a text input"),
-            Self::Fatigue => write_u8(raw, caps.fatigue, cre_fields::fatigue(cre), |v| {
-                cre_fields::set_fatigue(cre, v)
-            }),
-            Self::Intoxication => write_u8(
-                raw,
-                caps.intoxication,
-                cre_fields::intoxication(cre),
-                |v| cre_fields::set_intoxication(cre, v),
-            ),
-            Self::Luck => write_u8(raw, caps.luck, cre_fields::luck(cre), |v| {
-                cre_fields::set_luck(cre, v)
-            }),
+            Self::Fatigue => write_u8(raw, caps.fatigue, cre_fields::fatigue(cre), |v| cre_fields::set_fatigue(cre, v)),
+            Self::Intoxication => write_u8(raw, caps.intoxication, cre_fields::intoxication(cre), |v| cre_fields::set_intoxication(cre, v)),
+            Self::Luck => write_u8(raw, caps.luck, cre_fields::luck(cre), |v| cre_fields::set_luck(cre, v)),
             Self::Level1 => {
                 let current = cre_fields::level_first_class(cre).unwrap_or(0);
-                write_u8(raw, caps.class_level, current, |v| {
-                    cre_fields::set_level_first_class(cre, v)
-                })
+                write_u8(raw, caps.class_level, current, |v| cre_fields::set_level_first_class(cre, v))
             }
             Self::Level2 => {
                 let current = cre_fields::level_second_class(cre).unwrap_or(0);
-                write_u8(raw, caps.class_level, current, |v| {
-                    cre_fields::set_level_second_class(cre, v)
-                })
+                write_u8(raw, caps.class_level, current, |v| cre_fields::set_level_second_class(cre, v))
             }
             Self::Level3 => {
                 let current = cre_fields::level_third_class(cre).unwrap_or(0);
-                write_u8(raw, caps.class_level, current, |v| {
-                    cre_fields::set_level_third_class(cre, v)
-                })
+                write_u8(raw, caps.class_level, current, |v| cre_fields::set_level_third_class(cre, v))
             }
             Self::Morale => {
                 let current = cre_fields::morale(cre).unwrap_or(0);
@@ -350,99 +297,50 @@ impl EditableField {
             }
             Self::MoraleBreak => {
                 let current = cre_fields::morale_break(cre).unwrap_or(0);
-                write_u8(raw, caps.morale_break, current, |v| {
-                    cre_fields::set_morale_break(cre, v)
-                })
+                write_u8(raw, caps.morale_break, current, |v| cre_fields::set_morale_break(cre, v))
             }
             Self::HideInShadows => {
                 let current = cre_fields::hide_in_shadows(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| {
-                    cre_fields::set_hide_in_shadows(cre, v)
-                })
+                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_hide_in_shadows(cre, v))
             }
-            Self::MoveSilently => {
-                write_u8(raw, caps.thief_skill, cre_fields::move_silently(cre), |v| {
-                    cre_fields::set_move_silently(cre, v)
-                })
-            }
+            Self::MoveSilently => write_u8(raw, caps.thief_skill, cre_fields::move_silently(cre), |v| cre_fields::set_move_silently(cre, v)),
             Self::Lockpicking => {
                 let current = cre_fields::lockpicking(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| {
-                    cre_fields::set_lockpicking(cre, v)
-                })
+                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_lockpicking(cre, v))
             }
             Self::FindTraps => {
                 let current = cre_fields::find_traps(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| {
-                    cre_fields::set_find_traps(cre, v)
-                })
+                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_find_traps(cre, v))
             }
             Self::SetTraps => {
                 let current = cre_fields::set_traps(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| {
-                    cre_fields::set_set_traps(cre, v)
-                })
+                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_set_traps(cre, v))
             }
             Self::PickPockets => {
                 let current = cre_fields::pick_pockets(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| {
-                    cre_fields::set_pick_pockets(cre, v)
-                })
+                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_pick_pockets(cre, v))
             }
             Self::DetectIllusion => {
                 let current = cre_fields::detect_illusion(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| {
-                    cre_fields::set_detect_illusion(cre, v)
-                })
+                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_detect_illusion(cre, v))
             }
             Self::Lore => {
                 let current = cre_fields::lore(cre).unwrap_or(0);
                 write_u8(raw, caps.lore, current, |v| cre_fields::set_lore(cre, v))
             }
-            // ── u16 fields ──
-            Self::CurrentHp => write_u16(
-                raw,
-                caps.current_hit_points,
-                cre_fields::current_hit_points(cre),
-                |v| cre_fields::set_current_hit_points(cre, v),
-            ),
-            Self::MaxHp => write_u16(
-                raw,
-                caps.max_hit_points,
-                cre_fields::max_hit_points(cre),
-                |v| cre_fields::set_max_hit_points(cre, v),
-            ),
+            Self::CurrentHp => write_u16(raw, caps.current_hit_points, cre_fields::current_hit_points(cre), |v| cre_fields::set_current_hit_points(cre, v)),
+            Self::MaxHp => write_u16(raw, caps.max_hit_points, cre_fields::max_hit_points(cre), |v| cre_fields::set_max_hit_points(cre, v)),
             Self::MoraleRecovery => {
                 let current = cre_fields::morale_recovery(cre).unwrap_or(0);
-                write_u16(raw, caps.morale_recovery, current, |v| {
-                    cre_fields::set_morale_recovery(cre, v)
-                })
+                write_u16(raw, caps.morale_recovery, current, |v| cre_fields::set_morale_recovery(cre, v))
             }
-            // ── i16 fields ──
-            Self::AcNatural => write_i16(
-                raw,
-                caps.armor_class,
-                cre_fields::ac_natural(cre),
-                |v| cre_fields::set_ac_natural(cre, v),
-            ),
+            Self::AcNatural => write_i16(raw, caps.armor_class, cre_fields::ac_natural(cre), |v| cre_fields::set_ac_natural(cre, v)),
             Self::AcEffective => {
                 let current = cre_fields::ac_effective(cre).unwrap_or(0);
-                write_i16(raw, caps.armor_class, current, |v| {
-                    cre_fields::set_ac_effective(cre, v)
-                })
+                write_i16(raw, caps.armor_class, current, |v| cre_fields::set_ac_effective(cre, v))
             }
-            // ── u32 (CRE-side) ──
-            Self::Experience => {
-                write_u32(raw, caps.experience, cre_fields::experience(cre), |v| {
-                    cre_fields::set_experience(cre, v)
-                })
-            }
-            Self::XpForKill => write_u32(
-                raw,
-                caps.xp_for_kill,
-                cre_fields::xp_for_kill(cre),
-                |v| cre_fields::set_xp_for_kill(cre, v),
-            ),
+            Self::Experience => write_u32(raw, caps.experience, cre_fields::experience(cre), |v| cre_fields::set_experience(cre, v)),
+            Self::XpForKill => write_u32(raw, caps.xp_for_kill, cre_fields::xp_for_kill(cre), |v| cre_fields::set_xp_for_kill(cre, v)),
             // GAM-side fields are routed through `write_clamped_gam`.
             Self::Reputation | Self::PartyGold => {
                 debug_assert!(false, "{self:?} is a GAM-side field");
@@ -450,22 +348,10 @@ impl EditableField {
         }
     }
 
-    /// Parse + clamp + write for the GAM-side fields (reputation,
-    /// party gold). No-op for any CRE-side field — those go through
-    /// [`Self::write_clamped_cre`].
     fn write_clamped_gam(self, gam: &mut ImportedGam, raw: &str, caps: &EngineCaps) {
         match self {
-            Self::Reputation => write_u32(
-                raw,
-                caps.reputation,
-                cre_fields::party_reputation(gam),
-                |v| cre_fields::set_party_reputation(gam, v),
-            ),
-            Self::PartyGold => {
-                write_u32(raw, caps.party_gold, cre_fields::party_gold(gam), |v| {
-                    cre_fields::set_party_gold(gam, v)
-                })
-            }
+            Self::Reputation => write_u32(raw, caps.reputation, cre_fields::party_reputation(gam), |v| cre_fields::set_party_reputation(gam, v)),
+            Self::PartyGold => write_u32(raw, caps.party_gold, cre_fields::party_gold(gam), |v| cre_fields::set_party_gold(gam, v)),
             _ => debug_assert!(false, "{self:?} is a CRE-side field"),
         }
     }
@@ -520,13 +406,13 @@ fn write_u32<F: FnOnce(u32)>(raw: &str, range: AbilityRange<u32>, current: u32, 
 /// player-facing attacks-per-round string ("0.5", "1", "1.5"…).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AttacksOption {
-    byte: u8,
-    label: &'static str,
+    pub byte: u8,
+    pub label: &'static str,
 }
 
 impl AttacksOption {
-    /// Every documented attacks-per-round value, in the order shown
-    /// in the dropdown — integers first, then halves. Mirrors
+    /// Every documented attacks-per-round value, in dropdown order
+    /// — integers interleaved with halves. Mirrors
     /// [`infinitier_core::resource::cre::NumberOfAttacks`].
     pub const ALL: &'static [AttacksOption] = &[
         AttacksOption { byte: 0, label: "0" },
@@ -541,156 +427,155 @@ impl AttacksOption {
         AttacksOption { byte: 10, label: "4.5" },
         AttacksOption { byte: 5, label: "5" },
     ];
-}
 
-impl SelectItem for AttacksOption {
-    type Value = u8;
-    fn title(&self) -> SharedString {
-        SharedString::from(self.label)
-    }
-    fn value(&self) -> &u8 {
-        &self.byte
+    pub fn index_for_byte(byte: u8) -> Option<usize> {
+        Self::ALL.iter().position(|o| o.byte == byte)
     }
 }
 
-// ── InputState scaffold ──────────────────────────────────────────────
+// ── KeeperEditors — the immediate-mode editor scaffold ───────────────
 
-/// Owns one [`InputState`] entity per text-edit [`EditableField`] plus
-/// a [`SelectState`] for the Attacks dropdown, and the commit
-/// subscriptions wiring them to the CRE / GAM. Held by
-/// [`KeeperApp`]; built lazily on the first render so we don't need
-/// `&mut Window` in `KeeperApp::new`.
+/// In-flight text + Attacks-dropdown index for every editable field.
+/// One instance lives on [`crate::app::KeeperApp`]; the abilities tab
+/// reads / writes through it. Cheap to construct (just two
+/// allocations) so there's no lazy-init dance like the GPUI keeper —
+/// `Default::default()` is the right call from `KeeperApp::new`.
+#[derive(Default)]
 pub struct KeeperEditors {
-    inputs: HashMap<EditableField, Entity<InputState>>,
-    /// Dropdown state for `EditableField::Attacks`. Stored
-    /// separately because the value is not a free text edit — the
-    /// underlying byte is one of 11 enum variants and the player
-    /// sees the attacks-per-round string ("0.5", "1.5", …), not the
-    /// raw byte.
-    pub attacks: Entity<SelectState<Vec<AttacksOption>>>,
-    _subs: Vec<Subscription>,
+    inputs: HashMap<EditableField, String>,
+    /// Selected index into [`AttacksOption::ALL`]. `None` when the
+    /// active CRE's attacks byte isn't a documented variant.
+    pub attacks_idx: Option<usize>,
+    /// Last party slot we synced from. `None` means "force a rebind
+    /// on next prepare" — used after commits to refresh the buffers
+    /// with the clamped value.
+    bound_to: Option<usize>,
 }
 
 impl KeeperEditors {
-    pub fn new(window: &mut Window, cx: &mut Context<KeeperApp>) -> Self {
-        let mut inputs = HashMap::with_capacity(EditableField::ALL.len() - 1);
-        let mut subs = Vec::with_capacity(EditableField::ALL.len());
-        for &field in EditableField::ALL {
-            // The Attacks row uses a dropdown (see `attacks` below)
-            // — no free-text Input for it.
-            if field == EditableField::Attacks {
-                continue;
-            }
-            let state: Entity<InputState> = cx.new(|cx| InputState::new(window, cx));
-            subs.push(cx.subscribe(&state, move |this, entity, event, cx| {
-                commit_on_blur_or_enter(this, field, &entity, event, cx);
-            }));
-            inputs.insert(field, state);
-        }
-
-        let attacks: Entity<SelectState<Vec<AttacksOption>>> =
-            cx.new(|cx| SelectState::new(AttacksOption::ALL.to_vec(), None, window, cx));
-        subs.push(cx.subscribe(&attacks, commit_attacks_selection));
-
-        Self {
-            inputs,
-            attacks,
-            _subs: subs,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn input(&self, field: EditableField) -> &Entity<InputState> {
-        self.inputs
-            .get(&field)
-            .expect("every text-edit EditableField has an InputState")
+    /// Per-frame sync. Refresh all in-flight text buffers from the
+    /// active CRE / GAM whenever the selected slot changes.
+    pub fn prepare(&mut self, state: &AppState) {
+        let selected = state.active().selected_party_index;
+        if self.bound_to == selected {
+            return;
+        }
+        self.refresh_from_state(state);
+        self.bound_to = selected;
     }
 
-    /// Push the current value of every field into its InputState
-    /// (and the Attacks byte into the Attacks dropdown). Called by
-    /// [`crate::app::KeeperApp::render`] whenever the selected party
-    /// slot changes.
-    pub fn rebind_to(&self, cre: &Cre, gam: &ImportedGam, window: &mut Window, cx: &mut App) {
+    fn refresh_from_state(&mut self, state: &AppState) {
+        let Some(cre) = selected_cre(state) else {
+            self.inputs.clear();
+            self.attacks_idx = None;
+            return;
+        };
         for &field in EditableField::ALL {
             if field == EditableField::Attacks {
                 continue;
             }
-            let text = field.read_text(cre, gam);
-            self.input(field).update(cx, |state, cx| {
-                state.set_value(text, window, cx);
-            });
+            self.inputs
+                .insert(field, field.read_text(cre, &state.active().save));
         }
-        let attacks_byte = cre_fields::attacks_byte(cre);
-        self.attacks.update(cx, |state, cx| {
-            state.set_selected_value(&attacks_byte, window, cx);
-        });
+        self.attacks_idx = AttacksOption::index_for_byte(cre_fields::attacks_byte(cre));
+    }
+
+    /// Direct text buffer access. Used by the abilities tab to read
+    /// the in-flight value for live bonus computation without going
+    /// through `show_input`.
+    pub fn text(&self, field: EditableField) -> &str {
+        self.inputs.get(&field).map(String::as_str).unwrap_or("")
+    }
+
+    /// Render a themed `Input` (bordered + rounded — the shadcn
+    /// look) bound to `field`. On focus-loss (or Enter), parse +
+    /// clamp + write back to the CRE / GAM, then refresh the buffer
+    /// with the clamped string so the user sees the rounded value.
+    ///
+    /// Returns `true` when the value was committed this frame.
+    pub fn show_input(
+        &mut self,
+        ui: &mut egui::Ui,
+        field: EditableField,
+        state: &mut AppState,
+        width: f32,
+    ) -> bool {
+        let mut buf = std::mem::take(self.inputs.entry(field).or_default());
+        let response = ui.add(
+            egui_components::Input::new(&mut buf)
+                .width(width)
+                .small(),
+        );
+        let committed = response.lost_focus();
+        if committed {
+            commit(field, &buf, state);
+            if let Some(cre) = selected_cre(state) {
+                buf = field.read_text(cre, &state.active().save);
+            }
+        }
+        *self.inputs.entry(field).or_default() = buf;
+        committed
     }
 }
 
-fn commit_attacks_selection(
-    this: &mut KeeperApp,
-    _entity: Entity<SelectState<Vec<AttacksOption>>>,
-    event: &SelectEvent<Vec<AttacksOption>>,
-    cx: &mut Context<KeeperApp>,
-) {
-    let SelectEvent::Confirm(Some(byte)) = event else {
+fn commit(field: EditableField, raw: &str, state: &mut AppState) {
+    // Split-borrow: `state.engine_caps` (immutable) and the active
+    // tab's `save` (mutable) are disjoint fields of `state`, so
+    // Rust lets us hold both simultaneously by destructuring
+    // explicit references. `tabs[*active_tab]` reaches into one
+    // element of `tabs` — disjoint from `engine_caps`.
+    let AppState {
+        engine_caps,
+        tabs,
+        active_tab,
+        ..
+    } = state;
+    let active = &mut tabs[*active_tab];
+    if field.is_gam_field() {
+        field.write_clamped_gam(&mut active.save, raw, engine_caps);
+        return;
+    }
+    let Some(idx) = active.selected_party_index else {
         return;
     };
-    let active = this.state.active_mut();
-    let Some(idx) = active.selected_party else {
-        return;
-    };
-    let Some(npc) = active.imported_gam.party_npcs.get_mut(idx) else {
+    let Some(npc) = active.save.party_npcs.get_mut(idx) else {
         return;
     };
     let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut() else {
         return;
     };
-    cre_fields::set_attacks_byte(boxed, *byte);
-    this.editors_bound_to = None;
-    cx.notify();
+    field.write_clamped_cre(boxed, raw, engine_caps);
 }
 
-fn commit_on_blur_or_enter(
-    this: &mut KeeperApp,
-    field: EditableField,
-    entity: &Entity<InputState>,
-    event: &InputEvent,
-    cx: &mut Context<KeeperApp>,
-) {
-    // Re-render on every InputState event (including each keystroke)
-    // so the derived bonus row next to ability-score editors updates
-    // live, not just on commit.
-    cx.notify();
-    if !matches!(event, InputEvent::Blur | InputEvent::PressEnter { .. }) {
+/// Commit the Attacks dropdown's current selection back to the CRE.
+/// Called by the abilities tab when the user picks a new option.
+pub fn commit_attacks(idx: usize, state: &mut AppState) {
+    let Some(option) = AttacksOption::ALL.get(idx) else {
         return;
-    }
-    let raw = entity.read(cx).value().to_string();
-    // Split-borrow: `engine_caps` (immut) and the active tab's
-    // `imported_gam` (mut) are disjoint fields of `KeeperState`,
-    // so destructuring lets us hold both at once. `tabs[*active_tab]`
-    // accesses one element of `tabs` (a single mut field), disjoint
-    // from `engine_caps`.
-    let KeeperState {
-        engine_caps,
-        tabs,
-        active_tab,
-        ..
-    } = &mut this.state;
-    let active = &mut tabs[*active_tab];
+    };
+    let active = state.active_mut();
+    let Some(slot) = active.selected_party_index else {
+        return;
+    };
+    let Some(npc) = active.save.party_npcs.get_mut(slot) else {
+        return;
+    };
+    let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut() else {
+        return;
+    };
+    cre_fields::set_attacks_byte(boxed, option.byte);
+}
 
-    if field.is_gam_field() {
-        field.write_clamped_gam(&mut active.imported_gam, &raw, engine_caps);
-    } else if let Some(idx) = active.selected_party
-        && let Some(npc) = active.imported_gam.party_npcs.get_mut(idx)
-        && let Some(NpcCre::Cre(boxed)) = npc.cre.as_mut()
-    {
-        field.write_clamped_cre(boxed, &raw, engine_caps);
+fn selected_cre(state: &AppState) -> Option<&Cre> {
+    let active = state.active();
+    let idx = active.selected_party_index?;
+    let npc = active.save.party_npcs.get(idx)?;
+    match npc.cre.as_ref()? {
+        NpcCre::Cre(boxed) => Some(boxed.as_ref()),
+        NpcCre::Ref(_) => None,
     }
-
-    // Force a UI re-render at the next paint. `set_value` needs
-    // `&mut Window`, which the subscription callback doesn't get;
-    // clearing `editors_bound_to` makes the next render's re-bind
-    // path push the clamped value back into the InputState.
-    this.editors_bound_to = None;
-    cx.notify();
 }

@@ -1,11 +1,7 @@
-use gpui::{AnyElement, Context, Window};
-use infinitier_core::{
-    game::{GameResource, ResourceId},
-    resource::ResourceType,
-};
-
-use super::{ResourceViewerTrait, label};
-use crate::app::ExplorerApp;
+use super::ResourceViewerTrait;
+use eframe::egui;
+use infinitier_core::game::{GameResource, ResourceId};
+use infinitier_core::resource::ResourceType;
 
 pub struct UnknownViewer;
 
@@ -16,18 +12,12 @@ impl UnknownViewer {
 }
 
 impl ResourceViewerTrait for UnknownViewer {
-    fn render(
-        &mut self,
-        _resource_id: ResourceId,
-        resource: &GameResource,
-        _window: &mut Window,
-        _cx: &mut Context<ExplorerApp>,
-    ) -> AnyElement {
+    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
         let type_id = if let ResourceType::Unknown(id) = resource.r#type {
             id
         } else {
             0
         };
-        label(format!("Unknown Viewer (type: {type_id:#06x})"))
+        ui.label(format!("Unknown Viewer (type: {type_id:#06x})"));
     }
 }

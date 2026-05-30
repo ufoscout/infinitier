@@ -1,9 +1,8 @@
-//! Loaded keeper state. Owned by the root `KeeperApp` view; mutated
-//! through `cx.listener` closures when the user clicks a party row, a
-//! tab chip, or a save-tab in the strip.
+//! App-wide mutable state, separated from the egui scaffolding so
+//! the UI panels can borrow it without coupling to the eframe shell.
 //!
 //! Shape:
-//! - [`KeeperState`] owns the *game-wide* context (the resolved
+//! - [`AppState`] owns the *game-wide* context (the resolved
 //!   [`GameData`] index and the engine-derived caps + 2DA bonus
 //!   tables) plus a `Vec<SaveTab>` of opened save games and the
 //!   index of the active tab.
@@ -12,10 +11,10 @@
 //!   selected party slot, and which character sub-tab is showing.
 //!
 //! All UI panels still address a single save at a time; instead of
-//! reading `state.imported_gam` they now read
-//! `state.active().imported_gam`. The borrow rules behave the same —
-//! the split exists so future code can open additional saves into
-//! new tabs without restarting the keeper.
+//! reading `state.save` they now read `state.active().save`. The
+//! borrow rules behave the same — the split exists so future code
+//! can open additional saves into new tabs without restarting the
+//! keeper.
 
 use std::path::PathBuf;
 
@@ -23,15 +22,20 @@ use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::gam::ImportedGam;
 
-use crate::ui::tabs::CharacterTab;
+use crate::ui::CharacterTab;
 
-pub struct KeeperState {
-    /// Pre-indexed game data — shared across every open save in this
-    /// keeper instance.
+/// Top-level keeper state.
+pub struct AppState {
+    /// Pre-indexed game data — the FS, `chitin.key` index, and every
+    /// resource the engine reaches. Shared across every open save in
+    /// this keeper instance because they all came from the same
+    /// game install.
     pub game_data: GameData,
-    /// Cap ranges + 2DA-driven bonus tables for the active engine.
-    /// Built once at startup via [`EngineCaps::new`] and consulted
-    /// by the abilities tab for clamping and live bonus display.
+    /// Cap ranges + bonus tables for the active engine. Built once
+    /// at startup via [`EngineCaps::new`], which reads `STRMOD.2DA`
+    /// / `STRMODEX.2DA` / `DEXMOD.2DA` / `HPCONBON.2DA` so modded
+    /// installs get their actual numbers instead of the vanilla
+    /// distribution.
     pub engine_caps: EngineCaps,
     /// One entry per opened save. Currently a single tab is opened
     /// at startup (from the CLI args); the Load button will append
@@ -43,21 +47,30 @@ pub struct KeeperState {
     pub active_tab: usize,
 }
 
+/// Per-save state for one open save game.
 pub struct SaveTab {
+    /// On-disk name of the save folder (the
+    /// [`infinitier_core::save_games::SaveGame::name`] the user
+    /// picked at startup). Kept on the side because [`ImportedGam`]
+    /// has no notion of "where on disk did this come from".
     pub save_name: String,
-    /// Absolute on-disk path of the save folder the keeper opened.
-    /// Used by the Save action to compute the destination folder
-    /// (sibling of this one) and to enumerate the files to copy.
+    /// Absolute path of the open save folder. Used by the Save
+    /// action to compute the destination folder (sibling of this
+    /// one) and to enumerate the files to copy.
     pub save_folder_path: PathBuf,
-    pub imported_gam: ImportedGam,
-    /// Selected party-member slot, or `None` until the user clicks
-    /// one (or the save is empty).
-    pub selected_party: Option<usize>,
-    /// Currently-active per-character sub-tab.
+    /// Loaded save state, with every embedded CRE parsed and every
+    /// NPC name resolved through `dialog.tlk` when one was
+    /// reachable.
+    pub save: Box<ImportedGam>,
+    /// Selected party-member row, or `None` until the user clicks
+    /// one.
+    pub selected_party_index: Option<usize>,
+    /// Currently-active sub-tab in the per-character editor on the
+    /// right.
     pub selected_tab: CharacterTab,
 }
 
-impl KeeperState {
+impl AppState {
     /// Window title for the keeper. Carries the game type only —
     /// per-save data (save name) lives in the tab strip below the
     /// header.
@@ -65,24 +78,40 @@ impl KeeperState {
         format!("Infinitier Keeper - {:?}", self.game_data.game())
     }
 
+    pub fn new(
+        game_data: GameData,
+        save_name: String,
+        save_folder_path: PathBuf,
+        save: Box<ImportedGam>,
+        engine_caps: EngineCaps,
+    ) -> Self {
+        let tab = SaveTab::new(save_name, save_folder_path, save);
+        Self {
+            game_data,
+            engine_caps,
+            tabs: vec![tab],
+            active_tab: 0,
+        }
+    }
+
     /// Shared borrow of the active save's per-tab state.
     pub fn active(&self) -> &SaveTab {
         &self.tabs[self.active_tab]
     }
 
-    /// Mutable borrow of the active save's per-tab state. Locks
-    /// the whole [`KeeperState`] mutably, so paths that also need
-    /// `&self.engine_caps` should split-borrow over the struct's
-    /// fields (`let KeeperState { engine_caps, tabs, active_tab,
-    /// .. } = &mut state;`) instead.
+    /// Mutable borrow of the active save's per-tab state. Holding
+    /// this mutably locks the entire [`AppState`], so call sites
+    /// that also need `&self.engine_caps` should split-borrow over
+    /// `AppState`'s fields (`let AppState { engine_caps, tabs,
+    /// active_tab, .. } = &mut *state;`) instead.
     pub fn active_mut(&mut self) -> &mut SaveTab {
         &mut self.tabs[self.active_tab]
     }
 }
 
 impl SaveTab {
-    pub fn new(save_name: String, save_folder_path: PathBuf, imported_gam: ImportedGam) -> Self {
-        let selected_party = if imported_gam.party_npcs.is_empty() {
+    pub fn new(save_name: String, save_folder_path: PathBuf, save: Box<ImportedGam>) -> Self {
+        let selected_party_index = if save.party_npcs.is_empty() {
             None
         } else {
             Some(0)
@@ -90,8 +119,8 @@ impl SaveTab {
         Self {
             save_name,
             save_folder_path,
-            imported_gam,
-            selected_party,
+            save,
+            selected_party_index,
             selected_tab: CharacterTab::Abilities,
         }
     }

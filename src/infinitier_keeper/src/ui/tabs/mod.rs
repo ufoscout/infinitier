@@ -1,18 +1,53 @@
-//! Per-tab modules + the `CharacterTab` enum that drives the tab
-//! strip. The 15 variants mirror the Slint spike one-for-one;
-//! `Abilities` is the only fully-implemented tab — everything else is
-//! a "not implemented yet" stub.
+//! Per-character editor tabs.
+//!
+//! Mirrors EEKeeper's tab strip across the top of the character
+//! editor. Each tab is its own module / unit-struct with a `show`
+//! method taking the parsed [`Cre`] plus the active [`Game`] — only
+//! [`AbilitiesTab`] has real content for now; the rest are stubs we
+//! will flesh out in follow-up work.
 
-use gpui::{AnyElement, Context, IntoElement};
-use infinitier_core::imported_resource::gam::ImportedGam;
-use infinitier_core::resource::cre::Cre;
+use eframe::egui;
+use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
+use infinitier_core::resource::{Game, cre::Cre};
 
-use crate::app::KeeperApp;
+use crate::components::editable_fields::KeeperEditors;
+use crate::state::AppState;
 
-pub mod abilities;
-pub mod stub;
+mod abilities;
+mod appearance;
+mod characteristics;
+mod cleric;
+mod effects;
+mod global_variables;
+mod innate;
+mod inventory;
+mod journal_entries;
+mod local_variables;
+mod memorization;
+mod miscellaneous;
+mod proficiencies;
+mod resistances;
+mod wizard;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+use abilities::AbilitiesTab;
+use appearance::AppearanceTab;
+use characteristics::CharacteristicsTab;
+use cleric::ClericTab;
+use effects::EffectsTab;
+use global_variables::GlobalVariablesTab;
+use innate::InnateTab;
+use inventory::InventoryTab;
+use journal_entries::JournalEntriesTab;
+use local_variables::LocalVariablesTab;
+use memorization::MemorizationTab;
+use miscellaneous::MiscellaneousTab;
+use proficiencies::ProficienciesTab;
+use resistances::ResistancesTab;
+use wizard::WizardTab;
+
+/// Identifier for the active per-character tab. Order matches the
+/// EEKeeper tab strip.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharacterTab {
     Abilities,
     Characteristics,
@@ -32,6 +67,7 @@ pub enum CharacterTab {
 }
 
 impl CharacterTab {
+    /// Tabs in EEKeeper display order.
     pub const ALL: &'static [CharacterTab] = &[
         CharacterTab::Abilities,
         CharacterTab::Characteristics,
@@ -50,7 +86,8 @@ impl CharacterTab {
         CharacterTab::Miscellaneous,
     ];
 
-    pub fn label(self) -> &'static str {
+    /// The human-readable label rendered on the tab strip.
+    pub fn label(&self) -> &'static str {
         match self {
             CharacterTab::Abilities => "Abilities",
             CharacterTab::Characteristics => "Characteristics",
@@ -71,20 +108,49 @@ impl CharacterTab {
     }
 }
 
-/// Route to the right tab body. `Abilities` gets the full Slint-port
-/// rendering; every other variant falls through to `stub::render`
-/// with a "not implemented yet" message.
-pub fn dispatch(
-    this: &KeeperApp,
-    tab: CharacterTab,
-    cre: &Cre,
-    gam: &ImportedGam,
-    cx: &mut Context<KeeperApp>,
-) -> AnyElement {
-    match tab {
-        CharacterTab::Abilities => abilities::render(this, cre, gam, cx).into_any_element(),
-        other => {
-            stub::render(format!("{} — not implemented yet.", other.label())).into_any_element()
-        }
+/// Render the content area of the active tab. The Abilities tab
+/// needs mutable access to commit edits, so it's dispatched
+/// directly with `&mut AppState + &mut KeeperEditors`. Every other
+/// tab is still read-only — we pull the immutable triple
+/// `(cre, gam, game)` out of `state` once and forward it to the
+/// stub.
+pub fn show_tab(
+    ui: &mut egui::Ui,
+    state: &mut AppState,
+    editors: &mut KeeperEditors,
+) {
+    let active = state.active();
+    if active.selected_tab == CharacterTab::Abilities {
+        AbilitiesTab.show(ui, state, editors);
+        return;
+    }
+    let Some(idx) = active.selected_party_index else {
+        return;
+    };
+    let Some(member) = active.save.party_npcs.get(idx) else {
+        return;
+    };
+    let Some(NpcCre::Cre(boxed)) = member.cre.as_ref() else {
+        return;
+    };
+    let cre: &Cre = boxed.as_ref();
+    let gam: &ImportedGam = &active.save;
+    let game: Game = state.game_data.game();
+    match active.selected_tab {
+        CharacterTab::Abilities => unreachable!(),
+        CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, gam, game),
+        CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
+        CharacterTab::Inventory => InventoryTab.show(ui, cre, gam, game),
+        CharacterTab::Memorization => MemorizationTab.show(ui, cre, gam, game),
+        CharacterTab::Innate => InnateTab.show(ui, cre, gam, game),
+        CharacterTab::Wizard => WizardTab.show(ui, cre, gam, game),
+        CharacterTab::Cleric => ClericTab.show(ui, cre, gam, game),
+        CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, gam, game),
+        CharacterTab::Resistances => ResistancesTab.show(ui, cre, gam, game),
+        CharacterTab::Effects => EffectsTab.show(ui, cre, gam, game),
+        CharacterTab::LocalVariables => LocalVariablesTab.show(ui, cre, gam, game),
+        CharacterTab::GlobalVariables => GlobalVariablesTab.show(ui, cre, gam, game),
+        CharacterTab::JournalEntries => JournalEntriesTab.show(ui, cre, gam, game),
+        CharacterTab::Miscellaneous => MiscellaneousTab.show(ui, cre, gam, game),
     }
 }

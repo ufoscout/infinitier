@@ -6,7 +6,6 @@ license.workspace = true
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
-publish = false
 
 [dependencies]
 infinitier_core = { workspace = true }
@@ -15,9 +14,10 @@ bytesize = { workspace = true }
 clap = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
-image = { workspace = true }
-smallvec = { workspace = true }
-rodio = { workspace = true }
 
-gpui = { workspace = true }
-gpui-component = { workspace = true }
+eframe = { workspace = true }
+egui-components = { workspace = true }
+egui_extras = { workspace = true }
+egui_ltreeview = { workspace = true }
+rodio = { workspace = true }
+ttf-inter = { workspace = true }

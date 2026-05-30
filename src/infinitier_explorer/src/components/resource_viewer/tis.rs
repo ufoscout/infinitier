@@ -1,123 +1,96 @@
-//! TIS tileset viewer. GPUI port of the egui `TisViewer`.
-//!
-//! Mirrors NearInfinity's `TisResource` panel as the egui version
-//! does:
-//! - Top control strip with prev/next "tiles per row" buttons (the
-//!   egui version uses a Slider; gpui-component's `Slider` widget
-//!   wants its own `Entity<SliderState>` so we use buttons for the
-//!   same reason `bam.rs` uses buttons instead of a ComboBox).
-//! - Center: the composite image, scaled-to-fit / never-upscale and
-//!   centred via the absolute-pinned `img` trick used by the image
-//!   viewer.
-//! - Bottom info bar: dimensions, file size, TIS variant, tile count,
-//!   layout, origin.
-//!
-//! Texture cache: one `Arc<RenderImage>` keyed on the current
-//! `columns` setting. `ImportedTis::compose` is a CPU memcpy per
-//! tile — cheap to redo when the layout changes, but no point
-//! re-uploading every frame.
-//!
-//! Grid overlay: a toggle button on the control strip flips
-//! `show_grid`. When on, a `canvas()` element layered on top of the
-//! image computes the actually-displayed image rect from its
-//! intrinsic dimensions (re-running gpui's `ObjectFit::ScaleDown`
-//! math against the slot's resolved bounds) and paints 1-px lines at
-//! every tile boundary inside that rect. Same shape the egui
-//! viewer's `paint_tile_grid` paints, just driven by gpui's
-//! `paint_quad` instead of egui's `painter.line_segment`.
-
-use std::sync::Arc;
-
+use super::ResourceViewerTrait;
 use bytesize::ByteSize;
-use gpui::{
-    AnyElement, Bounds, Context, IntoElement, ObjectFit, ParentElement, Pixels, Point, RenderImage,
-    Size, Styled, StyledImage as _, Window, canvas, div, fill, hsla, img, px,
-};
-use gpui_component::{ActiveTheme, Sizable, button::Button, h_flex, v_flex};
-use image::Frame;
+use eframe::egui::{self, TextureHandle};
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     imported_resource::tis::ImportedTis,
     resource::tis::Type as TisType,
 };
-use smallvec::SmallVec;
 
-use super::ResourceViewerTrait;
-use crate::app::ExplorerApp;
-
-/// GPU texture-side cap. gpui doesn't expose the live renderer limit
-/// the way egui does, so we pick a value every desktop GPU supports
-/// (matches the lower-bound wgpu defaults).
-const MAX_TEXTURE_SIDE: u32 = 8192;
-
+/// TIS tileset viewer.
+///
+/// Mirrors NearInfinity's `TisResource` panel:
+/// - top bar with a "tiles per row" slider and a "Show grid" checkbox,
+/// - the composite tileset image rendered below,
+/// - bottom info bar with dimensions, file size, variant, and origin.
+///
+/// The slider's default value comes from
+/// [`ImportedTis::expected_columns`] — sourced from the area's WED when
+/// one is registered, otherwise the NearInfinity fallback
+/// (`min(tile_count, 5)`).
 pub struct TisViewer {
     tis: ImportedTis,
+    texture: TextureHandle,
     /// Currently-selected tiles-per-row. Always inside `slider_range`.
     columns: u32,
-    /// Inclusive bounds for the columns selector, picked so the
-    /// composite never exceeds `MAX_TEXTURE_SIDE` on either axis.
+    /// Inclusive bounds for the slider, picked so the composite never
+    /// exceeds the renderer's `max_texture_side` on either axis.
     slider_range: std::ops::RangeInclusive<u32>,
-    /// Tiles per axis that fit in `MAX_TEXTURE_SIDE`. Used by the
-    /// truncated compose path.
+    /// Tiles per axis that fit in `max_texture_side`. Cached on the
+    /// struct because the truncation path needs it at compose time
+    /// and it doesn't change for the viewer's lifetime.
     tiles_per_axis: u32,
     /// `true` when the tileset is so large (>`tiles_per_axis²`) that
     /// even the squarest arrangement overflows the texture limit, so
-    /// the displayed image is the leading slice that fits.
+    /// what's rendered is the leading slice that fits. Surfaced in
+    /// the bottom info bar.
     truncated: bool,
-    /// Cached composite for the currently-selected `columns`.
-    cached: Option<CachedTexture>,
-    /// `true` when the user has the grid overlay enabled (toggle
-    /// button in the control strip). Painted by the `canvas`
-    /// element layered on top of the picture area.
+    /// Whether to draw a tile-boundary grid on top of the image.
     show_grid: bool,
-}
-
-struct CachedTexture {
-    columns: u32,
-    width: u32,
-    height: u32,
-    image: Arc<RenderImage>,
+    /// `Some(cols)` while the texture matches that column count;
+    /// `None` forces a re-composite on the next show.
+    rendered_columns: Option<u32>,
 }
 
 impl TisViewer {
-    pub fn new(tis: ImportedTis) -> Self {
-        let limits = ColumnLimits::new(tis.tile_count, tis.tile_dimension, MAX_TEXTURE_SIDE);
+    pub fn new(tis: ImportedTis, ui: &mut egui::Ui, resource_id: ResourceId) -> Self {
+        let max_side = ui.ctx().input(|i| i.max_texture_side) as u32;
+        let limits = ColumnLimits::new(tis.tile_count, tis.tile_dimension, max_side);
         let columns = tis
             .expected_columns
             .clamp(*limits.range.start(), *limits.range.end());
-        Self {
+
+        // Placeholder texture — `refresh_texture` immediately replaces
+        // it with the composite at `columns`.
+        let texture = ui.ctx().load_texture(
+            format!("tis_{resource_id}"),
+            egui::ColorImage::from_rgba_unmultiplied([1, 1], &[0, 0, 0, 0]),
+            egui::TextureOptions::default(),
+        );
+
+        let mut view = Self {
             tis,
+            texture,
             columns,
             slider_range: limits.range,
             tiles_per_axis: limits.tiles_per_axis,
             truncated: limits.truncated,
-            cached: None,
             show_grid: false,
-        }
+            rendered_columns: None,
+        };
+        view.refresh_texture();
+        view
     }
 
-    fn variant_label(&self) -> &'static str {
-        match self.tis.variant {
-            TisType::Palette => "Palette",
-            TisType::Pvrz => "PVRZ",
-        }
-    }
-
-    /// (Re)build the composite when the columns selection changes.
-    /// Cheap because `ImportedTis::compose` is just a per-tile memcpy.
-    /// Buffer is converted RGBA → BGRA in place — gpui's renderer
-    /// expects BGRA (see `gpui/elements/img.rs`).
-    fn ensure_cached(&mut self) {
-        if let Some(c) = &self.cached
-            && c.columns == self.columns
-        {
+    /// Re-composite tiles into a new image and upload it to the GPU
+    /// texture, but only if the columns selection changed since the
+    /// last upload. Tile compositing is a CPU memcpy per tile so this
+    /// is cheap for typical tilesets; doing it lazily still spares us
+    /// from re-uploading on every frame.
+    fn refresh_texture(&mut self) {
+        if self.rendered_columns == Some(self.columns) {
             return;
         }
-        let composed = if self.truncated {
+        // The truncated path renders only the leading slice of tiles
+        // that fits — see `ColumnLimits`. For everything else just
+        // hand the whole tileset to `compose`.
+        let image = if self.truncated {
             let visible = (self.columns as usize) * (self.tiles_per_axis as usize);
             let count = self.tis.tile_count.min(visible);
             let stride =
                 (self.tis.tile_dimension as usize) * (self.tis.tile_dimension as usize) * 4;
+            // Compose works off a borrowed view: clone only the leading
+            // `count * stride` bytes into a smaller `ImportedTis`.
             let view = ImportedTis {
                 tile_dimension: self.tis.tile_dimension,
                 tile_count: count,
@@ -129,373 +102,53 @@ impl TisViewer {
         } else {
             self.tis.compose(self.columns)
         };
-        let width = composed.width();
-        let height = composed.height();
-        let mut buffer = composed;
-        for pixel in buffer.chunks_exact_mut(4) {
-            pixel.swap(0, 2);
+        let color = egui::ColorImage::from_rgba_unmultiplied(
+            [image.width() as usize, image.height() as usize],
+            image.as_raw(),
+        );
+        self.texture.set(color, egui::TextureOptions::default());
+        self.rendered_columns = Some(self.columns);
+    }
+
+    fn variant_label(&self) -> &'static str {
+        match self.tis.variant {
+            TisType::Palette => "Palette",
+            TisType::Pvrz => "PVRZ",
         }
-        let frame = Frame::new(buffer);
-        let image = Arc::new(RenderImage::new(SmallVec::from_elem(frame, 1)));
-        self.cached = Some(CachedTexture {
-            columns: self.columns,
-            width,
-            height,
-            image,
-        });
     }
 }
 
-impl ResourceViewerTrait for TisViewer {
-    fn render(
-        &mut self,
-        _resource_id: ResourceId,
-        resource: &GameResource,
-        _window: &mut Window,
-        cx: &mut Context<ExplorerApp>,
-    ) -> AnyElement {
-        self.ensure_cached();
-        let border = cx.theme().border;
-
-        let image_area = picture_area(
-            self.cached.as_ref().map(|c| c.image.clone()),
-            self.cached.as_ref().map(|c| (c.width, c.height)),
-            self.tis.tile_dimension,
-            self.show_grid,
-        );
-        let controls = control_strip(self, cx);
-        let info = info_bar(self, resource, cx);
-
-        v_flex()
-            .flex_1()
-            .min_h_0()
-            .w_full()
-            .child(controls)
-            .child(div().h_px().bg(border))
-            .child(image_area)
-            .child(div().h_px().bg(border))
-            .child(info)
-            .into_any_element()
-    }
-}
-
-/// Scaled-to-fit, centred picture area. Same `absolute + inset_0`
-/// trick the image viewer uses to stop taffy from expanding the slot
-/// to satisfy the composite's intrinsic aspect ratio. When
-/// `show_grid` is on we layer a `canvas` over the image and paint
-/// tile-boundary lines inside the displayed image rect.
-fn picture_area(
-    image: Option<Arc<RenderImage>>,
-    image_dims: Option<(u32, u32)>,
-    tile_dim: u32,
-    show_grid: bool,
-) -> impl IntoElement {
-    let mut slot = div()
-        .flex_1()
-        .min_h_0()
-        .w_full()
-        .relative()
-        .overflow_hidden();
-    if let Some(tex) = image {
-        slot = slot.child(
-            img(tex)
-                .absolute()
-                .top_0()
-                .left_0()
-                .right_0()
-                .bottom_0()
-                .size_full()
-                .object_fit(ObjectFit::ScaleDown),
-        );
-    }
-    if show_grid && let Some((iw, ih)) = image_dims {
-        slot = slot.child(grid_overlay(iw, ih, tile_dim));
-    }
-    slot
-}
-
-/// `canvas` overlay that paints a 1-px tile-boundary grid inside the
-/// displayed image rect. The displayed rect is computed at paint
-/// time by re-running gpui's `ObjectFit::ScaleDown` math against the
-/// canvas's resolved bounds — same logic the underlying `img`
-/// element uses, so the grid stays aligned at every window size.
-fn grid_overlay(image_w: u32, image_h: u32, tile_dim: u32) -> impl IntoElement {
-    canvas(
-        // No prepaint work; we only need the bounds at paint time.
-        |_bounds, _window, _cx| (),
-        move |bounds: Bounds<Pixels>, _, window, _cx| {
-            paint_tile_grid(bounds, image_w, image_h, tile_dim, window);
-        },
-    )
-    .absolute()
-    .top_0()
-    .left_0()
-    .right_0()
-    .bottom_0()
-}
-
-/// Replicate `ObjectFit::ScaleDown` to find where the image actually
-/// paints inside `bounds`, then paint one filled 1-px quad per tile
-/// boundary (vertical and horizontal). The outermost border on the
-/// right / bottom is included so the tileset's outer edge is also
-/// marked, matching the egui viewer's `paint_tile_grid`.
-fn paint_tile_grid(
-    bounds: Bounds<Pixels>,
-    image_w: u32,
-    image_h: u32,
-    tile_dim: u32,
-    window: &mut Window,
-) {
-    if image_w == 0 || image_h == 0 || tile_dim == 0 {
-        return;
-    }
-    // `Pixels(pub(crate) f32)` — extract the underlying float via the
-    // public `From<Pixels> for f32` impl.
-    let bounds_w = f32::from(bounds.size.width);
-    let bounds_h = f32::from(bounds.size.height);
-    let img_w = image_w as f32;
-    let img_h = image_h as f32;
-
-    // ScaleDown: shrink-to-fit but never upscale, then centre.
-    let scale = (bounds_w / img_w).min(bounds_h / img_h).min(1.0);
-    let drawn_w = img_w * scale;
-    let drawn_h = img_h * scale;
-    let origin_x = f32::from(bounds.origin.x) + (bounds_w - drawn_w) / 2.0;
-    let origin_y = f32::from(bounds.origin.y) + (bounds_h - drawn_h) / 2.0;
-
-    let tile_px = tile_dim as f32 * scale;
-    // At sub-pixel tile sizes the grid would be denser than the
-    // pixels it's supposed to outline — same skip the egui viewer
-    // does to avoid a moiré pattern.
-    if tile_px <= 0.5 {
-        return;
-    }
-
-    // Translucent white lines, same colour the egui viewer uses.
-    let line = hsla(0.0, 0.0, 1.0, 0.70);
-
-    // Vertical lines at column boundaries (0..=columns).
-    let cols = (image_w / tile_dim).max(1);
-    for col in 0..=cols {
-        let x = origin_x + (col as f32) * tile_px;
-        let rect = Bounds {
-            origin: Point {
-                x: px(x),
-                y: px(origin_y),
-            },
-            size: Size {
-                width: px(1.0),
-                height: px(drawn_h),
-            },
-        };
-        window.paint_quad(fill(rect, line));
-    }
-    // Horizontal lines at row boundaries (0..=rows).
-    let rows = (image_h / tile_dim).max(1);
-    for row in 0..=rows {
-        let y = origin_y + (row as f32) * tile_px;
-        let rect = Bounds {
-            origin: Point {
-                x: px(origin_x),
-                y: px(y),
-            },
-            size: Size {
-                width: px(drawn_w),
-                height: px(1.0),
-            },
-        };
-        window.paint_quad(fill(rect, line));
-    }
-}
-
-/// Top control strip: prev/next columns + the truncation warning.
-fn control_strip(viewer: &TisViewer, cx: &mut Context<ExplorerApp>) -> impl IntoElement + use<> {
-    let theme = cx.theme();
-    let max = *viewer.slider_range.end();
-    let min = *viewer.slider_range.start();
-    let label = format!("Tiles per row: {} / {max}", viewer.columns);
-    // Single-column slider range = nothing to drag; disable the
-    // buttons rather than have them no-op.
-    let can_adjust = min < max;
-    let truncated = viewer.truncated;
-
-    let mut row = h_flex()
-        .w_full()
-        .px_2()
-        .py_1()
-        .gap_2()
-        .items_center()
-        .bg(theme.secondary)
-        .child(
-            Button::new("tis-prev-cols")
-                .label("◀")
-                .small()
-                .on_click(cx.listener(|this, _, _, cx| {
-                    let viewer = tis_viewer_mut(this);
-                    let start = *viewer.slider_range.start();
-                    if viewer.columns > start {
-                        viewer.columns -= 1;
-                        cx.notify();
-                    }
-                })),
-        )
-        .child(div().min_w(px(180.)).child(label))
-        .child(
-            Button::new("tis-next-cols")
-                .label("▶")
-                .small()
-                .on_click(cx.listener(|this, _, _, cx| {
-                    let viewer = tis_viewer_mut(this);
-                    let end = *viewer.slider_range.end();
-                    if viewer.columns < end {
-                        viewer.columns += 1;
-                        cx.notify();
-                    }
-                })),
-        )
-        .child(div().w_2())
-        .child(
-            Button::new("tis-grid")
-                .label(if viewer.show_grid {
-                    "Hide grid"
-                } else {
-                    "Show grid"
-                })
-                .small()
-                .on_click(cx.listener(|this, _, _, cx| {
-                    let viewer = tis_viewer_mut(this);
-                    viewer.show_grid = !viewer.show_grid;
-                    cx.notify();
-                })),
-        );
-    if !can_adjust {
-        // Visual hint that the layout is locked; no functional change.
-        row = row.child(
-            div()
-                .text_color(theme.muted_foreground)
-                .child("(layout fixed)"),
-        );
-    }
-    if truncated {
-        // Same warning the egui viewer surfaces inline.
-        row = row.child(div().flex_1()).child(
-            div()
-                .text_color(gpui::Hsla {
-                    h: 40.0 / 360.0,
-                    s: 1.0,
-                    l: 0.5,
-                    a: 1.0,
-                })
-                .child("⚠ Tileset too large; showing partial view"),
-        );
-    }
-    row
-}
-
-/// Bottom info bar — same cells the egui viewer paints.
-fn info_bar(
-    viewer: &TisViewer,
-    resource: &GameResource,
-    cx: &mut Context<ExplorerApp>,
-) -> impl IntoElement + use<> {
-    let theme = cx.theme();
-
-    let (composed_w, composed_h) = viewer
-        .cached
-        .as_ref()
-        .map(|c| (c.width, c.height))
-        .unwrap_or((0, 0));
-    let file_size = match resource.file_size {
-        Some(size) => ByteSize(size).to_string(),
-        None => "? B".to_string(),
-    };
-    let layout_cell = if viewer.truncated {
-        let visible = viewer.columns * viewer.tiles_per_axis;
-        format!(
-            "{} × {} tiles (showing first {} of {})",
-            viewer.columns,
-            viewer.tiles_per_axis,
-            visible.min(viewer.tis.tile_count as u32),
-            viewer.tis.tile_count,
-        )
-    } else {
-        let rows = (viewer.tis.tile_count as u32).div_ceil(viewer.columns);
-        format!("{} × {} tiles", viewer.columns, rows)
-    };
-    let origin = match &resource.data_origin {
-        DataOrigin::Bif { name } => format!("BIF: {name}"),
-        DataOrigin::Dir { name, path } => format!("{name}: {}", path.path().display()),
-        DataOrigin::Missing => "Missing".to_string(),
-    };
-
-    h_flex()
-        .w_full()
-        .px_3()
-        .py_1p5()
-        .gap_2()
-        .items_center()
-        .bg(theme.secondary)
-        .child(cell(format!("{composed_w} × {composed_h} px")))
-        .child(separator(theme.border))
-        .child(cell(file_size))
-        .child(separator(theme.border))
-        .child(cell("TIS".to_string()))
-        .child(separator(theme.border))
-        .child(cell(viewer.variant_label().to_string()))
-        .child(separator(theme.border))
-        .child(cell(format!("{} tiles", viewer.tis.tile_count)))
-        .child(separator(theme.border))
-        .child(cell(layout_cell))
-        .child(separator(theme.border))
-        .child(cell(origin))
-}
-
-fn cell(text: String) -> impl IntoElement {
-    div().child(text)
-}
-
-fn separator(color: gpui::Hsla) -> impl IntoElement {
-    div().w_px().h_4().bg(color)
-}
-
-/// Pull the cached `TisViewer` back out of the dispatcher cache so
-/// click handlers (which only get `&mut ExplorerApp`) can mutate
-/// viewer state. Same downcast trick `bam.rs` uses; works because
-/// `ResourceViewerTrait` extends `Any`.
-fn tis_viewer_mut(app: &mut ExplorerApp) -> &mut TisViewer {
-    let trait_obj = &mut app
-        .viewer
-        .inner
-        .as_mut()
-        .expect("TIS click fired without an active viewer")
-        .viewer;
-    (trait_obj.as_mut() as &mut dyn std::any::Any)
-        .downcast_mut::<TisViewer>()
-        .expect("active viewer is not a TisViewer")
-}
-
-// ── Column-limits helper, ported verbatim from the egui viewer ──────
-
-/// Composite-image limits derived from the renderer's max texture
-/// side and the fixed 64-pixel TIS tile size.
+/// Composite-image limits derived from the renderer's
+/// `max_texture_side` and the fixed 64-pixel TIS tile size.
 struct ColumnLimits {
     /// Tiles per axis that fit in a single texture.
     tiles_per_axis: u32,
-    /// Inclusive bounds the columns selector must stay within.
+    /// Inclusive bounds the slider must stay within.
     range: std::ops::RangeInclusive<u32>,
     /// `true` when not every tile fits — see [`TisViewer::truncated`].
     truncated: bool,
 }
 
 impl ColumnLimits {
+    /// Compute the safe `(min..=max)` columns range so that both
+    /// `columns * tile_dim` (width) and `rows * tile_dim` (height) stay
+    /// within the renderer's limit. When the tileset is so large that
+    /// no value satisfies both, falls back to the widest fitting grid
+    /// and flags the result as truncated.
     fn new(tile_count: usize, tile_dim: u32, max_side: u32) -> Self {
         let tile_count = tile_count.max(1) as u32;
         let tiles_per_axis = (max_side / tile_dim.max(1)).max(1);
 
+        // Width:  columns ≤ tiles_per_axis           ⇒ width ≤ max_side
+        // Height: rows = ceil(tile_count / columns) ≤ tiles_per_axis
+        //         ⇒ columns ≥ ceil(tile_count / tiles_per_axis)
         let max_cols = tile_count.min(tiles_per_axis);
         let min_cols = tile_count.div_ceil(tiles_per_axis);
 
         if min_cols > max_cols {
+            // tile_count > tiles_per_axis² — pin to the widest fitting
+            // grid. The renderer will paint only the first
+            // `tiles_per_axis²` tiles; the rest are hidden.
             ColumnLimits {
                 tiles_per_axis,
                 range: max_cols..=max_cols,
@@ -511,12 +164,169 @@ impl ColumnLimits {
     }
 }
 
+impl ResourceViewerTrait for TisViewer {
+    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
+        // ── Bottom info bar (rendered first so the central area takes
+        //     the rest of the space) ──────────────────────────────────
+        let composed_size = self.texture.size();
+        egui::Panel::bottom("tis_info_panel").show_inside(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(format!("{} × {} px", composed_size[0], composed_size[1]));
+                ui.separator();
+                match resource.file_size {
+                    Some(size) => {
+                        ui.label(ByteSize(size).to_string());
+                    }
+                    None => {
+                        ui.label("? B");
+                    }
+                }
+                ui.separator();
+                ui.label("TIS");
+                ui.separator();
+                ui.label(self.variant_label());
+                ui.separator();
+                ui.label(format!("{} tiles", self.tis.tile_count));
+                ui.separator();
+                if self.truncated {
+                    // The displayed grid is the first
+                    // `columns × tiles_per_axis` tiles; the rest don't
+                    // fit in the renderer's max texture side.
+                    let visible = self.columns * self.tiles_per_axis;
+                    ui.label(format!(
+                        "{} × {} tiles (showing first {} of {})",
+                        self.columns,
+                        self.tiles_per_axis,
+                        visible.min(self.tis.tile_count as u32),
+                        self.tis.tile_count,
+                    ));
+                } else {
+                    let rows = (self.tis.tile_count as u32).div_ceil(self.columns);
+                    ui.label(format!("{} × {} tiles", self.columns, rows));
+                }
+                ui.separator();
+                match &resource.data_origin {
+                    DataOrigin::Bif { name } => {
+                        ui.label(format!("BIF: {name}"));
+                    }
+                    DataOrigin::Dir { name, path } => {
+                        ui.label(format!("{name}: {}", path.path().display()));
+                    }
+                    DataOrigin::Missing => {
+                        ui.label("Missing");
+                    }
+                }
+            });
+        });
+
+        // ── Top control bar: tiles-per-row slider + grid toggle ──────
+        egui::Panel::top("tis_controls_panel").show_inside(ui, |ui| {
+            ui.add_space(4.0);
+            ui.horizontal(|ui| {
+                ui.label("Tiles per row:");
+                // Slider range is clamped so the composite never
+                // exceeds `max_texture_side` on either axis — see
+                // `ColumnLimits`. Without this clamp, dragging the
+                // slider toward 1 caused the height to overflow the
+                // GPU limit (e.g. 15168 > 8192) and panicked the
+                // renderer in wgpu's `create_texture`.
+                let range = self.slider_range.clone();
+                let max = *range.end();
+                ui.add(
+                    egui::Slider::new(&mut self.columns, range)
+                        .integer()
+                        .text(format!("/ {max}")),
+                );
+                ui.separator();
+                ui.checkbox(&mut self.show_grid, "Show grid");
+                if self.truncated {
+                    ui.separator();
+                    ui.colored_label(
+                        egui::Color32::from_rgb(220, 160, 0),
+                        "⚠ Tileset too large; showing partial view",
+                    );
+                }
+            });
+            ui.add_space(4.0);
+        });
+
+        // Recompose if the slider moved this tick.
+        self.refresh_texture();
+
+        // ── Center: the composite image, fit to the available space ──
+        let available = ui.available_size();
+        let natural = egui::Vec2::new(composed_size[0] as f32, composed_size[1] as f32);
+        // Allow the image to scale up only if needed; otherwise keep
+        // its natural size so tiles render pixel-exact.
+        let scale = (available.x / natural.x)
+            .min(available.y / natural.y)
+            .min(1.0);
+        let display = natural * scale;
+
+        let y_offset = ((available.y - display.y) / 2.0).max(0.0);
+        if y_offset > 0.0 {
+            ui.add_space(y_offset);
+        }
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            let response = ui.add(egui::Image::new(&self.texture).fit_to_exact_size(display));
+
+            if self.show_grid {
+                paint_tile_grid(ui, response.rect, self.tis.tile_dimension as f32 * scale);
+            }
+        });
+    }
+}
+
+/// Draw a thin grid over `image_rect` with one line per tile boundary,
+/// at the same scale the image is displayed at. The outermost border
+/// is included so the bottom and right edges of the tileset are also
+/// marked.
+fn paint_tile_grid(ui: &mut egui::Ui, image_rect: egui::Rect, tile_size: f32) {
+    if tile_size <= 0.5 {
+        // At this zoom level the grid would be denser than the pixels
+        // it's supposed to outline — skip it to avoid a moiré pattern.
+        return;
+    }
+    let painter = ui.painter_at(image_rect);
+    let stroke = egui::Stroke::new(
+        1.0,
+        egui::Color32::from_rgba_unmultiplied(255, 255, 255, 180),
+    );
+
+    // Vertical lines at column boundaries.
+    let mut x = image_rect.left();
+    while x <= image_rect.right() + 0.5 {
+        painter.line_segment(
+            [
+                egui::pos2(x, image_rect.top()),
+                egui::pos2(x, image_rect.bottom()),
+            ],
+            stroke,
+        );
+        x += tile_size;
+    }
+    // Horizontal lines at row boundaries.
+    let mut y = image_rect.top();
+    while y <= image_rect.bottom() + 0.5 {
+        painter.line_segment(
+            [
+                egui::pos2(image_rect.left(), y),
+                egui::pos2(image_rect.right(), y),
+            ],
+            stroke,
+        );
+        y += tile_size;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn column_limits_small_tileset_fits_with_no_min_constraint() {
+        // 6 tiles, 64 px tiles, 8192 px max → tiles_per_axis = 128.
+        // ceil(6 / 128) = 1, so slider can go from 1 to 6.
         let l = ColumnLimits::new(6, 64, 8192);
         assert_eq!(l.tiles_per_axis, 128);
         assert_eq!(l.range, 1..=6);
@@ -525,6 +335,9 @@ mod tests {
 
     #[test]
     fn column_limits_medium_tileset_enforces_min() {
+        // 2400 tiles, 64 px tiles, 8192 px max → tiles_per_axis = 128.
+        // ceil(2400 / 128) = 19, so the slider can't go below 19 (else
+        // rows × 64 would exceed 8192 — the original wgpu panic).
         let l = ColumnLimits::new(2400, 64, 8192);
         assert_eq!(l.tiles_per_axis, 128);
         assert_eq!(*l.range.start(), 19);
@@ -534,6 +347,9 @@ mod tests {
 
     #[test]
     fn column_limits_too_large_tileset_truncates() {
+        // tiles_per_axis = 128, tile_count = 20_000 > 128² = 16_384.
+        // No columns value lets every tile fit — collapse the slider
+        // to the widest fitting grid and flag truncation.
         let l = ColumnLimits::new(20_000, 64, 8192);
         assert_eq!(l.tiles_per_axis, 128);
         assert_eq!(l.range, 128..=128);
@@ -542,11 +358,30 @@ mod tests {
 
     #[test]
     fn column_limits_clamps_to_at_least_one() {
+        // Pathological inputs (zero tiles or absurdly small limits)
+        // must not produce an empty slider range — that would crash
+        // `Slider::new` with an unsatisfiable bound.
         let l = ColumnLimits::new(0, 64, 8192);
         assert_eq!(l.range, 1..=1);
 
-        let tiny = ColumnLimits::new(10, 64, 32);
+        let tiny = ColumnLimits::new(10, 64, 32); // max_side < tile_dim
         assert_eq!(tiny.tiles_per_axis, 1);
         assert!(*tiny.range.start() >= 1);
+    }
+
+    #[test]
+    fn column_limits_specific_wgpu_panic_case() {
+        // The original bug report: a 2.4k-ish tileset, slider down to
+        // a tile-per-row that puts the composite at 15168 px tall —
+        // wgpu rejects anything > 8192. With the clamp the slider's
+        // minimum must produce a height ≤ 8192.
+        let tile_count = 2400usize;
+        let l = ColumnLimits::new(tile_count, 64, 8192);
+        let min_cols = *l.range.start();
+        let height_at_min = (tile_count as u32).div_ceil(min_cols) * 64;
+        assert!(
+            height_at_min <= 8192,
+            "min_cols={min_cols} ⇒ height={height_at_min} (should be ≤ 8192)"
+        );
     }
 }

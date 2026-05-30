@@ -1,9 +1,11 @@
-//! One Rust module per panel and per tab. Each module exposes a free
-//! `render(this: &KeeperApp, cx: &mut Context<KeeperApp>)` that returns
-//! an `IntoElement` for the surrounding `KeeperApp::render` to embed.
+mod character_panel;
+mod header_panel;
+mod save_action;
+mod save_tab_strip;
+mod tabs;
 
-pub mod character;
-pub mod header;
-pub mod save_action;
-pub mod save_tab_strip;
-pub mod tabs;
+pub use character_panel::CharacterPanel;
+pub use header_panel::HeaderPanel;
+pub use save_action::SaveAction;
+pub use save_tab_strip::SaveTabStrip;
+pub use tabs::CharacterTab;

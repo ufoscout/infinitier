@@ -1,11 +1,9 @@
-use gpui::{AnyElement, Context, Window};
+use super::ResourceViewerTrait;
+use eframe::egui;
 use infinitier_core::{
     game::{GameResource, ResourceId},
     resource::ids::Ids,
 };
-
-use super::{ResourceViewerTrait, label};
-use crate::app::ExplorerApp;
 
 pub struct IdsViewer {
     _ids: Ids,
@@ -18,13 +16,7 @@ impl IdsViewer {
 }
 
 impl ResourceViewerTrait for IdsViewer {
-    fn render(
-        &mut self,
-        _resource_id: ResourceId,
-        _resource: &GameResource,
-        _window: &mut Window,
-        _cx: &mut Context<ExplorerApp>,
-    ) -> AnyElement {
-        label("IDS Viewer")
+    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
+        ui.label("IDS Viewer");
     }
 }

@@ -1,23 +1,26 @@
-//! "Resource: NAME — Source: ORIGIN" line painted in the bottom bar.
-//! Mirrors the egui `SelectedFileInfo`. Pure render function — no
-//! interactivity, so the signature only needs `&ExplorerApp`.
-
+use eframe::egui;
 use log::error;
 
-use crate::app::ExplorerApp;
+use crate::state::AppState;
 
-pub fn render(this: &ExplorerApp) -> String {
-    match &this.state.selected_resource {
-        Some(resource_id) => match this.state.game_data.get_by_id(*resource_id) {
-            Some(resource) => format!(
-                "Resource: {} — Source: {:?}",
-                resource.name, resource.data_origin
-            ),
-            None => {
-                error!("Resource not found: {resource_id:?}");
-                "Resource not found".into()
+pub struct SelectedFileInfo;
+
+impl SelectedFileInfo {
+    pub fn show(ui: &mut egui::Ui, state: &AppState) {
+        match &state.selected_resource {
+            Some(resource) => {
+                if let Some(resource) = state.game_data.get_by_id(*resource) {
+                    ui.label(format!(
+                        "Resource: {} - Source: {:?}",
+                        resource.name, resource.data_origin
+                    ));
+                } else {
+                    error!("Resource not found: {resource:?}");
+                }
             }
-        },
-        None => "No file selected".into(),
+            None => {
+                ui.label("No file selected");
+            }
+        }
     }
 }

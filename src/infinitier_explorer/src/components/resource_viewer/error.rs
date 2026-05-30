@@ -1,8 +1,6 @@
-use gpui::{AnyElement, Context, IntoElement, ParentElement, Styled, Window, div};
-use infinitier_core::game::{GameResource, ResourceId};
-
 use super::ResourceViewerTrait;
-use crate::app::ExplorerApp;
+use eframe::egui;
+use infinitier_core::game::{GameResource, ResourceId};
 
 pub struct ErrorViewer {
     message: String,
@@ -15,17 +13,9 @@ impl ErrorViewer {
 }
 
 impl ResourceViewerTrait for ErrorViewer {
-    fn render(
-        &mut self,
-        _resource_id: ResourceId,
-        _resource: &GameResource,
-        _window: &mut Window,
-        _cx: &mut Context<ExplorerApp>,
-    ) -> AnyElement {
-        div()
-            .w_full()
-            .p_6()
-            .child(self.message.clone())
-            .into_any_element()
+    fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, _resource: &GameResource) {
+        ui.centered_and_justified(|ui| {
+            ui.label(&self.message);
+        });
     }
 }
