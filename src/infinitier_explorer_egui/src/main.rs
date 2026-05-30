@@ -52,11 +52,7 @@ fn main() {
             std::process::exit(1);
         });
 
-    let title = format!(
-        "Infinitier Explorer — {:?} — {}",
-        game,
-        display_paths(&args.game_path),
-    );
+    let title = format!("Infinitier Explorer - {game:?}");
 
     // Force the wgpu GL backend. On Linux the default would be
     // Vulkan, which has shown rendering glitches during window

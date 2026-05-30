@@ -2014,7 +2014,7 @@ dependencies = [
 [[package]]
 name = "egui-components"
 version = "0.1.0"
-source = "git+https://github.com/ufoscout/egui-components?branch=main#5c8c007389996c120b72f73dedeafa544347c91b"
+source = "git+https://github.com/ufoscout/egui-components?branch=main#7451a912c13f01c9f7e9904786a5523e0b27fad7"
 dependencies = [
  "egui",
  "egui-components-theme",
@@ -2024,7 +2024,7 @@ dependencies = [
 [[package]]
 name = "egui-components-theme"
 version = "0.1.0"
-source = "git+https://github.com/ufoscout/egui-components?branch=main#5c8c007389996c120b72f73dedeafa544347c91b"
+source = "git+https://github.com/ufoscout/egui-components?branch=main#7451a912c13f01c9f7e9904786a5523e0b27fad7"
 dependencies = [
  "egui",
  "serde_json",
@@ -3972,13 +3972,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "infinitier_egui_common"
-version = "0.0.7"
-dependencies = [
- "eframe",
-]
-
-[[package]]
 name = "infinitier_explorer"
 version = "0.0.7"
 dependencies = [
@@ -4001,13 +3994,14 @@ dependencies = [
  "bytesize",
  "clap",
  "eframe",
+ "egui-components",
  "egui_extras",
  "egui_ltreeview",
  "env_logger",
  "infinitier_core",
- "infinitier_egui_common",
  "log",
  "rodio",
+ "ttf-inter",
 ]
 
 [[package]]

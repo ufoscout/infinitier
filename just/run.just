@@ -18,7 +18,7 @@ run_bg2:
 # Run Infinitier Explorer with local Baldur's Gate 2 - Enhanced Edition
 [group('run_explorer')]
 run_bg2ee:
-  cargo run -p infinitier_explorer -- "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate II - Enhanced Edition"
+  cargo run -p infinitier_explorer_egui -- "{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition","{{GAMES_FOLDER}}/Baldur's Gate 2 - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Baldur's Gate II - Enhanced Edition"
 
 # Run Infinitier Explorer with local Icewind Dale
 [group('run_explorer')]

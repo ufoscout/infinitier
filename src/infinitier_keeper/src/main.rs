@@ -9,7 +9,10 @@ mod ui;
 use std::path::PathBuf;
 
 use clap::Parser;
-use gpui::{AppContext, Application, Bounds, WindowBounds, WindowOptions, px, size};
+use gpui::{
+    AppContext, Application, Bounds, SharedString, TitlebarOptions, WindowBounds, WindowOptions,
+    px, size,
+};
 use gpui_component::Root;
 
 use crate::app::KeeperApp;
@@ -43,6 +46,13 @@ fn main() {
         }
     };
 
+    let title: SharedString = format!(
+        "Infinitier Keeper - {:?} - [{}]",
+        state.game_data.game(),
+        state.save_name,
+    )
+    .into();
+
     Application::new().run(move |cx| {
         gpui_component::init(cx);
 
@@ -51,6 +61,10 @@ fn main() {
                 origin: Default::default(),
                 size: size(px(1400.), px(800.)),
             })),
+            titlebar: Some(TitlebarOptions {
+                title: Some(title.clone()),
+                ..Default::default()
+            }),
             ..Default::default()
         };
 

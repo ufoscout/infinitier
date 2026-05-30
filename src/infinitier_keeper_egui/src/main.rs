@@ -127,7 +127,7 @@ fn main() {
         std::process::exit(1);
     });
 
-    let title = format!("Infinitier Keeper — {:?} — {}", game, core_save.name);
+    let title = format!("Infinitier Keeper - {game:?} - [{}]", core_save.name);
 
     let engine_caps = EngineCaps::new(&game_data).unwrap_or_else(|e| {
         log::error!(

@@ -262,8 +262,18 @@ impl EngineCaps {
                 (
                     load_bonus_table(game_data, "strmod", &["STR_BONUS_TO_HIT", "TO_HIT"])?,
                     load_bonus_table(game_data, "strmodex", &["STR_BONUS_TO_HIT", "TO_HIT"])?,
-                    load_bonus_table(game_data, "dexmod", &["AC_ADJ", "ACMOD"])?,
-                    load_bonus_table(game_data, "hpconbon", &["HP_BONUS", "HPCONBON"])?,
+                    // BG:EE / BG2:EE / IWDEE / PSTEE store the AC adjustment
+                    // under the bare `"AC"` column; older releases (BG, BG2,
+                    // IWD, Tutu, PST) use the `*_ADJ` suffix variant `"AC_ADJ"`;
+                    // a handful of mods rename it to `"ACMOD"`.
+                    load_bonus_table(game_data, "dexmod", &["AC_ADJ", "ACMOD", "AC"])?,
+                    // BG:EE / BG2:EE / IWDEE / PSTEE split HPCONBON into
+                    // `WARRIOR` / `OTHER` columns. The previous hardcoded
+                    // ad&d implementation was not class-aware and capped at
+                    // the non-warrior +2 bonus — `OTHER` preserves that
+                    // behaviour. Original (pre-EE) releases use a single
+                    // `HP_BONUS` column; a few mods rename it `HPCONBON`.
+                    load_bonus_table(game_data, "hpconbon", &["HP_BONUS", "HPCONBON", "OTHER"])?,
                 )
             };
         Ok(Self {
@@ -390,9 +400,10 @@ fn load_bonus_table(
         io::Error::new(
             io::ErrorKind::InvalidData,
             format!(
-                "{}.2DA has none of the expected columns: {:?}",
+                "{}.2DA has none of the expected columns {:?}; available columns: {:?}",
                 name.to_ascii_uppercase(),
                 column_candidates,
+                two_da.headers,
             ),
         )
     })
