@@ -7,7 +7,7 @@
 //! an in-band record to show).
 
 use eframe::egui;
-use egui_components::{Label, LabelTone, Size, Tabs};
+use egui_components::Tabs;
 use infinitier_core::imported_resource::gam::{ImportedGamNpc, NpcCre};
 
 use crate::components::editable_fields::KeeperEditors;
@@ -36,7 +36,7 @@ impl CharacterPanel {
                 .save
                 .party_npcs
                 .get(idx)
-                .map(|m| HeaderInfo::from(m, idx));
+                .map(|m| HeaderInfo::from(m));
             let Some(header) = header else {
                 ui.colored_label(
                     egui::Color32::RED,
@@ -76,7 +76,6 @@ impl CharacterPanel {
 /// header-render path from the `&state.save` borrow so `show_tab`
 /// can take `&mut state` next.
 struct HeaderInfo {
-    display_name: String,
     cre_kind: CreKind,
 }
 
@@ -87,19 +86,13 @@ enum CreKind {
 }
 
 impl HeaderInfo {
-    fn from(member: &ImportedGamNpc, idx: usize) -> Self {
-        let display_name = if member.display_name.is_empty() {
-            format!("Slot {}", idx + 1)
-        } else {
-            member.display_name.clone()
-        };
+    fn from(member: &ImportedGamNpc) -> Self {
         let cre_kind = match member.cre.as_ref() {
             Some(NpcCre::Cre(_)) => CreKind::Embedded,
             Some(NpcCre::Ref(resref)) => CreKind::ExternalRef(resref.clone()),
             None => CreKind::Empty,
         };
         Self {
-            display_name,
             cre_kind,
         }
     }

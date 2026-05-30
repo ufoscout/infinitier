@@ -9,7 +9,6 @@ repository.workspace = true
 
 [dependencies]
 infinitier_core = { workspace = true }
-infinitier_egui_common = { workspace = true }
 
 bytesize = { workspace = true }
 clap = { workspace = true }
@@ -17,6 +16,8 @@ env_logger = { workspace = true }
 log = { workspace = true }
 
 eframe = { workspace = true }
+egui-components = { workspace = true }
 egui_extras = { workspace = true }
 egui_ltreeview = { workspace = true }
 rodio = { workspace = true }
+ttf-inter = { workspace = true }

@@ -1,5 +1,6 @@
 use bytesize::ByteSize;
 use eframe::egui::{self, RichText};
+use egui_components::scroll_area::ScrollArea;
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     resource::fnt::{Fnt, HEADER_LEN},
@@ -64,7 +65,7 @@ impl ResourceViewerTrait for FntViewer {
         });
 
         // ── Main scroll area ───────────────────────────────────────
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        ScrollArea::vertical().show(ui, |ui| {
             ui.add_space(8.0);
             self.show_struct_table(ui);
             ui.add_space(12.0);

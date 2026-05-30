@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use bytesize::ByteSize;
 use eframe::egui::{self, FontData, FontDefinitions, FontFamily, FontId, RichText};
+use egui_components::scroll_area::ScrollArea;
 use infinitier_core::{
     game::{DataOrigin, GameResource, ResourceId},
     resource::ttf::Ttf,
@@ -107,7 +108,7 @@ impl ResourceViewerTrait for TtfViewer {
         let family = self.active_family(ui.ctx());
 
         // ── Main content: header card + sample-text playground ─────
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        ScrollArea::vertical().show(ui, |ui| {
             self.show_header(ui, &family);
             ui.separator();
             self.show_sample_text(ui, &family);

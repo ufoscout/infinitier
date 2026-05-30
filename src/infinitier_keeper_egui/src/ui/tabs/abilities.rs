@@ -17,6 +17,7 @@
 use std::collections::HashMap;
 
 use eframe::egui;
+use egui_components::scroll_area::ScrollArea;
 use egui_components::{Card, Label, LabelTone, Select, Size};
 use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::Engine;
@@ -40,7 +41,7 @@ impl AbilitiesTab {
         };
         let engine = state.game_data.game().engine();
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        ScrollArea::vertical().show(ui, |ui| {
             ui.columns(3, |cols| {
                 ability_scores_card(&mut cols[0], &snapshot, state, editors, engine);
                 cols[0].add_space(8.0);

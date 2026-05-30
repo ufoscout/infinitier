@@ -1,5 +1,9 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
+use egui_components::button::Button;
+use egui_components::heading::{Heading, HeadingLevel};
+use egui_components::progress::Progress;
+use egui_components::{Label, Size};
 use infinitier_core::{
     game::{GameResource, ResourceId},
     imported_resource::sound::{SoundDecoder, SoundFormat, SoundInfo},
@@ -401,10 +405,41 @@ impl ResourceViewerTrait for SoundViewer {
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
             .show_inside(ui, |ui| {
+                // Vertically center the player cluster within the
+                // remaining space. The content height is bounded —
+                // title + spacers + bar + time + buttons — so a
+                // fixed estimate is enough to keep it centered without
+                // re-measuring per frame.
+                const CONTENT_HEIGHT: f32 = 170.0;
+                let top_pad = ((ui.available_height() - CONTENT_HEIGHT) * 0.5).max(0.0);
+                ui.add_space(top_pad);
+
                 ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-                    ui.add_space(24.0);
-                    ui.heading("Sound Player");
-                    ui.add_space(16.0);
+                    // `Heading` wraps its title in `ui.vertical(...)`, which
+                    // takes the parent's full width and so cancels
+                    // `top_down(Center)`'s horizontal centring. Until that
+                    // upstream quirk is fixed, allocate a tight container
+                    // sized to the title text so the parent centres it.
+                    // H2's font size is hardcoded in egui-components (24px);
+                    // measuring with the same `FontId::proportional` matches
+                    // exactly what Heading paints.
+                    const H2_FONT_SIZE: f32 = 24.0;
+                    let title = "Sound Player";
+                    let title_w = egui::WidgetText::from(title)
+                        .into_galley(
+                            ui,
+                            Some(egui::TextWrapMode::Extend),
+                            f32::INFINITY,
+                            egui::FontId::proportional(H2_FONT_SIZE),
+                        )
+                        .size()
+                        .x;
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(title_w, 0.0),
+                        egui::Layout::top_down(egui::Align::Center),
+                        |ui| ui.add(Heading::new(title).level(HeadingLevel::H2)),
+                    );
+                    ui.add_space(14.0);
 
                     if has_decode_error {
                         ui.colored_label(
@@ -422,43 +457,80 @@ impl ResourceViewerTrait for SoundViewer {
                         return;
                     }
 
-                    // ── Progress bar ──
+                    // ── Progress bar (thin pill) ──
                     let total_secs = duration.as_secs_f64();
                     let progress = if total_secs > 0.0 {
                         (pos.as_secs_f64() / total_secs).clamp(0.0, 1.0) as f32
                     } else {
                         0.0
                     };
+                    ui.add(Progress::new(progress).width(440.0).height(4.0));
+                    ui.add_space(10.0);
 
+                    // ── Time readout ──
                     ui.add(
-                        egui::ProgressBar::new(progress)
-                            .desired_width(420.0)
-                            .text(format!(
-                                "{} / {}",
-                                format_duration(pos),
-                                format_duration(duration)
-                            )),
+                        Label::new(format!(
+                            "{} / {}",
+                            format_duration(pos),
+                            format_duration(duration)
+                        ))
+                        .size(Size::Large),
                     );
                     ui.add_space(14.0);
 
-                    // ── Transport buttons (single Play/Pause toggle + Stop) ──
+                    // ── Transport buttons (Play/Pause toggle + Stop) ──
+                    // Centring trick: `Layout::left_to_right` ignores
+                    // `main_align` at widget-placement time, so the only
+                    // reliable way to centre a multi-widget row inside
+                    // the parent's `top_down(Center)` is to allocate a
+                    // tight container whose width equals the cluster's
+                    // actual width — the parent then centres that box.
+                    // We measure each button the same way `Button` does
+                    // internally: `font_size_sm` + `2 * button_padding_x_sm`.
+                    const BUTTON_SPACING: f32 = 10.0;
+                    let play_label = if is_playing {
+                        "⏸  Pause"
+                    } else {
+                        "▶  Play"
+                    };
+                    let stop_label = "■  Stop";
+                    let m = egui_components::theme::Theme::get(ui.ctx()).metrics;
+                    let btn_font = egui::FontId::proportional(Size::Small.font_size(&m));
+                    let btn_pad_x = Size::Small.button_padding_x(&m);
+                    let measure = |label: &str| -> f32 {
+                        egui::WidgetText::from(label)
+                            .into_galley(
+                                ui,
+                                Some(egui::TextWrapMode::Extend),
+                                f32::INFINITY,
+                                btn_font.clone(),
+                            )
+                            .size()
+                            .x
+                            + 2.0 * btn_pad_x
+                    };
+                    let row_w =
+                        measure(play_label) + BUTTON_SPACING + measure(stop_label);
+
                     ui.allocate_ui_with_layout(
-                        egui::vec2(220.0, 0.0),
+                        egui::vec2(row_w, 0.0),
                         egui::Layout::left_to_right(egui::Align::Center),
                         |ui| {
-                            let label = if is_playing {
-                                "⏸  Pause"
-                            } else {
-                                "▶  Play"
-                            };
+                            ui.spacing_mut().item_spacing.x = BUTTON_SPACING;
                             if ui
-                                .add_enabled(has_audio, egui::Button::new(label))
+                                .add_enabled(
+                                    has_audio,
+                                    Button::secondary(play_label).small(),
+                                )
                                 .clicked()
                             {
                                 click_play_pause = true;
                             }
                             if ui
-                                .add_enabled(has_audio, egui::Button::new("⏹  Stop"))
+                                .add_enabled(
+                                    has_audio,
+                                    Button::secondary(stop_label).small(),
+                                )
                                 .clicked()
                             {
                                 click_stop = true;

@@ -1,5 +1,6 @@
 use super::ResourceViewerTrait;
 use eframe::egui;
+use egui_components::heading::{Heading, HeadingLevel};
 use infinitier_core::{
     game::{GameResource, ResourceId},
     imported_resource::movie::{MovieDecoder, MovieFormat, MovieSource, MovieVideoFrame},
@@ -644,7 +645,7 @@ impl ResourceViewerTrait for MovieViewer {
                         let display_size = egui::vec2(width as f32 * scale, height as f32 * scale);
                         ui.add(egui::Image::new(tex).fit_to_exact_size(display_size));
                     } else {
-                        ui.heading("Movie Player");
+                        ui.add(Heading::new("Movie Player").level(HeadingLevel::H2));
                         ui.add_space(12.0);
                         ui.label(format!("{width}×{height}"));
                     }

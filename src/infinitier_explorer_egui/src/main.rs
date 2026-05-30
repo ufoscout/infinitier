@@ -80,7 +80,8 @@ fn main() {
         &title,
         options,
         Box::new(move |cc| {
-            infinitier_egui_common::theme::apply(&cc.egui_ctx, &infinitier_egui_common::theme::DARK);
+            install_inter_font(&cc.egui_ctx);
+            egui_components::theme::Theme::dark().install(&cc.egui_ctx);
 
             // On Linux/X11, winit reads xrandr physical dimensions (~189 DPI on HiDPI
             // laptops) rather than the X server's pre-configured DPI (~96 DPI), causing
@@ -109,4 +110,27 @@ fn main() {
     ) {
         eprintln!("Failed to run explorer: {e}");
     }
+}
+
+/// Replace egui's default proportional font (`Ubuntu-Light`, which
+/// looks washed out on a light background) with Inter — the same
+/// typeface shadcn / gpui-component use. Bytes come from the
+/// `ttf-inter` crate, so we're not adding any binary assets to this
+/// repo. egui's built-in fallback chain (emoji, monospace, the
+/// original Ubuntu-Light) stays in place for any glyph Inter
+/// doesn't cover.
+fn install_inter_font(ctx: &egui::Context) {
+    use std::sync::Arc;
+
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        "Inter".to_owned(),
+        Arc::new(egui::FontData::from_static(ttf_inter::REGULAR)),
+    );
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "Inter".to_owned());
+    ctx.set_fonts(fonts);
 }
