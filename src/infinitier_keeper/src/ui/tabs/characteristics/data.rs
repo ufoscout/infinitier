@@ -268,30 +268,29 @@ fn pretty(symbol: &str, sep: &str) -> String {
         .join(sep)
 }
 
-/// The "Miscellaneous" checkboxes, in EEKeeper's column-major order
-/// (left column top-to-bottom, then right column). Each entry is
-/// `(label, creature-flags bit)`.
+/// The eight "Miscellaneous" checkboxes, in EEKeeper's column-major
+/// order (left column top-to-bottom, then right column). Each entry
+/// is `(label, creature-flags bit)`.
 ///
-/// The four corpse/party/export bits are confirmed against the
-/// reference saves and IESDP/GemRB (`ie_stats.h`). The remaining
-/// Enhanced-Edition-specific bits are best-effort — their exact bit
-/// positions are not yet verified, so they may render incorrectly
-/// for saves that set them. (Deliberately none map to bit 0x400000,
-/// which the reference saves set on every party member without any
-/// EEKeeper checkbox lighting up.)
+/// Confirmed bits (IESDP / GemRB `ie_stats.h`, cross-checked against
+/// the reference saves): Exportable, Been In Party, No Corpse,
+/// Permanent Corpse, plus the two Enhanced-Edition "disabled" bits —
+/// `MC_NO_NIGHTMARE_MODS` (0x400000) and `MC_NO_TOOLTIPS` (0x800000).
+/// `Uninterruptible` is bit 0 (the EE "damage doesn't interrupt
+/// casting" reinterpretation) and `Identified` is bit 12; both are
+/// best-effort and may render incorrectly for creatures that set
+/// them.
 pub const MISC_FLAGS: &[(&str, u32)] = &[
     // left column
     ("Exportable", 0x0000_0800),
     ("Been In Party", 0x0000_8000),
-    ("Uninterruptible", 0x0001_0000),
-    ("Nightmare Mode", 0x0004_0000),
-    ("Disabled (Enhanced Edition)", 0x0010_0000),
+    ("Uninterruptible", 0x0000_0001),
+    ("Nightmare Mode Disabled (Enhanced Edition)", 0x0040_0000),
     // right column
     ("Identified", 0x0000_1000),
     ("No Corpse", 0x0000_0002),
     ("Permanent Corpse", 0x0000_0004),
-    ("ToMP Disabled", 0x0008_0000),
-    ("Enhanced", 0x0020_0000),
+    ("Tooltip Disabled (Enhanced Edition)", 0x0080_0000),
 ];
 
 #[cfg(test)]

@@ -116,15 +116,24 @@ fn miscellaneous_card(ui: &mut egui::Ui, data: &CharData) {
         .divider()
         .show(ui, |ui| {
             // EEKeeper lays the flags out in two columns: the first
-            // half of MISC_FLAGS down the left, the rest down the right.
+            // half of MISC_FLAGS down the left, the rest down the
+            // right. A grid (rather than `ui.columns`) lets the left
+            // column take whatever width its longest label needs so
+            // the wide EE labels don't overlap the right column.
             let mid = MISC_FLAGS.len().div_ceil(2);
-            ui.columns(2, |cols| {
-                for (i, (label, bit)) in MISC_FLAGS.iter().enumerate() {
-                    let col = if i < mid { &mut cols[0] } else { &mut cols[1] };
-                    read_only_check(col, label, data.flags & bit != 0);
-                    col.add_space(3.0);
-                }
-            });
+            egui::Grid::new("characteristics_misc_flags")
+                .num_columns(2)
+                .spacing([24.0, 4.0])
+                .show(ui, |ui| {
+                    for row in 0..mid {
+                        let (l_label, l_bit) = MISC_FLAGS[row];
+                        read_only_check(ui, l_label, data.flags & l_bit != 0);
+                        if let Some(&(r_label, r_bit)) = MISC_FLAGS.get(mid + row) {
+                            read_only_check(ui, r_label, data.flags & r_bit != 0);
+                        }
+                        ui.end_row();
+                    }
+                });
         });
 }
 
