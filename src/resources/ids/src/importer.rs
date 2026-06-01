@@ -1,3 +1,7 @@
+use std::borrow::Cow;
+use std::io::Read;
+
+use infinitier_common::resource::encryption;
 use infinitier_datasource::{DataSource, Importer};
 use log::debug;
 
@@ -12,7 +16,15 @@ impl Importer for IdsImporter<'_> {
     type T = Ids;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Ids> {
-        let mut reader = source.reader()?;
+
+        let mut raw = Vec::new();
+        source.reader()?.read_to_end(&mut raw)?;
+        
+        // Some IDs files are stored encrypted.
+        let decrypted = DataSource::new(encryption::decrypt(Cow::Owned(raw)).into_owned())
+                .with_encoding(source.encoding());
+
+        let mut reader = decrypted.reader()?;
         let mut entries = Vec::new();
 
         loop {
@@ -213,5 +225,79 @@ mod tests {
                 .unwrap_or_else(|e| panic!("cannot import {}: {e}", ids_path.display()));
             assert_eq!(actual, expected, "IDS mismatch for {}", ids_path.display());
         }
+    }
+
+    // ── Encrypted IDS (assets/IDS/encrypted/<game>/) ─────────────────
+    //
+    // Many stock IDS files are stored XOR-encrypted (IE 0xFFFF). The
+    // importer must transparently decrypt them. Each fixture below was
+    // extracted, still-encrypted, from a real install; importing it must
+    // yield a sensible table (multiple entries, all with plain-ASCII
+    // names). Before decryption support, these FAIL (the garbled bytes
+    // parse to ~no entries).
+
+    fn assert_encrypted_ids_decode(game_key: &str) {
+        let dir = get_assets_path()
+            .join("IDS")
+            .join("encrypted")
+            .join(game_key);
+        let mut checked = 0;
+        for entry in std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("read_dir {dir:?}: {e}")) {
+            let path = entry.unwrap().path();
+            if path
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(|e| e.eq_ignore_ascii_case("ids"))
+                != Some(true)
+            {
+                continue;
+            }
+            let file = path.file_name().unwrap().to_string_lossy().into_owned();
+            let ids = IdsImporter { name: &file }
+                .import(&DataSource::new(path.as_path()))
+                .unwrap_or_else(|e| panic!("{game_key}/{file}: import errored: {e}"));
+            assert!(
+                ids.entries.len() >= 2,
+                "{game_key}/{file}: only {} entries parsed — likely still encrypted",
+                ids.entries.len()
+            );
+            for e in &ids.entries {
+                assert!(
+                    !e.name.is_empty()
+                        && e.name
+                            .chars()
+                            .all(|c| c.is_ascii_graphic() || c == ' ' || c == '\t'),
+                    "{game_key}/{file}: garbled entry name {:?} — likely still encrypted",
+                    e.name
+                );
+            }
+            checked += 1;
+        }
+        assert!(checked > 0, "{game_key}: no encrypted IDS fixtures found");
+    }
+
+    #[test]
+    fn import_encrypted_ids_bg() {
+        assert_encrypted_ids_decode("bg");
+    }
+
+    #[test]
+    fn import_encrypted_ids_bg_ee() {
+        assert_encrypted_ids_decode("bg_ee");
+    }
+
+    #[test]
+    fn import_encrypted_ids_bg2() {
+        assert_encrypted_ids_decode("bg2");
+    }
+
+    #[test]
+    fn import_encrypted_ids_bg2_ee() {
+        assert_encrypted_ids_decode("bg2_ee");
+    }
+
+    #[test]
+    fn import_encrypted_ids_iwd_ee() {
+        assert_encrypted_ids_decode("iwd_ee");
     }
 }

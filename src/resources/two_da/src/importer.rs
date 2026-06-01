@@ -1,8 +1,11 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::io::Read;
 
 use itertools::{Itertools, chain};
 use log::{debug, warn};
 
+use infinitier_common::resource::encryption;
 use infinitier_datasource::{DataSource, Importer};
 
 use crate::TwoDA;
@@ -16,7 +19,14 @@ impl Importer for TwoDAImporter<'_> {
     type T = TwoDA;
 
     fn import(&self, source: &DataSource) -> std::io::Result<TwoDA> {
-        let mut reader = source.reader()?;
+        let mut raw = Vec::new();
+        source.reader()?.read_to_end(&mut raw)?;
+
+        // Some 2DAs are stored encrypted.
+        let decrypted = DataSource::new(encryption::decrypt(Cow::Owned(raw)).into_owned())
+                .with_encoding(source.encoding());
+
+        let mut reader = decrypted.reader()?;
 
         let signature = reader.read_line()?.0.trim().to_string();
 
@@ -329,5 +339,118 @@ mod tests {
                 "17".to_string()
             ])
         );
+    }
+
+    // ── Real-game ability 2DAs (assets/engine_caps/<key>/) ───────────
+    //
+    // Import the four ability-bonus tables `EngineCaps` consumes, from
+    // each BG install's extracted fixtures, and assert each parsed as a
+    // *proper* 2DA: it must carry at least one data row and one of the
+    // expected column headers. The classic `bg` fixtures are stored
+    // XOR-encrypted on disk (IE 0xFFFF signature), which this importer
+    // does NOT decrypt, so `import_bg_ability_2das` is EXPECTED TO FAIL
+    // until 2DA decryption is implemented.
+
+    /// `(file, any-of expected column names)` — the same columns
+    /// `EngineCaps` searches for in each table.
+    const ABILITY_2DAS: &[(&str, &[&str])] = &[
+        ("STRMOD.2DA", &["STR_BONUS_TO_HIT", "TO_HIT"]),
+        ("STRMODEX.2DA", &["STR_BONUS_TO_HIT", "TO_HIT"]),
+        ("DEXMOD.2DA", &["AC_ADJ", "ACMOD", "AC"]),
+        ("HPCONBON.2DA", &["HP_BONUS", "HPCONBON", "OTHER"]),
+    ];
+
+    fn assert_ability_2das_import_properly(game_key: &str) {
+        let dir = get_assets_path().join("engine_caps").join(game_key);
+        let mut checked = 0;
+        for (file, expected_cols) in ABILITY_2DAS {
+            let path = dir.join(file);
+            // Some games legitimately don't ship every table — e.g. IWD2
+            // (d20) has no DEXMOD.2DA. Skip files that weren't extracted.
+            if !path.exists() {
+                continue;
+            }
+            checked += 1;
+            let two_da = TwoDAImporter { name: file }
+                .import(&DataSource::new(path.as_path()))
+                .unwrap_or_else(|e| panic!("{game_key}/{file}: import errored: {e}"));
+            assert!(
+                !two_da.rows.is_empty(),
+                "{game_key}/{file}: parsed no data rows (likely encrypted/garbled)"
+            );
+            let has_col = expected_cols
+                .iter()
+                .any(|c| two_da.headers.iter().any(|h| h.eq_ignore_ascii_case(c)));
+            assert!(
+                has_col,
+                "{game_key}/{file}: headers {:?} contain none of {:?} (likely encrypted/garbled)",
+                two_da.headers, expected_cols
+            );
+            // These ability tables are score-indexed, so every row key is a
+            // number. If most keys don't parse as integers the rows were
+            // mis-split — e.g. the importer slices by header byte-offset but
+            // the data rows are tab-delimited (IWD / IWD2).
+            let numeric_keys = two_da
+                .rows
+                .keys()
+                .filter(|k| k.trim().parse::<i64>().is_ok())
+                .count();
+            assert!(
+                numeric_keys * 2 >= two_da.rows.len(),
+                "{game_key}/{file}: only {}/{} row keys are numeric — rows likely mis-split \
+                 (tab-delimited?); sample keys: {:?}",
+                numeric_keys,
+                two_da.rows.len(),
+                two_da.rows.keys().take(3).collect::<Vec<_>>()
+            );
+        }
+        assert!(checked > 0, "{game_key}: no ability 2DA fixtures found");
+    }
+
+    #[test]
+    fn import_bg_ability_2das() {
+        // EXPECTED TO FAIL: classic BG ships these 2DAs XOR-encrypted.
+        assert_ability_2das_import_properly("bg");
+    }
+
+    #[test]
+    fn import_bg_ee_ability_2das() {
+        assert_ability_2das_import_properly("bg_ee");
+    }
+
+    #[test]
+    fn import_bg2_ability_2das() {
+        assert_ability_2das_import_properly("bg2");
+    }
+
+    #[test]
+    fn import_bg2_ee_ability_2das() {
+        assert_ability_2das_import_properly("bg2_ee");
+    }
+
+    #[test]
+    fn import_iwd_ability_2das() {
+        assert_ability_2das_import_properly("iwd");
+    }
+
+    #[test]
+    fn import_iwd_ee_ability_2das() {
+        assert_ability_2das_import_properly("iwd_ee");
+    }
+
+    #[test]
+    fn import_iwd2_ability_2das() {
+        // IWD2 (d20) ships no DEXMOD.2DA — the helper skips the absent file.
+        assert_ability_2das_import_properly("iwd2");
+    }
+
+    #[test]
+    fn import_pst_ability_2das() {
+        assert_ability_2das_import_properly("pst");
+    }
+
+    #[test]
+    fn import_pst_ee_ability_2das() {
+        assert_ability_2das_import_properly("pst_ee");
     }
 }

@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub mod encryption;
+
 /// A Resource file type
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceType {

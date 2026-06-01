@@ -569,4 +569,109 @@ mod tests {
         let t = BonusTable::from_two_da(&two_da, "BONUS").unwrap();
         assert!(t.is_empty());
     }
+
+    // ── Building EngineCaps from real extracted 2DAs ─────────────────
+    //
+    // `assets/engine_caps/<key>/` holds STRMOD/STRMODEX/DEXMOD/HPCONBON
+    // extracted from each BG install. `EngineCaps::new` must resolve and
+    // parse all four into non-empty bonus tables. The classic `bg`
+    // fixtures are stored XOR-encrypted on disk, which the 2DA importer
+    // does not decrypt — so the tables come back empty and
+    // `EngineCaps::new` errors. Hence `engine_caps_builds_from_bg` is
+    // EXPECTED TO FAIL until 2DA decryption is implemented.
+
+    /// Build a [`GameData`] from the extracted fixtures in
+    /// `assets/engine_caps/<game_key>/`, tagged with `game`.
+    fn fixture_game_data(game_key: &str, game: infinitier_common::Game) -> GameData {
+        use crate::game::{DataOrigin, GameResource};
+        use infinitier_datasource::DataSource;
+        use infinitier_test_utils::get_assets_path;
+
+        let dir = get_assets_path().join("engine_caps").join(game_key);
+        let mut resources = Vec::new();
+        for entry in std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("read_dir {dir:?}: {e}")) {
+            let path = entry.unwrap().path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+                continue;
+            };
+            let Some(rtype) = ResourceType::from_extension(&ext.to_ascii_lowercase()) else {
+                continue;
+            };
+            let name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap()
+                .to_ascii_lowercase();
+            resources.push(GameResource {
+                game_type: game,
+                name,
+                r#type: rtype,
+                file_size: path.metadata().ok().map(|m| m.len()),
+                datasource: Some(DataSource::new(path.as_path())),
+                data_origin: DataOrigin::Missing,
+            });
+        }
+        GameData::new(resources, game, infinitier_fs::CaseInsensitiveFS::empty())
+    }
+
+    #[test]
+    fn engine_caps_builds_from_bg() {
+        // EXPECTED TO FAIL: classic BG's 2DAs are XOR-encrypted, so the
+        // importer yields empty tables and EngineCaps::new errors.
+        let result = EngineCaps::new(&fixture_game_data("bg", infinitier_common::Game::Bg));
+        assert!(result.is_ok(), "EngineCaps should build from bg fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_bg_ee() {
+        let result = EngineCaps::new(&fixture_game_data("bg_ee", infinitier_common::Game::Bgee));
+        assert!(result.is_ok(), "EngineCaps should build from bg_ee fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_bg2() {
+        let result = EngineCaps::new(&fixture_game_data("bg2", infinitier_common::Game::Bg2));
+        assert!(result.is_ok(), "EngineCaps should build from bg2 fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_bg2_ee() {
+        let result = EngineCaps::new(&fixture_game_data("bg2_ee", infinitier_common::Game::Bg2ee));
+        assert!(result.is_ok(), "EngineCaps should build from bg2_ee fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_iwd() {
+        let result = EngineCaps::new(&fixture_game_data("iwd", infinitier_common::Game::Iwd));
+        assert!(result.is_ok(), "EngineCaps should build from iwd fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_iwd_ee() {
+        let result = EngineCaps::new(&fixture_game_data("iwd_ee", infinitier_common::Game::Iwdee));
+        assert!(result.is_ok(), "EngineCaps should build from iwd_ee fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_iwd2() {
+        // IWD2 is d20: EngineCaps::new skips the 2DA loads entirely, so it
+        // builds even though IWD2 ships no DEXMOD.2DA.
+        let result = EngineCaps::new(&fixture_game_data("iwd2", infinitier_common::Game::Iwd2));
+        assert!(result.is_ok(), "EngineCaps should build from iwd2 fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_pst() {
+        let result = EngineCaps::new(&fixture_game_data("pst", infinitier_common::Game::Pst));
+        assert!(result.is_ok(), "EngineCaps should build from pst fixtures: {:?}", result.err());
+    }
+
+    #[test]
+    fn engine_caps_builds_from_pst_ee() {
+        let result = EngineCaps::new(&fixture_game_data("pst_ee", infinitier_common::Game::Pstee));
+        assert!(result.is_ok(), "EngineCaps should build from pst_ee fixtures: {:?}", result.err());
+    }
 }

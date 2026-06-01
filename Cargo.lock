@@ -2437,6 +2437,7 @@ dependencies = [
 name = "infinitier_ids_resource"
 version = "0.0.7"
 dependencies = [
+ "infinitier_common",
  "infinitier_datasource",
  "infinitier_test_utils",
  "log",
@@ -2646,6 +2647,7 @@ dependencies = [
 name = "infinitier_two_da_resource"
 version = "0.0.7"
 dependencies = [
+ "infinitier_common",
  "infinitier_datasource",
  "infinitier_fs",
  "infinitier_test_utils",
