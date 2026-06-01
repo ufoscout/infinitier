@@ -134,7 +134,13 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
     let game: Game = state.game_data.game();
     match active.selected_tab {
         CharacterTab::Abilities => unreachable!(),
-        CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, gam, game),
+        // Characteristics resolves IDS-backed names (class / race /
+        // kit / …) and the strongest-kill strref, so it needs
+        // `game_data`; the kill statistics live in the GAM party
+        // slot's raw struct, so it also takes `member`.
+        CharacterTab::Characteristics => {
+            CharacteristicsTab.show(ui, cre, member, &state.game_data)
+        }
         CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
         CharacterTab::Inventory => InventoryTab.show(ui, cre, gam, game),
         CharacterTab::Memorization => MemorizationTab.show(ui, cre, gam, game),
