@@ -7,7 +7,7 @@ authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
 publish = false
-description = "Xilem port of the Infinitier save-game keeper (read-only, architecture study)."
+description = "Xilem port of the Infinitier save-game keeper (abilities editing + save)."
 
 [dependencies]
 infinitier_core = { workspace = true }
@@ -18,3 +18,6 @@ log = { workspace = true }
 
 xilem = { workspace = true }
 xilem_components = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

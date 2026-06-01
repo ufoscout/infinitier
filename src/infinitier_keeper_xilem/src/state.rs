@@ -2,30 +2,43 @@
 //! framework-agnostic (only `infinitier_core` + the theme). The Xilem
 //! `app_logic` takes `&mut AppState` and rebuilds the view from it.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::gam::ImportedGam;
 
+use crate::fields::EditableField;
 use crate::tabs::CharacterTab;
 
 /// Top-level keeper state.
 pub struct AppState {
     pub game_data: GameData,
-    #[allow(dead_code)] // kept for parity / future effective-bonus rows
+    /// Cap ranges + 2DA bonus tables; consulted when clamping edits.
     pub engine_caps: EngineCaps,
     pub tabs: Vec<SaveTab>,
     pub active_tab: usize,
     /// Dark-mode flag. `app_logic` derives the [`xilem_components::Theme`]
     /// from this each pass, so toggling the theme is just flipping a bool.
     pub dark: bool,
+    /// In-flight text per editable abilities-tab field. Refreshed from
+    /// the active CRE/GAM whenever the bound `(save tab, party slot)`
+    /// changes; each text input writes its raw string here on every
+    /// keystroke and commits (parse + clamp + write-back) on Enter.
+    pub editors: HashMap<EditableField, String>,
+    /// The `(active_tab, selected_party_index)` the `editors` buffers were
+    /// last filled for. `None` forces a refresh on the next pass.
+    pub editors_bound_to: Option<(usize, Option<usize>)>,
+    /// Last Save outcome, surfaced in the header bar.
+    pub status: Option<String>,
 }
 
 /// Per-save state for one open save game.
 pub struct SaveTab {
     pub save_name: String,
-    #[allow(dead_code)] // kept for parity with the egui keeper's save action
+    /// Absolute path of the open save folder; the Save action writes a
+    /// sibling `<name> (Edited NNNN)` folder next to it.
     pub save_folder_path: PathBuf,
     pub save: Box<ImportedGam>,
     pub selected_party_index: Option<usize>,
@@ -51,6 +64,9 @@ impl AppState {
             tabs: vec![tab],
             active_tab: 0,
             dark: false,
+            editors: HashMap::new(),
+            editors_bound_to: None,
+            status: None,
         }
     }
 

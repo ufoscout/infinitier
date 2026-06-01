@@ -15,6 +15,10 @@ use xilem::{AnyWidgetView, FontWeight, WidgetView};
 
 use crate::theme::Theme;
 
+/// Combo box / select — re-exported here so it lives alongside the other
+/// `view`-module components (`xc::select`). See [`crate::select`].
+pub use crate::select::select;
+
 fn px(v: f32) -> Length {
     Length::px(v as f64)
 }

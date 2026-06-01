@@ -1,11 +1,12 @@
-//! Read-only field enumeration for the Abilities tab.
+//! Field enumeration + read/write for the Abilities tab.
 //!
-//! This is the read-only half of the egui keeper's `editable_fields`:
-//! the same [`EditableField`] enum, [`Section`] grouping, per-version
-//! `label` / `is_visible`, and a `read_text` that formats the current
-//! value for display. The write/commit/clamp plumbing is intentionally
-//! dropped — this port is read-only.
+//! Mirrors the egui keeper's `editable_fields`: the same
+//! [`EditableField`] enum, [`Section`] grouping, per-version `label` /
+//! `is_visible`, a `read_text` that formats the current value, and the
+//! parse + clamp + write-back helpers (`write_clamped_cre` /
+//! `write_clamped_gam`) the Xilem editing path commits through.
 
+use infinitier_core::engine_caps::{AbilityRange, EngineCaps};
 use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::cre::Cre;
 
@@ -264,6 +265,244 @@ impl EditableField {
                 .unwrap_or_default(),
         }
     }
+
+    /// `true` when the value lives on the party-wide GAM rather than on
+    /// the per-character CRE.
+    pub fn is_gam_field(self) -> bool {
+        matches!(self, Self::Reputation | Self::PartyGold)
+    }
+
+    /// Parse `raw`, clamp through the engine caps, and write to `cre`.
+    /// No-op on GAM-side fields (use [`Self::write_clamped_gam`]).
+    pub fn write_clamped_cre(self, cre: &mut Cre, raw: &str, caps: &EngineCaps) {
+        match self {
+            Self::Strength => {
+                write_u8(raw, caps.ability_score, cre.strength(), |v| cre.set_strength(v))
+            }
+            Self::StrengthPct => write_u8(
+                raw,
+                caps.strength_percentile,
+                cre.strength_bonus().unwrap_or(0),
+                |v| cre.set_strength_bonus(v),
+            ),
+            Self::Dexterity => {
+                write_u8(raw, caps.ability_score, cre.dexterity(), |v| cre.set_dexterity(v))
+            }
+            Self::Constitution => write_u8(raw, caps.ability_score, cre.constitution(), |v| {
+                cre.set_constitution(v)
+            }),
+            Self::Intelligence => write_u8(raw, caps.ability_score, cre.intelligence(), |v| {
+                cre.set_intelligence(v)
+            }),
+            Self::Wisdom => {
+                write_u8(raw, caps.ability_score, cre.wisdom(), |v| cre.set_wisdom(v))
+            }
+            Self::Charisma => {
+                write_u8(raw, caps.ability_score, cre.charisma(), |v| cre.set_charisma(v))
+            }
+            Self::Thac0 => write_i8(raw, caps.thac0, cre_fields::thac0_or_bab(cre), |v| {
+                cre_fields::set_thac0_or_bab(cre, v)
+            }),
+            // Attacks is stored as one of the documented bytes; the
+            // editable text is the player-facing label ("1.5"), so we map
+            // it back. An unrecognised label is ignored (leaves the value).
+            Self::Attacks => {
+                if let Some(byte) = AttacksOption::byte_for_label(raw.trim()) {
+                    cre_fields::set_attacks_byte(cre, byte);
+                }
+            }
+            Self::Fatigue => write_u8(raw, caps.fatigue, cre_fields::fatigue(cre), |v| {
+                cre_fields::set_fatigue(cre, v)
+            }),
+            Self::Intoxication => {
+                write_u8(raw, caps.intoxication, cre_fields::intoxication(cre), |v| {
+                    cre_fields::set_intoxication(cre, v)
+                })
+            }
+            Self::Luck => {
+                write_u8(raw, caps.luck, cre_fields::luck(cre), |v| cre_fields::set_luck(cre, v))
+            }
+            Self::Level1 => {
+                let current = cre_fields::level_first_class(cre).unwrap_or(0);
+                write_u8(raw, caps.class_level, current, |v| {
+                    cre_fields::set_level_first_class(cre, v)
+                })
+            }
+            Self::Level2 => {
+                let current = cre_fields::level_second_class(cre).unwrap_or(0);
+                write_u8(raw, caps.class_level, current, |v| {
+                    cre_fields::set_level_second_class(cre, v)
+                })
+            }
+            Self::Level3 => {
+                let current = cre_fields::level_third_class(cre).unwrap_or(0);
+                write_u8(raw, caps.class_level, current, |v| {
+                    cre_fields::set_level_third_class(cre, v)
+                })
+            }
+            Self::Morale => {
+                let current = cre_fields::morale(cre).unwrap_or(0);
+                write_u8(raw, caps.morale, current, |v| cre_fields::set_morale(cre, v))
+            }
+            Self::MoraleBreak => {
+                let current = cre_fields::morale_break(cre).unwrap_or(0);
+                write_u8(raw, caps.morale_break, current, |v| {
+                    cre_fields::set_morale_break(cre, v)
+                })
+            }
+            Self::HideInShadows => {
+                let current = cre_fields::hide_in_shadows(cre).unwrap_or(0);
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_hide_in_shadows(cre, v)
+                })
+            }
+            Self::MoveSilently => {
+                write_u8(raw, caps.thief_skill, cre_fields::move_silently(cre), |v| {
+                    cre_fields::set_move_silently(cre, v)
+                })
+            }
+            Self::Lockpicking => {
+                let current = cre_fields::lockpicking(cre).unwrap_or(0);
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_lockpicking(cre, v)
+                })
+            }
+            Self::FindTraps => {
+                let current = cre_fields::find_traps(cre).unwrap_or(0);
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_find_traps(cre, v)
+                })
+            }
+            Self::SetTraps => {
+                let current = cre_fields::set_traps(cre).unwrap_or(0);
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_set_traps(cre, v)
+                })
+            }
+            Self::PickPockets => {
+                let current = cre_fields::pick_pockets(cre).unwrap_or(0);
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_pick_pockets(cre, v)
+                })
+            }
+            Self::DetectIllusion => {
+                let current = cre_fields::detect_illusion(cre).unwrap_or(0);
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_detect_illusion(cre, v)
+                })
+            }
+            Self::Lore => {
+                let current = cre_fields::lore(cre).unwrap_or(0);
+                write_u8(raw, caps.lore, current, |v| cre_fields::set_lore(cre, v))
+            }
+            Self::CurrentHp => write_u16(
+                raw,
+                caps.current_hit_points,
+                cre_fields::current_hit_points(cre),
+                |v| cre_fields::set_current_hit_points(cre, v),
+            ),
+            Self::MaxHp => write_u16(
+                raw,
+                caps.max_hit_points,
+                cre_fields::max_hit_points(cre),
+                |v| cre_fields::set_max_hit_points(cre, v),
+            ),
+            Self::MoraleRecovery => {
+                let current = cre_fields::morale_recovery(cre).unwrap_or(0);
+                write_u16(raw, caps.morale_recovery, current, |v| {
+                    cre_fields::set_morale_recovery(cre, v)
+                })
+            }
+            Self::AcNatural => {
+                write_i16(raw, caps.armor_class, cre_fields::ac_natural(cre), |v| {
+                    cre_fields::set_ac_natural(cre, v)
+                })
+            }
+            Self::AcEffective => {
+                let current = cre_fields::ac_effective(cre).unwrap_or(0);
+                write_i16(raw, caps.armor_class, current, |v| {
+                    cre_fields::set_ac_effective(cre, v)
+                })
+            }
+            Self::Experience => {
+                write_u32(raw, caps.experience, cre_fields::experience(cre), |v| {
+                    cre_fields::set_experience(cre, v)
+                })
+            }
+            Self::XpForKill => {
+                write_u32(raw, caps.xp_for_kill, cre_fields::xp_for_kill(cre), |v| {
+                    cre_fields::set_xp_for_kill(cre, v)
+                })
+            }
+            // GAM-side fields go through `write_clamped_gam`.
+            Self::Reputation | Self::PartyGold => {}
+        }
+    }
+
+    /// Parse + clamp + write to the party-wide GAM (reputation / gold).
+    pub fn write_clamped_gam(self, gam: &mut ImportedGam, raw: &str, caps: &EngineCaps) {
+        match self {
+            Self::Reputation => write_u32(
+                raw,
+                caps.reputation,
+                cre_fields::party_reputation(gam),
+                |v| cre_fields::set_party_reputation(gam, v),
+            ),
+            Self::PartyGold => {
+                write_u32(raw, caps.party_gold, cre_fields::party_gold(gam), |v| {
+                    cre_fields::set_party_gold(gam, v)
+                })
+            }
+            _ => {}
+        }
+    }
+}
+
+// ── Type-specific parse / clamp / write helpers ───────────────────────
+
+fn write_u8<F: FnOnce(u8)>(raw: &str, range: AbilityRange<u8>, current: u8, write: F) {
+    let parsed = raw
+        .trim()
+        .parse::<u32>()
+        .map(|n| n.min(u8::MAX as u32) as u8)
+        .unwrap_or(current);
+    write(range.clamp(parsed));
+}
+
+fn write_i8<F: FnOnce(i8)>(raw: &str, range: AbilityRange<i8>, current: i8, write: F) {
+    let parsed = raw
+        .trim()
+        .parse::<i32>()
+        .map(|n| n.clamp(i8::MIN as i32, i8::MAX as i32) as i8)
+        .unwrap_or(current);
+    write(range.clamp(parsed));
+}
+
+fn write_u16<F: FnOnce(u16)>(raw: &str, range: AbilityRange<u16>, current: u16, write: F) {
+    let parsed = raw
+        .trim()
+        .parse::<u32>()
+        .map(|n| n.min(u16::MAX as u32) as u16)
+        .unwrap_or(current);
+    write(range.clamp(parsed));
+}
+
+fn write_i16<F: FnOnce(i16)>(raw: &str, range: AbilityRange<i16>, current: i16, write: F) {
+    let parsed = raw
+        .trim()
+        .parse::<i32>()
+        .map(|n| n.clamp(i16::MIN as i32, i16::MAX as i32) as i16)
+        .unwrap_or(current);
+    write(range.clamp(parsed));
+}
+
+fn write_u32<F: FnOnce(u32)>(raw: &str, range: AbilityRange<u32>, current: u32, write: F) {
+    let parsed = raw
+        .trim()
+        .parse::<u64>()
+        .map(|n| n.min(u32::MAX as u64) as u32)
+        .unwrap_or(current);
+    write(range.clamp(parsed));
 }
 
 /// Attacks-per-round byte → player-facing label, mirroring the egui
@@ -291,5 +530,29 @@ impl AttacksOption {
             .find(|(b, _)| *b == byte)
             .map(|(_, l)| (*l).to_string())
             .unwrap_or_else(|| format!("? ({byte})"))
+    }
+
+    /// Inverse of [`Self::label_for_byte`]: map a player-facing label
+    /// ("1.5") back to its on-disk byte. `None` for unrecognised input.
+    pub fn byte_for_label(label: &str) -> Option<u8> {
+        Self::TABLE
+            .iter()
+            .find(|(_, l)| *l == label)
+            .map(|(b, _)| *b)
+    }
+
+    /// All player-facing labels, in dropdown order (combo box options).
+    pub fn labels() -> Vec<String> {
+        Self::TABLE.iter().map(|(_, l)| (*l).to_string()).collect()
+    }
+
+    /// The dropdown index showing `byte`, or `None` if undocumented.
+    pub fn index_for_byte(byte: u8) -> Option<usize> {
+        Self::TABLE.iter().position(|(b, _)| *b == byte)
+    }
+
+    /// The on-disk byte for dropdown index `idx`.
+    pub fn byte_for_index(idx: usize) -> Option<u8> {
+        Self::TABLE.get(idx).map(|(b, _)| *b)
     }
 }

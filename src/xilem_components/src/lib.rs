@@ -5,6 +5,7 @@
 //! [`Theme`] and applies it through Xilem's `Style` properties, so the
 //! visual design is a one-place change in a later step.
 
+pub mod select;
 pub mod theme;
 pub mod view;
 

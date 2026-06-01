@@ -2468,6 +2468,7 @@ dependencies = [
  "env_logger",
  "infinitier_core",
  "log",
+ "tempfile",
  "xilem",
  "xilem_components",
 ]

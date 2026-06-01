@@ -25,10 +25,6 @@ use crate::state::AppState;
 /// File extensions a save folder ships. Case-insensitive on disk.
 const SAVE_FILE_EXTS: &[&str] = &["sav", "gam", "bmp", "wmp"];
 
-/// Maximum number of `(Edited NNNN)` slots the suggester will probe
-/// before giving up.
-const MAX_EDITED_SLOT: u32 = 9999;
-
 /// Owned state for the Save dialog. Lives on `KeeperApp` so a single
 /// instance survives across frames (egui's immediate-mode flow means
 /// the dialog state — text buffer, error, open flag — must be held
@@ -172,15 +168,11 @@ fn attempt_export(
     }
 }
 
-/// Find the first free `<current> (Edited NNNN)` slot in `parent`.
+/// Suggest the next free `<base> (Edited NNNN)` folder name in `parent`.
+/// Delegates to the shared `next_edited_save_name`, which increments an
+/// existing `(Edited NNNN)` suffix instead of nesting another one.
 pub fn suggest_save_name(current: &str, parent: &Path) -> String {
-    for n in 1..=MAX_EDITED_SLOT {
-        let candidate = format!("{current} (Edited {:04})", n);
-        if !parent.join(&candidate).exists() {
-            return candidate;
-        }
-    }
-    format!("{current} (Edited)")
+    next_edited_save_name(current, |name| parent.join(name).exists())
 }
 
 /// Create `parent/name/`, then copy every `.sav` / `.gam` / `.bmp` /
@@ -262,6 +254,52 @@ pub fn perform_save_export(
     Ok(dest)
 }
 
+/// Maximum `(Edited NNNN)` slots probed by [`next_edited_save_name`].
+const MAX_EDITED_SLOT: u32 = 9999;
+
+/// Suggest the next free `<base> (Edited NNNN)` save name derived from
+/// `current`, using `exists(name)` to skip names already taken.
+///
+/// If `current` already ends in a ` (Edited NNNN)` suffix, that suffix is
+/// stripped to recover the base name and the search starts just past its
+/// number — so re-saving `000000000-Auto-Save (Edited 0002)` yields
+/// `000000000-Auto-Save (Edited 0003)`, not
+/// `000000000-Auto-Save (Edited 0002) (Edited 0001)`. With no such suffix
+/// the search starts at `0001`.
+pub fn next_edited_save_name(current: &str, exists: impl Fn(&str) -> bool) -> String {
+    let (base, existing) = split_edited_suffix(current);
+    let start = existing.map(|n| n.saturating_add(1)).unwrap_or(1);
+    for n in start..=MAX_EDITED_SLOT {
+        let candidate = format!("{base} (Edited {n:04})");
+        if !exists(&candidate) {
+            return candidate;
+        }
+    }
+    format!("{base} (Edited)")
+}
+
+/// Split a trailing ` (Edited <N>)` suffix off `name`, returning the base
+/// name and the parsed number. `(name, None)` when there's no such suffix
+/// (or its number doesn't parse).
+fn split_edited_suffix(name: &str) -> (&str, Option<u32>) {
+    const PREFIX: &str = " (Edited ";
+    let Some(inner) = name.strip_suffix(')') else {
+        return (name, None);
+    };
+    // `rfind` so the *last* suffix wins if the base also contains one.
+    let Some(idx) = inner.rfind(PREFIX) else {
+        return (name, None);
+    };
+    let digits = &inner[idx + PREFIX.len()..];
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return (name, None);
+    }
+    match digits.parse::<u32>() {
+        Ok(n) => (&inner[..idx], Some(n)),
+        Err(_) => (name, None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,6 +321,15 @@ mod tests {
         assert_eq!(
             suggest_save_name("Quick", dir.path()),
             "Quick (Edited 0001)"
+        );
+    }
+
+    #[test]
+    fn suggest_save_name_for_already_edited() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(
+            suggest_save_name("Quick (Edited 0001)", dir.path()),
+            "Quick (Edited 0002)"
         );
     }
 
@@ -310,6 +357,64 @@ mod tests {
                 "PORTRT0.bmp".to_string(),
                 "WORLDMAP.WMP".to_string(),
             ],
+        );
+    }
+
+        #[test]
+    fn split_edited_suffix_recognises_and_rejects() {
+        assert_eq!(split_edited_suffix("Foo (Edited 0002)"), ("Foo", Some(2)));
+        assert_eq!(split_edited_suffix("Quick-Save"), ("Quick-Save", None));
+        // Empty / non-numeric digit field → not a suffix.
+        assert_eq!(split_edited_suffix("Foo (Edited )"), ("Foo (Edited )", None));
+        assert_eq!(split_edited_suffix("Foo (Edited abc)"), ("Foo (Edited abc)", None));
+        // A base that itself contains an (Edited) — the last one is the suffix.
+        assert_eq!(
+            split_edited_suffix("A (Edited 0001) (Edited 0002)"),
+            ("A (Edited 0001)", Some(2))
+        );
+    }
+
+    #[test]
+    fn next_edited_appends_when_no_suffix() {
+        assert_eq!(
+            next_edited_save_name("Quick-Save", |_| false),
+            "Quick-Save (Edited 0001)"
+        );
+    }
+
+    #[test]
+    fn next_edited_skips_taken_slots() {
+        let taken: std::collections::HashSet<&str> =
+            ["Quick-Save (Edited 0001)", "Quick-Save (Edited 0002)"]
+                .into_iter()
+                .collect();
+        assert_eq!(
+            next_edited_save_name("Quick-Save", |n| taken.contains(n)),
+            "Quick-Save (Edited 0003)"
+        );
+    }
+
+    #[test]
+    fn next_edited_increments_existing_suffix_instead_of_nesting() {
+        // The reported bug: current name already carries `(Edited 0002)`.
+        let existing: std::collections::HashSet<&str> = [
+            "000000000-Auto-Save (Edited 0001)",
+            "000000000-Auto-Save (Edited 0002)",
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            next_edited_save_name("000000000-Auto-Save (Edited 0002)", |n| existing.contains(n)),
+            "000000000-Auto-Save (Edited 0003)"
+        );
+    }
+
+    #[test]
+    fn next_edited_starts_past_current_number() {
+        // From `(Edited 0005)` the next is `0006`, even when lower slots are free.
+        assert_eq!(
+            next_edited_save_name("Quick-Save (Edited 0005)", |_| false),
+            "Quick-Save (Edited 0006)"
         );
     }
 
