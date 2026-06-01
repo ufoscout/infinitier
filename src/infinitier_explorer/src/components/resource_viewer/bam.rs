@@ -185,6 +185,22 @@ impl ResourceViewerTrait for BamViewer {
         egui::Panel::bottom("bam_selector_panel").show_inside(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
+                // Force every control in this toolbar to one uniform
+                // height. A plain horizontal row with mixed-height widgets
+                // (the cycle combo and the slider's value box render a few
+                // px taller than a plain button) makes egui's centred
+                // layout place each successive widget slightly lower — a
+                // visible vertical "staircase". Pinning `interact_size.y`
+                // to a height that clears the tallest control snaps the
+                // button, combo, slider and value box to the same height,
+                // so they all centre on one line. The value is the egui
+                // button-height floor (text + vertical padding) plus a 2px
+                // margin to clear the combo/slider; it's robust across
+                // pixels_per_point (1.0–2.0) since it's expressed in points.
+                ui.spacing_mut().interact_size.y = ui.spacing().interact_size.y.max(
+                    ui.text_style_height(&egui::TextStyle::Button)
+                        + 2.0 * ui.spacing().button_padding.y,
+                ) + 2.0;
                 let is_playing = self.playback.is_some();
                 let can_play = self.frames_in_selected_cycle() > 1;
                 let label = if is_playing {
