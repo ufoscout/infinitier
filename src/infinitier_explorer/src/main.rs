@@ -77,7 +77,7 @@ fn main() {
         options,
         Box::new(move |cc| {
             install_inter_font(&cc.egui_ctx);
-            egui_components::theme::Theme::dark().install(&cc.egui_ctx);
+            egui_components::theme::Theme::light().install(&cc.egui_ctx);
 
             // On Linux/X11, winit reads xrandr physical dimensions (~189 DPI on HiDPI
             // laptops) rather than the X server's pre-configured DPI (~96 DPI), causing
