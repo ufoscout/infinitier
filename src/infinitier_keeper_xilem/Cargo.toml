@@ -1,0 +1,20 @@
+[package]
+name = "infinitier_keeper_xilem"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+description = "Xilem port of the Infinitier save-game keeper (read-only, architecture study)."
+
+[dependencies]
+infinitier_core = { workspace = true }
+
+clap = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+
+xilem = { workspace = true }
+xilem_components = { workspace = true }

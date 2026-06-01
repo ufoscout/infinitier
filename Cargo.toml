@@ -6,6 +6,8 @@ members = [
     "src/datasource",
     "src/infinitier_explorer",
     "src/infinitier_keeper",
+    "src/infinitier_keeper_xilem",
+    "src/xilem_components",
     "src/fs",
     "src/test_utils",
     "src/resources/*",
@@ -117,6 +119,12 @@ egui-components = { git = "https://github.com/ufoscout/egui-components", branch 
 # crate's Cargo features (`regular`, `bold`, `medium`, …) — only
 # one may be enabled at a time; the constant name stays the same.
 ttf-inter = { version = "0.1", default-features = false, features = ["regular"] }
+
+# Xilem (experimental Rust-native retained-mode UI). Pinned to git main per
+# the keeper-xilem port; the released 0.4 predates the cascading-property /
+# runtime-default-theme work this port relies on.
+xilem = { git = "https://github.com/linebender/xilem", branch = "main" }
+xilem_components = { path = "src/xilem_components", version = "0.0.7" }
 
 
 [profile.dev]

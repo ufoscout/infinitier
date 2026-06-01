@@ -1,0 +1,13 @@
+[package]
+name = "xilem_components"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+description = "Minimal, styleable/themeable Xilem component set (shadcn-ish), modelled on egui-components — only what infinitier_keeper_xilem needs."
+
+[dependencies]
+xilem = { workspace = true }
