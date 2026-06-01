@@ -186,24 +186,66 @@ pub struct EngineCaps {
 const SHARED_RANGES: EngineCapsRanges = EngineCapsRanges {
     ability_score: AbilityRange { min: 1, max: 25 },
     strength_percentile: AbilityRange { min: 0, max: 100 },
-    current_hit_points: AbilityRange { min: u16::MIN, max: u16::MAX },
-    max_hit_points: AbilityRange { min: u16::MIN, max: u16::MAX },
-    armor_class: AbilityRange { min: i16::MIN, max: i16::MAX },
-    thac0: AbilityRange { min: i8::MIN, max: i8::MAX },
+    current_hit_points: AbilityRange {
+        min: u16::MIN,
+        max: u16::MAX,
+    },
+    max_hit_points: AbilityRange {
+        min: u16::MIN,
+        max: u16::MAX,
+    },
+    armor_class: AbilityRange {
+        min: i16::MIN,
+        max: i16::MAX,
+    },
+    thac0: AbilityRange {
+        min: i8::MIN,
+        max: i8::MAX,
+    },
     attacks_byte: AbilityRange { min: 0, max: 10 },
     reputation: AbilityRange { min: 0, max: 20 },
-    party_gold: AbilityRange { min: u32::MIN, max: u32::MAX },
-    fatigue: AbilityRange { min: u8::MIN, max: u8::MAX },
-    intoxication: AbilityRange { min: u8::MIN, max: u8::MAX },
-    luck: AbilityRange { min: u8::MIN, max: u8::MAX },
-    experience: AbilityRange { min: u32::MIN, max: u32::MAX },
-    xp_for_kill: AbilityRange { min: u32::MIN, max: u32::MAX },
-    class_level: AbilityRange { min: u8::MIN, max: u8::MAX },
+    party_gold: AbilityRange {
+        min: u32::MIN,
+        max: u32::MAX,
+    },
+    fatigue: AbilityRange {
+        min: u8::MIN,
+        max: u8::MAX,
+    },
+    intoxication: AbilityRange {
+        min: u8::MIN,
+        max: u8::MAX,
+    },
+    luck: AbilityRange {
+        min: u8::MIN,
+        max: u8::MAX,
+    },
+    experience: AbilityRange {
+        min: u32::MIN,
+        max: u32::MAX,
+    },
+    xp_for_kill: AbilityRange {
+        min: u32::MIN,
+        max: u32::MAX,
+    },
+    class_level: AbilityRange {
+        min: u8::MIN,
+        max: u8::MAX,
+    },
     morale: AbilityRange { min: 0, max: 20 },
     morale_break: AbilityRange { min: 0, max: 20 },
-    morale_recovery: AbilityRange { min: u16::MIN, max: u16::MAX },
-    thief_skill: AbilityRange { min: u8::MIN, max: u8::MAX },
-    lore: AbilityRange { min: u8::MIN, max: u8::MAX },
+    morale_recovery: AbilityRange {
+        min: u16::MIN,
+        max: u16::MAX,
+    },
+    thief_skill: AbilityRange {
+        min: u8::MIN,
+        max: u8::MAX,
+    },
+    lore: AbilityRange {
+        min: u8::MIN,
+        max: u8::MAX,
+    },
 };
 
 /// Stand-alone copy of the cap-range fields of [`EngineCaps`]. Used
@@ -440,7 +482,10 @@ mod tests {
 
     #[test]
     fn range_contains_and_clamp_behave_for_i16() {
-        let r = AbilityRange { min: -10i16, max: 10 };
+        let r = AbilityRange {
+            min: -10i16,
+            max: 10,
+        };
         assert!(!r.contains(-11));
         assert!(r.contains(-10));
         assert!(r.contains(10));
@@ -622,37 +667,61 @@ mod tests {
         // EXPECTED TO FAIL: classic BG's 2DAs are XOR-encrypted, so the
         // importer yields empty tables and EngineCaps::new errors.
         let result = EngineCaps::new(&fixture_game_data("bg", infinitier_common::Game::Bg));
-        assert!(result.is_ok(), "EngineCaps should build from bg fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from bg fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn engine_caps_builds_from_bg_ee() {
         let result = EngineCaps::new(&fixture_game_data("bg_ee", infinitier_common::Game::Bgee));
-        assert!(result.is_ok(), "EngineCaps should build from bg_ee fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from bg_ee fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn engine_caps_builds_from_bg2() {
         let result = EngineCaps::new(&fixture_game_data("bg2", infinitier_common::Game::Bg2));
-        assert!(result.is_ok(), "EngineCaps should build from bg2 fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from bg2 fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn engine_caps_builds_from_bg2_ee() {
         let result = EngineCaps::new(&fixture_game_data("bg2_ee", infinitier_common::Game::Bg2ee));
-        assert!(result.is_ok(), "EngineCaps should build from bg2_ee fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from bg2_ee fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn engine_caps_builds_from_iwd() {
         let result = EngineCaps::new(&fixture_game_data("iwd", infinitier_common::Game::Iwd));
-        assert!(result.is_ok(), "EngineCaps should build from iwd fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from iwd fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn engine_caps_builds_from_iwd_ee() {
         let result = EngineCaps::new(&fixture_game_data("iwd_ee", infinitier_common::Game::Iwdee));
-        assert!(result.is_ok(), "EngineCaps should build from iwd_ee fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from iwd_ee fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -660,18 +729,30 @@ mod tests {
         // IWD2 is d20: EngineCaps::new skips the 2DA loads entirely, so it
         // builds even though IWD2 ships no DEXMOD.2DA.
         let result = EngineCaps::new(&fixture_game_data("iwd2", infinitier_common::Game::Iwd2));
-        assert!(result.is_ok(), "EngineCaps should build from iwd2 fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from iwd2 fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn engine_caps_builds_from_pst() {
         let result = EngineCaps::new(&fixture_game_data("pst", infinitier_common::Game::Pst));
-        assert!(result.is_ok(), "EngineCaps should build from pst fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from pst fixtures: {:?}",
+            result.err()
+        );
     }
 
     #[test]
     fn engine_caps_builds_from_pst_ee() {
         let result = EngineCaps::new(&fixture_game_data("pst_ee", infinitier_common::Game::Pstee));
-        assert!(result.is_ok(), "EngineCaps should build from pst_ee fixtures: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "EngineCaps should build from pst_ee fixtures: {:?}",
+            result.err()
+        );
     }
 }

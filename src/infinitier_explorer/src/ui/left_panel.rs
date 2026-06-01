@@ -63,10 +63,7 @@ fn theme_toggle_button(ui: &mut egui::Ui) {
         ThemeMode::Dark => "Light",
         ThemeMode::Light => "Dark",
     };
-    if ui
-        .add(Button::ghost(target_label).small())
-        .clicked()
-    {
+    if ui.add(Button::ghost(target_label).small()).clicked() {
         let next = match theme.mode {
             ThemeMode::Dark => Theme::light(),
             ThemeMode::Light => Theme::dark(),

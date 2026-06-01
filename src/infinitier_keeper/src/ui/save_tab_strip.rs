@@ -29,11 +29,7 @@ impl SaveTabStrip {
                 // owned iterator and we want to release the borrow on
                 // `state.tabs` before re-borrowing it mutably to write
                 // back `active_tab`.
-                let labels: Vec<String> = state
-                    .tabs
-                    .iter()
-                    .map(|t| t.save_name.clone())
-                    .collect();
+                let labels: Vec<String> = state.tabs.iter().map(|t| t.save_name.clone()).collect();
                 let mut selected = state.active_tab.min(labels.len().saturating_sub(1));
                 ui.add(Tabs::new(&mut selected).tabs(labels).underline());
                 state.active_tab = selected;

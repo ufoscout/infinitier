@@ -77,9 +77,14 @@ fn save_tab_strip(theme: Theme, state: &AppState) -> impl WidgetView<AppState> +
         .iter()
         .enumerate()
         .map(|(i, t)| {
-            xc::tab_button(theme, t.save_name.clone(), i == active, move |s: &mut AppState| {
-                s.active_tab = i;
-            })
+            xc::tab_button(
+                theme,
+                t.save_name.clone(),
+                i == active,
+                move |s: &mut AppState| {
+                    s.active_tab = i;
+                },
+            )
             .boxed()
         })
         .collect();
@@ -89,10 +94,13 @@ fn save_tab_strip(theme: Theme, state: &AppState) -> impl WidgetView<AppState> +
 // ── Main area: party rail | character panel ───────────────────────────
 
 fn main_area(theme: Theme, state: &AppState) -> View {
-    flex_row((party_rail(theme, state), character_panel(theme, state).flex(1.0)))
-        .cross_axis_alignment(CrossAxisAlignment::Stretch)
-        .gap(px(theme.gap))
-        .boxed()
+    flex_row((
+        party_rail(theme, state),
+        character_panel(theme, state).flex(1.0),
+    ))
+    .cross_axis_alignment(CrossAxisAlignment::Stretch)
+    .gap(px(theme.gap))
+    .boxed()
 }
 
 fn party_rail(theme: Theme, state: &AppState) -> impl WidgetView<AppState> + use<> {
@@ -146,9 +154,14 @@ fn character_panel(theme: Theme, state: &AppState) -> View {
         .iter()
         .copied()
         .map(|t| {
-            xc::tab_button(theme, t.label(), t == selected_tab, move |s: &mut AppState| {
-                s.active_mut().selected_tab = t;
-            })
+            xc::tab_button(
+                theme,
+                t.label(),
+                t == selected_tab,
+                move |s: &mut AppState| {
+                    s.active_mut().selected_tab = t;
+                },
+            )
             .boxed()
         })
         .collect();
@@ -156,7 +169,10 @@ fn character_panel(theme: Theme, state: &AppState) -> View {
     let content: View = if selected_tab == CharacterTab::Abilities {
         abilities_view(theme, cre, gam).boxed()
     } else {
-        centered_message(theme, format!("{} — not implemented yet.", selected_tab.label()))
+        centered_message(
+            theme,
+            format!("{} — not implemented yet.", selected_tab.label()),
+        )
     };
 
     flex_col((
@@ -209,7 +225,16 @@ fn abilities_view(theme: Theme, cre: &Cre, gam: &ImportedGam) -> impl WidgetView
                 section_rows(theme, cre, gam, Section::ExperienceLevels),
             )
             .boxed(),
-            xc::card(theme, "Morale", or_placeholder(theme, section_rows(theme, cre, gam, Section::Morale), "disabled (d20)")).boxed(),
+            xc::card(
+                theme,
+                "Morale",
+                or_placeholder(
+                    theme,
+                    section_rows(theme, cre, gam, Section::Morale),
+                    "disabled (d20)",
+                ),
+            )
+            .boxed(),
         ],
     );
 
@@ -220,7 +245,11 @@ fn abilities_view(theme: Theme, cre: &Cre, gam: &ImportedGam) -> impl WidgetView
             xc::card(
                 theme,
                 "Thief Skills",
-                or_placeholder(theme, section_rows(theme, cre, gam, Section::ThiefSkills), "d20 skills — not shown in this build"),
+                or_placeholder(
+                    theme,
+                    section_rows(theme, cre, gam, Section::ThiefSkills),
+                    "d20 skills — not shown in this build",
+                ),
             )
             .boxed(),
         ],

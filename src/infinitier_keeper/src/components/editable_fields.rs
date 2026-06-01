@@ -222,7 +222,10 @@ impl EditableField {
     pub fn read_text(self, cre: &Cre, gam: &ImportedGam) -> String {
         match self {
             Self::Strength => cre.strength().to_string(),
-            Self::StrengthPct => cre.strength_bonus().map(|v| v.to_string()).unwrap_or_default(),
+            Self::StrengthPct => cre
+                .strength_bonus()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::Dexterity => cre.dexterity().to_string(),
             Self::Constitution => cre.constitution().to_string(),
             Self::Intelligence => cre.intelligence().to_string(),
@@ -231,7 +234,9 @@ impl EditableField {
             Self::CurrentHp => cre_fields::current_hit_points(cre).to_string(),
             Self::MaxHp => cre_fields::max_hit_points(cre).to_string(),
             Self::AcNatural => cre_fields::ac_natural(cre).to_string(),
-            Self::AcEffective => cre_fields::ac_effective(cre).map(|v| v.to_string()).unwrap_or_default(),
+            Self::AcEffective => cre_fields::ac_effective(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::Thac0 => cre_fields::thac0_or_bab(cre).to_string(),
             Self::Attacks => cre_fields::attacks_byte(cre).to_string(),
             Self::Reputation => cre_fields::party_reputation(gam).to_string(),
@@ -241,106 +246,200 @@ impl EditableField {
             Self::Luck => cre_fields::luck(cre).to_string(),
             Self::Experience => cre_fields::experience(cre).to_string(),
             Self::XpForKill => cre_fields::xp_for_kill(cre).to_string(),
-            Self::Level1 => cre_fields::level_first_class(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::Level2 => cre_fields::level_second_class(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::Level3 => cre_fields::level_third_class(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::Morale => cre_fields::morale(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::MoraleBreak => cre_fields::morale_break(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::MoraleRecovery => cre_fields::morale_recovery(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::HideInShadows => cre_fields::hide_in_shadows(cre).map(|v| v.to_string()).unwrap_or_default(),
+            Self::Level1 => cre_fields::level_first_class(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Level2 => cre_fields::level_second_class(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Level3 => cre_fields::level_third_class(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Morale => cre_fields::morale(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::MoraleBreak => cre_fields::morale_break(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::MoraleRecovery => cre_fields::morale_recovery(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::HideInShadows => cre_fields::hide_in_shadows(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::MoveSilently => cre_fields::move_silently(cre).to_string(),
-            Self::Lockpicking => cre_fields::lockpicking(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::FindTraps => cre_fields::find_traps(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::SetTraps => cre_fields::set_traps(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::PickPockets => cre_fields::pick_pockets(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::DetectIllusion => cre_fields::detect_illusion(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::Lore => cre_fields::lore(cre).map(|v| v.to_string()).unwrap_or_default(),
+            Self::Lockpicking => cre_fields::lockpicking(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::FindTraps => cre_fields::find_traps(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::SetTraps => cre_fields::set_traps(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::PickPockets => cre_fields::pick_pockets(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::DetectIllusion => cre_fields::detect_illusion(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Lore => cre_fields::lore(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
         }
     }
 
     /// Parse + clamp + write to a CRE. No-op on GAM-side fields.
     fn write_clamped_cre(self, cre: &mut Cre, raw: &str, caps: &EngineCaps) {
         match self {
-            Self::Strength => write_u8(raw, caps.ability_score, cre.strength(), |v| cre.set_strength(v)),
+            Self::Strength => write_u8(raw, caps.ability_score, cre.strength(), |v| {
+                cre.set_strength(v)
+            }),
             Self::StrengthPct => write_u8(
                 raw,
                 caps.strength_percentile,
                 cre.strength_bonus().unwrap_or(0),
                 |v| cre.set_strength_bonus(v),
             ),
-            Self::Dexterity => write_u8(raw, caps.ability_score, cre.dexterity(), |v| cre.set_dexterity(v)),
-            Self::Constitution => write_u8(raw, caps.ability_score, cre.constitution(), |v| cre.set_constitution(v)),
-            Self::Intelligence => write_u8(raw, caps.ability_score, cre.intelligence(), |v| cre.set_intelligence(v)),
+            Self::Dexterity => write_u8(raw, caps.ability_score, cre.dexterity(), |v| {
+                cre.set_dexterity(v)
+            }),
+            Self::Constitution => write_u8(raw, caps.ability_score, cre.constitution(), |v| {
+                cre.set_constitution(v)
+            }),
+            Self::Intelligence => write_u8(raw, caps.ability_score, cre.intelligence(), |v| {
+                cre.set_intelligence(v)
+            }),
             Self::Wisdom => write_u8(raw, caps.ability_score, cre.wisdom(), |v| cre.set_wisdom(v)),
-            Self::Charisma => write_u8(raw, caps.ability_score, cre.charisma(), |v| cre.set_charisma(v)),
-            Self::Thac0 => write_i8(raw, caps.thac0, cre_fields::thac0_or_bab(cre), |v| cre_fields::set_thac0_or_bab(cre, v)),
+            Self::Charisma => write_u8(raw, caps.ability_score, cre.charisma(), |v| {
+                cre.set_charisma(v)
+            }),
+            Self::Thac0 => write_i8(raw, caps.thac0, cre_fields::thac0_or_bab(cre), |v| {
+                cre_fields::set_thac0_or_bab(cre, v)
+            }),
             // Attacks is edited through a dropdown — never via this path.
             Self::Attacks => debug_assert!(false, "Attacks uses a dropdown, not a text input"),
-            Self::Fatigue => write_u8(raw, caps.fatigue, cre_fields::fatigue(cre), |v| cre_fields::set_fatigue(cre, v)),
-            Self::Intoxication => write_u8(raw, caps.intoxication, cre_fields::intoxication(cre), |v| cre_fields::set_intoxication(cre, v)),
-            Self::Luck => write_u8(raw, caps.luck, cre_fields::luck(cre), |v| cre_fields::set_luck(cre, v)),
+            Self::Fatigue => write_u8(raw, caps.fatigue, cre_fields::fatigue(cre), |v| {
+                cre_fields::set_fatigue(cre, v)
+            }),
+            Self::Intoxication => {
+                write_u8(raw, caps.intoxication, cre_fields::intoxication(cre), |v| {
+                    cre_fields::set_intoxication(cre, v)
+                })
+            }
+            Self::Luck => write_u8(raw, caps.luck, cre_fields::luck(cre), |v| {
+                cre_fields::set_luck(cre, v)
+            }),
             Self::Level1 => {
                 let current = cre_fields::level_first_class(cre).unwrap_or(0);
-                write_u8(raw, caps.class_level, current, |v| cre_fields::set_level_first_class(cre, v))
+                write_u8(raw, caps.class_level, current, |v| {
+                    cre_fields::set_level_first_class(cre, v)
+                })
             }
             Self::Level2 => {
                 let current = cre_fields::level_second_class(cre).unwrap_or(0);
-                write_u8(raw, caps.class_level, current, |v| cre_fields::set_level_second_class(cre, v))
+                write_u8(raw, caps.class_level, current, |v| {
+                    cre_fields::set_level_second_class(cre, v)
+                })
             }
             Self::Level3 => {
                 let current = cre_fields::level_third_class(cre).unwrap_or(0);
-                write_u8(raw, caps.class_level, current, |v| cre_fields::set_level_third_class(cre, v))
+                write_u8(raw, caps.class_level, current, |v| {
+                    cre_fields::set_level_third_class(cre, v)
+                })
             }
             Self::Morale => {
                 let current = cre_fields::morale(cre).unwrap_or(0);
-                write_u8(raw, caps.morale, current, |v| cre_fields::set_morale(cre, v))
+                write_u8(raw, caps.morale, current, |v| {
+                    cre_fields::set_morale(cre, v)
+                })
             }
             Self::MoraleBreak => {
                 let current = cre_fields::morale_break(cre).unwrap_or(0);
-                write_u8(raw, caps.morale_break, current, |v| cre_fields::set_morale_break(cre, v))
+                write_u8(raw, caps.morale_break, current, |v| {
+                    cre_fields::set_morale_break(cre, v)
+                })
             }
             Self::HideInShadows => {
                 let current = cre_fields::hide_in_shadows(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_hide_in_shadows(cre, v))
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_hide_in_shadows(cre, v)
+                })
             }
-            Self::MoveSilently => write_u8(raw, caps.thief_skill, cre_fields::move_silently(cre), |v| cre_fields::set_move_silently(cre, v)),
+            Self::MoveSilently => {
+                write_u8(raw, caps.thief_skill, cre_fields::move_silently(cre), |v| {
+                    cre_fields::set_move_silently(cre, v)
+                })
+            }
             Self::Lockpicking => {
                 let current = cre_fields::lockpicking(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_lockpicking(cre, v))
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_lockpicking(cre, v)
+                })
             }
             Self::FindTraps => {
                 let current = cre_fields::find_traps(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_find_traps(cre, v))
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_find_traps(cre, v)
+                })
             }
             Self::SetTraps => {
                 let current = cre_fields::set_traps(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_set_traps(cre, v))
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_set_traps(cre, v)
+                })
             }
             Self::PickPockets => {
                 let current = cre_fields::pick_pockets(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_pick_pockets(cre, v))
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_pick_pockets(cre, v)
+                })
             }
             Self::DetectIllusion => {
                 let current = cre_fields::detect_illusion(cre).unwrap_or(0);
-                write_u8(raw, caps.thief_skill, current, |v| cre_fields::set_detect_illusion(cre, v))
+                write_u8(raw, caps.thief_skill, current, |v| {
+                    cre_fields::set_detect_illusion(cre, v)
+                })
             }
             Self::Lore => {
                 let current = cre_fields::lore(cre).unwrap_or(0);
                 write_u8(raw, caps.lore, current, |v| cre_fields::set_lore(cre, v))
             }
-            Self::CurrentHp => write_u16(raw, caps.current_hit_points, cre_fields::current_hit_points(cre), |v| cre_fields::set_current_hit_points(cre, v)),
-            Self::MaxHp => write_u16(raw, caps.max_hit_points, cre_fields::max_hit_points(cre), |v| cre_fields::set_max_hit_points(cre, v)),
+            Self::CurrentHp => write_u16(
+                raw,
+                caps.current_hit_points,
+                cre_fields::current_hit_points(cre),
+                |v| cre_fields::set_current_hit_points(cre, v),
+            ),
+            Self::MaxHp => write_u16(
+                raw,
+                caps.max_hit_points,
+                cre_fields::max_hit_points(cre),
+                |v| cre_fields::set_max_hit_points(cre, v),
+            ),
             Self::MoraleRecovery => {
                 let current = cre_fields::morale_recovery(cre).unwrap_or(0);
-                write_u16(raw, caps.morale_recovery, current, |v| cre_fields::set_morale_recovery(cre, v))
+                write_u16(raw, caps.morale_recovery, current, |v| {
+                    cre_fields::set_morale_recovery(cre, v)
+                })
             }
-            Self::AcNatural => write_i16(raw, caps.armor_class, cre_fields::ac_natural(cre), |v| cre_fields::set_ac_natural(cre, v)),
+            Self::AcNatural => write_i16(raw, caps.armor_class, cre_fields::ac_natural(cre), |v| {
+                cre_fields::set_ac_natural(cre, v)
+            }),
             Self::AcEffective => {
                 let current = cre_fields::ac_effective(cre).unwrap_or(0);
-                write_i16(raw, caps.armor_class, current, |v| cre_fields::set_ac_effective(cre, v))
+                write_i16(raw, caps.armor_class, current, |v| {
+                    cre_fields::set_ac_effective(cre, v)
+                })
             }
-            Self::Experience => write_u32(raw, caps.experience, cre_fields::experience(cre), |v| cre_fields::set_experience(cre, v)),
-            Self::XpForKill => write_u32(raw, caps.xp_for_kill, cre_fields::xp_for_kill(cre), |v| cre_fields::set_xp_for_kill(cre, v)),
+            Self::Experience => write_u32(raw, caps.experience, cre_fields::experience(cre), |v| {
+                cre_fields::set_experience(cre, v)
+            }),
+            Self::XpForKill => {
+                write_u32(raw, caps.xp_for_kill, cre_fields::xp_for_kill(cre), |v| {
+                    cre_fields::set_xp_for_kill(cre, v)
+                })
+            }
             // GAM-side fields are routed through `write_clamped_gam`.
             Self::Reputation | Self::PartyGold => {
                 debug_assert!(false, "{self:?} is a GAM-side field");
@@ -350,8 +449,15 @@ impl EditableField {
 
     fn write_clamped_gam(self, gam: &mut ImportedGam, raw: &str, caps: &EngineCaps) {
         match self {
-            Self::Reputation => write_u32(raw, caps.reputation, cre_fields::party_reputation(gam), |v| cre_fields::set_party_reputation(gam, v)),
-            Self::PartyGold => write_u32(raw, caps.party_gold, cre_fields::party_gold(gam), |v| cre_fields::set_party_gold(gam, v)),
+            Self::Reputation => write_u32(
+                raw,
+                caps.reputation,
+                cre_fields::party_reputation(gam),
+                |v| cre_fields::set_party_reputation(gam, v),
+            ),
+            Self::PartyGold => write_u32(raw, caps.party_gold, cre_fields::party_gold(gam), |v| {
+                cre_fields::set_party_gold(gam, v)
+            }),
             _ => debug_assert!(false, "{self:?} is a CRE-side field"),
         }
     }
@@ -415,17 +521,50 @@ impl AttacksOption {
     /// — integers interleaved with halves. Mirrors
     /// [`infinitier_core::resource::cre::NumberOfAttacks`].
     pub const ALL: &'static [AttacksOption] = &[
-        AttacksOption { byte: 0, label: "0" },
-        AttacksOption { byte: 6, label: "0.5" },
-        AttacksOption { byte: 1, label: "1" },
-        AttacksOption { byte: 7, label: "1.5" },
-        AttacksOption { byte: 2, label: "2" },
-        AttacksOption { byte: 8, label: "2.5" },
-        AttacksOption { byte: 3, label: "3" },
-        AttacksOption { byte: 9, label: "3.5" },
-        AttacksOption { byte: 4, label: "4" },
-        AttacksOption { byte: 10, label: "4.5" },
-        AttacksOption { byte: 5, label: "5" },
+        AttacksOption {
+            byte: 0,
+            label: "0",
+        },
+        AttacksOption {
+            byte: 6,
+            label: "0.5",
+        },
+        AttacksOption {
+            byte: 1,
+            label: "1",
+        },
+        AttacksOption {
+            byte: 7,
+            label: "1.5",
+        },
+        AttacksOption {
+            byte: 2,
+            label: "2",
+        },
+        AttacksOption {
+            byte: 8,
+            label: "2.5",
+        },
+        AttacksOption {
+            byte: 3,
+            label: "3",
+        },
+        AttacksOption {
+            byte: 9,
+            label: "3.5",
+        },
+        AttacksOption {
+            byte: 4,
+            label: "4",
+        },
+        AttacksOption {
+            byte: 10,
+            label: "4.5",
+        },
+        AttacksOption {
+            byte: 5,
+            label: "5",
+        },
     ];
 
     pub fn index_for_byte(byte: u8) -> Option<usize> {
@@ -505,11 +644,7 @@ impl KeeperEditors {
         width: f32,
     ) -> bool {
         let mut buf = std::mem::take(self.inputs.entry(field).or_default());
-        let response = ui.add(
-            egui_components::Input::new(&mut buf)
-                .width(width)
-                .small(),
-        );
+        let response = ui.add(egui_components::Input::new(&mut buf).width(width).small());
         let committed = response.lost_focus();
         if committed {
             commit(field, &buf, state);

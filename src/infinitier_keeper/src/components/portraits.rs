@@ -101,7 +101,9 @@ fn find_in_portraits_folder(game_data: &GameData, name: &str) -> Option<PathBuf>
         return Some(found.path().to_path_buf());
     }
     for root in fs.get_roots() {
-        let candidate = Path::new(root).join("portraits").join(format!("{name}.bmp"));
+        let candidate = Path::new(root)
+            .join("portraits")
+            .join(format!("{name}.bmp"));
         if candidate.exists() {
             return Some(candidate);
         }

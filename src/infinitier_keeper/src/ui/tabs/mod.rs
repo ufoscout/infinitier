@@ -114,11 +114,7 @@ impl CharacterTab {
 /// tab is still read-only — we pull the immutable triple
 /// `(cre, gam, game)` out of `state` once and forward it to the
 /// stub.
-pub fn show_tab(
-    ui: &mut egui::Ui,
-    state: &mut AppState,
-    editors: &mut KeeperEditors,
-) {
+pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEditors) {
     let active = state.active();
     if active.selected_tab == CharacterTab::Abilities {
         AbilitiesTab.show(ui, state, editors);

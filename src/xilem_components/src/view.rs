@@ -26,7 +26,9 @@ pub fn text<State: 'static, Action: 'static>(
     theme: Theme,
     s: impl Into<String>,
 ) -> impl WidgetView<State, Action> {
-    label(s.into()).text_size(theme.font_size).color(theme.foreground)
+    label(s.into())
+        .text_size(theme.font_size)
+        .color(theme.foreground)
 }
 
 /// Muted secondary text — used for row labels and counters.
@@ -64,9 +66,7 @@ pub fn title<State: 'static, Action: 'static>(
 // ── Separators / surfaces ─────────────────────────────────────────────
 
 /// A thin horizontal rule in the theme's border colour.
-pub fn separator<State: 'static, Action: 'static>(
-    theme: Theme,
-) -> impl WidgetView<State, Action> {
+pub fn separator<State: 'static, Action: 'static>(theme: Theme) -> impl WidgetView<State, Action> {
     let _ = theme;
     divider_h().thickness(px(1.0))
 }
@@ -163,8 +163,14 @@ where
     } else {
         theme.foreground
     };
-    let bg = if selected { theme.accent } else { theme.surface };
-    let lbl = label(text_label.into()).text_size(theme.font_size).color(fg);
+    let bg = if selected {
+        theme.accent
+    } else {
+        theme.surface
+    };
+    let lbl = label(text_label.into())
+        .text_size(theme.font_size)
+        .color(fg);
     button(lbl, on_click)
         .padding(Padding::from(px(theme.padding * 0.5)))
         .background_color(bg)

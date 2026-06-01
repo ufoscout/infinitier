@@ -14,8 +14,8 @@
 //! `show` reads / writes `state.selected_party_index` directly.
 
 use eframe::egui;
-use egui_components::{Avatar, Card, Label, LabelTone, Size, Slider};
 use egui_components::theme::Theme;
+use egui_components::{Avatar, Card, Label, LabelTone, Size, Slider};
 use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::cre::Cre;
 
@@ -58,8 +58,8 @@ impl PartySelector {
     /// Call once at the top of the host's frame.
     pub fn prepare(&mut self, state: &AppState, ctx: &egui::Context) {
         self.slider_value = state.active().selected_party_index.unwrap_or(0) as f32;
-        self.active_portrait = selected_cre(state)
-            .and_then(|cre| self.portraits.for_cre(cre, &state.game_data, ctx));
+        self.active_portrait =
+            selected_cre(state).and_then(|cre| self.portraits.for_cre(cre, &state.game_data, ctx));
     }
 
     /// Render the left rail. Mutates `state.selected_party_index`
@@ -93,10 +93,7 @@ impl PartySelector {
 
     fn show_empty(&self, ui: &mut egui::Ui) {
         Card::new().title("Party").divider().show(ui, |ui| {
-            ui.add(
-                Label::new("No party members in this save.")
-                    .tone(LabelTone::Muted),
-            );
+            ui.add(Label::new("No party members in this save.").tone(LabelTone::Muted));
         });
     }
 
@@ -110,16 +107,13 @@ impl PartySelector {
             egui::Layout::left_to_right(egui::Align::Center),
             |ui| {
                 ui.add(Label::new(&name).strong().size(Size::Large));
-                ui.with_layout(
-                    egui::Layout::right_to_left(egui::Align::Center),
-                    |ui| {
-                        ui.add(
-                            Label::new(format!("{} / {}", selected + 1, count))
-                                .tone(LabelTone::Muted)
-                                .size(Size::Small),
-                        );
-                    },
-                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add(
+                        Label::new(format!("{} / {}", selected + 1, count))
+                            .tone(LabelTone::Muted)
+                            .size(Size::Small),
+                    );
+                });
             },
         );
     }
@@ -154,10 +148,8 @@ impl PartySelector {
             })
             .unwrap_or(PORTRAIT_FALLBACK_ASPECT);
         let slot_height = (avail_w / aspect).min(PORTRAIT_MAX_HEIGHT);
-        let (rect, _) = ui.allocate_exact_size(
-            egui::vec2(avail_w, slot_height),
-            egui::Sense::hover(),
-        );
+        let (rect, _) =
+            ui.allocate_exact_size(egui::vec2(avail_w, slot_height), egui::Sense::hover());
         // Background fill + border. Painted first; the image
         // (drawn at the same rect with matching corner_radius)
         // covers everything inside the rounded shape.
@@ -185,13 +177,9 @@ impl PartySelector {
             None => {
                 // Centre an initials Avatar inside the slot.
                 let avatar_size = (rect.width() * 0.55).min(rect.height() * 0.55);
-                let mut child = ui.new_child(
-                    egui::UiBuilder::new()
-                        .max_rect(rect)
-                        .layout(egui::Layout::centered_and_justified(
-                            egui::Direction::TopDown,
-                        )),
-                );
+                let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(
+                    egui::Layout::centered_and_justified(egui::Direction::TopDown),
+                ));
                 child.add(Avatar::from_name(display_name(state, selected)).size(avatar_size));
             }
         }
@@ -212,9 +200,8 @@ impl PartySelector {
             .inner_margin(egui::Margin::symmetric(10, 6))
             .show(ui, |ui| {
                 let avail_w = ui.available_width();
-                let response = ui.add(
-                    Slider::new(&mut self.slider_value, 0.0..=max).width(avail_w),
-                );
+                let response =
+                    ui.add(Slider::new(&mut self.slider_value, 0.0..=max).width(avail_w));
                 if response.changed() {
                     let idx = (self.slider_value.round() as i64).clamp(0, max as i64) as usize;
                     state.active_mut().selected_party_index = Some(idx);
@@ -256,18 +243,11 @@ fn cover_fit_uv(slot_size: egui::Vec2, tex_size: egui::Vec2) -> egui::Rect {
         // Slot is wider relative to texture — fill width, crop top + bottom.
         let crop_v = aspect_tex / aspect_slot;
         let v_pad = (1.0 - crop_v) / 2.0;
-        egui::Rect::from_min_max(
-            egui::pos2(0.0, v_pad),
-            egui::pos2(1.0, 1.0 - v_pad),
-        )
+        egui::Rect::from_min_max(egui::pos2(0.0, v_pad), egui::pos2(1.0, 1.0 - v_pad))
     } else {
         // Slot is taller relative to texture — fill height, crop left + right.
         let crop_u = aspect_slot / aspect_tex;
         let u_pad = (1.0 - crop_u) / 2.0;
-        egui::Rect::from_min_max(
-            egui::pos2(u_pad, 0.0),
-            egui::pos2(1.0 - u_pad, 1.0),
-        )
+        egui::Rect::from_min_max(egui::pos2(u_pad, 0.0), egui::pos2(1.0 - u_pad, 1.0))
     }
 }
-

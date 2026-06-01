@@ -105,7 +105,10 @@ mod tests {
     fn decrypt_passes_through_plaintext_without_copying() {
         let plain = b"2DA V1.0";
         let decoded = decrypt(Cow::Borrowed(plain));
-        assert!(matches!(decoded, Cow::Borrowed(_)), "plaintext must be borrowed, not copied");
+        assert!(
+            matches!(decoded, Cow::Borrowed(_)),
+            "plaintext must be borrowed, not copied"
+        );
         assert_eq!(decoded.as_ref(), &plain[..]);
     }
 

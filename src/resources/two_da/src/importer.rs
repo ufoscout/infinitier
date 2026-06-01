@@ -23,7 +23,7 @@ impl Importer for TwoDAImporter<'_> {
 
         // Some 2DAs are stored encrypted.
         let decrypted = DataSource::new(encryption::decrypt(Cow::Owned(raw)).into_owned())
-                .with_encoding(source.encoding());
+            .with_encoding(source.encoding());
 
         let mut reader = decrypted.reader()?;
 
@@ -124,7 +124,12 @@ mod tests {
     fn parse_row_space_tab_and_mixed_delimiters() {
         let expected = Some((
             "ROW".to_string(),
-            vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string()],
+            vec![
+                "1".to_string(),
+                "2".to_string(),
+                "3".to_string(),
+                "4".to_string(),
+            ],
         ));
         // Space-aligned, tab-delimited, and mixed all tokenise the same.
         assert_eq!(parse_data_row("ROW  1 2 3 4", 4, "0"), expected);
@@ -276,7 +281,12 @@ mod tests {
         let t = import_2da_fixture("space_4col.2da");
         assert_eq!(
             t.headers,
-            ["TO_HIT", "DAMAGE", "BEND_BARS_LIFT_GATES", "WEIGHT_ALLOWANCE"]
+            [
+                "TO_HIT",
+                "DAMAGE",
+                "BEND_BARS_LIFT_GATES",
+                "WEIGHT_ALLOWANCE"
+            ]
         );
         assert_eq!(t.rows.len(), 26);
         assert_eq!(t.rows["0"], ["-20", "-20", "0", "0"]);
@@ -288,7 +298,12 @@ mod tests {
         let t = import_2da_fixture("tab_4col.2da");
         assert_eq!(
             t.headers,
-            ["TO_HIT", "DAMAGE", "BEND_BARS_LIFT_GATES", "WEIGHT_ALLOWANCE"]
+            [
+                "TO_HIT",
+                "DAMAGE",
+                "BEND_BARS_LIFT_GATES",
+                "WEIGHT_ALLOWANCE"
+            ]
         );
         assert_eq!(t.rows.len(), 41);
         assert_eq!(t.rows["0"], ["-20", "-20", "0", "0"]);
@@ -309,7 +324,13 @@ mod tests {
         let t = import_2da_fixture("five_col.2da");
         assert_eq!(
             t.headers,
-            ["OTHER", "WARRIOR", "MIN_ROLL", "REGENERATION_RATE", "FATIGUE_BONUS"]
+            [
+                "OTHER",
+                "WARRIOR",
+                "MIN_ROLL",
+                "REGENERATION_RATE",
+                "FATIGUE_BONUS"
+            ]
         );
         assert_eq!(t.rows.len(), 25);
         assert_eq!(t.rows["1"], ["-3", "-3", "1", "0", "-4"]);
@@ -336,11 +357,15 @@ mod tests {
         assert_eq!(t.rows.len(), 7);
         assert_eq!(
             t.rows["HUMAN"],
-            ["3", "18", "3", "18", "3", "18", "3", "18", "3", "18", "3", "18"]
+            [
+                "3", "18", "3", "18", "3", "18", "3", "18", "3", "18", "3", "18"
+            ]
         );
         assert_eq!(
             t.rows["DWARF"],
-            ["8", "18", "3", "18", "11", "18", "3", "18", "3", "18", "3", "18"]
+            [
+                "8", "18", "3", "18", "11", "18", "3", "18", "3", "18", "3", "18"
+            ]
         );
     }
 

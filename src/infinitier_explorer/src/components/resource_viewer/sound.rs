@@ -509,8 +509,7 @@ impl ResourceViewerTrait for SoundViewer {
                             .x
                             + 2.0 * btn_pad_x
                     };
-                    let row_w =
-                        measure(play_label) + BUTTON_SPACING + measure(stop_label);
+                    let row_w = measure(play_label) + BUTTON_SPACING + measure(stop_label);
 
                     ui.allocate_ui_with_layout(
                         egui::vec2(row_w, 0.0),
@@ -518,19 +517,13 @@ impl ResourceViewerTrait for SoundViewer {
                         |ui| {
                             ui.spacing_mut().item_spacing.x = BUTTON_SPACING;
                             if ui
-                                .add_enabled(
-                                    has_audio,
-                                    Button::secondary(play_label).small(),
-                                )
+                                .add_enabled(has_audio, Button::secondary(play_label).small())
                                 .clicked()
                             {
                                 click_play_pause = true;
                             }
                             if ui
-                                .add_enabled(
-                                    has_audio,
-                                    Button::secondary(stop_label).small(),
-                                )
+                                .add_enabled(has_audio, Button::secondary(stop_label).small())
                                 .clicked()
                             {
                                 click_stop = true;

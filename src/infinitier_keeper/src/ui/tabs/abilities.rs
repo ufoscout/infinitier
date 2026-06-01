@@ -79,14 +79,11 @@ fn ability_scores_card(
                 snap.strength_pct.unwrap_or(0),
             );
             let dexterity = read_u8(editors, EditableField::Dexterity, snap.dexterity);
-            let constitution =
-                read_u8(editors, EditableField::Constitution, snap.constitution);
-            let bonuses = state.engine_caps.ability_bonuses(
-                strength,
-                strength_pct,
-                dexterity,
-                constitution,
-            );
+            let constitution = read_u8(editors, EditableField::Constitution, snap.constitution);
+            let bonuses =
+                state
+                    .engine_caps
+                    .ability_bonuses(strength, strength_pct, dexterity, constitution);
 
             editable_row(
                 ui,
@@ -94,7 +91,11 @@ fn ability_scores_card(
                 snap,
                 state,
                 editors,
-                Some(format_bonus(engine, BonusKind::ToHit, bonuses.thac0_from_strength)),
+                Some(format_bonus(
+                    engine,
+                    BonusKind::ToHit,
+                    bonuses.thac0_from_strength,
+                )),
             );
             if snap.is_visible(EditableField::StrengthPct) {
                 editable_row(ui, EditableField::StrengthPct, snap, state, editors, None);
@@ -105,7 +106,11 @@ fn ability_scores_card(
                 snap,
                 state,
                 editors,
-                Some(format_bonus(engine, BonusKind::Ac, bonuses.ac_from_dexterity)),
+                Some(format_bonus(
+                    engine,
+                    BonusKind::Ac,
+                    bonuses.ac_from_dexterity,
+                )),
             );
             editable_row(
                 ui,
@@ -146,14 +151,11 @@ fn combat_status_card(
                 snap.strength_pct.unwrap_or(0),
             );
             let dexterity = read_u8(editors, EditableField::Dexterity, snap.dexterity);
-            let constitution =
-                read_u8(editors, EditableField::Constitution, snap.constitution);
-            let bonuses = state.engine_caps.ability_bonuses(
-                strength,
-                strength_pct,
-                dexterity,
-                constitution,
-            );
+            let constitution = read_u8(editors, EditableField::Constitution, snap.constitution);
+            let bonuses =
+                state
+                    .engine_caps
+                    .ability_bonuses(strength, strength_pct, dexterity, constitution);
             let thac0_base = read_i8(editors, EditableField::Thac0, snap.thac0_or_bab);
             let ac_base = read_i16(editors, EditableField::AcNatural, snap.ac_natural);
             let max_hp_base = read_u16(editors, EditableField::MaxHp, snap.max_hit_points);
@@ -163,8 +165,8 @@ fn combat_status_card(
                 _ => i32::from(thac0_base) - i32::from(bonuses.thac0_from_strength),
             };
             let effective_ac: i32 = i32::from(ac_base) + i32::from(bonuses.ac_from_dexterity);
-            let effective_max_hp: i32 = i32::from(max_hp_base)
-                + level * i32::from(bonuses.hp_per_level_from_constitution);
+            let effective_max_hp: i32 =
+                i32::from(max_hp_base) + level * i32::from(bonuses.hp_per_level_from_constitution);
 
             for &field in EditableField::ALL {
                 if field.section() != Section::CombatStatus || !snap.is_visible(field) {
@@ -239,17 +241,14 @@ fn skills_card(
         });
         return;
     }
-    Card::new()
-        .title("Thief Skills")
-        .divider()
-        .show(ui, |ui| {
-            for &field in EditableField::ALL {
-                if field.section() != Section::ThiefSkills || !snap.is_visible(field) {
-                    continue;
-                }
-                editable_row(ui, field, snap, state, editors, None);
+    Card::new().title("Thief Skills").divider().show(ui, |ui| {
+        for &field in EditableField::ALL {
+            if field.section() != Section::ThiefSkills || !snap.is_visible(field) {
+                continue;
             }
-        });
+            editable_row(ui, field, snap, state, editors, None);
+        }
+    });
 }
 
 // ── Row primitives ───────────────────────────────────────────────────
@@ -279,27 +278,20 @@ fn editable_row(
             }
             if let Some(text) = bonus {
                 ui.add_space(8.0);
-                ui.add(
-                    Label::new(text)
-                        .tone(LabelTone::Muted)
-                        .size(Size::Small),
-                );
+                ui.add(Label::new(text).tone(LabelTone::Muted).size(Size::Small));
             }
             ui.add_space(8.0);
             // Nested left-to-right block claims the leftover space on
             // the left side; the truncating label inside ellipsizes
             // when the column is narrow rather than colliding with
             // the bonus / input on the right.
-            ui.with_layout(
-                egui::Layout::left_to_right(egui::Align::Center),
-                |ui| {
-                    let theme = egui_components::theme::Theme::get(ui.ctx());
-                    let rich = egui::RichText::new(label)
-                        .color(theme.colors.muted_foreground)
-                        .font(egui::FontId::proportional(theme.metrics.font_size_md));
-                    ui.add(egui::Label::new(rich).truncate());
-                },
-            );
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                let theme = egui_components::theme::Theme::get(ui.ctx());
+                let rich = egui::RichText::new(label)
+                    .color(theme.colors.muted_foreground)
+                    .font(egui::FontId::proportional(theme.metrics.font_size_md));
+                ui.add(egui::Label::new(rich).truncate());
+            });
         },
     );
 }
@@ -312,25 +304,18 @@ fn read_only_row(ui: &mut egui::Ui, label: &str, value: &str) {
         |ui| {
             ui.add(Label::new(value).strong());
             ui.add_space(8.0);
-            ui.with_layout(
-                egui::Layout::left_to_right(egui::Align::Center),
-                |ui| {
-                    let theme = egui_components::theme::Theme::get(ui.ctx());
-                    let rich = egui::RichText::new(label)
-                        .color(theme.colors.muted_foreground)
-                        .font(egui::FontId::proportional(theme.metrics.font_size_md));
-                    ui.add(egui::Label::new(rich).truncate());
-                },
-            );
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                let theme = egui_components::theme::Theme::get(ui.ctx());
+                let rich = egui::RichText::new(label)
+                    .color(theme.colors.muted_foreground)
+                    .font(egui::FontId::proportional(theme.metrics.font_size_md));
+                ui.add(egui::Label::new(rich).truncate());
+            });
         },
     );
 }
 
-fn show_attacks_dropdown(
-    ui: &mut egui::Ui,
-    state: &mut AppState,
-    editors: &mut KeeperEditors,
-) {
+fn show_attacks_dropdown(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEditors) {
     let labels: Vec<&'static str> = AttacksOption::ALL.iter().map(|o| o.label).collect();
     let previous = editors.attacks_idx;
     Select::new("attacks", &mut editors.attacks_idx)

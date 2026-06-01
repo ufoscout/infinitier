@@ -271,13 +271,19 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir(dir.path().join("Quick (Edited 0001)")).unwrap();
         std::fs::create_dir(dir.path().join("Quick (Edited 0002)")).unwrap();
-        assert_eq!(suggest_save_name("Quick", dir.path()), "Quick (Edited 0003)");
+        assert_eq!(
+            suggest_save_name("Quick", dir.path()),
+            "Quick (Edited 0003)"
+        );
     }
 
     #[test]
     fn suggest_save_name_starts_at_one_when_empty() {
         let dir = tempfile::tempdir().unwrap();
-        assert_eq!(suggest_save_name("Quick", dir.path()), "Quick (Edited 0001)");
+        assert_eq!(
+            suggest_save_name("Quick", dir.path()),
+            "Quick (Edited 0001)"
+        );
     }
 
     #[test]
@@ -289,8 +295,7 @@ mod tests {
         std::fs::write(src.path().join("PORTRT0.bmp"), b"bmp").unwrap();
         std::fs::write(src.path().join("WORLDMAP.WMP"), b"wmp").unwrap();
         std::fs::write(src.path().join("note.txt"), b"ignored").unwrap();
-        let dest =
-            perform_save_copy("My Save (Edited 0001)", src.path(), parent.path()).unwrap();
+        let dest = perform_save_copy("My Save (Edited 0001)", src.path(), parent.path()).unwrap();
         assert!(dest.is_dir());
         let mut got: Vec<String> = std::fs::read_dir(&dest)
             .unwrap()

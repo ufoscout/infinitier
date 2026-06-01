@@ -17,12 +17,7 @@ use crate::ui::tabs::{CharacterTab, show_tab};
 pub struct CharacterPanel;
 
 impl CharacterPanel {
-    pub fn show(
-        &self,
-        ui: &mut egui::Ui,
-        state: &mut AppState,
-        editors: &mut KeeperEditors,
-    ) {
+    pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEditors) {
         egui::CentralPanel::default().show_inside(ui, |ui| {
             let active = state.active();
             let Some(idx) = active.selected_party_index else {
@@ -33,11 +28,7 @@ impl CharacterPanel {
             // Header (display name + slot label) — pulled into local
             // owned values so the `&active.save.party_npcs` borrow is
             // released before `show_tab` takes `&mut state`.
-            let header: Option<HeaderInfo> = active
-                .save
-                .party_npcs
-                .get(idx)
-                .map(|m| HeaderInfo::from(m));
+            let header: Option<HeaderInfo> = active.save.party_npcs.get(idx).map(HeaderInfo::from);
             let Some(header) = header else {
                 ui.colored_label(
                     egui::Color32::RED,
@@ -52,8 +43,7 @@ impl CharacterPanel {
                 .iter()
                 .position(|t| *t == active.selected_tab)
                 .unwrap_or(0);
-            let labels: Vec<&'static str> =
-                CharacterTab::ALL.iter().map(|t| t.label()).collect();
+            let labels: Vec<&'static str> = CharacterTab::ALL.iter().map(|t| t.label()).collect();
             ui.add(Tabs::new(&mut selected_idx).tabs(labels).segmented());
             state.active_mut().selected_tab = CharacterTab::ALL[selected_idx];
             ui.add_space(8.0);
@@ -93,8 +83,6 @@ impl HeaderInfo {
             Some(NpcCre::Ref(resref)) => CreKind::ExternalRef(resref.clone()),
             None => CreKind::Empty,
         };
-        Self {
-            cre_kind,
-        }
+        Self { cre_kind }
     }
 }

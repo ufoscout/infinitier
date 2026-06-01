@@ -197,9 +197,10 @@ impl EditableField {
     pub fn read_text(self, cre: &Cre, gam: &ImportedGam) -> String {
         match self {
             Self::Strength => cre.strength().to_string(),
-            Self::StrengthPct => {
-                cre.strength_bonus().map(|v| v.to_string()).unwrap_or_default()
-            }
+            Self::StrengthPct => cre
+                .strength_bonus()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::Dexterity => cre.dexterity().to_string(),
             Self::Constitution => cre.constitution().to_string(),
             Self::Intelligence => cre.intelligence().to_string(),
@@ -208,9 +209,9 @@ impl EditableField {
             Self::CurrentHp => cre_fields::current_hit_points(cre).to_string(),
             Self::MaxHp => cre_fields::max_hit_points(cre).to_string(),
             Self::AcNatural => cre_fields::ac_natural(cre).to_string(),
-            Self::AcEffective => {
-                cre_fields::ac_effective(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
+            Self::AcEffective => cre_fields::ac_effective(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::Thac0 => cre_fields::thac0_or_bab(cre).to_string(),
             // Read-only: show the player-facing attacks-per-round label.
             Self::Attacks => AttacksOption::label_for_byte(cre_fields::attacks_byte(cre)),
@@ -221,42 +222,46 @@ impl EditableField {
             Self::Luck => cre_fields::luck(cre).to_string(),
             Self::Experience => cre_fields::experience(cre).to_string(),
             Self::XpForKill => cre_fields::xp_for_kill(cre).to_string(),
-            Self::Level1 => {
-                cre_fields::level_first_class(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::Level2 => {
-                cre_fields::level_second_class(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::Level3 => {
-                cre_fields::level_third_class(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::Morale => cre_fields::morale(cre).map(|v| v.to_string()).unwrap_or_default(),
-            Self::MoraleBreak => {
-                cre_fields::morale_break(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::MoraleRecovery => {
-                cre_fields::morale_recovery(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::HideInShadows => {
-                cre_fields::hide_in_shadows(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
+            Self::Level1 => cre_fields::level_first_class(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Level2 => cre_fields::level_second_class(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Level3 => cre_fields::level_third_class(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Morale => cre_fields::morale(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::MoraleBreak => cre_fields::morale_break(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::MoraleRecovery => cre_fields::morale_recovery(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::HideInShadows => cre_fields::hide_in_shadows(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::MoveSilently => cre_fields::move_silently(cre).to_string(),
-            Self::Lockpicking => {
-                cre_fields::lockpicking(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::FindTraps => {
-                cre_fields::find_traps(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::SetTraps => {
-                cre_fields::set_traps(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::PickPockets => {
-                cre_fields::pick_pockets(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::DetectIllusion => {
-                cre_fields::detect_illusion(cre).map(|v| v.to_string()).unwrap_or_default()
-            }
-            Self::Lore => cre_fields::lore(cre).map(|v| v.to_string()).unwrap_or_default(),
+            Self::Lockpicking => cre_fields::lockpicking(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::FindTraps => cre_fields::find_traps(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::SetTraps => cre_fields::set_traps(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::PickPockets => cre_fields::pick_pockets(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::DetectIllusion => cre_fields::detect_illusion(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Lore => cre_fields::lore(cre)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
         }
     }
 }

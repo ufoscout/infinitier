@@ -16,13 +16,12 @@ impl Importer for IdsImporter<'_> {
     type T = Ids;
 
     fn import(&self, source: &DataSource) -> std::io::Result<Ids> {
-
         let mut raw = Vec::new();
         source.reader()?.read_to_end(&mut raw)?;
-        
+
         // Some IDs files are stored encrypted.
         let decrypted = DataSource::new(encryption::decrypt(Cow::Owned(raw)).into_owned())
-                .with_encoding(source.encoding());
+            .with_encoding(source.encoding());
 
         let mut reader = decrypted.reader()?;
         let mut entries = Vec::new();

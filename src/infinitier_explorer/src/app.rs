@@ -23,8 +23,7 @@ impl ExplorerApp {
 }
 
 impl eframe::App for ExplorerApp {
-
-        /// Pre-frame hook (runs once before [`Self::ui`], inside the egui
+    /// Pre-frame hook (runs once before [`Self::ui`], inside the egui
     /// pass). Works around egui issue https://github.com/emilk/egui/issues/2142: a focused text field only
     /// surrenders keyboard focus on Escape / Tab / arrow-nav or when
     /// another *focusable* widget is clicked — clicking empty space or a
@@ -41,7 +40,6 @@ impl eframe::App for ExplorerApp {
         self.central_panel.show(ui, &self.state);
     }
 }
-
 
 /// Drop keyboard focus from the currently-focused widget when the latest
 /// pointer press landed outside it. See [`KeeperApp::logic`] for why this

@@ -72,7 +72,7 @@ impl GameData {
         name: &str,
         r#type: ResourceType,
     ) -> io::Result<Option<ImportedResource>> {
-        self.get_by_name_and_type(&name, r#type)
+        self.get_by_name_and_type(name, r#type)
             .map(|resource| resource.import(self))
             .transpose()
     }

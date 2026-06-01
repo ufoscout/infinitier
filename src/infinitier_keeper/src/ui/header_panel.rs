@@ -43,12 +43,9 @@ impl HeaderPanel {
                     if ui.add(Button::primary("Save").small()).clicked() {
                         action.save_clicked = true;
                     }
-                    ui.with_layout(
-                        egui::Layout::right_to_left(egui::Align::Center),
-                        |ui| {
-                            theme_toggle_button(ui);
-                        },
-                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        theme_toggle_button(ui);
+                    });
                 });
             });
         action

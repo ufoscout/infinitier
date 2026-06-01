@@ -61,7 +61,10 @@ fn main() -> Result<(), EventLoopError> {
         }),
     )
     .unwrap_or_else(|| {
-        log::error!("Cannot detect game type at [{}]", display_paths(&args.game_path));
+        log::error!(
+            "Cannot detect game type at [{}]",
+            display_paths(&args.game_path)
+        );
         std::process::exit(1);
     });
 
@@ -85,10 +88,13 @@ fn main() -> Result<(), EventLoopError> {
             std::process::exit(1);
         })
     } else {
-        save_games.by_name(&args.savegame).cloned().unwrap_or_else(|| {
-            log::error!("savegame '{}' not found", args.savegame);
-            std::process::exit(1);
-        })
+        save_games
+            .by_name(&args.savegame)
+            .cloned()
+            .unwrap_or_else(|| {
+                log::error!("savegame '{}' not found", args.savegame);
+                std::process::exit(1);
+            })
     };
 
     let gam = GamImporter {
