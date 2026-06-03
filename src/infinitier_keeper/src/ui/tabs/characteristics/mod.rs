@@ -20,13 +20,7 @@ pub struct CharacteristicsTab;
 impl CharacteristicsTab {
     /// `npc` is the GAM party slot — its raw struct carries the kill
     /// statistics, which don't live in the embedded CRE.
-    pub fn show(
-        &self,
-        ui: &mut egui::Ui,
-        cre: &Cre,
-        npc: &ImportedGamNpc,
-        game_data: &GameData,
-    ) {
+    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, npc: &ImportedGamNpc, game_data: &GameData) {
         let data = CharData::resolve(cre, &npc.raw, game_data);
         view::render(ui, &data, game_data);
     }

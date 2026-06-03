@@ -596,7 +596,10 @@ fn load_class_hp_data(
     };
     for (class, row) in &hpclass.rows {
         if let Some(table) = row.get(table_col) {
-            class_tables.insert(class.to_ascii_lowercase(), table.trim().to_ascii_lowercase());
+            class_tables.insert(
+                class.to_ascii_lowercase(),
+                table.trim().to_ascii_lowercase(),
+            );
         }
     }
 
@@ -901,8 +904,13 @@ mod tests {
             ("hprog", 6, 10),
             ("hpprs", 8, 9),
         ] {
-            caps.hp_table_profiles
-                .insert(t.into(), HpTableProfile { sides, roll_cap: cap });
+            caps.hp_table_profiles.insert(
+                t.into(),
+                HpTableProfile {
+                    sides,
+                    roll_cap: cap,
+                },
+            );
         }
         for (v, s) in [
             (3, "PALADIN"),
@@ -919,7 +927,10 @@ mod tests {
     fn class_hp_profile_from_tables_data_driven() {
         let caps = ee_caps_with_classes();
         // Single warrior class (d10 HD) → warrior, cap 9.
-        assert_eq!(caps.class_hp_profile_from_tables("PALADIN"), Some((true, 9)));
+        assert_eq!(
+            caps.class_hp_profile_from_tables("PALADIN"),
+            Some((true, 9))
+        );
         // Mage/Thief: not warrior (d4/d6), cap = max(10, 10).
         assert_eq!(
             caps.class_hp_profile_from_tables("MAGE_THIEF"),

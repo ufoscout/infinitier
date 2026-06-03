@@ -138,17 +138,13 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         // kit / …) and the strongest-kill strref, so it needs
         // `game_data`; the kill statistics live in the GAM party
         // slot's raw struct, so it also takes `member`.
-        CharacterTab::Characteristics => {
-            CharacteristicsTab.show(ui, cre, member, &state.game_data)
-        }
+        CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, member, &state.game_data),
         CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
         CharacterTab::Inventory => InventoryTab.show(ui, cre, gam, game),
         CharacterTab::Memorization => MemorizationTab.show(ui, cre, gam, game),
-        // Innate / Wizard resolve spell resrefs to display names via
-        // their SPL files and `dialog.tlk`, so they need `game_data`.
         CharacterTab::Innate => InnateTab.show(ui, cre, &state.game_data),
         CharacterTab::Wizard => WizardTab.show(ui, cre, &state.game_data),
-        CharacterTab::Cleric => ClericTab.show(ui, cre, gam, game),
+        CharacterTab::Cleric => ClericTab.show(ui, cre, &state.game_data),
         CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, gam, game),
         CharacterTab::Resistances => ResistancesTab.show(ui, cre, gam, game),
         CharacterTab::Effects => EffectsTab.show(ui, cre, gam, game),

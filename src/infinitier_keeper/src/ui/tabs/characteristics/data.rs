@@ -260,7 +260,9 @@ fn pretty(symbol: &str, sep: &str) -> String {
         .map(|w| {
             let mut c = w.chars();
             match c.next() {
-                Some(first) => first.to_uppercase().collect::<String>() + &c.as_str().to_lowercase(),
+                Some(first) => {
+                    first.to_uppercase().collect::<String>() + &c.as_str().to_lowercase()
+                }
                 None => String::new(),
             }
         })

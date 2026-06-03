@@ -408,6 +408,42 @@ pub struct V22SubSections {
     pub effects: EffectList,
 }
 
+/// The spellbook a [`KnownSpell`] belongs to. Stored on disk as a
+/// `u16` (`0` priest, `1` wizard, `2` innate).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpellType {
+    /// Divine / priest spell (on-disk `0`).
+    Priest,
+    /// Arcane / wizard spell (on-disk `1`).
+    Wizard,
+    /// Innate ability (on-disk `2`).
+    Innate,
+    /// Any other on-disk value, preserved verbatim for round-trip.
+    Unknown(u16),
+}
+
+impl SpellType {
+    /// Decode the on-disk `u16` type code.
+    pub fn from_u16(value: u16) -> Self {
+        match value {
+            0 => SpellType::Priest,
+            1 => SpellType::Wizard,
+            2 => SpellType::Innate,
+            other => SpellType::Unknown(other),
+        }
+    }
+
+    /// Encode back to the on-disk `u16` type code.
+    pub fn to_u16(self) -> u16 {
+        match self {
+            SpellType::Priest => 0,
+            SpellType::Wizard => 1,
+            SpellType::Innate => 2,
+            SpellType::Unknown(other) => other,
+        }
+    }
+}
+
 /// One known-spell record (12 B on disk).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KnownSpell {
@@ -415,8 +451,8 @@ pub struct KnownSpell {
     pub spell: String,
     /// 0x08: spell level (1..=9).
     pub level: u16,
-    /// 0x0A: spell type — `0` priest, `1` wizard, `2` innate.
-    pub spell_type: u16,
+    /// 0x0A: spell type (priest / wizard / innate).
+    pub spell_type: SpellType,
 }
 
 /// One spell-memorisation row (16 B on disk). Carries the
@@ -430,8 +466,8 @@ pub struct SpellMemorizationInfo {
     pub num_memorizable_total: u16,
     /// 0x04: # currently memorisable (after effects).
     pub num_memorizable_current: u16,
-    /// 0x06: spell type — same `0`/`1`/`2` scheme as [`KnownSpell`].
-    pub spell_type: u16,
+    /// 0x06: spell type (priest / wizard / innate).
+    pub spell_type: SpellType,
     /// 0x08: index into [`V1SubSections::memorized_spells`] where
     /// this slot's spells start.
     pub spell_table_index: u32,
@@ -452,6 +488,25 @@ pub struct MemorizedSpell {
     pub padding: u16,
 }
 
+bitflags::bitflags! {
+    /// Per-item flags at CRE item offset 0x10 (a 4-byte field).
+    ///
+    /// Only the low four bits are defined; any other bits are kept via
+    /// [`ItemFlags::from_bits_retain`] so the record round-trips
+    /// byte-for-byte.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct ItemFlags: u32 {
+        /// The item has been identified.
+        const Identified = 1 << 0;
+        /// The item cannot be stolen.
+        const Unstealable = 1 << 1;
+        /// The item is flagged as stolen.
+        const Stolen = 1 << 2;
+        /// The item cannot be dropped.
+        const Undroppable = 1 << 3;
+    }
+}
+
 /// One carried-item record (20 B on disk).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
@@ -466,9 +521,9 @@ pub struct Item {
     pub quantity2: u16,
     /// 0x0E: tertiary quantity / charges.
     pub quantity3: u16,
-    /// 0x10: item flags bitfield (`identified`, `unstealable`,
-    /// `stolen`, `undroppable`, …).
-    pub flags: u32,
+    /// 0x10: item flags (`identified`, `unstealable`, `stolen`,
+    /// `undroppable`).
+    pub flags: ItemFlags,
 }
 
 /// Effect-record list. EFF byte at header offset 0x33 (`0` => V1,

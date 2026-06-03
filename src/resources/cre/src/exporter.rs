@@ -305,7 +305,7 @@ fn write_known_spells(buf: &mut [u8], offset: usize, list: &[KnownSpell]) {
         let off = offset + i * KNOWN_SPELL_LEN;
         write_resref(&mut buf[off..off + 8], &k.spell);
         buf[off + 8..off + 10].copy_from_slice(&k.level.to_le_bytes());
-        buf[off + 10..off + 12].copy_from_slice(&k.spell_type.to_le_bytes());
+        buf[off + 10..off + 12].copy_from_slice(&k.spell_type.to_u16().to_le_bytes());
     }
 }
 
@@ -315,7 +315,7 @@ fn write_spell_memorization_info(buf: &mut [u8], offset: usize, list: &[SpellMem
         buf[off..off + 2].copy_from_slice(&m.level.to_le_bytes());
         buf[off + 2..off + 4].copy_from_slice(&m.num_memorizable_total.to_le_bytes());
         buf[off + 4..off + 6].copy_from_slice(&m.num_memorizable_current.to_le_bytes());
-        buf[off + 6..off + 8].copy_from_slice(&m.spell_type.to_le_bytes());
+        buf[off + 6..off + 8].copy_from_slice(&m.spell_type.to_u16().to_le_bytes());
         buf[off + 8..off + 12].copy_from_slice(&m.spell_table_index.to_le_bytes());
         buf[off + 12..off + 16].copy_from_slice(&m.spell_count.to_le_bytes());
     }
@@ -338,7 +338,7 @@ fn write_items(buf: &mut [u8], offset: usize, list: &[Item]) {
         buf[off + 10..off + 12].copy_from_slice(&it.quantity1.to_le_bytes());
         buf[off + 12..off + 14].copy_from_slice(&it.quantity2.to_le_bytes());
         buf[off + 14..off + 16].copy_from_slice(&it.quantity3.to_le_bytes());
-        buf[off + 16..off + 20].copy_from_slice(&it.flags.to_le_bytes());
+        buf[off + 16..off + 20].copy_from_slice(&it.flags.bits().to_le_bytes());
     }
 }
 

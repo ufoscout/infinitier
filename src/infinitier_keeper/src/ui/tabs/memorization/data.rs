@@ -12,7 +12,7 @@
 //! The on-disk `level` is 0-based (Shadow Keeper displays `level + 1`),
 //! so it is incremented here to match the 1-based levels in the UI.
 
-use infinitier_core::resource::cre::{Cre, SubSections};
+use infinitier_core::resource::cre::{Cre, SpellType, SubSections};
 
 /// One table row: a spell slot's type, level and memorisation cap.
 pub struct MemRow {
@@ -38,14 +38,13 @@ pub fn memorization_rows(cre: &Cre) -> Vec<MemRow> {
         .collect()
 }
 
-/// Map a CRE spell-type code to EEKeeper's column label. Type `0`
-/// (priest, in file terms) is shown as "Cleric" to match EEKeeper's
-/// UI.
-fn spell_type_name(spell_type: u16) -> &'static str {
+/// Map a spell type to EEKeeper's column label. [`SpellType::Priest`]
+/// is shown as "Cleric" to match EEKeeper's UI.
+fn spell_type_name(spell_type: SpellType) -> &'static str {
     match spell_type {
-        0 => "Cleric",
-        1 => "Wizard",
-        2 => "Innate",
-        _ => "Unknown",
+        SpellType::Priest => "Cleric",
+        SpellType::Wizard => "Wizard",
+        SpellType::Innate => "Innate",
+        SpellType::Unknown(_) => "Unknown",
     }
 }

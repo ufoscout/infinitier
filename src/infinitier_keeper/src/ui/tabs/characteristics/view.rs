@@ -82,24 +82,21 @@ fn simple_row(ui: &mut egui::Ui, label: &str, value: &str) {
 // ── Right: Kill Stats ────────────────────────────────────────────────
 
 fn kill_stats_card(ui: &mut egui::Ui, data: &CharData, game_data: &GameData) {
-    Card::new()
-        .title("Kill Stats")
-        .divider()
-        .show(ui, |ui| {
-            let k = &data.kill;
-            let strongest = resolve_strref(ui, game_data, k.strongest_name_strref);
-            egui::Grid::new("characteristics_kill_stats")
-                .num_columns(2)
-                .spacing([10.0, 7.0])
-                .show(ui, |ui| {
-                    stat_row(ui, "Strongest Kill Name", &strongest);
-                    stat_row(ui, "Strongest Kill XP", &k.strongest_xp.to_string());
-                    stat_row(ui, "Chapter Kills", &k.chapter_kills.to_string());
-                    stat_row(ui, "Chapter Kills XP", &k.chapter_kills_xp.to_string());
-                    stat_row(ui, "Game Kills", &k.game_kills.to_string());
-                    stat_row(ui, "Game Kills XP", &k.game_kills_xp.to_string());
-                });
-        });
+    Card::new().title("Kill Stats").divider().show(ui, |ui| {
+        let k = &data.kill;
+        let strongest = resolve_strref(ui, game_data, k.strongest_name_strref);
+        egui::Grid::new("characteristics_kill_stats")
+            .num_columns(2)
+            .spacing([10.0, 7.0])
+            .show(ui, |ui| {
+                stat_row(ui, "Strongest Kill Name", &strongest);
+                stat_row(ui, "Strongest Kill XP", &k.strongest_xp.to_string());
+                stat_row(ui, "Chapter Kills", &k.chapter_kills.to_string());
+                stat_row(ui, "Chapter Kills XP", &k.chapter_kills_xp.to_string());
+                stat_row(ui, "Game Kills", &k.game_kills.to_string());
+                stat_row(ui, "Game Kills XP", &k.game_kills_xp.to_string());
+            });
+    });
 }
 
 fn stat_row(ui: &mut egui::Ui, label: &str, value: &str) {
@@ -111,30 +108,27 @@ fn stat_row(ui: &mut egui::Ui, label: &str, value: &str) {
 // ── Right: Miscellaneous flags ───────────────────────────────────────
 
 fn miscellaneous_card(ui: &mut egui::Ui, data: &CharData) {
-    Card::new()
-        .title("Miscellaneous")
-        .divider()
-        .show(ui, |ui| {
-            // EEKeeper lays the flags out in two columns: the first
-            // half of MISC_FLAGS down the left, the rest down the
-            // right. A grid (rather than `ui.columns`) lets the left
-            // column take whatever width its longest label needs so
-            // the wide EE labels don't overlap the right column.
-            let mid = MISC_FLAGS.len().div_ceil(2);
-            egui::Grid::new("characteristics_misc_flags")
-                .num_columns(2)
-                .spacing([24.0, 4.0])
-                .show(ui, |ui| {
-                    for row in 0..mid {
-                        let (l_label, l_bit) = MISC_FLAGS[row];
-                        read_only_check(ui, l_label, data.flags & l_bit != 0);
-                        if let Some(&(r_label, r_bit)) = MISC_FLAGS.get(mid + row) {
-                            read_only_check(ui, r_label, data.flags & r_bit != 0);
-                        }
-                        ui.end_row();
+    Card::new().title("Miscellaneous").divider().show(ui, |ui| {
+        // EEKeeper lays the flags out in two columns: the first
+        // half of MISC_FLAGS down the left, the rest down the
+        // right. A grid (rather than `ui.columns`) lets the left
+        // column take whatever width its longest label needs so
+        // the wide EE labels don't overlap the right column.
+        let mid = MISC_FLAGS.len().div_ceil(2);
+        egui::Grid::new("characteristics_misc_flags")
+            .num_columns(2)
+            .spacing([24.0, 4.0])
+            .show(ui, |ui| {
+                for row in 0..mid {
+                    let (l_label, l_bit) = MISC_FLAGS[row];
+                    read_only_check(ui, l_label, data.flags & l_bit != 0);
+                    if let Some(&(r_label, r_bit)) = MISC_FLAGS.get(mid + row) {
+                        read_only_check(ui, r_label, data.flags & r_bit != 0);
                     }
-                });
-        });
+                    ui.end_row();
+                }
+            });
+    });
 }
 
 // ── Shared widgets ───────────────────────────────────────────────────

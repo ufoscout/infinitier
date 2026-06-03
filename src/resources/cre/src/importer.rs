@@ -6,9 +6,9 @@ use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 use crate::{
-    CRE_SIGNATURE, Cre, CreHeader, CreVersion, EffectList, EffectV1, EffectV2, Item, Iwd2Slot,
-    Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell, SpellMemorizationInfo, SubSections,
-    V1SubSections, V22SubSections,
+    CRE_SIGNATURE, Cre, CreHeader, CreVersion, EffectList, EffectV1, EffectV2, Item, ItemFlags,
+    Iwd2Slot, Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell, SpellMemorizationInfo,
+    SpellType, SubSections, V1SubSections, V22SubSections,
     header_generated::{
         parse_header_v1_0, parse_header_v1_2, parse_header_v2_2, parse_header_v9_0,
     },
@@ -464,7 +464,7 @@ fn parse_known_spells(
         out.push(KnownSpell {
             spell: reader.read_string(8)?,
             level: reader.read_u16()?,
-            spell_type: reader.read_u16()?,
+            spell_type: SpellType::from_u16(reader.read_u16()?),
         });
     }
     Ok(out)
@@ -493,7 +493,7 @@ fn parse_spell_memorization_info(
             level: reader.read_u16()?,
             num_memorizable_total: reader.read_u16()?,
             num_memorizable_current: reader.read_u16()?,
-            spell_type: reader.read_u16()?,
+            spell_type: SpellType::from_u16(reader.read_u16()?),
             spell_table_index: reader.read_u32()?,
             spell_count: reader.read_u32()?,
         });
@@ -554,7 +554,7 @@ fn parse_items(
             quantity1: reader.read_u16()?,
             quantity2: reader.read_u16()?,
             quantity3: reader.read_u16()?,
-            flags: reader.read_u32()?,
+            flags: ItemFlags::from_bits_retain(reader.read_u32()?),
         });
     }
     Ok(out)

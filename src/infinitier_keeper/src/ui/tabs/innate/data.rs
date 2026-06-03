@@ -17,11 +17,7 @@
 //! the view layer (it needs `GameData` + `dialog.tlk`); this module
 //! stays pure so it is cheap to call every repaint and easy to test.
 
-use infinitier_core::resource::cre::{Cre, SubSections};
-
-/// Spell-type code for an innate ability (`0` priest, `1` wizard,
-/// `2` innate — same scheme as [`KnownSpell::spell_type`]).
-const SPELL_TYPE_INNATE: u16 = 2;
+use infinitier_core::resource::cre::{Cre, SpellType, SubSections};
 
 /// One Innate-tab row, before name resolution.
 pub struct InnateRow {
@@ -40,7 +36,7 @@ pub fn innate_rows(cre: &Cre) -> Vec<InnateRow> {
 
     let mut rows: Vec<InnateRow> = Vec::new();
     for known in &sub.known_spells {
-        if known.spell_type != SPELL_TYPE_INNATE {
+        if known.spell_type != SpellType::Innate {
             continue;
         }
         // Collapse duplicate known-spell entries (Shadow Keeper does

@@ -125,7 +125,11 @@ fn ability_scores_card(
                 snap,
                 state,
                 editors,
-                Some(format_bonus(engine, BonusKind::HpPerLevel, con_hp_per_level)),
+                Some(format_bonus(
+                    engine,
+                    BonusKind::HpPerLevel,
+                    con_hp_per_level,
+                )),
             );
             editable_row(ui, EditableField::Intelligence, snap, state, editors, None);
             editable_row(ui, EditableField::Wisdom, snap, state, editors, None);
@@ -174,9 +178,11 @@ fn combat_status_card(
             // for warriors), capped at the class's last HP-roll level.
             let hp_levels = u32::from(snap.hp_roll_cap.min(snap.primary_level));
             let effective_max_hp: i32 = i32::from(max_hp_base)
-                + state
-                    .engine_caps
-                    .max_hp_constitution_bonus(constitution, snap.is_warrior, hp_levels);
+                + state.engine_caps.max_hp_constitution_bonus(
+                    constitution,
+                    snap.is_warrior,
+                    hp_levels,
+                );
 
             for &field in EditableField::ALL {
                 if field.section() != Section::CombatStatus || !snap.is_visible(field) {
@@ -266,8 +272,8 @@ fn skills_card(
             if field.section() != Section::ThiefSkills || !snap.is_visible(field) {
                 continue;
             }
-            let bonus = (field == EditableField::Lore)
-                .then(|| format!("(effective: {effective_lore})"));
+            let bonus =
+                (field == EditableField::Lore).then(|| format!("(effective: {effective_lore})"));
             editable_row(ui, field, snap, state, editors, bonus);
         }
     });

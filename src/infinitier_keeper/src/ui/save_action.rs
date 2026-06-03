@@ -360,13 +360,19 @@ mod tests {
         );
     }
 
-        #[test]
+    #[test]
     fn split_edited_suffix_recognises_and_rejects() {
         assert_eq!(split_edited_suffix("Foo (Edited 0002)"), ("Foo", Some(2)));
         assert_eq!(split_edited_suffix("Quick-Save"), ("Quick-Save", None));
         // Empty / non-numeric digit field → not a suffix.
-        assert_eq!(split_edited_suffix("Foo (Edited )"), ("Foo (Edited )", None));
-        assert_eq!(split_edited_suffix("Foo (Edited abc)"), ("Foo (Edited abc)", None));
+        assert_eq!(
+            split_edited_suffix("Foo (Edited )"),
+            ("Foo (Edited )", None)
+        );
+        assert_eq!(
+            split_edited_suffix("Foo (Edited abc)"),
+            ("Foo (Edited abc)", None)
+        );
         // A base that itself contains an (Edited) — the last one is the suffix.
         assert_eq!(
             split_edited_suffix("A (Edited 0001) (Edited 0002)"),
@@ -404,7 +410,8 @@ mod tests {
         .into_iter()
         .collect();
         assert_eq!(
-            next_edited_save_name("000000000-Auto-Save (Edited 0002)", |n| existing.contains(n)),
+            next_edited_save_name("000000000-Auto-Save (Edited 0002)", |n| existing
+                .contains(n)),
             "000000000-Auto-Save (Edited 0003)"
         );
     }
