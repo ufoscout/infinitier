@@ -19,6 +19,6 @@ Aerie                81            69             57                        69
 
 It seems that both Lore and MaxHp depend on the class:
 - lore: see https://baldursgate.fandom.com/wiki/Lore
-- Max HP: search on Google
+- Info about Max HP calculations: search on Google
 
-To be investigated if these values are per game, are hardcoded and/or are somewhere in the resources
+check also if these values are per game, are hardcoded or are somewhere in the resources

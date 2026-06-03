@@ -19,9 +19,10 @@ use std::collections::HashMap;
 use eframe::egui;
 use egui_components::scroll_area::ScrollArea;
 use egui_components::{Card, Label, LabelTone, Select, Size};
+use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::imported_resource::gam::NpcCre;
-use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
+use infinitier_core::resource::{Engine, ResourceType};
 
 use crate::components::cre_fields;
 use crate::components::editable_fields::{
@@ -84,6 +85,13 @@ fn ability_scores_card(
                 state
                     .engine_caps
                     .ability_bonuses(strength, strength_pct, dexterity, constitution);
+            // Per-level CON→HP bonus, engine-aware (AD&D warrior/normal
+            // HPCONBON column, or the IWD2 d20 modifier) so the value
+            // shown here always matches the effective Max HP below.
+            let con_hp_per_level = state
+                .engine_caps
+                .constitution_hp_per_level(constitution, snap.is_warrior)
+                as i8;
 
             editable_row(
                 ui,
@@ -118,11 +126,7 @@ fn ability_scores_card(
                 snap,
                 state,
                 editors,
-                Some(format_bonus(
-                    engine,
-                    BonusKind::HpPerLevel,
-                    bonuses.hp_per_level_from_constitution,
-                )),
+                Some(format_bonus(engine, BonusKind::HpPerLevel, con_hp_per_level)),
             );
             editable_row(ui, EditableField::Intelligence, snap, state, editors, None);
             editable_row(ui, EditableField::Wisdom, snap, state, editors, None);
@@ -159,14 +163,21 @@ fn combat_status_card(
             let thac0_base = read_i8(editors, EditableField::Thac0, snap.thac0_or_bab);
             let ac_base = read_i16(editors, EditableField::AcNatural, snap.ac_natural);
             let max_hp_base = read_u16(editors, EditableField::MaxHp, snap.max_hit_points);
-            let level = i32::from(snap.primary_level);
             let effective_thac0: i32 = match engine {
                 Engine::Iwd2 => i32::from(thac0_base) + i32::from(bonuses.thac0_from_strength),
                 _ => i32::from(thac0_base) - i32::from(bonuses.thac0_from_strength),
             };
             let effective_ac: i32 = i32::from(ac_base) + i32::from(bonuses.ac_from_dexterity);
-            let effective_max_hp: i32 =
-                i32::from(max_hp_base) + level * i32::from(bonuses.hp_per_level_from_constitution);
+            // The stored `maximum_hit_points` excludes the CON bonus
+            // (the engine re-applies it at runtime — unlike THAC0/AC,
+            // current HP can exceed stored max). Effective = stored +
+            // per-Hit-Die CON bonus × HP-rolling levels (warrior table
+            // for warriors), capped at the class's last HP-roll level.
+            let hp_levels = u32::from(snap.hp_roll_cap.min(snap.primary_level));
+            let effective_max_hp: i32 = i32::from(max_hp_base)
+                + state
+                    .engine_caps
+                    .max_hp_constitution_bonus(constitution, snap.is_warrior, hp_levels);
 
             for &field in EditableField::ALL {
                 if field.section() != Section::CombatStatus || !snap.is_visible(field) {
@@ -241,12 +252,24 @@ fn skills_card(
         });
         return;
     }
+    // Effective Lore = stored base + signed INT/WIS bonus (LOREBON.2DA).
+    // The base byte is what the editor stores; the game displays the
+    // bonused total. Read in-flight INT/WIS/Lore so the preview tracks
+    // live edits, mirroring the effective THAC0 / AC / Max HP rows.
+    let intelligence = read_u8(editors, EditableField::Intelligence, snap.intelligence);
+    let wisdom = read_u8(editors, EditableField::Wisdom, snap.wisdom);
+    let lore_base = read_u8(editors, EditableField::Lore, snap.lore);
+    let effective_lore =
+        (i32::from(lore_base) + state.engine_caps.lore_bonus(intelligence, wisdom)).max(0);
+
     Card::new().title("Thief Skills").divider().show(ui, |ui| {
         for &field in EditableField::ALL {
             if field.section() != Section::ThiefSkills || !snap.is_visible(field) {
                 continue;
             }
-            editable_row(ui, field, snap, state, editors, None);
+            let bonus = (field == EditableField::Lore)
+                .then(|| format!("(effective: {effective_lore})"));
+            editable_row(ui, field, snap, state, editors, bonus);
         }
     });
 }
@@ -399,10 +422,20 @@ struct CreSnapshot {
     strength_pct: Option<u8>,
     dexterity: u8,
     constitution: u8,
+    intelligence: u8,
+    wisdom: u8,
+    /// Stored base Lore byte (effective Lore adds the INT/WIS bonus).
+    lore: u8,
     thac0_or_bab: i8,
     ac_natural: i16,
     max_hit_points: u16,
     primary_level: u8,
+    /// Warrior (Fighter/Paladin/Ranger/Barbarian) — selects the
+    /// larger CON→HP table.
+    is_warrior: bool,
+    /// Highest level that still rolls a Hit Die (and so earns the
+    /// CON HP bonus): 9 for warriors/priests, 10 for rogues/wizards.
+    hp_roll_cap: u8,
     ability_total: u32,
     labels: HashMap<EditableField, &'static str>,
     visible: HashMap<EditableField, bool>,
@@ -440,15 +473,28 @@ impl CreSnapshot {
             ),
             _ => (None, None),
         };
+        let (is_warrior, hp_roll_cap) = match &cre.header {
+            // IWD2 (d20) applies the CON modifier on every level with no
+            // Hit-Die cap and no warrior distinction.
+            CreHeader::V22(_) => (false, u8::MAX),
+            _ => class_symbol(state, cre)
+                .map(|s| hp_profile(&s))
+                .unwrap_or((false, 9)),
+        };
         Some(Self {
             strength: cre.strength(),
             strength_pct: cre.strength_bonus(),
             dexterity: cre.dexterity(),
             constitution: cre.constitution(),
+            intelligence: cre.intelligence(),
+            wisdom: cre.wisdom(),
+            lore: cre_fields::lore(cre).unwrap_or(0),
             thac0_or_bab: cre_fields::thac0_or_bab(cre),
             ac_natural: cre_fields::ac_natural(cre),
             max_hit_points: cre_fields::max_hit_points(cre),
             primary_level: cre_fields::primary_level(cre),
+            is_warrior,
+            hp_roll_cap,
             ability_total,
             labels,
             visible,
@@ -464,6 +510,45 @@ impl CreSnapshot {
     fn is_visible(&self, field: EditableField) -> bool {
         self.visible.get(&field).copied().unwrap_or(false)
     }
+}
+
+/// Resolve the creature's `CLASS.IDS` symbol (e.g. `"PALADIN"`,
+/// `"MAGE_THIEF"`) for HP / CON classification. `None` for IWD2 (V2.2)
+/// or when the IDS file can't be read.
+fn class_symbol(state: &AppState, cre: &Cre) -> Option<String> {
+    let class = match &cre.header {
+        CreHeader::V10(h) => h.class_class_ids,
+        CreHeader::V12(h) => h.class_class_ids,
+        CreHeader::V90(h) => h.class_class_ids,
+        CreHeader::V22(_) => return None,
+    };
+    match state
+        .game_data
+        .import_by_name_and_type("class", ResourceType::Ids)
+    {
+        Ok(Some(ImportedResource::Ids(ids))) => ids
+            .entries
+            .iter()
+            .find(|e| e.value == i32::from(class))
+            .map(|e| e.name.clone()),
+        _ => None,
+    }
+}
+
+/// `(is_warrior, hp_roll_cap)` from a `CLASS.IDS` symbol. Warriors
+/// (Fighter / Paladin / Ranger / Barbarian, including multi/dual
+/// combos that contain one) use the larger CON→HP column. Rogues and
+/// wizards roll Hit Dice through level 10; everyone else through 9
+/// (AD&D 2e). For combos the highest component cap wins.
+fn hp_profile(class_symbol: &str) -> (bool, u8) {
+    let has = |needle: &str| class_symbol.contains(needle);
+    let is_warrior = has("FIGHTER") || has("PALADIN") || has("RANGER") || has("BARBARIAN");
+    let cap = if has("MAGE") || has("SORCERER") || has("THIEF") || has("BARD") {
+        10
+    } else {
+        9
+    };
+    (is_warrior, cap)
 }
 
 // ── IWD2 read-only helpers ───────────────────────────────────────────

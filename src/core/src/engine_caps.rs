@@ -173,11 +173,19 @@ pub struct EngineCaps {
     /// `DEXMOD.2DA` (`AC_ADJ` column) — AC bonus by dexterity.
     /// Negative = better AC in AD&D. Empty on IWD2.
     pub dexmod_ac: BonusTable,
-    /// `HPCONBON.2DA` — per-level HP bonus by constitution
-    /// (non-warrior table; warriors get larger bonuses via
-    /// `HPWAR.2DA` but we don't surface class-dependent caps yet).
-    /// Empty on IWD2.
+    /// `HPCONBON.2DA` `OTHER` column — per-Hit-Die HP bonus by
+    /// constitution for non-warriors (max +2 in AD&D). Empty on IWD2.
     pub hpconbon_hp: BonusTable,
+    /// `HPCONBON.2DA` `WARRIOR` column — per-Hit-Die HP bonus by
+    /// constitution for warriors (Fighter / Paladin / Ranger /
+    /// Barbarian), which scales past +2 (CON 18 → +4, 22 → +6, …).
+    /// Empty on IWD2. Falls back to the non-warrior column on
+    /// pre-EE single-column `HPCONBON.2DA` files.
+    pub hpconbon_hp_warrior: BonusTable,
+    /// `LOREBON.2DA` (`VALUE` column) — signed Lore bonus by INT or
+    /// WIS score (e.g. WIS 6 → −20, INT 23 → +30). Applied once for
+    /// INT and once for WIS. Empty on IWD2 (Lore is a d20 skill there).
+    pub lorebon: BonusTable,
 }
 
 /// Cap ranges that share their value across every IE engine —
@@ -292,9 +300,11 @@ impl EngineCaps {
             },
             _ => SHARED_RANGES,
         };
-        let (strmod_to_hit, strmodex_to_hit, dexmod_ac, hpconbon_hp) =
+        let (strmod_to_hit, strmodex_to_hit, dexmod_ac, hpconbon_hp, hpconbon_hp_warrior, lorebon) =
             if matches!(engine, Engine::Iwd2) {
                 (
+                    BonusTable::default(),
+                    BonusTable::default(),
                     BonusTable::default(),
                     BonusTable::default(),
                     BonusTable::default(),
@@ -310,12 +320,15 @@ impl EngineCaps {
                     // a handful of mods rename it to `"ACMOD"`.
                     load_bonus_table(game_data, "dexmod", &["AC_ADJ", "ACMOD", "AC"])?,
                     // BG:EE / BG2:EE / IWDEE / PSTEE split HPCONBON into
-                    // `WARRIOR` / `OTHER` columns. The previous hardcoded
-                    // ad&d implementation was not class-aware and capped at
-                    // the non-warrior +2 bonus — `OTHER` preserves that
-                    // behaviour. Original (pre-EE) releases use a single
-                    // `HP_BONUS` column; a few mods rename it `HPCONBON`.
-                    load_bonus_table(game_data, "hpconbon", &["HP_BONUS", "HPCONBON", "OTHER"])?,
+                    // `WARRIOR` / `OTHER` columns. `OTHER` is the
+                    // non-warrior (max +2) bonus. Original (pre-EE)
+                    // releases use a single `HP_BONUS` column; a few mods
+                    // rename it `HPCONBON`.
+                    load_bonus_table(game_data, "hpconbon", &["OTHER", "HP_BONUS", "HPCONBON"])?,
+                    // Warrior column; on a single-column pre-EE file this
+                    // falls back to the same bonus as non-warriors.
+                    load_bonus_table(game_data, "hpconbon", &["WARRIOR", "HP_BONUS", "HPCONBON"])?,
+                    load_bonus_table(game_data, "lorebon", &["VALUE", "LORE_BONUS"])?,
                 )
             };
         Ok(Self {
@@ -344,6 +357,8 @@ impl EngineCaps {
             strmodex_to_hit,
             dexmod_ac,
             hpconbon_hp,
+            hpconbon_hp_warrior,
+            lorebon,
         })
     }
 
@@ -364,9 +379,55 @@ impl EngineCaps {
         self.dexmod_ac.lookup(dexterity)
     }
 
-    /// AD&D 2e per-level HP bonus from CON (`HPCONBON.2DA`).
+    /// AD&D 2e per-Hit-Die HP bonus from CON (`HPCONBON.2DA`).
+    /// `warrior` selects the larger `WARRIOR` column for Fighter /
+    /// Paladin / Ranger / Barbarian (and combos that include one).
     pub fn constitution_hp_bonus(&self, constitution: u8) -> i8 {
         self.hpconbon_hp.lookup(constitution)
+    }
+
+    /// Warrior variant of [`Self::constitution_hp_bonus`].
+    pub fn constitution_hp_bonus_warrior(&self, constitution: u8) -> i8 {
+        self.hpconbon_hp_warrior.lookup(constitution)
+    }
+
+    /// Per-Hit-Die (per-level) CON contribution to HP, engine-aware so
+    /// the value shown next to Constitution always matches the effective
+    /// Max HP. AD&D reads the `HPCONBON.2DA` `WARRIOR` / `OTHER` column
+    /// (`is_warrior`); IWD2 (d20) uses the ability modifier and ignores
+    /// `is_warrior` (3e has no warrior CON-HP distinction).
+    pub fn constitution_hp_per_level(&self, constitution: u8, is_warrior: bool) -> i32 {
+        match self.engine {
+            Engine::Iwd2 => i32::from(d20_modifier(constitution)),
+            _ => i32::from(if is_warrior {
+                self.constitution_hp_bonus_warrior(constitution)
+            } else {
+                self.constitution_hp_bonus(constitution)
+            }),
+        }
+    }
+
+    /// Total CON contribution to a creature's maximum HP, matching the
+    /// engine's runtime adjustment: the per-level bonus times the number
+    /// of HP-rolling levels, since the stored `maximum_hit_points`
+    /// excludes the CON bonus. Mirrors GemRB `Actor::GetHpAdjustment`
+    /// (AD&D: capped at the class HP-roll level; IWD2: plain
+    /// `level × con-modifier`).
+    pub fn max_hp_constitution_bonus(
+        &self,
+        constitution: u8,
+        is_warrior: bool,
+        levels_with_hp_roll: u32,
+    ) -> i32 {
+        self.constitution_hp_per_level(constitution, is_warrior) * levels_with_hp_roll as i32
+    }
+
+    /// AD&D Lore bonus from INT and WIS (`LOREBON.2DA`, applied once
+    /// each, summed and signed). The engine adds this to the stored
+    /// base Lore byte to get the displayed value. Mirrors GemRB
+    /// `Modified[IE_LORE] += GetLoreBonus(INT) + GetLoreBonus(WIS)`.
+    pub fn lore_bonus(&self, intelligence: u8, wisdom: u8) -> i32 {
+        i32::from(self.lorebon.lookup(intelligence)) + i32::from(self.lorebon.lookup(wisdom))
     }
 
     /// Combined bonuses for one set of ability scores under the
@@ -516,6 +577,135 @@ mod tests {
         assert_eq!(d20_modifier(1), -5);
     }
 
+    /// Build an `EngineCaps` carrying only the CON/Lore tables the
+    /// Lore + Max-HP tests exercise; everything else gets the shared
+    /// ranges / empty tables.
+    fn caps_for_lore_hp(
+        hpconbon_hp: BonusTable,
+        hpconbon_hp_warrior: BonusTable,
+        lorebon: BonusTable,
+    ) -> EngineCaps {
+        let r = SHARED_RANGES;
+        EngineCaps {
+            engine: Engine::Ee,
+            ability_score: r.ability_score,
+            strength_percentile: r.strength_percentile,
+            current_hit_points: r.current_hit_points,
+            max_hit_points: r.max_hit_points,
+            armor_class: r.armor_class,
+            thac0: r.thac0,
+            attacks_byte: r.attacks_byte,
+            reputation: r.reputation,
+            party_gold: r.party_gold,
+            fatigue: r.fatigue,
+            intoxication: r.intoxication,
+            luck: r.luck,
+            experience: r.experience,
+            xp_for_kill: r.xp_for_kill,
+            class_level: r.class_level,
+            morale: r.morale,
+            morale_break: r.morale_break,
+            morale_recovery: r.morale_recovery,
+            thief_skill: r.thief_skill,
+            lore: r.lore,
+            strmod_to_hit: BonusTable::default(),
+            strmodex_to_hit: BonusTable::default(),
+            dexmod_ac: BonusTable::default(),
+            hpconbon_hp,
+            hpconbon_hp_warrior,
+            lorebon,
+        }
+    }
+
+    /// Tables shaped like the BG2:EE `HPCONBON.2DA` / `LOREBON.2DA`
+    /// rows the reference party actually hits.
+    fn ee_caps() -> EngineCaps {
+        let hpconbon = make_two_da(
+            &["OTHER", "WARRIOR"],
+            &[
+                ("9", &["0", "0"]),
+                ("16", &["2", "2"]),
+                ("17", &["2", "3"]),
+                ("18", &["2", "4"]),
+                ("22", &["2", "6"]),
+            ],
+        );
+        let lorebon = make_two_da(
+            &["VALUE"],
+            &[
+                ("6", &["-20"]),
+                ("8", &["-10"]),
+                ("9", &["-10"]),
+                ("11", &["0"]),
+                ("12", &["0"]),
+                ("16", &["5"]),
+                ("17", &["7"]),
+                ("19", &["12"]),
+                ("22", &["25"]),
+                ("23", &["30"]),
+            ],
+        );
+        caps_for_lore_hp(
+            BonusTable::from_two_da(&hpconbon, "OTHER").unwrap(),
+            BonusTable::from_two_da(&hpconbon, "WARRIOR").unwrap(),
+            BonusTable::from_two_da(&lorebon, "VALUE").unwrap(),
+        )
+    }
+
+    #[test]
+    fn constitution_hp_bonus_picks_warrior_column() {
+        let caps = ee_caps();
+        // Non-warrior caps at +2; warriors scale past it.
+        assert_eq!(caps.constitution_hp_bonus(22), 2);
+        assert_eq!(caps.constitution_hp_bonus_warrior(22), 6);
+        assert_eq!(caps.constitution_hp_bonus_warrior(18), 4);
+        assert_eq!(caps.constitution_hp_bonus_warrior(17), 3);
+        assert_eq!(caps.constitution_hp_bonus_warrior(9), 0);
+    }
+
+    #[test]
+    fn max_hp_con_bonus_matches_reference_party() {
+        let caps = ee_caps();
+        // Xor: warrior, CON 22, 9 rolling levels → +6 × 9 = 54.
+        assert_eq!(caps.max_hp_constitution_bonus(22, true, 9), 54);
+        // Minsc: warrior, CON 18 → +4 × 9 = 36.
+        assert_eq!(caps.max_hp_constitution_bonus(18, true, 9), 36);
+        // Keldorn: warrior, CON 17 → +3 × 9 = 27.
+        assert_eq!(caps.max_hp_constitution_bonus(17, true, 9), 27);
+        // Nalia / Imoen: non-warrior, CON 16, 10 rolling levels → +2 × 10 = 20.
+        assert_eq!(caps.max_hp_constitution_bonus(16, false, 10), 20);
+        // Aerie: CON 9 → no bonus.
+        assert_eq!(caps.max_hp_constitution_bonus(9, false, 9), 0);
+    }
+
+    #[test]
+    fn iwd2_constitution_hp_uses_d20_modifier_not_tables() {
+        // IWD2 ignores the (AD&D) HPCONBON tables and uses the d20
+        // ability modifier on every level — no warrior distinction, no
+        // HP-roll cap. This keeps the "+N HP/lvl" shown next to CON
+        // consistent with the effective Max HP.
+        let mut caps = ee_caps();
+        caps.engine = Engine::Iwd2;
+        assert_eq!(caps.constitution_hp_per_level(18, false), 4);
+        assert_eq!(caps.constitution_hp_per_level(18, true), 4); // is_warrior ignored
+        assert_eq!(caps.constitution_hp_per_level(9, false), -1);
+        // CON 18 across 10 levels → +40 (level × modifier, uncapped).
+        assert_eq!(caps.max_hp_constitution_bonus(18, false, 10), 40);
+    }
+
+    #[test]
+    fn lore_bonus_is_signed_sum_of_int_and_wis() {
+        let caps = ee_caps();
+        // Xor: INT 22 (+25) + WIS 23 (+30) = +55 → 32 base → 87.
+        assert_eq!(caps.lore_bonus(22, 23), 55);
+        // Minsc: INT 8 (−10) + WIS 6 (−20) = −30 → 36 base → 6.
+        assert_eq!(caps.lore_bonus(8, 6), -30);
+        // Keldorn: INT 12 (0) + WIS 16 (+5) = +5.
+        assert_eq!(caps.lore_bonus(12, 16), 5);
+        // Nalia: INT 19 (+12) + WIS 9 (−10) = +2.
+        assert_eq!(caps.lore_bonus(19, 9), 2);
+    }
+
     #[test]
     fn bonus_table_dense_lookup_is_exact() {
         // STRMOD-shape table: dense rows 1..=4 carrying the bonus
@@ -617,13 +807,12 @@ mod tests {
 
     // ── Building EngineCaps from real extracted 2DAs ─────────────────
     //
-    // `assets/engine_caps/<key>/` holds STRMOD/STRMODEX/DEXMOD/HPCONBON
-    // extracted from each BG install. `EngineCaps::new` must resolve and
-    // parse all four into non-empty bonus tables. The classic `bg`
-    // fixtures are stored XOR-encrypted on disk, which the 2DA importer
-    // does not decrypt — so the tables come back empty and
-    // `EngineCaps::new` errors. Hence `engine_caps_builds_from_bg` is
-    // EXPECTED TO FAIL until 2DA decryption is implemented.
+    // `assets/engine_caps/<key>/` holds STRMOD/STRMODEX/DEXMOD/HPCONBON/
+    // LOREBON extracted from each install. `EngineCaps::new` must resolve
+    // and parse the AD&D bonus tables (LOREBON included) into non-empty
+    // tables — IWD2 (d20) skips them. Classic `bg` ships its 2DAs
+    // XOR-encrypted on disk; the 2DA importer decrypts them transparently,
+    // so every fixture builds.
 
     /// Build a [`GameData`] from the extracted fixtures in
     /// `assets/engine_caps/<game_key>/`, tagged with `game`.
@@ -664,8 +853,8 @@ mod tests {
 
     #[test]
     fn engine_caps_builds_from_bg() {
-        // EXPECTED TO FAIL: classic BG's 2DAs are XOR-encrypted, so the
-        // importer yields empty tables and EngineCaps::new errors.
+        // Classic BG's 2DAs are XOR-encrypted on disk; the 2DA importer
+        // now decrypts them, so the tables parse and EngineCaps builds.
         let result = EngineCaps::new(&fixture_game_data("bg", infinitier_common::Game::Bg));
         assert!(
             result.is_ok(),
