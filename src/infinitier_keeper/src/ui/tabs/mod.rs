@@ -144,7 +144,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
         CharacterTab::Inventory => InventoryTab.show(ui, cre, gam, game),
         CharacterTab::Memorization => MemorizationTab.show(ui, cre, gam, game),
-        CharacterTab::Innate => InnateTab.show(ui, cre, gam, game),
+        // Innate resolves spell resrefs to display names via their SPL
+        // files and `dialog.tlk`, so it needs `game_data`.
+        CharacterTab::Innate => InnateTab.show(ui, cre, &state.game_data),
         CharacterTab::Wizard => WizardTab.show(ui, cre, gam, game),
         CharacterTab::Cleric => ClericTab.show(ui, cre, gam, game),
         CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, gam, game),
