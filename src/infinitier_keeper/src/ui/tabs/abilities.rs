@@ -19,10 +19,9 @@ use std::collections::HashMap;
 use eframe::egui;
 use egui_components::scroll_area::ScrollArea;
 use egui_components::{Card, Label, LabelTone, Select, Size};
-use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::imported_resource::gam::NpcCre;
+use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
-use infinitier_core::resource::{Engine, ResourceType};
 
 use crate::components::cre_fields;
 use crate::components::editable_fields::{
@@ -473,14 +472,16 @@ impl CreSnapshot {
             ),
             _ => (None, None),
         };
-        let (is_warrior, hp_roll_cap) = match &cre.header {
-            // IWD2 (d20) applies the CON modifier on every level with no
-            // Hit-Die cap and no warrior distinction.
-            CreHeader::V22(_) => (false, u8::MAX),
-            _ => class_symbol(state, cre)
-                .map(|s| hp_profile(&s))
-                .unwrap_or((false, 9)),
+        // Warrior flag + CON HP-roll cap from the raw class byte —
+        // EngineCaps owns the IWD2 / EE-data / classic-heuristic
+        // decision (and the CLASS.IDS lookup it loaded once at startup).
+        let class_id = match &cre.header {
+            CreHeader::V10(h) => h.class_class_ids,
+            CreHeader::V12(h) => h.class_class_ids,
+            CreHeader::V90(h) => h.class_class_ids,
+            CreHeader::V22(_) => 0, // IWD2: class byte unused (engine handles it)
         };
+        let (is_warrior, hp_roll_cap) = state.engine_caps.class_hp_profile(class_id);
         Some(Self {
             strength: cre.strength(),
             strength_pct: cre.strength_bonus(),
@@ -510,45 +511,6 @@ impl CreSnapshot {
     fn is_visible(&self, field: EditableField) -> bool {
         self.visible.get(&field).copied().unwrap_or(false)
     }
-}
-
-/// Resolve the creature's `CLASS.IDS` symbol (e.g. `"PALADIN"`,
-/// `"MAGE_THIEF"`) for HP / CON classification. `None` for IWD2 (V2.2)
-/// or when the IDS file can't be read.
-fn class_symbol(state: &AppState, cre: &Cre) -> Option<String> {
-    let class = match &cre.header {
-        CreHeader::V10(h) => h.class_class_ids,
-        CreHeader::V12(h) => h.class_class_ids,
-        CreHeader::V90(h) => h.class_class_ids,
-        CreHeader::V22(_) => return None,
-    };
-    match state
-        .game_data
-        .import_by_name_and_type("class", ResourceType::Ids)
-    {
-        Ok(Some(ImportedResource::Ids(ids))) => ids
-            .entries
-            .iter()
-            .find(|e| e.value == i32::from(class))
-            .map(|e| e.name.clone()),
-        _ => None,
-    }
-}
-
-/// `(is_warrior, hp_roll_cap)` from a `CLASS.IDS` symbol. Warriors
-/// (Fighter / Paladin / Ranger / Barbarian, including multi/dual
-/// combos that contain one) use the larger CON→HP column. Rogues and
-/// wizards roll Hit Dice through level 10; everyone else through 9
-/// (AD&D 2e). For combos the highest component cap wins.
-fn hp_profile(class_symbol: &str) -> (bool, u8) {
-    let has = |needle: &str| class_symbol.contains(needle);
-    let is_warrior = has("FIGHTER") || has("PALADIN") || has("RANGER") || has("BARBARIAN");
-    let cap = if has("MAGE") || has("SORCERER") || has("THIEF") || has("BARD") {
-        10
-    } else {
-        9
-    };
-    (is_warrior, cap)
 }
 
 // ── IWD2 read-only helpers ───────────────────────────────────────────

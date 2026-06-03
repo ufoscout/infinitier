@@ -17,6 +17,7 @@
 //! The entry point is [`EngineCaps::new`] — it needs a [`GameData`]
 //! so it can resolve and parse the 2DAs at construction time.
 
+use std::collections::HashMap;
 use std::io;
 
 use infinitier_common::Engine;
@@ -186,6 +187,29 @@ pub struct EngineCaps {
     /// WIS score (e.g. WIS 6 → −20, INT 23 → +30). Applied once for
     /// INT and once for WIS. Empty on IWD2 (Lore is a d20 skill there).
     pub lorebon: BonusTable,
+    /// `HPCLASS.2DA`: class / kit / multiclass-component symbol →
+    /// its per-level HP table name (`hpwar`, `hpwiz`, …), lowercased.
+    /// Empty on IWD2 or a stripped install (callers then fall back).
+    class_hp_tables: HashMap<String, String>,
+    /// Per HP table (`hpwar`, …): its Hit-Die size and the highest
+    /// level that still rolls a die. Derived from the `HP*.2DA` tables.
+    hp_table_profiles: HashMap<String, HpTableProfile>,
+    /// `CLASS.IDS`: class value → symbol (e.g. `3` → `PALADIN`,
+    /// `21` → `MAGE_THIEF`). Loaded once so [`Self::class_hp_profile`]
+    /// can resolve a raw CRE class byte without re-importing the IDS.
+    class_symbols: HashMap<i32, String>,
+}
+
+/// Hit-Die shape of a class's `HP*.2DA` table.
+#[derive(Debug, Clone, Copy)]
+struct HpTableProfile {
+    /// Largest `SIDES` (HD size) in the table. `>= 10` (d10 / d12)
+    /// marks the warrior group (Fighter / Paladin / Ranger /
+    /// Barbarian), who draw the larger CON→HP bonus.
+    sides: u8,
+    /// Highest level whose `ROLLS` column is `>= 1` — the last level
+    /// that earns a Hit Die (and the CON HP bonus).
+    roll_cap: u8,
 }
 
 /// Cap ranges that share their value across every IE engine —
@@ -331,6 +355,15 @@ impl EngineCaps {
                     load_bonus_table(game_data, "lorebon", &["VALUE", "LORE_BONUS"])?,
                 )
             };
+        // Class → HP-table mapping + each table's HD shape, used to
+        // classify warriors and the CON HP-roll cap from stock data
+        // (no hardcoded class lists). IWD2 (d20) doesn't use it.
+        let (class_hp_tables, hp_table_profiles) = if matches!(engine, Engine::Iwd2) {
+            (HashMap::new(), HashMap::new())
+        } else {
+            load_class_hp_data(game_data)
+        };
+        let class_symbols = load_class_symbols(game_data);
         Ok(Self {
             engine,
             ability_score: ranges.ability_score,
@@ -359,6 +392,9 @@ impl EngineCaps {
             hpconbon_hp,
             hpconbon_hp_warrior,
             lorebon,
+            class_hp_tables,
+            hp_table_profiles,
+            class_symbols,
         })
     }
 
@@ -422,6 +458,53 @@ impl EngineCaps {
         self.constitution_hp_per_level(constitution, is_warrior) * levels_with_hp_roll as i32
     }
 
+    /// Warrior flag + CON HP-roll cap for a creature's class, from its
+    /// raw `CLASS.IDS` byte. Single entry point for HP math:
+    ///
+    /// - **IWD2** (d20): the CON modifier applies every level with no
+    ///   Hit-Die cap and no warrior distinction → `(false, u8::MAX)`.
+    /// - **Enhanced Editions**: data-driven from `HPCLASS.2DA` →
+    ///   `HP*.2DA` (see [`Self::class_hp_profile_from_tables`]).
+    /// - **Classic BG/BG2/IWD/PST**: those engines hardcoded the
+    ///   class→HP-table map and don't ship `HPCLASS.2DA`, so fall back
+    ///   to the name heuristic ([`hp_profile_heuristic`]).
+    ///
+    /// An unrecognised class byte yields the conservative
+    /// `(false, 9)` (non-warrior, AD&D Hit-Die cap).
+    pub fn class_hp_profile(&self, class_id: u8) -> (bool, u8) {
+        if self.engine == Engine::Iwd2 {
+            return (false, u8::MAX);
+        }
+        let Some(symbol) = self.class_symbols.get(&i32::from(class_id)) else {
+            return (false, 9);
+        };
+        self.class_hp_profile_from_tables(symbol)
+            .unwrap_or_else(|| hp_profile_heuristic(symbol))
+    }
+
+    /// Data-driven warrior + cap from stock 2DAs (`HPCLASS.2DA` →
+    /// `HP*.2DA`): a class is a *warrior* (larger CON→HP bonus) when
+    /// its Hit Die is d10+ (`SIDES >= 10`); the cap is the highest
+    /// level that still rolls a die. Multi/dual classes split on `_`
+    /// and take the per-component maximum (e.g. `MAGE_THIEF` →
+    /// max(HPWIZ, HPROG) = 10), which is what the engine credits CON
+    /// HP against. `None` when `HPCLASS.2DA` isn't available (classic
+    /// engines) so the caller can fall back to the heuristic.
+    fn class_hp_profile_from_tables(&self, class_symbol: &str) -> Option<(bool, u8)> {
+        if self.class_hp_tables.is_empty() {
+            return None;
+        }
+        let mut is_warrior = false;
+        let mut cap = 0u8;
+        for component in class_symbol.split('_').filter(|s| !s.is_empty()) {
+            let table = self.class_hp_tables.get(&component.to_ascii_lowercase())?;
+            let profile = self.hp_table_profiles.get(table)?;
+            is_warrior |= profile.sides >= 10;
+            cap = cap.max(profile.roll_cap);
+        }
+        (cap > 0).then_some((is_warrior, cap))
+    }
+
     /// AD&D Lore bonus from INT and WIS (`LOREBON.2DA`, applied once
     /// each, summed and signed). The engine adds this to the stored
     /// base Lore byte to get the displayed value. Mirrors GemRB
@@ -479,6 +562,109 @@ pub fn d20_modifier(score: u8) -> i8 {
 
 /// Resolve `<name>.2DA` from `game_data` (override → BIFs), import
 /// it, and project the first matching column into a [`BonusTable`].
+/// Resolve + import a 2DA by name, or `None` if absent / not a 2DA.
+fn load_two_da(game_data: &GameData, name: &str) -> Option<TwoDA> {
+    match game_data.import_by_name_and_type(name, ResourceType::TwoDA) {
+        Ok(Some(ImportedResource::TwoDA(two_da))) => Some(two_da),
+        _ => None,
+    }
+}
+
+/// Case-insensitive column index by header name.
+fn column_index(two_da: &TwoDA, header: &str) -> Option<usize> {
+    two_da
+        .headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case(header))
+}
+
+/// Build the class→HP-table map (`HPCLASS.2DA`) plus each referenced
+/// table's HD shape (`HP*.2DA` `SIDES` / `ROLLS`). Returns empty maps
+/// (callers fall back) when `HPCLASS.2DA` is missing or has no `TABLE`
+/// column.
+fn load_class_hp_data(
+    game_data: &GameData,
+) -> (HashMap<String, String>, HashMap<String, HpTableProfile>) {
+    let mut class_tables = HashMap::new();
+    let mut profiles = HashMap::new();
+
+    let Some(hpclass) = load_two_da(game_data, "hpclass") else {
+        return (class_tables, profiles);
+    };
+    let Some(table_col) = column_index(&hpclass, "TABLE") else {
+        return (class_tables, profiles);
+    };
+    for (class, row) in &hpclass.rows {
+        if let Some(table) = row.get(table_col) {
+            class_tables.insert(class.to_ascii_lowercase(), table.trim().to_ascii_lowercase());
+        }
+    }
+
+    for table in class_tables.values() {
+        if profiles.contains_key(table) {
+            continue;
+        }
+        let Some(two_da) = load_two_da(game_data, table) else {
+            continue;
+        };
+        let sides_col = column_index(&two_da, "SIDES");
+        let rolls_col = column_index(&two_da, "ROLLS");
+        let mut sides = 0u8;
+        let mut roll_cap = 0u8;
+        for (level, row) in &two_da.rows {
+            let level: u32 = level.trim().parse().unwrap_or(0);
+            let s = sides_col
+                .and_then(|i| row.get(i))
+                .and_then(|v| v.trim().parse::<i32>().ok())
+                .unwrap_or(0);
+            let rolls = rolls_col
+                .and_then(|i| row.get(i))
+                .and_then(|v| v.trim().parse::<i32>().ok())
+                .unwrap_or(0);
+            sides = sides.max(s.clamp(0, 255) as u8);
+            if rolls >= 1 && level <= u8::MAX as u32 {
+                roll_cap = roll_cap.max(level as u8);
+            }
+        }
+        profiles.insert(table.clone(), HpTableProfile { sides, roll_cap });
+    }
+
+    (class_tables, profiles)
+}
+
+/// Load `CLASS.IDS` (value → symbol) once. Best-effort: an empty map
+/// (missing IDS) just makes [`EngineCaps::class_hp_profile`] return
+/// its conservative default for every class.
+fn load_class_symbols(game_data: &GameData) -> HashMap<i32, String> {
+    match game_data.import_by_name_and_type("class", ResourceType::Ids) {
+        Ok(Some(ImportedResource::Ids(ids))) => ids
+            .entries
+            .iter()
+            .map(|e| (e.value, e.name.clone()))
+            .collect(),
+        _ => HashMap::new(),
+    }
+}
+
+/// Heuristic warrior + HP-roll cap from a `CLASS.IDS` symbol, used for
+/// the classic (pre-EE) BG/BG2/IWD/PST engines, which don't ship
+/// `HPCLASS.2DA` (they hardcoded the class→HP-table map; the Enhanced
+/// Editions externalised it). Warriors (Fighter / Paladin / Ranger /
+/// Barbarian, including combos that contain one) use the larger
+/// CON→HP column; rogues and wizards roll Hit Dice through level 10,
+/// everyone else through 9 (AD&D 2e). For combos the highest
+/// component cap wins.
+fn hp_profile_heuristic(class_symbol: &str) -> (bool, u8) {
+    let has = |needle: &str| class_symbol.contains(needle);
+    let is_warrior = has("FIGHTER") || has("PALADIN") || has("RANGER") || has("BARBARIAN");
+    let cap = if has("MAGE") || has("SORCERER") || has("THIEF") || has("BARD") {
+        10
+    } else {
+        9
+    };
+    (is_warrior, cap)
+}
+
 fn load_bonus_table(
     game_data: &GameData,
     name: &str,
@@ -614,6 +800,9 @@ mod tests {
             hpconbon_hp,
             hpconbon_hp_warrior,
             lorebon,
+            class_hp_tables: HashMap::new(),
+            hp_table_profiles: HashMap::new(),
+            class_symbols: HashMap::new(),
         }
     }
 
@@ -691,6 +880,93 @@ mod tests {
         assert_eq!(caps.constitution_hp_per_level(9, false), -1);
         // CON 18 across 10 levels → +40 (level × modifier, uncapped).
         assert_eq!(caps.max_hp_constitution_bonus(18, false, 10), 40);
+    }
+
+    /// Populate an `ee_caps()` with the HPCLASS-derived tables + a few
+    /// CLASS.IDS rows, mirroring real BG2:EE data.
+    fn ee_caps_with_classes() -> EngineCaps {
+        let mut caps = ee_caps();
+        for (c, t) in [
+            ("paladin", "hpwar"),
+            ("fighter", "hpwar"),
+            ("mage", "hpwiz"),
+            ("thief", "hprog"),
+            ("cleric", "hpprs"),
+        ] {
+            caps.class_hp_tables.insert(c.into(), t.into());
+        }
+        for (t, sides, cap) in [
+            ("hpwar", 10, 9),
+            ("hpwiz", 4, 10),
+            ("hprog", 6, 10),
+            ("hpprs", 8, 9),
+        ] {
+            caps.hp_table_profiles
+                .insert(t.into(), HpTableProfile { sides, roll_cap: cap });
+        }
+        for (v, s) in [
+            (3, "PALADIN"),
+            (21, "MAGE_THIEF"),
+            (16, "CLERIC_MAGE"),
+            (8, "FIGHTER_MAGE"),
+        ] {
+            caps.class_symbols.insert(v, s.into());
+        }
+        caps
+    }
+
+    #[test]
+    fn class_hp_profile_from_tables_data_driven() {
+        let caps = ee_caps_with_classes();
+        // Single warrior class (d10 HD) → warrior, cap 9.
+        assert_eq!(caps.class_hp_profile_from_tables("PALADIN"), Some((true, 9)));
+        // Mage/Thief: not warrior (d4/d6), cap = max(10, 10).
+        assert_eq!(
+            caps.class_hp_profile_from_tables("MAGE_THIEF"),
+            Some((false, 10))
+        );
+        // Cleric/Mage: not warrior, cap = max(9, 10).
+        assert_eq!(
+            caps.class_hp_profile_from_tables("CLERIC_MAGE"),
+            Some((false, 10))
+        );
+        // Fighter/Mage: warrior (fighter d10), cap = max(9, 10).
+        assert_eq!(
+            caps.class_hp_profile_from_tables("FIGHTER_MAGE"),
+            Some((true, 10))
+        );
+        // Unknown component → None so the caller falls back.
+        assert_eq!(caps.class_hp_profile_from_tables("GISH"), None);
+        // No tables loaded (classic engines) → None.
+        assert_eq!(ee_caps().class_hp_profile_from_tables("PALADIN"), None);
+    }
+
+    #[test]
+    fn class_hp_profile_resolves_class_byte() {
+        let caps = ee_caps_with_classes();
+        // Resolves CLASS.IDS byte → symbol → data-driven profile.
+        assert_eq!(caps.class_hp_profile(3), (true, 9)); // PALADIN
+        assert_eq!(caps.class_hp_profile(21), (false, 10)); // MAGE_THIEF
+        // Unrecognised class byte → conservative default.
+        assert_eq!(caps.class_hp_profile(200), (false, 9));
+    }
+
+    #[test]
+    fn class_hp_profile_falls_back_to_heuristic_without_hpclass() {
+        // Classic engine: CLASS.IDS present, but no HPCLASS tables.
+        let mut caps = ee_caps();
+        caps.class_symbols.insert(3, "PALADIN".into());
+        caps.class_symbols.insert(21, "MAGE_THIEF".into());
+        assert_eq!(caps.class_hp_profile(3), (true, 9)); // heuristic: warrior, 9
+        assert_eq!(caps.class_hp_profile(21), (false, 10)); // heuristic: mage/thief, 10
+    }
+
+    #[test]
+    fn class_hp_profile_iwd2_is_uncapped_non_warrior() {
+        let mut caps = ee_caps_with_classes();
+        caps.engine = Engine::Iwd2;
+        // IWD2 ignores class tables: d20 modifier every level, no cap.
+        assert_eq!(caps.class_hp_profile(3), (false, u8::MAX));
     }
 
     #[test]
