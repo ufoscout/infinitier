@@ -246,7 +246,7 @@ fn long_name_offset_for_engine(engine: infinitier_common::Engine) -> usize {
     }
 }
 
-/// One GLOBAL / Kill variable record. 60 bytes on disk, identical
+/// One GLOBAL / Kill variable record. 84 bytes on disk, identical
 /// layout in every GAM version.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GamVariable {
@@ -267,7 +267,7 @@ pub struct GamVariable {
     pub int_value: i32,
     /// 0x2C: f64 value slot. Almost never used in vanilla saves.
     pub double_value: f64,
-    /// 0x34: 8-byte script-name buffer. WINDOWS-1252 decode with
+    /// 0x34: 32-byte script-name buffer. WINDOWS-1252 decode with
     /// trailing NULs stripped.
     pub script_name: String,
 }

@@ -18,8 +18,10 @@ use crate::{
     UnknownSection3,
 };
 
-/// On-disk size of one [`GamVariable`] record.
-const VARIABLE_LEN: u64 = 60;
+/// On-disk size of one [`GamVariable`] record: a 32-byte name, the
+/// type/value slots through the 8-byte double at 0x2C, then a 32-byte
+/// script-name field at 0x34 (0x34 + 32 = 0x54).
+const VARIABLE_LEN: u64 = 84;
 
 /// On-disk size of one [`JournalEntry`] record.
 const JOURNAL_ENTRY_LEN: u64 = 12;
@@ -267,7 +269,7 @@ fn parse_variable(reader: &mut GamReader) -> std::io::Result<GamVariable> {
     reader.read_exact(&mut double_bytes)?;
     let double_value = f64::from_le_bytes(double_bytes);
     reader.set_position(pos + 0x34)?;
-    let script_name = reader.read_string(8)?;
+    let script_name = reader.read_string(32)?;
     Ok(GamVariable {
         name,
         type_flags,

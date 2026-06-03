@@ -27,7 +27,7 @@ use crate::{
     JournalEntry, ModronMaze, PstGamData, StoredLocation, UnknownSection3,
 };
 
-const VARIABLE_LEN: usize = 60;
+const VARIABLE_LEN: usize = 84;
 const JOURNAL_ENTRY_LEN: usize = 12;
 const STORED_LOCATION_LEN: usize = 12;
 const UNKNOWN_SECTION3_LEN: usize = 24;
@@ -549,7 +549,7 @@ fn write_variable(out: &mut [u8], v: &GamVariable) {
     out[0x24..0x28].copy_from_slice(&v.dword_value.to_le_bytes());
     out[0x28..0x2C].copy_from_slice(&v.int_value.to_le_bytes());
     out[0x2C..0x34].copy_from_slice(&v.double_value.to_le_bytes());
-    write_string_fixed(&mut out[0x34..0x3C], &v.script_name);
+    write_string_fixed(&mut out[0x34..0x54], &v.script_name);
 }
 
 fn write_journal_at(buf: &mut [u8], offset: usize, journal: &[JournalEntry]) {

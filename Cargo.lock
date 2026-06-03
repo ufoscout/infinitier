@@ -1756,6 +1756,7 @@ dependencies = [
  "clap",
  "eframe",
  "egui-components",
+ "egui_extras",
  "env_logger",
  "infinitier_core",
  "infinitier_test_utils",
