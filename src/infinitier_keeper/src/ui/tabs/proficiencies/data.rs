@@ -19,7 +19,7 @@
 
 use std::collections::HashMap;
 
-use infinitier_core::resource::cre::{Cre, CreHeader, EffectList, SubSections};
+use infinitier_core::resource::cre::{Cre, CreHeader, EffectList, EffectV2, SubSections};
 
 /// One table row: a proficiency and its first/second-class points.
 pub struct ProfRow {
@@ -134,7 +134,9 @@ fn effect_proficiency_points(cre: &Cre) -> HashMap<u32, u32> {
         // 0x08 with dword param1 / param2 at 0x14 / 0x18.
         EffectList::V2(effects) => {
             for e in effects {
-                let r = &e.raw;
+                // op233 is a generic effect, never a local variable, so
+                // only the `Raw` records can carry it.
+                let EffectV2::Raw(r) = e else { continue };
                 if r.len() < 0x1C {
                     continue;
                 }

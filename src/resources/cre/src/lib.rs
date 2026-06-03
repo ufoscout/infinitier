@@ -513,12 +513,153 @@ pub struct EffectV1 {
     pub raw: [u8; 48],
 }
 
-/// One V2 (264-byte) effect record. Same opacity reasoning as
-/// [`EffectV1`].
+/// One V2 (264-byte) effect record.
+///
+/// Most opcodes are kept verbatim as [`EffectV2::Raw`] — there are
+/// 300+ and we don't model their inner layout. Opcodes we *do*
+/// understand get a typed variant; today the only one is
+/// [`EffectV2::LocalVariable`] (`op187`, "set local variable"), which
+/// the Enhanced Edition uses to persist a creature's `LOCALS`-scope
+/// script variables.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EffectV2 {
-    /// Raw 264 bytes of the record.
-    pub raw: Vec<u8>,
+pub enum EffectV2 {
+    /// An effect kept byte-for-byte (any opcode we don't model).
+    Raw(Vec<u8>),
+    /// A creature-local script variable (`op187`), parsed into its
+    /// editable [`name`](LocalVariable::name) / [`value`](LocalVariable::value).
+    LocalVariable(LocalVariable),
+}
+
+impl EffectV2 {
+    /// Effect opcode that sets a creature-local script variable.
+    pub const LOCAL_VARIABLE_OPCODE: u32 = 187;
+
+    /// The effect opcode (dword at record offset 0x08).
+    pub fn opcode(&self) -> u32 {
+        match self {
+            EffectV2::Raw(r) => u32::from_le_bytes([r[0x08], r[0x09], r[0x0A], r[0x0B]]),
+            EffectV2::LocalVariable(_) => Self::LOCAL_VARIABLE_OPCODE,
+        }
+    }
+
+    /// The 264-byte on-disk record for this effect. `Raw` effects are
+    /// emitted verbatim; a [`LocalVariable`] is rebuilt from its parsed
+    /// fields via [`LocalVariable::to_record`].
+    pub(crate) fn to_record(&self) -> Vec<u8> {
+        match self {
+            EffectV2::Raw(r) => r.clone(),
+            EffectV2::LocalVariable(lv) => lv.to_record(),
+        }
+    }
+}
+
+/// A creature-local script variable, parsed from an `op187` ("set
+/// local variable") V2 effect record.
+///
+/// EE games store each `LOCALS` variable as one such effect: the value
+/// in `param1` (record offset 0x14) and the 32-byte name in the
+/// feature block's EE-only variable-name field (record offset 0xA0).
+/// Only those two carry the variable's identity, so they are the only
+/// thing kept here — making the value trivially editable. The exporter
+/// rebuilds a complete record from [`Self::TEMPLATE`].
+///
+/// The remaining effect fields are application metadata (target,
+/// timing, caster position, time applied). Their structural constants
+/// — permanent timing, 100% probability, "no target" markers — are
+/// preserved by the template; the genuinely per-instance bits (the
+/// caster's map position, the application timestamp) are *not* part of
+/// the variable and are normalised to zero on write.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalVariable {
+    /// Variable name (`LOCALS` script identifier).
+    pub name: String,
+    /// Signed value — the engine's 32-bit script integer.
+    pub value: i32,
+}
+
+impl LocalVariable {
+    /// Record offset / length of the 32-byte variable-name field.
+    const NAME_OFFSET: usize = 0xA0;
+    const NAME_LEN: usize = 32;
+    /// Record offset of `param1`, the variable's value.
+    const VALUE_OFFSET: usize = 0x14;
+
+    /// Canonical 264-byte `op187` record with the per-instance fields
+    /// (name, value, caster position, time applied) zeroed. Captured
+    /// from a BG2EE save; the surviving non-zero bytes are the
+    /// structural constants every "set local variable" effect shares —
+    /// opcode `187` (0x08), permanent timing mode `9` (0x1C), 100%
+    /// probability (0x24), and the `0xFF` "no target" markers — so a
+    /// rebuilt effect is engine-equivalent to the original.
+    #[rustfmt::skip]
+    const TEMPLATE: [u8; 264] = [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xbb, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ];
+
+    /// Parse an `op187` record into its name / value. The caller must
+    /// have verified the opcode is [`EffectV2::LOCAL_VARIABLE_OPCODE`];
+    /// `record` must be at least 264 bytes.
+    pub(crate) fn from_record(record: &[u8]) -> Self {
+        let name_bytes = &record[Self::NAME_OFFSET..Self::NAME_OFFSET + Self::NAME_LEN];
+        let (decoded, _, _) = encoding_rs::WINDOWS_1252.decode(name_bytes);
+        let o = Self::VALUE_OFFSET;
+        LocalVariable {
+            name: decoded.trim_end_matches('\0').to_owned(),
+            value: i32::from_le_bytes([record[o], record[o + 1], record[o + 2], record[o + 3]]),
+        }
+    }
+
+    /// Serialise back to a 264-byte `op187` record: the canonical
+    /// [`Self::TEMPLATE`] with `name` (WINDOWS-1252, NUL-padded) and
+    /// `value` written in.
+    pub(crate) fn to_record(&self) -> Vec<u8> {
+        let mut r = Self::TEMPLATE.to_vec();
+        let o = Self::VALUE_OFFSET;
+        r[o..o + 4].copy_from_slice(&self.value.to_le_bytes());
+        let (encoded, _, _) = encoding_rs::WINDOWS_1252.encode(&self.name);
+        let n = encoded.len().min(Self::NAME_LEN);
+        r[Self::NAME_OFFSET..Self::NAME_OFFSET + n].copy_from_slice(&encoded[..n]);
+        r
+    }
+}
+
+impl Cre {
+    /// The creature's local script variables (`LOCALS` scope), in CRE
+    /// file order. These are stored as `op187` effects, parsed by the
+    /// importer into [`EffectV2::LocalVariable`]. Empty for creatures
+    /// whose effects are the classic 48-byte (V1) records — those are
+    /// too small to carry the variable-name field, so pre-EE games
+    /// don't persist creature locals this way.
+    pub fn local_variables(&self) -> impl Iterator<Item = &LocalVariable> {
+        let effects = match &self.sub_sections {
+            SubSections::V1(s) => &s.effects,
+            SubSections::V22(s) => &s.effects,
+        };
+        let list: &[EffectV2] = match effects {
+            EffectList::V2(list) => list,
+            EffectList::V1(_) => &[],
+        };
+        list.iter().filter_map(|e| match e {
+            EffectV2::LocalVariable(lv) => Some(lv),
+            EffectV2::Raw(_) => None,
+        })
+    }
 }
 
 /// One 16-byte IWD2 sub-section slot. The on-disk layout is the
@@ -588,5 +729,73 @@ pub(crate) mod test_support {
         CreImporter { name: rel_path }
             .import(&DataSource::new(path.as_path()))
             .unwrap_or_else(|e| panic!("import {rel_path}: {e}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a synthetic 264-byte `op187` ("set local variable")
+    /// record with the given name / value.
+    fn op187_record(name: &str, value: i32) -> Vec<u8> {
+        let mut r = vec![0u8; 264];
+        r[0x08..0x0C].copy_from_slice(&EffectV2::LOCAL_VARIABLE_OPCODE.to_le_bytes());
+        r[0x14..0x18].copy_from_slice(&value.to_le_bytes());
+        let nb = name.as_bytes();
+        r[0xA0..0xA0 + nb.len()].copy_from_slice(nb);
+        r
+    }
+
+    #[test]
+    fn local_variable_parses_name_and_value() {
+        let lv = LocalVariable::from_record(&op187_record("KELDORNESTATE", 2));
+        assert_eq!(lv.name, "KELDORNESTATE"); // trailing NULs trimmed
+        assert_eq!(lv.value, 2);
+    }
+
+    #[test]
+    fn local_variable_value_is_signed() {
+        let lv = LocalVariable::from_record(&op187_record("DELTA", -7));
+        assert_eq!(lv.value, -7);
+    }
+
+    /// A `LocalVariable` rebuilds to a record that re-parses to the
+    /// same name / value, and the rebuilt record is a valid op187
+    /// (correct opcode, permanent timing) — the property the exporter
+    /// relies on.
+    #[test]
+    fn local_variable_record_round_trips_name_and_value() {
+        let original = LocalVariable {
+            name: "MARIAFIGHT".to_owned(),
+            value: 2,
+        };
+        let record = original.to_record();
+        assert_eq!(record.len(), 264);
+        // Rebuilt record carries the right opcode + permanent timing.
+        assert_eq!(
+            u32::from_le_bytes([record[0x08], record[0x09], record[0x0A], record[0x0B]]),
+            EffectV2::LOCAL_VARIABLE_OPCODE,
+        );
+        assert_eq!(record[0x1C], 9, "permanent timing mode");
+        // Re-parsing yields an equal variable.
+        assert_eq!(LocalVariable::from_record(&record), original);
+    }
+
+    #[test]
+    fn effect_v2_opcode_for_both_variants() {
+        let typed = EffectV2::LocalVariable(LocalVariable {
+            name: "X".to_owned(),
+            value: 1,
+        });
+        assert_eq!(typed.opcode(), EffectV2::LOCAL_VARIABLE_OPCODE);
+        assert_eq!(typed.to_record().len(), 264);
+
+        // A different opcode stays Raw and reports its own opcode.
+        let mut other = vec![0u8; 264];
+        other[0x08..0x0C].copy_from_slice(&233u32.to_le_bytes());
+        let raw = EffectV2::Raw(other.clone());
+        assert_eq!(raw.opcode(), 233);
+        assert_eq!(raw.to_record(), other);
     }
 }

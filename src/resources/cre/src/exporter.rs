@@ -353,8 +353,12 @@ fn write_effects(buf: &mut [u8], offset: usize, effects: &EffectList) {
         EffectList::V2(list) => {
             for (i, e) in list.iter().enumerate() {
                 let off = offset + i * 264;
-                let n = e.raw.len().min(264);
-                buf[off..off + n].copy_from_slice(&e.raw[..n]);
+                // `Raw` effects are emitted verbatim; a `LocalVariable`
+                // is rebuilt from its parsed name/value via a canonical
+                // op187 template.
+                let r = e.to_record();
+                let n = r.len().min(264);
+                buf[off..off + n].copy_from_slice(&r[..n]);
             }
         }
     }

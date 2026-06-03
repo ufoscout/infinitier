@@ -7,8 +7,8 @@ use log::{debug, error};
 
 use crate::{
     CRE_SIGNATURE, Cre, CreHeader, CreVersion, EffectList, EffectV1, EffectV2, Item, Iwd2Slot,
-    Iwd2Table, KnownSpell, MemorizedSpell, SpellMemorizationInfo, SubSections, V1SubSections,
-    V22SubSections,
+    Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell, SpellMemorizationInfo, SubSections,
+    V1SubSections, V22SubSections,
     header_generated::{
         parse_header_v1_0, parse_header_v1_2, parse_header_v2_2, parse_header_v9_0,
     },
@@ -603,7 +603,15 @@ fn parse_effects(
                 reader.set_position(start + i * EFFECT_V2_LEN)?;
                 let mut buf = vec![0u8; 264];
                 reader.read_exact(&mut buf)?;
-                out.push(EffectV2 { raw: buf });
+                // Opcode (dword at 0x08) selects the typed variant.
+                // `op187` is "set local variable"; everything else is
+                // kept verbatim.
+                let opcode = u32::from_le_bytes([buf[0x08], buf[0x09], buf[0x0A], buf[0x0B]]);
+                out.push(if opcode == EffectV2::LOCAL_VARIABLE_OPCODE {
+                    EffectV2::LocalVariable(LocalVariable::from_record(&buf))
+                } else {
+                    EffectV2::Raw(buf)
+                });
             }
             Ok(EffectList::V2(out))
         }
