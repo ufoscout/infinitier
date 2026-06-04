@@ -152,7 +152,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Effects => EffectsTab.show(ui, cre, &state.game_data),
         CharacterTab::LocalVariables => LocalVariablesTab.show(ui, cre, gam, game),
         CharacterTab::GlobalVariables => GlobalVariablesTab.show(ui, cre, gam, game),
-        CharacterTab::JournalEntries => JournalEntriesTab.show(ui, cre, gam, game),
+        // The journal belongs to the savegame, not a character, and
+        // resolves each entry's text via `dialog.tlk`.
+        CharacterTab::JournalEntries => JournalEntriesTab.show(ui, gam, &state.game_data),
         CharacterTab::Miscellaneous => MiscellaneousTab.show(ui, cre, gam, member),
     }
 }

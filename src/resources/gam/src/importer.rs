@@ -13,9 +13,9 @@ use log::{debug, error};
 
 use crate::{
     Bg2GamData, BgGamData, BgSaveVersion, COMMON_HEADER_LEN, EeGamData, Familiar, GAM_SIGNATURE,
-    Gam, GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, GameTime, Iwd2GamData,
-    IwdGamData, IwdUnknownTrailer, JournalEntry, ModronMaze, ModronMazeEntry, NpcCharStats,
-    PstGamData, StoredLocation, UnknownSection3, char_stats_offset_for_engine,
+    Gam, GamEngineData, GamHeader, GamNpc, GameTicks, GameTime, GamVariable, GamVersion,
+    Iwd2GamData, IwdGamData, IwdUnknownTrailer, JournalEntry, ModronMaze, ModronMazeEntry,
+    NpcCharStats, PstGamData, StoredLocation, UnknownSection3, char_stats_offset_for_engine,
 };
 
 /// On-disk size of one [`GamVariable`] record: a 32-byte name, the
@@ -300,7 +300,7 @@ fn parse_journal(
         reader.set_position(start + i * JOURNAL_ENTRY_LEN)?;
         out.push(JournalEntry {
             strref: reader.read_u32()?,
-            time_seconds: reader.read_u32()?,
+            time: GameTicks::from_ticks(reader.read_u32()?),
             chapter: reader.read_u8()?,
             read_by_pc: reader.read_u8()?,
             section: reader.read_u8()?,

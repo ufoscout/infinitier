@@ -521,8 +521,8 @@ pub struct GamVariable {
 pub struct JournalEntry {
     /// 0x00: TLK string-reference for the entry's display text.
     pub strref: u32,
-    /// 0x04: timestamp in seconds since the start of the campaign.
-    pub time_seconds: u32,
+    /// 0x04: game time the entry was logged (in ticks).
+    pub time: GameTicks,
     /// 0x08: chapter number at the time of the entry.
     pub chapter: u8,
     /// 0x09: index of the party member who read this (`0xFF` if

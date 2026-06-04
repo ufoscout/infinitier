@@ -573,7 +573,7 @@ fn write_journal_at(buf: &mut [u8], offset: usize, journal: &[JournalEntry]) {
         let off = offset + i * JOURNAL_ENTRY_LEN;
         let c = &mut buf[off..off + JOURNAL_ENTRY_LEN];
         c[0..4].copy_from_slice(&j.strref.to_le_bytes());
-        c[4..8].copy_from_slice(&j.time_seconds.to_le_bytes());
+        c[4..8].copy_from_slice(&j.time.ticks().to_le_bytes());
         c[8] = j.chapter;
         c[9] = j.read_by_pc;
         c[10] = j.section;
