@@ -18,13 +18,11 @@
 //! | `V2.2`  | `0x062E` (1582 B) | `0x03BA`/`0x05FA` | IWD2 d20 block: per-class spell tables, abilities, songs, shapes, items, effects |
 
 mod exporter;
-mod header_generated;
+mod header;
 mod importer;
 
 pub use exporter::CreExporter;
-pub use header_generated::{
-    CreHeaderV10, CreHeaderV12, CreHeaderV22, CreHeaderV90, NumberOfAttacks,
-};
+pub use header::{CreHeaderV10, CreHeaderV12, CreHeaderV22, CreHeaderV90, NumberOfAttacks};
 pub use importer::CreImporter;
 
 /// 4-byte signature at offset 0 of every CRE file (note the trailing

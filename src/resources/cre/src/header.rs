@@ -1,17 +1,5 @@
 //! Per-version CRE header structs, mirroring the IESDP `cre_v*.htm`
 //! field tables.
-//!
-//! Each `CreHeaderV*` struct mirrors the documented fixed-width
-//! header of the corresponding CRE version. Padding gaps between
-//! documented fields are surfaced as `_padding_NN: Vec<u8>` so the
-//! whole header round-trips byte-for-byte regardless of how field
-//! names get refined over time.
-
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::too_many_arguments)]
-#![allow(non_snake_case)]
-#![allow(clippy::all)]
-#![allow(unused)]
 
 use encoding_rs::WINDOWS_1252;
 
@@ -424,7 +412,6 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
     let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV10 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -560,7 +547,7 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     {
         let src = &h.signature;
         let n = src.len().min(4);
-        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+        buf[0x0000..n].copy_from_slice(&src[..n]);
     }
     {
         let src = &h.version;
@@ -1066,7 +1053,6 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
     let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV12 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -1245,7 +1231,7 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     {
         let src = &h.signature;
         let n = src.len().min(4);
-        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+        buf[0x0000..n].copy_from_slice(&src[..n]);
     }
     {
         let src = &h.version;
@@ -1797,7 +1783,6 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
     let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV90 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -1945,7 +1930,7 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     {
         let src = &h.signature;
         let n = src.len().min(4);
-        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+        buf[0x0000..n].copy_from_slice(&src[..n]);
     }
     {
         let src = &h.version;
@@ -2807,7 +2792,6 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
     let read_u16 = |o: usize| u16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_i16 = |o: usize| i16::from_le_bytes(header[o..o + 2].try_into().unwrap());
     let read_u32 = |o: usize| u32::from_le_bytes(header[o..o + 4].try_into().unwrap());
-    let read_i32 = |o: usize| i32::from_le_bytes(header[o..o + 4].try_into().unwrap());
     Ok(CreHeaderV22 {
         signature: header[0x0000..0x0004].to_vec(),
         version: header[0x0004..0x0008].to_vec(),
@@ -3150,7 +3134,7 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     {
         let src = &h.signature;
         let n = src.len().min(4);
-        buf[0x0000..0x0000 + n].copy_from_slice(&src[..n]);
+        buf[0x0000..n].copy_from_slice(&src[..n]);
     }
     {
         let src = &h.version;

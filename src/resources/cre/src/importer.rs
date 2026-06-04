@@ -9,9 +9,7 @@ use crate::{
     CRE_SIGNATURE, Cre, CreHeader, CreVersion, Effect, EffectList, EffectV1, EffectV1Body,
     EffectV2, Item, ItemFlags, Iwd2Slot, Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell,
     Proficiency, SpellMemorizationInfo, SpellType, SubSections, V1SubSections, V22SubSections,
-    header_generated::{
-        parse_header_v1_0, parse_header_v1_2, parse_header_v2_2, parse_header_v9_0,
-    },
+    header::{parse_header_v1_0, parse_header_v1_2, parse_header_v2_2, parse_header_v9_0},
 };
 
 const KNOWN_SPELL_LEN: u64 = 12;

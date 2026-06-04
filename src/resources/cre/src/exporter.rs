@@ -20,7 +20,7 @@ use log::debug;
 use crate::{
     Cre, CreHeader, CreVersion, EffectList, Item, Iwd2Table, KnownSpell, MemorizedSpell,
     SpellMemorizationInfo, SubSections, V1SubSections, V22SubSections,
-    header_generated::{
+    header::{
         serialize_header_v1_0, serialize_header_v1_2, serialize_header_v2_2, serialize_header_v9_0,
     },
 };

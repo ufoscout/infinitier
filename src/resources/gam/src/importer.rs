@@ -13,7 +13,7 @@ use log::{debug, error};
 
 use crate::{
     Bg2GamData, BgGamData, BgSaveVersion, COMMON_HEADER_LEN, EeGamData, Familiar, GAM_SIGNATURE,
-    Gam, GamEngineData, GamHeader, GamNpc, GameTicks, GameTime, GamVariable, GamVersion,
+    Gam, GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, GameTicks, GameTime,
     Iwd2GamData, IwdGamData, IwdUnknownTrailer, JournalEntry, ModronMaze, ModronMazeEntry,
     NpcCharStats, PstGamData, StoredLocation, UnknownSection3, char_stats_offset_for_engine,
 };
