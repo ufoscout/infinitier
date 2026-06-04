@@ -153,6 +153,6 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::LocalVariables => LocalVariablesTab.show(ui, cre, gam, game),
         CharacterTab::GlobalVariables => GlobalVariablesTab.show(ui, cre, gam, game),
         CharacterTab::JournalEntries => JournalEntriesTab.show(ui, cre, gam, game),
-        CharacterTab::Miscellaneous => MiscellaneousTab.show(ui, cre, gam, game),
+        CharacterTab::Miscellaneous => MiscellaneousTab.show(ui, cre, gam, member),
     }
 }

@@ -1,0 +1,101 @@
+//! Read-only extraction for the Miscellaneous tab.
+//!
+//! The "Other" box is all CRE-header fields (turn-undead level,
+//! tracking skill/target, the five creature scripts, the death /
+//! script-name variable, and the actor enumeration "Identifier"). The
+//! three time boxes are derived from save-global / party-slot clocks:
+//!
+//! * **World Time** / **Game Time** — the GAM `game_time`, in
+//!   game-seconds (1 hour = 300 s, 1 day = 7200 s).
+//! * **Joined Party** — how much game time has elapsed since the
+//!   member joined: `game_time` (game-seconds → ticks ×15) minus the
+//!   party-slot `join_time` (already in ticks), formatted via
+//!   108000 ticks/day · 4500 ticks/hour · 75 ticks/minute.
+
+use infinitier_core::imported_resource::gam::{ImportedGam, ImportedGamNpc};
+use infinitier_core::resource::cre::{Cre, CreHeader};
+
+/// A day / hour / minute triple.
+#[derive(Default)]
+pub struct Dhm {
+    pub day: u32,
+    pub hour: u32,
+    pub minute: u32,
+}
+
+/// Everything the Miscellaneous tab paints.
+#[derive(Default)]
+pub struct MiscData {
+    pub turn_undead: u8,
+    pub tracking_skill: u8,
+    pub tracking_target: String,
+    /// Actor enumeration "Identifier": global enum in the low word,
+    /// local-area enum in the high word.
+    pub identifier: u32,
+    /// Death variable / scripting name.
+    pub script_name: String,
+    pub override_script: String,
+    pub class_script: String,
+    pub race_script: String,
+    pub general_script: String,
+    pub default_script: String,
+    pub world_time: Dhm,
+    pub game_time: Dhm,
+    pub joined_party: Dhm,
+}
+
+pub fn misc_data(cre: &Cre, gam: &ImportedGam, npc: &ImportedGamNpc) -> MiscData {
+    let game_time = gam.header.game_time;
+    let mut data = MiscData {
+        world_time: dhm_from_game_seconds(game_time),
+        game_time: dhm_from_game_seconds(game_time),
+        joined_party: time_since_join(game_time, npc.char_stats.join_time),
+        ..MiscData::default()
+    };
+
+    // The "Other" box is the classic V1.0 header layout (BG/BG2/EE).
+    // Other engines keep the time boxes but leave these blank.
+    if let CreHeader::V10(h) = &cre.header {
+        data.turn_undead = h.turn_undead_level;
+        data.tracking_skill = h.tracking_skill;
+        data.tracking_target = cstr(&h.tracking_target);
+        data.identifier = u32::from(h.global_actor_enumeration_value)
+            | (u32::from(h.local_area_actor_enumeration_value) << 16);
+        data.script_name = cstr(&h.death_variable_set_sprite_is_deadvariable);
+        data.override_script = h.creature_script_override.clone();
+        data.class_script = h.creature_script_class.clone();
+        data.race_script = h.creature_script_race.clone();
+        data.general_script = h.creature_script_general.clone();
+        data.default_script = h.creature_script_default.clone();
+    }
+    data
+}
+
+/// Convert the GAM `game_time` (game-seconds; 1 hour = 300 s) to a
+/// day/hour/minute calendar triple.
+fn dhm_from_game_seconds(game_time: u32) -> Dhm {
+    let total_hours = game_time / 300;
+    Dhm {
+        day: total_hours / 24,
+        hour: total_hours % 24,
+        minute: (game_time % 300) / 5,
+    }
+}
+
+/// Game time elapsed since the member joined the party. `game_time` is
+/// in game-seconds (×15 → ticks); `join_time` is already in ticks.
+fn time_since_join(game_time: u32, join_time: u32) -> Dhm {
+    let now_ticks = u64::from(game_time) * 15;
+    let elapsed = now_ticks.saturating_sub(u64::from(join_time));
+    Dhm {
+        day: (elapsed / 108_000) as u32,
+        hour: ((elapsed % 108_000) / 4500) as u32,
+        minute: ((elapsed % 4500) / 75) as u32,
+    }
+}
+
+/// Decode an ASCIIZ header string field (bytes up to the first NUL).
+fn cstr(bytes: &[u8]) -> String {
+    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+    String::from_utf8_lossy(&bytes[..end]).into_owned()
+}
