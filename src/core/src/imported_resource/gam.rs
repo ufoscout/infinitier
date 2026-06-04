@@ -4,6 +4,7 @@ use infinitier_cre_resource::{Cre, CreExporter, CreImporter};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_gam_resource::{
     Gam, GamEngineData, GamExporter, GamHeader, GamNpc, GamVariable, GamVersion, JournalEntry,
+    NpcCharStats,
 };
 use infinitier_tlk_resource::Tlk;
 
@@ -75,6 +76,10 @@ pub struct ImportedGamNpc {
     /// 0x0C of the on-disk NPC struct — the 8-byte resref-shaped
     /// script-name.
     pub character_name: String,
+    /// The party-member character-statistics block (kill counts, time
+    /// in party, favourite spells/weapons, …), parsed by the gam
+    /// importer. Round-trips via [`ImportedGam::export`].
+    pub char_stats: NpcCharStats,
     /// Raw bytes of the NPC struct (352–832 B depending on engine
     /// variant). Preserves the engine-specific tail (animation
     /// colours, quick weapons / spells / items, area location, …)
@@ -249,6 +254,7 @@ fn rebuild_gam_npc(npc: ImportedGamNpc, cre_cursor: &mut u32) -> io::Result<GamN
         cre_offset,
         cre_size,
         character_name: npc.character_name,
+        char_stats: npc.char_stats,
         raw,
         cre: cre_bytes,
     })
@@ -271,6 +277,7 @@ fn resolve_npc(
         cre_offset: _,
         cre_size: _,
         character_name,
+        char_stats,
         raw,
         cre: cre_bytes,
     } = npc;
@@ -326,6 +333,7 @@ fn resolve_npc(
         selection_state,
         party_order,
         character_name,
+        char_stats,
         raw,
     })
 }

@@ -21,10 +21,13 @@ use std::path::Path;
 use encoding_rs::WINDOWS_1252;
 use log::debug;
 
+use infinitier_common::Engine;
+
 use crate::{
     Bg2GamData, BgGamData, COMMON_HEADER_LEN, EeGamData, Familiar, GAM_SIGNATURE, Gam,
     GamEngineData, GamHeader, GamNpc, GamVariable, Iwd2GamData, IwdGamData, IwdUnknownTrailer,
     JournalEntry, ModronMaze, PstGamData, StoredLocation, UnknownSection3,
+    char_stats_offset_for_engine,
 };
 
 const VARIABLE_LEN: usize = 84;
@@ -101,11 +104,18 @@ fn serialize(gam: &Gam) -> io::Result<Vec<u8>> {
     write_common_header(&mut buf[..COMMON_HEADER_LEN], h);
     write_engine_header(&mut buf, &gam.engine_data);
 
-    write_npcs_at(&mut buf, h.party_npc_offset as usize, &gam.party_npcs);
+    let engine = gam.engine_data.engine();
+    write_npcs_at(
+        &mut buf,
+        h.party_npc_offset as usize,
+        &gam.party_npcs,
+        engine,
+    );
     write_npcs_at(
         &mut buf,
         h.non_party_npc_offset as usize,
         &gam.non_party_npcs,
+        engine,
     );
     write_variables_at(&mut buf, h.globals_offset as usize, &gam.variables);
     write_journal_at(&mut buf, h.journal_offset as usize, &gam.journal);
@@ -516,11 +526,17 @@ fn write_bytes_fixed(out: &mut [u8], src: &[u8]) {
     out[..n].copy_from_slice(&src[..n]);
 }
 
-fn write_npcs_at(buf: &mut [u8], offset: usize, npcs: &[GamNpc]) {
+fn write_npcs_at(buf: &mut [u8], offset: usize, npcs: &[GamNpc], engine: Engine) {
+    let base = char_stats_offset_for_engine(engine);
     let mut off = offset;
     for npc in npcs {
+        let start = off;
         buf[off..off + npc.raw.len()].copy_from_slice(&npc.raw);
         off += npc.raw.len();
+        // Patch the typed character-stats block back over the raw copy
+        // so edits to `char_stats` persist (the rest of the record is
+        // written verbatim from `raw`).
+        npc.char_stats.write_into(&mut buf[start..off], base);
         // The embedded CRE blob lives elsewhere in the file (at the
         // absolute offset stored inside `npc.raw` at bytes 4..8);
         // write it back there so the round-tripped GAM keeps the

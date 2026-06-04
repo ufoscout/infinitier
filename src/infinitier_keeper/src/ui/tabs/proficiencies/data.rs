@@ -19,7 +19,7 @@
 
 use std::collections::HashMap;
 
-use infinitier_core::resource::cre::{Cre, CreHeader, EffectList, EffectV2, SubSections};
+use infinitier_core::resource::cre::{Cre, EffectList, EffectV1, EffectV2, SubSections};
 
 /// One table row: a proficiency and its first/second-class points.
 pub struct ProfRow {
@@ -27,12 +27,6 @@ pub struct ProfRow {
     pub first: u32,
     pub second: u32,
 }
-
-/// `IE_PROFICIENCYBASTARDSWORD` — the stat number of the first
-/// weapon proficiency; header byte `n` carries stat `BASE + n`.
-const PROF_STAT_BASE: u8 = 89;
-/// Effect opcode that sets a weapon proficiency.
-const SET_PROFICIENCY_OPCODE: u32 = 233;
 
 /// The proficiencies EEKeeper lists, in its display order, paired with
 /// their `IE_PROFICIENCY*` stat number. This set (24 entries) is fixed
@@ -67,59 +61,25 @@ const PROFICIENCIES: &[(u8, &str)] = &[
     (97, "War Hammer"),
 ];
 
-/// Build the table rows for a creature.
+/// Build the table rows for a creature. The first/second-class points
+/// come from the CRE header's packed proficiency block (via
+/// [`Cre::header_proficiency`]); `op233` effects add to the first‑class
+/// total (save-game party members carry their proficiencies there).
 pub fn proficiency_rows(cre: &Cre) -> Vec<ProfRow> {
-    let header = header_proficiency_bytes(cre);
     let effects = effect_proficiency_points(cre);
 
     PROFICIENCIES
         .iter()
         .map(|&(stat, name)| {
-            // Header byte only exists for the contiguous weapon stats
-            // (89..=108); styles / club live in effects only.
-            let base = stat
-                .checked_sub(PROF_STAT_BASE)
-                .and_then(|i| header.and_then(|h| h.get(i as usize).copied()))
-                .unwrap_or(0);
+            let (first, second) = cre.header_proficiency(stat);
             let effect = effects.get(&u32::from(stat)).copied().unwrap_or(0);
             ProfRow {
                 name,
-                first: u32::from(base & 0x07) + effect,
-                second: u32::from((base >> 3) & 0x07),
+                first: u32::from(first) + effect,
+                second: u32::from(second),
             }
         })
         .collect()
-}
-
-/// The 20 packed proficiency bytes (stats 89..=108) from a V1.0
-/// header. `None` for other engines (PST / IWD / IWD2 use different
-/// proficiency models) — those fall back to effects only.
-fn header_proficiency_bytes(cre: &Cre) -> Option<[u8; 20]> {
-    match &cre.header {
-        CreHeader::V10(h) => Some([
-            h.bg1_large_swords_proficiency_other_games,
-            h.bg1_small_swords_proficiency,
-            h.bg1_bows_proficiency,
-            h.bg1_spears_proficiency,
-            h.bg1_blunt_proficiency,
-            h.bg1_spiked_proficiency,
-            h.bg1_axe_proficiency,
-            h.bg1_missile_proficiency,
-            h.unused_proficiency_proficiencies_are_packed_into,
-            h.unused_proficiency_proficiencies_are_packed_into_2,
-            h.unused_proficiency_proficiencies_are_packed_into_3,
-            h.unused_proficiency_proficiencies_are_packed_into_4,
-            h.unused_proficiency_proficiencies_are_packed_into_5,
-            h.bg1,
-            h.bg1_2,
-            h.bg1_3,
-            h.bg1_4,
-            h.bg1_5,
-            h.bg1_6,
-            h.bg1_7,
-        ]),
-        _ => None,
-    }
 }
 
 /// Sum the points granted by `op233` ("set proficiency") effects,
@@ -129,31 +89,23 @@ fn effect_proficiency_points(cre: &Cre) -> HashMap<u32, u32> {
     let SubSections::V1(sub) = &cre.sub_sections else {
         return points;
     };
+    // `op233` parses to a typed `Proficiency` variant in both effect
+    // versions (`proficiency` = stat, `points` = points).
     match &sub.effects {
-        // EE / BG2 264-byte records: `op233` parses to a typed
-        // `Proficiency` (`proficiency` = stat, `points` = points).
         EffectList::V2(effects) => {
             for e in effects {
-                let EffectV2::Proficiency(p) = e else {
-                    continue;
-                };
-                *points.entry(p.proficiency).or_default() += p.points;
+                if let EffectV2::Proficiency(p) = e {
+                    *points.entry(p.proficiency).or_default() += p.points;
+                }
             }
         }
-        // Classic 48-byte records: word opcode at 0x00, dword param1 /
-        // param2 at 0x04 / 0x08.
         EffectList::V1(effects) => {
             for e in effects {
-                let r = &e.raw;
-                if u32::from(u16::from_le_bytes([r[0], r[1]])) == SET_PROFICIENCY_OPCODE {
-                    *points.entry(rd_u32(r, 0x08)).or_default() += rd_u32(r, 0x04);
+                if let EffectV1::Proficiency(p) = e {
+                    *points.entry(p.proficiency).or_default() += p.points;
                 }
             }
         }
     }
     points
-}
-
-fn rd_u32(b: &[u8], o: usize) -> u32 {
-    u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]])
 }

@@ -14,8 +14,8 @@ use log::{debug, error};
 use crate::{
     Bg2GamData, BgGamData, BgSaveVersion, COMMON_HEADER_LEN, EeGamData, Familiar, GAM_SIGNATURE,
     Gam, GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, Iwd2GamData, IwdGamData,
-    IwdUnknownTrailer, JournalEntry, ModronMaze, ModronMazeEntry, PstGamData, StoredLocation,
-    UnknownSection3,
+    IwdUnknownTrailer, JournalEntry, ModronMaze, ModronMazeEntry, NpcCharStats, PstGamData,
+    StoredLocation, UnknownSection3, char_stats_offset_for_engine,
 };
 
 /// On-disk size of one [`GamVariable`] record: a 32-byte name, the
@@ -132,6 +132,7 @@ impl Importer for GamImporter<'_> {
             npc_size,
             "party NPC",
             self.name,
+            self.engine,
         )?;
         let non_party_npcs = parse_npcs(
             &mut reader,
@@ -140,6 +141,7 @@ impl Importer for GamImporter<'_> {
             npc_size,
             "non-party NPC",
             self.name,
+            self.engine,
         )?;
 
         debug!(
@@ -315,6 +317,7 @@ fn parse_npcs(
     record_size: u32,
     what: &str,
     name: &str,
+    engine: Engine,
 ) -> std::io::Result<Vec<GamNpc>> {
     if count == 0 {
         return Ok(Vec::new());
@@ -334,12 +337,17 @@ fn parse_npcs(
     let mut out = Vec::with_capacity(count as usize);
     for i in 0..count as u64 {
         let entry_off = start + i * record_size as u64;
-        out.push(parse_npc(reader, entry_off, record_size as u64)?);
+        out.push(parse_npc(reader, entry_off, record_size as u64, engine)?);
     }
     Ok(out)
 }
 
-fn parse_npc(reader: &mut GamReader, offset: u64, record_size: u64) -> std::io::Result<GamNpc> {
+fn parse_npc(
+    reader: &mut GamReader,
+    offset: u64,
+    record_size: u64,
+    engine: Engine,
+) -> std::io::Result<GamNpc> {
     reader.set_position(offset)?;
     let selection_state = reader.read_u16()?;
     let party_order = reader.read_u16()?;
@@ -370,12 +378,14 @@ fn parse_npc(reader: &mut GamReader, offset: u64, record_size: u64) -> std::io::
     } else {
         Vec::new()
     };
+    let char_stats = NpcCharStats::parse(&raw, char_stats_offset_for_engine(engine));
     Ok(GamNpc {
         selection_state,
         party_order,
         cre_offset,
         cre_size,
         character_name,
+        char_stats,
         raw,
         cre,
     })

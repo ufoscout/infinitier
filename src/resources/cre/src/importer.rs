@@ -6,9 +6,9 @@ use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 use crate::{
-    CRE_SIGNATURE, Cre, CreHeader, CreVersion, Effect, EffectList, EffectV1, EffectV2, Item,
-    ItemFlags, Iwd2Slot, Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell, Proficiency,
-    SpellMemorizationInfo, SpellType, SubSections, V1SubSections, V22SubSections,
+    CRE_SIGNATURE, Cre, CreHeader, CreVersion, Effect, EffectList, EffectV1, EffectV1Body,
+    EffectV2, Item, ItemFlags, Iwd2Slot, Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell,
+    Proficiency, SpellMemorizationInfo, SpellType, SubSections, V1SubSections, V22SubSections,
     header_generated::{
         parse_header_v1_0, parse_header_v1_2, parse_header_v2_2, parse_header_v9_0,
     },
@@ -587,7 +587,15 @@ fn parse_effects(
                 reader.set_position(start + i * EFFECT_V1_LEN)?;
                 let mut buf = [0u8; 48];
                 reader.read_exact(&mut buf)?;
-                out.push(EffectV1 { raw: buf });
+                // Opcode (word at 0x00) selects the typed variant:
+                // `op233` → proficiency, any other opcode → a
+                // fully-parsed `EffectV1Body`.
+                let opcode = u32::from(u16::from_le_bytes([buf[0], buf[1]]));
+                out.push(if opcode == EffectV1::PROFICIENCY_OPCODE {
+                    EffectV1::Proficiency(Proficiency::from_v1_record(&buf))
+                } else {
+                    EffectV1::Effect(EffectV1Body::from_record(&buf))
+                });
             }
             Ok(EffectList::V1(out))
         }

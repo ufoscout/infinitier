@@ -183,10 +183,17 @@ pub struct GamNpc {
     /// pointed at by [`Self::cre_offset`]; everything else is a
     /// CRE-resref into the resource system.
     pub character_name: String,
+    /// The party-member "character statistics" block (kill counts,
+    /// time in party, favourite spells/weapons, …), parsed from its
+    /// engine-specific position inside [`Self::raw`]. Editing these
+    /// fields and re-exporting patches them back into the record.
+    pub char_stats: NpcCharStats,
     /// The NPC struct's full byte slice (length depends on engine
     /// variant — BG1 = 352, IWD = 384, PST = 360, BG2/EE = 352,
     /// IWD2 = 832). Includes the parsed-out 0x14-byte sub-header so
-    /// the entry is self-contained.
+    /// the entry is self-contained. Fields surfaced as typed members
+    /// (the sub-header, [`Self::char_stats`]) are patched back into
+    /// this on export; the remainder round-trips verbatim.
     pub raw: Vec<u8>,
     /// Embedded CRE bytes lifted from `gam_file[cre_offset ..
     /// cre_offset + cre_size]` during import. Empty when
@@ -244,6 +251,141 @@ fn long_name_offset_for_engine(engine: infinitier_common::Engine) -> usize {
         // header and the name) — the name ends up at 0x1BE.
         Iwd2 => 0x1BE,
     }
+}
+
+/// Offset of the 116-byte "character statistics" block within an NPC
+/// struct, per engine (cf. NearInfinity's `PartyNPC.readCharStats`).
+fn char_stats_offset_for_engine(engine: Engine) -> usize {
+    match engine {
+        // BG1, BG2, every EE flavour, and IWD vanilla.
+        Engine::Bg | Engine::Bg2 | Engine::Ee | Engine::Iwd => 228,
+        // PST vanilla shifts the quick-item layout by 8 bytes.
+        Engine::Pst => 236,
+        // IWD2's much larger NPC struct.
+        Engine::Iwd2 => 482,
+    }
+}
+
+/// The party-member "character statistics" block (116 bytes on disk).
+///
+/// Located inside the NPC record at an engine-specific offset (see
+/// [`char_stats_offset_for_engine`]). Holds the kill counters the
+/// Characteristics tab shows plus the party-timing and favourite
+/// spell/weapon fields — all typed for easy editing. Re-exporting
+/// patches them back into [`GamNpc::raw`].
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NpcCharStats {
+    /// 0x00: TLK strref of the most powerful creature vanquished
+    /// (`0xFFFFFFFF` / `0` when none).
+    pub most_powerful_vanquished_name: u32,
+    /// 0x04: XP of the most powerful creature vanquished.
+    pub most_powerful_vanquished_xp: u32,
+    /// 0x08: time spent in the party (1/15-second "ticks").
+    pub time_in_party: u32,
+    /// 0x0C: game time the member joined the party.
+    pub join_time: u32,
+    /// 0x10: currently in the party (`0`/`1`).
+    pub in_party: u8,
+    /// 0x11: unknown / preserved verbatim.
+    pub unknown_0x11: u16,
+    /// 0x13: first letter of the member's CRE resref.
+    pub initial_character: u8,
+    /// 0x14: kill XP this chapter.
+    pub kills_xp_chapter: u32,
+    /// 0x18: number of kills this chapter.
+    pub kills_number_chapter: u32,
+    /// 0x1C: kill XP this game.
+    pub kills_xp_game: u32,
+    /// 0x20: number of kills this game.
+    pub kills_number_game: u32,
+    /// 0x24: four favourite-spell resrefs.
+    pub favourite_spells: [String; 4],
+    /// 0x44: usage counts for the four favourite spells.
+    pub favourite_spell_counts: [u16; 4],
+    /// 0x4C: four favourite-weapon resrefs.
+    pub favourite_weapons: [String; 4],
+    /// 0x6C: usage counts for the four favourite weapons.
+    pub favourite_weapon_counts: [u16; 4],
+}
+
+impl NpcCharStats {
+    /// On-disk size of the block.
+    pub const LEN: usize = 0x74;
+
+    /// Parse the block out of an NPC `record` at `base`. Returns the
+    /// default (all-zero) block when the record is too short to contain
+    /// it (malformed / foreign saves).
+    fn parse(record: &[u8], base: usize) -> Self {
+        let Some(b) = record.get(base..base + Self::LEN) else {
+            return Self::default();
+        };
+        let resref = |o: usize| -> String {
+            let (s, _, _) = encoding_rs::WINDOWS_1252.decode(&b[o..o + 8]);
+            s.trim_end_matches('\0').to_owned()
+        };
+        NpcCharStats {
+            most_powerful_vanquished_name: rd_u32(b, 0x00),
+            most_powerful_vanquished_xp: rd_u32(b, 0x04),
+            time_in_party: rd_u32(b, 0x08),
+            join_time: rd_u32(b, 0x0C),
+            in_party: b[0x10],
+            unknown_0x11: rd_u16(b, 0x11),
+            initial_character: b[0x13],
+            kills_xp_chapter: rd_u32(b, 0x14),
+            kills_number_chapter: rd_u32(b, 0x18),
+            kills_xp_game: rd_u32(b, 0x1C),
+            kills_number_game: rd_u32(b, 0x20),
+            favourite_spells: std::array::from_fn(|i| resref(0x24 + i * 8)),
+            favourite_spell_counts: std::array::from_fn(|i| rd_u16(b, 0x44 + i * 2)),
+            favourite_weapons: std::array::from_fn(|i| resref(0x4C + i * 8)),
+            favourite_weapon_counts: std::array::from_fn(|i| rd_u16(b, 0x6C + i * 2)),
+        }
+    }
+
+    /// Write the block back into an NPC `record` at `base`. No-op when
+    /// the record is too short.
+    fn write_into(&self, record: &mut [u8], base: usize) {
+        let Some(b) = record.get_mut(base..base + Self::LEN) else {
+            return;
+        };
+        let mut resref = |o: usize, s: &str| {
+            let (enc, _, _) = encoding_rs::WINDOWS_1252.encode(s);
+            let n = enc.len().min(8);
+            b[o..o + 8].fill(0);
+            b[o..o + n].copy_from_slice(&enc[..n]);
+        };
+        for (i, s) in self.favourite_spells.iter().enumerate() {
+            resref(0x24 + i * 8, s);
+        }
+        for (i, s) in self.favourite_weapons.iter().enumerate() {
+            resref(0x4C + i * 8, s);
+        }
+        b[0x00..0x04].copy_from_slice(&self.most_powerful_vanquished_name.to_le_bytes());
+        b[0x04..0x08].copy_from_slice(&self.most_powerful_vanquished_xp.to_le_bytes());
+        b[0x08..0x0C].copy_from_slice(&self.time_in_party.to_le_bytes());
+        b[0x0C..0x10].copy_from_slice(&self.join_time.to_le_bytes());
+        b[0x10] = self.in_party;
+        b[0x11..0x13].copy_from_slice(&self.unknown_0x11.to_le_bytes());
+        b[0x13] = self.initial_character;
+        b[0x14..0x18].copy_from_slice(&self.kills_xp_chapter.to_le_bytes());
+        b[0x18..0x1C].copy_from_slice(&self.kills_number_chapter.to_le_bytes());
+        b[0x1C..0x20].copy_from_slice(&self.kills_xp_game.to_le_bytes());
+        b[0x20..0x24].copy_from_slice(&self.kills_number_game.to_le_bytes());
+        for (i, c) in self.favourite_spell_counts.iter().enumerate() {
+            b[0x44 + i * 2..0x46 + i * 2].copy_from_slice(&c.to_le_bytes());
+        }
+        for (i, c) in self.favourite_weapon_counts.iter().enumerate() {
+            b[0x6C + i * 2..0x6E + i * 2].copy_from_slice(&c.to_le_bytes());
+        }
+    }
+}
+
+fn rd_u32(b: &[u8], o: usize) -> u32 {
+    u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]])
+}
+
+fn rd_u16(b: &[u8], o: usize) -> u16 {
+    u16::from_le_bytes([b[o], b[o + 1]])
 }
 
 /// One GLOBAL / Kill variable record. 84 bytes on disk, identical
@@ -749,5 +891,36 @@ pub(crate) mod test_support {
     /// `DataSource` shim used by negative tests.
     pub fn ds(bytes: &'static [u8]) -> DataSource {
         DataSource::new(bytes)
+    }
+}
+
+#[cfg(test)]
+mod char_stats_tests {
+    use super::*;
+
+    /// Every byte of the 116-byte character-stats block is read and
+    /// written back by [`NpcCharStats`]: fill a record with a NUL-free
+    /// pattern (so the resref fields survive intact) and assert a parse
+    /// → write round-trip reproduces it byte-for-byte.
+    #[test]
+    fn char_stats_round_trip_is_byte_exact() {
+        const BASE: usize = 8; // arbitrary non-zero base within the record
+        let mut record: Vec<u8> = (0..(BASE + NpcCharStats::LEN) as u32)
+            .map(|i| 0x21 + (i % 0x5D) as u8) // printable ASCII, no NUL
+            .collect();
+        let original = record.clone();
+        let stats = NpcCharStats::parse(&record, BASE);
+        // Wipe the block, then write it back — must reproduce the input.
+        record[BASE..BASE + NpcCharStats::LEN].fill(0);
+        stats.write_into(&mut record, BASE);
+        assert_eq!(record, original, "NpcCharStats must cover every byte");
+    }
+
+    #[test]
+    fn char_stats_offsets_match_known_engines() {
+        assert_eq!(char_stats_offset_for_engine(Engine::Bg), 228);
+        assert_eq!(char_stats_offset_for_engine(Engine::Ee), 228);
+        assert_eq!(char_stats_offset_for_engine(Engine::Pst), 236);
+        assert_eq!(char_stats_offset_for_engine(Engine::Iwd2), 482);
     }
 }

@@ -23,6 +23,7 @@ use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::resource::ResourceType;
 use infinitier_core::resource::cre::{Cre, CreHeader};
+use infinitier_core::resource::gam::NpcCharStats;
 
 /// Resolved, display-ready characteristics for one creature.
 #[derive(Debug, Default, Clone)]
@@ -71,11 +72,18 @@ struct RawChar {
 }
 
 impl CharData {
-    /// Extract + resolve everything the tab paints. `npc_raw` is the
-    /// GAM party-slot byte struct ([`ImportedGamNpc::raw`]); the kill
-    /// statistics are read from it directly.
-    pub fn resolve(cre: &Cre, npc_raw: &[u8], game_data: &GameData) -> CharData {
-        let kill = kill_stats(npc_raw);
+    /// Extract + resolve everything the tab paints. The kill
+    /// statistics come from the GAM party slot's typed
+    /// [`NpcCharStats`] block (parsed by the gam importer).
+    pub fn resolve(cre: &Cre, char_stats: &NpcCharStats, game_data: &GameData) -> CharData {
+        let kill = KillStats {
+            strongest_name_strref: char_stats.most_powerful_vanquished_name,
+            strongest_xp: char_stats.most_powerful_vanquished_xp,
+            chapter_kills: char_stats.kills_number_chapter,
+            chapter_kills_xp: char_stats.kills_xp_chapter,
+            game_kills: char_stats.kills_number_game,
+            game_kills_xp: char_stats.kills_xp_game,
+        };
         let Some(raw) = raw_char(cre) else {
             // Engine variant we don't decode identity for yet (e.g.
             // IWD2 V2.2). Still surface the kill stats.
@@ -168,26 +176,6 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             state_flags: h.permanent_status_flags_state_ids,
         }),
         CreHeader::V22(_) => None,
-    }
-}
-
-/// Read the kill statistics out of the GAM party-member struct. The
-/// offsets are into the raw NPC record (BG/BG2/EE GAM party layout);
-/// reads past the end of `raw` yield 0 so a short/foreign record
-/// degrades gracefully.
-fn kill_stats(raw: &[u8]) -> KillStats {
-    let rd = |o: usize| -> u32 {
-        raw.get(o..o + 4)
-            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
-            .unwrap_or(0)
-    };
-    KillStats {
-        strongest_name_strref: rd(0xE4),
-        strongest_xp: rd(0xE8),
-        chapter_kills_xp: rd(0xF8),
-        chapter_kills: rd(0xFC),
-        game_kills_xp: rd(0x100),
-        game_kills: rd(0x104),
     }
 }
 

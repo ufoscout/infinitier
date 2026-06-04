@@ -18,10 +18,10 @@ use data::CharData;
 pub struct CharacteristicsTab;
 
 impl CharacteristicsTab {
-    /// `npc` is the GAM party slot — its raw struct carries the kill
-    /// statistics, which don't live in the embedded CRE.
+    /// `npc` is the GAM party slot — its typed `char_stats` block
+    /// carries the kill statistics, which don't live in the CRE.
     pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, npc: &ImportedGamNpc, game_data: &GameData) {
-        let data = CharData::resolve(cre, &npc.raw, game_data);
+        let data = CharData::resolve(cre, &npc.char_stats, game_data);
         view::render(ui, &data, game_data);
     }
 }

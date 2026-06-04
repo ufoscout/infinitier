@@ -559,13 +559,141 @@ impl EffectList {
     }
 }
 
-/// One V1 (48-byte) effect record. Inner-parameter parsing depends
-/// on 300+ opcodes so the bytes are kept verbatim — callers that
-/// know the opcode can pick the fields they need.
+/// One V1 (48-byte) effect record, parsed into a typed variant —
+/// mirroring [`EffectV2`].
+///
+/// `op233` gets the editable [`Proficiency`] representation; every
+/// other opcode is a fully-parsed [`EffectV1Body`] (all 48 bytes
+/// modelled, so it round-trips without keeping raw bytes). There is no
+/// `LocalVariable` variant: the classic 48-byte record has no room for
+/// the 32-byte variable name, so pre-EE games don't store creature
+/// locals as effects. [`EffectV1::Raw`] only survives for records too
+/// short to parse.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EffectV1 {
-    /// Raw 48 bytes of the record.
-    pub raw: [u8; 48],
+pub enum EffectV1 {
+    /// A record kept byte-for-byte — only for records shorter than the
+    /// 48-byte V1 layout (it otherwise never occurs).
+    Raw(Vec<u8>),
+    /// A weapon-proficiency setter (`op233`), parsed into its editable
+    /// [`proficiency`](Proficiency::proficiency) / [`points`](Proficiency::points).
+    Proficiency(Proficiency),
+    /// Any other effect, fully parsed into editable fields.
+    Effect(EffectV1Body),
+}
+
+impl EffectV1 {
+    /// Effect opcode that sets a weapon proficiency.
+    pub const PROFICIENCY_OPCODE: u32 = EffectV2::PROFICIENCY_OPCODE;
+
+    /// The effect opcode (word at record offset 0x00).
+    pub fn opcode(&self) -> u32 {
+        match self {
+            EffectV1::Raw(r) => u32::from(u16::from_le_bytes([r[0], r[1]])),
+            EffectV1::Proficiency(_) => Self::PROFICIENCY_OPCODE,
+            EffectV1::Effect(e) => u32::from(e.opcode),
+        }
+    }
+
+    /// The 48-byte on-disk record for this effect.
+    pub(crate) fn to_record(&self) -> Vec<u8> {
+        match self {
+            EffectV1::Raw(r) => r.clone(),
+            EffectV1::Proficiency(p) => p.to_v1_record(),
+            EffectV1::Effect(e) => e.to_record(),
+        }
+    }
+}
+
+/// A fully-parsed classic (V1, 48-byte) effect record — every field is
+/// modelled, so it is freely editable and round-trips without keeping
+/// the original bytes.
+///
+/// Field offsets follow the classic feature-block layout (cf.
+/// NearInfinity's `BaseOpcode`): opcode 0x00, target 0x02, power 0x03,
+/// param1 0x04, param2 0x08, timing 0x0C, resistance 0x0D, duration
+/// 0x0E, probabilities 0x12/0x13, resource 0x14, dice 0x1C/0x20, save
+/// type/bonus 0x24/0x28, special 0x2C.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectV1Body {
+    /// 0x00: effect opcode.
+    pub opcode: u16,
+    /// 0x02: target dispatcher.
+    pub target: u8,
+    /// 0x03: power.
+    pub power: u8,
+    /// 0x04: parameter 1.
+    pub param1: u32,
+    /// 0x08: parameter 2.
+    pub param2: u32,
+    /// 0x0C: timing mode.
+    pub timing_mode: u8,
+    /// 0x0D: dispel / resistance.
+    pub resistance: u8,
+    /// 0x0E: duration.
+    pub duration: u32,
+    /// 0x12: probability (upper).
+    pub probability1: u8,
+    /// 0x13: probability (lower).
+    pub probability2: u8,
+    /// 0x14: resource (8-byte resref).
+    pub resource: String,
+    /// 0x1C: dice thrown / max level.
+    pub dice_thrown: u32,
+    /// 0x20: dice sides / min level.
+    pub dice_sides: u32,
+    /// 0x24: saving-throw type.
+    pub save_type: u32,
+    /// 0x28: saving-throw bonus.
+    pub save_bonus: u32,
+    /// 0x2C: special.
+    pub special: u32,
+}
+
+impl EffectV1Body {
+    /// Parse a 48-byte classic effect record into typed fields.
+    /// `record` must be at least 48 bytes.
+    pub(crate) fn from_record(r: &[u8]) -> Self {
+        EffectV1Body {
+            opcode: rd_u16(r, 0x00),
+            target: r[0x02],
+            power: r[0x03],
+            param1: rd_u32(r, 0x04),
+            param2: rd_u32(r, 0x08),
+            timing_mode: r[0x0C],
+            resistance: r[0x0D],
+            duration: rd_u32(r, 0x0E),
+            probability1: r[0x12],
+            probability2: r[0x13],
+            resource: rd_resref(r, 0x14),
+            dice_thrown: rd_u32(r, 0x1C),
+            dice_sides: rd_u32(r, 0x20),
+            save_type: rd_u32(r, 0x24),
+            save_bonus: rd_u32(r, 0x28),
+            special: rd_u32(r, 0x2C),
+        }
+    }
+
+    /// Serialise back to a 48-byte classic effect record.
+    pub(crate) fn to_record(&self) -> Vec<u8> {
+        let mut r = vec![0u8; 48];
+        wr_u16(&mut r, 0x00, self.opcode);
+        r[0x02] = self.target;
+        r[0x03] = self.power;
+        wr_u32(&mut r, 0x04, self.param1);
+        wr_u32(&mut r, 0x08, self.param2);
+        r[0x0C] = self.timing_mode;
+        r[0x0D] = self.resistance;
+        wr_u32(&mut r, 0x0E, self.duration);
+        r[0x12] = self.probability1;
+        r[0x13] = self.probability2;
+        wr_resref(&mut r, 0x14, &self.resource);
+        wr_u32(&mut r, 0x1C, self.dice_thrown);
+        wr_u32(&mut r, 0x20, self.dice_sides);
+        wr_u32(&mut r, 0x24, self.save_type);
+        wr_u32(&mut r, 0x28, self.save_bonus);
+        wr_u32(&mut r, 0x2C, self.special);
+        r
+    }
 }
 
 /// One V2 (264-byte) effect record, parsed into a typed variant.
@@ -772,6 +900,35 @@ impl Proficiency {
         r[Self::POINTS_OFFSET..Self::POINTS_OFFSET + 4].copy_from_slice(&self.points.to_le_bytes());
         r[Self::PROFICIENCY_OFFSET..Self::PROFICIENCY_OFFSET + 4]
             .copy_from_slice(&self.proficiency.to_le_bytes());
+        r
+    }
+
+    /// `param1` (points) / `param2` (proficiency stat) offsets in the
+    /// classic 48-byte (V1) record.
+    const V1_POINTS_OFFSET: usize = 0x04;
+    const V1_PROFICIENCY_OFFSET: usize = 0x08;
+
+    /// Parse a classic (V1) `op233` record into its proficiency /
+    /// points. Caller must have verified the opcode is
+    /// [`EffectV1::PROFICIENCY_OPCODE`]; `record` must be ≥ 48 bytes.
+    pub(crate) fn from_v1_record(record: &[u8]) -> Self {
+        Proficiency {
+            points: rd_u32(record, Self::V1_POINTS_OFFSET),
+            proficiency: rd_u32(record, Self::V1_PROFICIENCY_OFFSET),
+        }
+    }
+
+    /// Serialise to a classic 48-byte `op233` record. No V1 `op233`
+    /// reference save was available, so the non-value fields are a
+    /// constructed-but-valid template: opcode `233` (0x00), "while
+    /// equipped" timing (0x0C = 2), 100% probability (0x12).
+    pub(crate) fn to_v1_record(self) -> Vec<u8> {
+        let mut r = vec![0u8; 48];
+        wr_u16(&mut r, 0x00, EffectV1::PROFICIENCY_OPCODE as u16);
+        r[0x0C] = 2;
+        r[0x12] = 100;
+        wr_u32(&mut r, Self::V1_POINTS_OFFSET, self.points);
+        wr_u32(&mut r, Self::V1_PROFICIENCY_OFFSET, self.proficiency);
         r
     }
 }
@@ -1031,6 +1188,50 @@ impl Cre {
             _ => None,
         })
     }
+
+    /// First-/second-class weapon-proficiency points packed into the
+    /// V1.0 header for an `IE_PROFICIENCY*` stat.
+    ///
+    /// The V1.0 header carries 20 packed bytes covering stats
+    /// `89..=108`; each byte stores the first-class points in the low
+    /// 3 bits and the second-class (dual/multi-class) points in the
+    /// next 3. Returns `(first, second)`, or `(0, 0)` for stats outside
+    /// the packed range or headers that don't use this layout (PST /
+    /// IWD / IWD2 model proficiencies differently).
+    pub fn header_proficiency(&self, stat: u8) -> (u8, u8) {
+        /// `IE_PROFICIENCYBASTARDSWORD` — first stat in the packed block.
+        const PROF_STAT_BASE: u8 = 89;
+        let CreHeader::V10(h) = &self.header else {
+            return (0, 0);
+        };
+        let packed = [
+            h.bg1_large_swords_proficiency_other_games,
+            h.bg1_small_swords_proficiency,
+            h.bg1_bows_proficiency,
+            h.bg1_spears_proficiency,
+            h.bg1_blunt_proficiency,
+            h.bg1_spiked_proficiency,
+            h.bg1_axe_proficiency,
+            h.bg1_missile_proficiency,
+            h.unused_proficiency_proficiencies_are_packed_into,
+            h.unused_proficiency_proficiencies_are_packed_into_2,
+            h.unused_proficiency_proficiencies_are_packed_into_3,
+            h.unused_proficiency_proficiencies_are_packed_into_4,
+            h.unused_proficiency_proficiencies_are_packed_into_5,
+            h.bg1,
+            h.bg1_2,
+            h.bg1_3,
+            h.bg1_4,
+            h.bg1_5,
+            h.bg1_6,
+            h.bg1_7,
+        ];
+        let byte = stat
+            .checked_sub(PROF_STAT_BASE)
+            .and_then(|i| packed.get(i as usize).copied())
+            .unwrap_or(0);
+        (byte & 0x07, (byte >> 3) & 0x07)
+    }
 }
 
 /// One 16-byte IWD2 sub-section slot. The on-disk layout is the
@@ -1201,5 +1402,48 @@ mod tests {
         let effect = Effect::from_record(&original);
         let produced = effect.to_record();
         assert_eq!(produced, original, "Effect must cover every byte");
+    }
+
+    /// Same byte-exact coverage proof for the classic 48-byte
+    /// [`EffectV1Body`].
+    #[test]
+    fn effect_v1_full_round_trip_is_byte_exact() {
+        let original: Vec<u8> = (0..48u32)
+            .map(|i| 0x20 + (i % 0x5E) as u8) // printable ASCII, no NUL
+            .collect();
+        let body = EffectV1Body::from_record(&original);
+        assert_eq!(
+            body.to_record(),
+            original,
+            "EffectV1Body must cover every byte"
+        );
+    }
+
+    #[test]
+    fn proficiency_v1_round_trips_and_is_op233() {
+        let original = Proficiency {
+            proficiency: 89,
+            points: 2,
+        };
+        let record = original.to_v1_record();
+        assert_eq!(record.len(), 48);
+        assert_eq!(
+            u16::from_le_bytes([record[0x00], record[0x01]]),
+            EffectV1::PROFICIENCY_OPCODE as u16,
+        );
+        assert_eq!(Proficiency::from_v1_record(&record), original);
+    }
+
+    #[test]
+    fn effect_v1_opcode_for_variants() {
+        let prof = EffectV1::Proficiency(Proficiency {
+            proficiency: 89,
+            points: 2,
+        });
+        assert_eq!(prof.opcode(), EffectV1::PROFICIENCY_OPCODE);
+        assert_eq!(prof.to_record().len(), 48);
+
+        let raw = EffectV1::Raw(vec![233, 0, 0, 0]);
+        assert_eq!(raw.opcode(), 233);
     }
 }
