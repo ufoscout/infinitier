@@ -91,4 +91,4 @@ run_pst_keeper:
 # Run Infinitier Keeper with local Planescape Torment - Enhanced Edition
 [group('run_keeper')]
 run_pstee_keeper:
-  cargo run -p infinitier_keeper -- --savegame 0 --game-path "{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition","{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Planescape Torment - Enhanced Edition"
+  cargo run -p infinitier_keeper -- --savegame 178 --game-path "{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition","{{GAMES_FOLDER}}/Planescape Torment - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Planescape Torment - Enhanced Edition"

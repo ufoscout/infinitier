@@ -20,7 +20,7 @@
 use std::collections::HashMap;
 use std::io;
 
-use infinitier_common::Engine;
+use infinitier_common::{Engine, Game};
 use infinitier_two_da_resource::TwoDA;
 
 use crate::game::GameData;
@@ -198,6 +198,12 @@ pub struct EngineCaps {
     /// `21` → `MAGE_THIEF`). Loaded once so [`Self::class_hp_profile`]
     /// can resolve a raw CRE class byte without re-importing the IDS.
     class_symbols: HashMap<i32, String>,
+    /// Torment (PST / PSTEE) credits the Constitution HP bonus on
+    /// *every* level — there's no Hit-Die cap, unlike the other AD&D
+    /// games. Captured from the [`Game`] at construction because PSTEE
+    /// shares [`Engine::Ee`] with BG:EE, so the engine alone can't tell
+    /// them apart.
+    con_hp_uncapped: bool,
 }
 
 /// Hit-Die shape of a class's `HP*.2DA` table.
@@ -395,6 +401,7 @@ impl EngineCaps {
             class_hp_tables,
             hp_table_profiles,
             class_symbols,
+            con_hp_uncapped: matches!(game_data.game(), Game::Pst | Game::Pstee),
         })
     }
 
@@ -459,17 +466,21 @@ impl EngineCaps {
     }
 
     /// CON contribution to a **multi-class** creature's maximum HP, per
-    /// the BG "Hit Dice" rules: the per-level CON bonus (the *warrior*
-    /// column when any component is a warrior) is applied to the **sum**
-    /// of the class levels — each capped at the governing Hit-Die `cap`
-    /// — then divided by the number of classes and rounded down:
+    /// the BG / Torment "Hit Dice" rules: the per-level CON bonus (the
+    /// *warrior* column when any component is a warrior) is applied to
+    /// the **sum** of the class levels — each capped at the governing
+    /// Hit-Die `cap` — then divided by the number of classes and
+    /// rounded down:
     ///
     /// `floor( con_per_level × Σ min(level_c, cap) / num_classes )`
     ///
-    /// Examples (verified in IWD:EE): a Fighter 9 / Thief 11 with CON 16
-    /// → `floor(2 × (9 + 9) / 2) = 18`; a Cleric 9 / Ranger 8 with CON 16
-    /// → `floor(2 × (9 + 8) / 2) = 17`. (Each class is capped at the
-    /// warrior's level-9 cap, not its own.)
+    /// `class_levels` must hold exactly the real classes (length =
+    /// number of classes); the divisor is `class_levels.len()`. Pass
+    /// `cap = u8::MAX` to disable the Hit-Die cap (Torment).
+    ///
+    /// Examples: a Fighter 9 / Thief 11 with CON 16, cap 9 →
+    /// `floor(2 × (9 + 9) / 2) = 18` (BG); the same uncapped (cap =
+    /// `u8::MAX`) → `floor(2 × (9 + 11) / 2) = 20` (Torment).
     ///
     /// Only meaningful for true multi-class creatures — *dual*-class
     /// follows different rules and must not be routed here.
@@ -480,21 +491,74 @@ impl EngineCaps {
         cap: u8,
         class_levels: &[u8],
     ) -> i32 {
-        let per_level = self.constitution_hp_per_level(constitution, is_warrior);
-        let mut summed_levels = 0i32;
-        let mut classes = 0i32;
-        for &level in class_levels {
-            if level > 0 {
-                summed_levels += i32::from(cap.min(level));
-                classes += 1;
-            }
-        }
-        if classes == 0 {
+        if class_levels.is_empty() {
             return 0;
         }
+        let per_level = self.constitution_hp_per_level(constitution, is_warrior);
+        let summed_levels: i32 = class_levels.iter().map(|&l| i32::from(cap.min(l))).sum();
         // Round toward negative infinity so a CON *penalty* rounds the
         // same way the engine floors the bonus.
-        (per_level * summed_levels).div_euclid(classes)
+        (per_level * summed_levels).div_euclid(class_levels.len() as i32)
+    }
+
+    /// Number of classes a creature's `CLASS.IDS` byte names (e.g.
+    /// `FIGHTER` → 1, `FIGHTER_MAGE` → 2, `FIGHTER_MAGE_THIEF` → 3).
+    /// This drives the multi-class HP split and — unlike counting
+    /// non-zero level fields — is robust to Torment's habit of storing
+    /// `1` (not `0`) in the unused class-level slots of single-class
+    /// characters. `1` for IWD2 (handled as a single total level) and
+    /// for any byte not found in `CLASS.IDS`.
+    pub fn class_count(&self, class_id: u8) -> usize {
+        if self.engine == Engine::Iwd2 {
+            return 1;
+        }
+        self.class_symbols
+            .get(&i32::from(class_id))
+            .map(|symbol| symbol.split('_').filter(|c| !c.is_empty()).count().max(1))
+            .unwrap_or(1)
+    }
+
+    /// Total CON→HP bonus for a creature's maximum HP, dispatching on
+    /// the engine's rules and the creature's class shape.
+    ///
+    /// - **Single-class** (`class_count == 1`) or **dual-class**: the
+    ///   per-level bonus over the (capped) primary level.
+    /// - **Multi-class** (`class_count >= 2`, not dual): split across
+    ///   classes via [`Self::max_hp_constitution_bonus_multiclass`],
+    ///   summing the first `class_count` entries of `class_levels`.
+    /// - **Torment** (PST / PSTEE): the Hit-Die cap is removed, so the
+    ///   bonus applies on every level.
+    #[allow(clippy::too_many_arguments)] // distinct HP inputs, not a bag of options
+    pub fn max_hp_constitution_bonus_for(
+        &self,
+        constitution: u8,
+        is_warrior: bool,
+        hp_roll_cap: u8,
+        primary_level: u8,
+        class_levels: [u8; 3],
+        class_count: usize,
+        is_dual: bool,
+    ) -> i32 {
+        let cap = if self.con_hp_uncapped {
+            u8::MAX
+        } else {
+            hp_roll_cap
+        };
+        if class_count >= 2 && !is_dual {
+            let n = class_count.min(class_levels.len());
+            self.max_hp_constitution_bonus_multiclass(
+                constitution,
+                is_warrior,
+                cap,
+                &class_levels[..n],
+            )
+        } else {
+            self.max_hp_constitution_bonus(
+                constitution,
+                is_warrior,
+                u32::from(cap.min(primary_level)),
+            )
+        }
     }
 
     /// Warrior flag + CON HP-roll cap for a creature's class, from its
@@ -864,6 +928,7 @@ mod tests {
             class_hp_tables: HashMap::new(),
             hp_table_profiles: HashMap::new(),
             class_symbols: HashMap::new(),
+            con_hp_uncapped: false,
         }
     }
 
@@ -1044,15 +1109,15 @@ mod tests {
     fn multiclass_con_bonus_splits_across_classes() {
         let caps = ee_caps();
         // Fighter 9 / Thief 11, CON 16 (+2), governing cap 9:
-        // floor(2 × (min(9,9) + min(11,9)) / 2) = floor(36/2) = 18.
+        // floor(2 × (min(9,9) + min(9,11)) / 2) = floor(36/2) = 18.
         assert_eq!(
-            caps.max_hp_constitution_bonus_multiclass(16, true, 9, &[9, 11, 0]),
+            caps.max_hp_constitution_bonus_multiclass(16, true, 9, &[9, 11]),
             18
         );
         // Cleric 9 / Ranger 8, CON 16, cap 9:
         // floor(2 × (9 + 8) / 2) = floor(34/2) = 17.
         assert_eq!(
-            caps.max_hp_constitution_bonus_multiclass(16, true, 9, &[9, 8, 0]),
+            caps.max_hp_constitution_bonus_multiclass(16, true, 9, &[9, 8]),
             17
         );
         // Wiki example — Fighter/Mage/Cleric 7/7/7, CON 18 (warrior +4):
@@ -1061,10 +1126,50 @@ mod tests {
             caps.max_hp_constitution_bonus_multiclass(18, true, 7, &[7, 7, 7]),
             28
         );
-        // One active class behaves like the single-class path.
+        // Uncapped (Torment): a Fighter 9 / Mage 11 credits CON on every
+        // level → floor(2 × (9 + 11) / 2) = 20, not 18.
         assert_eq!(
-            caps.max_hp_constitution_bonus_multiclass(17, true, 9, &[9, 0, 0]),
-            27
+            caps.max_hp_constitution_bonus_multiclass(16, true, u8::MAX, &[9, 11]),
+            20
+        );
+    }
+
+    #[test]
+    fn class_count_from_symbol() {
+        let caps = ee_caps_with_classes();
+        // ee_caps_with_classes maps 3 → PALADIN, 21 → MAGE_THIEF,
+        // 16 → CLERIC_MAGE, 8 → FIGHTER_MAGE.
+        assert_eq!(caps.class_count(3), 1); // single
+        assert_eq!(caps.class_count(21), 2); // double
+        assert_eq!(caps.class_count(8), 2);
+        // Unknown byte / IWD2 fall back to a single class.
+        assert_eq!(caps.class_count(200), 1);
+    }
+
+    #[test]
+    fn con_hp_bonus_uncapped_for_torment_games() {
+        let mut caps = ee_caps();
+
+        // Torment (PST/PSTEE): CON credits on every level (no Hit-Die
+        // cap), so a level-12 mage with CON 16 (+2) gets the full +24.
+        // Note the unused class-level slots are `1`, not `0` — the
+        // single-class path uses `primary_level`, so they're ignored.
+        caps.con_hp_uncapped = true;
+        assert_eq!(
+            caps.max_hp_constitution_bonus_for(16, false, 10, 12, [12, 1, 1], 1, false),
+            24
+        );
+        // A Fighter 9 / Mage 11 multi-class, uncapped → floor(2×(9+11)/2) = 20.
+        assert_eq!(
+            caps.max_hp_constitution_bonus_for(16, true, 9, 11, [9, 11, 1], 2, false),
+            20
+        );
+
+        // Non-Torment caps the same mage at level 10 → +20.
+        caps.con_hp_uncapped = false;
+        assert_eq!(
+            caps.max_hp_constitution_bonus_for(16, false, 10, 12, [12, 0, 0], 1, false),
+            20
         );
     }
 

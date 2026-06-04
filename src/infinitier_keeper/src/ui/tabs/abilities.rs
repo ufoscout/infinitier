@@ -173,29 +173,17 @@ fn combat_status_card(
             // The stored `maximum_hit_points` excludes the CON bonus
             // (the engine re-applies it at runtime — unlike THAC0/AC,
             // current HP can exceed stored max). Effective = stored +
-            // CON bonus.
-            //
-            // Multi-class splits the bonus across classes
-            // (`floor(con/level × Σ min(level_c, cap) / N)`); single- and
-            // dual-class apply the per-Hit-Die bonus over the (capped)
-            // level — a dual freezes its first class, which the max-level
-            // form already captures for the common fighter-dual case.
-            let active_classes = snap.class_levels.iter().filter(|&&l| l > 0).count();
-            let con_bonus = if active_classes >= 2 && !snap.is_dual {
-                state.engine_caps.max_hp_constitution_bonus_multiclass(
-                    constitution,
-                    snap.is_warrior,
-                    snap.hp_roll_cap,
-                    &snap.class_levels,
-                )
-            } else {
-                let hp_levels = u32::from(snap.hp_roll_cap.min(snap.primary_level));
-                state.engine_caps.max_hp_constitution_bonus(
-                    constitution,
-                    snap.is_warrior,
-                    hp_levels,
-                )
-            };
+            // CON bonus, whose rules (multi-class split, Hit-Die cap or
+            // not for Torment, …) all live in `EngineCaps`.
+            let con_bonus = state.engine_caps.max_hp_constitution_bonus_for(
+                constitution,
+                snap.is_warrior,
+                snap.hp_roll_cap,
+                snap.primary_level,
+                snap.class_levels,
+                snap.class_count,
+                snap.is_dual,
+            );
             let effective_max_hp: i32 = i32::from(max_hp_base) + con_bonus;
 
             for &field in EditableField::ALL {
@@ -458,6 +446,10 @@ struct CreSnapshot {
     /// Per-class levels (0 = unused slot). Drives the multi-class CON
     /// HP split.
     class_levels: [u8; 3],
+    /// Number of classes the CLASS.IDS byte names (1 single, 2/3 multi)
+    /// — the multi-class HP divisor. Robust to Torment storing `1` in
+    /// unused level slots (unlike counting non-zero levels).
+    class_count: usize,
     /// Dual-classed (vs multi-classed) — they use different HP rules.
     is_dual: bool,
     ability_total: u32,
@@ -507,6 +499,7 @@ impl CreSnapshot {
             CreHeader::V22(_) => 0, // IWD2: class byte unused (engine handles it)
         };
         let (is_warrior, hp_roll_cap) = state.engine_caps.class_hp_profile(class_id);
+        let class_count = state.engine_caps.class_count(class_id);
         Some(Self {
             strength: cre.strength(),
             strength_pct: cre.strength_bonus(),
@@ -522,6 +515,7 @@ impl CreSnapshot {
             is_warrior,
             hp_roll_cap,
             class_levels: cre.class_levels(),
+            class_count,
             is_dual: cre.is_dual_classed(),
             ability_total,
             labels,
