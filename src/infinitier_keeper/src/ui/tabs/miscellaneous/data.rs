@@ -57,10 +57,10 @@ pub fn misc_data(cre: &Cre, gam: &ImportedGam, npc: &ImportedGamNpc) -> MiscData
     if let CreHeader::V10(h) = &cre.header {
         data.turn_undead = h.turn_undead_level;
         data.tracking_skill = h.tracking_skill;
-        data.tracking_target = cstr(&h.tracking_target);
+        data.tracking_target = h.tracking_target.clone();
         data.identifier = u32::from(h.global_actor_enumeration_value)
             | (u32::from(h.local_area_actor_enumeration_value) << 16);
-        data.script_name = cstr(&h.death_variable_set_sprite_is_deadvariable);
+        data.script_name = h.death_variable_set_sprite_is_deadvariable.clone();
         data.override_script = h.creature_script_override.clone();
         data.class_script = h.creature_script_class.clone();
         data.race_script = h.creature_script_race.clone();
@@ -68,10 +68,4 @@ pub fn misc_data(cre: &Cre, gam: &ImportedGam, npc: &ImportedGamNpc) -> MiscData
         data.default_script = h.creature_script_default.clone();
     }
     data
-}
-
-/// Decode an ASCIIZ header string field (bytes up to the first NUL).
-fn cstr(bytes: &[u8]) -> String {
-    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
-    String::from_utf8_lossy(&bytes[..end]).into_owned()
 }

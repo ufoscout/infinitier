@@ -324,7 +324,7 @@ pub struct CreHeaderV10 {
     /// 0x0083 (1 B): Tracking skill (0-100)
     pub tracking_skill: u8,
     /// 0x0084 (32 B): Tracking target
-    pub tracking_target: Vec<u8>,
+    pub tracking_target: String,
     /// 0x00A4 (400 B): Strrefs pertaining to the character. Most are connected with the sound-set (see SOUNDOF...
     pub strrefs_pertaining_to_the_character_most: Vec<u8>,
     /// 0x0234 (1 B): Level first class Highest attained level in class (0-100). For dual/multi class charact...
@@ -390,7 +390,7 @@ pub struct CreHeaderV10 {
     /// 0x027E (2 B): Local (area) actor enumeration value
     pub local_area_actor_enumeration_value: u16,
     /// 0x0280 (32 B): Death Variable (set SPRITE_IS_DEADvariable on death)
-    pub death_variable_set_sprite_is_deadvariable: Vec<u8>,
+    pub death_variable_set_sprite_is_deadvariable: String,
     /// 0x02A0 (4 B): Known spells offset
     pub known_spells_offset: u32,
     /// 0x02A4 (4 B): Known spells count
@@ -506,7 +506,7 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
         bg1_7: read_u8(0x0081),
         turn_undead_level: read_u8(0x0082),
         tracking_skill: read_u8(0x0083),
-        tracking_target: header[0x0084..0x00A4].to_vec(),
+        tracking_target: read_resref(&header[0x0084..0x00A4]),
         strrefs_pertaining_to_the_character_most: header[0x00A4..0x0234].to_vec(),
         level_first_class_highest_attained_level: read_u8(0x0234),
         level_second_class_highest_attained_level: read_u8(0x0235),
@@ -539,7 +539,7 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
         alignment_alignmen_ids: read_u8(0x027B),
         global_actor_enumeration_value: read_u16(0x027C),
         local_area_actor_enumeration_value: read_u16(0x027E),
-        death_variable_set_sprite_is_deadvariable: header[0x0280..0x02A0].to_vec(),
+        death_variable_set_sprite_is_deadvariable: read_resref(&header[0x0280..0x02A0]),
         known_spells_offset: read_u32(0x02A0),
         known_spells_count: read_u32(0x02A4),
         spell_memorization_info_offset: read_u32(0x02A8),
@@ -648,11 +648,7 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x0081] = h.bg1_7;
     buf[0x0082] = h.turn_undead_level;
     buf[0x0083] = h.tracking_skill;
-    {
-        let src = &h.tracking_target;
-        let n = src.len().min(32);
-        buf[0x0084..0x0084 + n].copy_from_slice(&src[..n]);
-    }
+    write_resref(&mut buf[0x0084..0x00A4], &h.tracking_target);
     {
         let src = &h.strrefs_pertaining_to_the_character_most;
         let n = src.len().min(400);
@@ -696,11 +692,10 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x027B] = h.alignment_alignmen_ids;
     buf[0x027C..0x027E].copy_from_slice(&h.global_actor_enumeration_value.to_le_bytes());
     buf[0x027E..0x0280].copy_from_slice(&h.local_area_actor_enumeration_value.to_le_bytes());
-    {
-        let src = &h.death_variable_set_sprite_is_deadvariable;
-        let n = src.len().min(32);
-        buf[0x0280..0x0280 + n].copy_from_slice(&src[..n]);
-    }
+    write_resref(
+        &mut buf[0x0280..0x02A0],
+        &h.death_variable_set_sprite_is_deadvariable,
+    );
     buf[0x02A0..0x02A4].copy_from_slice(&h.known_spells_offset.to_le_bytes());
     buf[0x02A4..0x02A8].copy_from_slice(&h.known_spells_count.to_le_bytes());
     buf[0x02A8..0x02AC].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
@@ -883,7 +878,7 @@ pub struct CreHeaderV12 {
     /// 0x0083 (1 B): Tracking skill (0-100)
     pub tracking_skill: u8,
     /// 0x0084 (32 B): Tracking target
-    pub tracking_target: Vec<u8>,
+    pub tracking_target: String,
     /// 0x00A4 (400 B): Strrefs pertaining to the character. Most are connected with the sound-set (see SOUNDOF...
     pub strrefs_pertaining_to_the_character_most: Vec<u8>,
     /// 0x0234 (1 B): Highest attained level in class (0-100). For dual/multi class characters, the levels fo...
@@ -1037,7 +1032,7 @@ pub struct CreHeaderV12 {
     /// 0x0322 (2 B): Local (area) actor enumeration value
     pub local_area_actor_enumeration_value: u16,
     /// 0x0324 (32 B): Death Variable (set SPRITE_IS_DEADvariable on death)
-    pub death_variable_set_sprite_is_deadvariable: Vec<u8>,
+    pub death_variable_set_sprite_is_deadvariable: String,
     /// 0x0344 (4 B): Known spells offset
     pub known_spells_offset: u32,
     /// 0x0348 (4 B): Known spells count
@@ -1152,7 +1147,7 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
         unused_proficiency_slot_13: header[0x0081..0x0082].to_vec(),
         turn_undead_level: header[0x0082..0x0083].to_vec(),
         tracking_skill: read_u8(0x0083),
-        tracking_target: header[0x0084..0x00A4].to_vec(),
+        tracking_target: read_resref(&header[0x0084..0x00A4]),
         strrefs_pertaining_to_the_character_most: header[0x00A4..0x0234].to_vec(),
         highest_attained_level_in_class: read_u8(0x0234),
         highest_attained_level_in_class_2: read_u8(0x0235),
@@ -1229,7 +1224,7 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
         alignment_alignmen_ids: read_u8(0x031F),
         global_actor_enumeration_value: read_u16(0x0320),
         local_area_actor_enumeration_value: read_u16(0x0322),
-        death_variable_set_sprite_is_deadvariable: header[0x0324..0x0344].to_vec(),
+        death_variable_set_sprite_is_deadvariable: read_resref(&header[0x0324..0x0344]),
         known_spells_offset: read_u32(0x0344),
         known_spells_count: read_u32(0x0348),
         spell_memorization_info_offset: read_u32(0x034C),
@@ -1386,11 +1381,7 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
         buf[0x0082..0x0082 + n].copy_from_slice(&src[..n]);
     }
     buf[0x0083] = h.tracking_skill;
-    {
-        let src = &h.tracking_target;
-        let n = src.len().min(32);
-        buf[0x0084..0x0084 + n].copy_from_slice(&src[..n]);
-    }
+    write_resref(&mut buf[0x0084..0x00A4], &h.tracking_target);
     {
         let src = &h.strrefs_pertaining_to_the_character_most;
         let n = src.len().min(400);
@@ -1494,11 +1485,10 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x031F] = h.alignment_alignmen_ids;
     buf[0x0320..0x0322].copy_from_slice(&h.global_actor_enumeration_value.to_le_bytes());
     buf[0x0322..0x0324].copy_from_slice(&h.local_area_actor_enumeration_value.to_le_bytes());
-    {
-        let src = &h.death_variable_set_sprite_is_deadvariable;
-        let n = src.len().min(32);
-        buf[0x0324..0x0324 + n].copy_from_slice(&src[..n]);
-    }
+    write_resref(
+        &mut buf[0x0324..0x0344],
+        &h.death_variable_set_sprite_is_deadvariable,
+    );
     buf[0x0344..0x0348].copy_from_slice(&h.known_spells_offset.to_le_bytes());
     buf[0x0348..0x034C].copy_from_slice(&h.known_spells_count.to_le_bytes());
     buf[0x034C..0x0350].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
@@ -1683,7 +1673,7 @@ pub struct CreHeaderV90 {
     /// 0x0083 (1 B): Tracking skill (0-100)
     pub tracking_skill: u8,
     /// 0x0084 (32 B): Tracking target
-    pub tracking_target: Vec<u8>,
+    pub tracking_target: String,
     /// 0x00A4 (400 B): Strrefs pertaining to the character. Most are connected with the sound-set (see SOUNDOF...
     pub strrefs_pertaining_to_the_character_most: Vec<u8>,
     /// 0x0234 (1 B): Highest attained level in class (0-100). For dual/multi class characters, the levels fo...
@@ -1773,7 +1763,7 @@ pub struct CreHeaderV90 {
     /// 0x02E6 (2 B): Local (area) actor enumeration value
     pub local_area_actor_enumeration_value: u16,
     /// 0x02E8 (32 B): Death Variable (set SPRITE_IS_DEADvariable on death)
-    pub death_variable_set_sprite_is_deadvariable: Vec<u8>,
+    pub death_variable_set_sprite_is_deadvariable: String,
     /// 0x0308 (4 B): Known spells offset
     pub known_spells_offset: u32,
     /// 0x030C (4 B): Known spells count
@@ -1889,7 +1879,7 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
         unknown_proficiency_proficiencies_maybe_be_packed_5: read_u8(0x0081),
         turn_undead_level: read_u8(0x0082),
         tracking_skill: read_u8(0x0083),
-        tracking_target: header[0x0084..0x00A4].to_vec(),
+        tracking_target: read_resref(&header[0x0084..0x00A4]),
         strrefs_pertaining_to_the_character_most: header[0x00A4..0x0234].to_vec(),
         highest_attained_level_in_class: read_u8(0x0234),
         highest_attained_level_in_class_2: read_u8(0x0235),
@@ -1934,7 +1924,7 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
         alignment_alignmen_ids: read_u8(0x02E3),
         global_actor_enumeration_value: read_u16(0x02E4),
         local_area_actor_enumeration_value: read_u16(0x02E6),
-        death_variable_set_sprite_is_deadvariable: header[0x02E8..0x0308].to_vec(),
+        death_variable_set_sprite_is_deadvariable: read_resref(&header[0x02E8..0x0308]),
         known_spells_offset: read_u32(0x0308),
         known_spells_count: read_u32(0x030C),
         spell_memorization_info_offset: read_u32(0x0310),
@@ -2040,11 +2030,7 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x0081] = h.unknown_proficiency_proficiencies_maybe_be_packed_5;
     buf[0x0082] = h.turn_undead_level;
     buf[0x0083] = h.tracking_skill;
-    {
-        let src = &h.tracking_target;
-        let n = src.len().min(32);
-        buf[0x0084..0x0084 + n].copy_from_slice(&src[..n]);
-    }
+    write_resref(&mut buf[0x0084..0x00A4], &h.tracking_target);
     {
         let src = &h.strrefs_pertaining_to_the_character_most;
         let n = src.len().min(400);
@@ -2119,11 +2105,10 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x02E3] = h.alignment_alignmen_ids;
     buf[0x02E4..0x02E6].copy_from_slice(&h.global_actor_enumeration_value.to_le_bytes());
     buf[0x02E6..0x02E8].copy_from_slice(&h.local_area_actor_enumeration_value.to_le_bytes());
-    {
-        let src = &h.death_variable_set_sprite_is_deadvariable;
-        let n = src.len().min(32);
-        buf[0x02E8..0x02E8 + n].copy_from_slice(&src[..n]);
-    }
+    write_resref(
+        &mut buf[0x02E8..0x0308],
+        &h.death_variable_set_sprite_is_deadvariable,
+    );
     buf[0x0308..0x030C].copy_from_slice(&h.known_spells_offset.to_le_bytes());
     buf[0x030C..0x0310].copy_from_slice(&h.known_spells_count.to_le_bytes());
     buf[0x0310..0x0314].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
