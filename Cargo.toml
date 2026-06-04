@@ -76,6 +76,9 @@ flate2 = "1"
 hound = "3"
 image = { version = "0.25", default-features = false, features = ["bmp", "png"] }
 itertools = "0.14"
+# Date/time formatting for the save-game picker's "Time Saved" column
+# (local timezone + weekday/month names). Already in the lock graph.
+jiff = "0.2"
 log = "0.4"
 parking_lot = "0.12"
 rand = "0.10"

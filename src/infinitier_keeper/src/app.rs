@@ -3,7 +3,7 @@ use eframe::egui;
 use crate::components::editable_fields::KeeperEditors;
 use crate::components::party_selector::PartySelector;
 use crate::state::AppState;
-use crate::ui::{CharacterPanel, HeaderPanel, SaveAction, SaveTabStrip};
+use crate::ui::{CharacterPanel, HeaderPanel, LoadAction, SaveAction, SaveTabStrip};
 
 pub struct KeeperApp {
     state: AppState,
@@ -20,6 +20,8 @@ pub struct KeeperApp {
     /// Save-button + confirmation-dialog state. Shown when the user
     /// clicks the header's Save button.
     save_action: SaveAction,
+    /// Load-button picker: the "Open Single Player Saved Game" modal.
+    load_action: LoadAction,
 }
 
 impl KeeperApp {
@@ -32,6 +34,7 @@ impl KeeperApp {
             character_panel: CharacterPanel,
             editors: KeeperEditors::new(),
             save_action: SaveAction::new(),
+            load_action: LoadAction::new(),
         }
     }
 }
@@ -52,30 +55,50 @@ impl eframe::App for KeeperApp {
         // Per-frame sync. Both prepare calls are cheap no-ops when
         // nothing changed; the borrows of `&self.state` only overlap
         // the immutable side, so the `&mut self.state` panels take
-        // later don't conflict.
-        self.party_selector.prepare(&self.state, ui.ctx());
-        self.editors.prepare(&self.state);
+        // later don't conflict. Skipped when no save is open (every
+        // tab was closed) — they read `state.active()`.
+        let has_save = !self.state.tabs.is_empty();
+        if has_save {
+            self.party_selector.prepare(&self.state, ui.ctx());
+            self.editors.prepare(&self.state);
+        }
 
         let header_action = self.header_panel.show(ui);
-        if header_action.save_clicked {
+        if header_action.save_clicked && has_save {
             self.save_action.open(&self.state);
         }
         if header_action.load_clicked {
-            // Placeholder — the load picker isn't wired yet; the user
-            // explicitly flagged more buttons coming, so this branch
-            // stays here so the structure is ready for it.
-            log::info!("[load] Load button clicked — action not yet implemented");
+            self.load_action.open(&self.state);
         }
-        // Save-tab strip — one tab per open save. Always painted so
-        // the structure is discoverable even with a single tab.
+        // Save-tab strip — one tab per open save, each closable. It may
+        // remove the active (or last) tab this frame, so re-check
+        // emptiness afterwards before painting the per-save panels.
         self.save_tab_strip.show(ui, &mut self.state);
-        self.party_selector.show(ui, &mut self.state);
-        self.character_panel
-            .show(ui, &mut self.state, &mut self.editors);
+        if self.state.tabs.is_empty() {
+            empty_state(ui);
+        } else {
+            self.party_selector.show(ui, &mut self.state);
+            self.character_panel
+                .show(ui, &mut self.state, &mut self.editors);
+        }
 
-        // Modal Save dialog — painted on top of the panels.
+        // Modal dialogs — painted on top of the panels.
         self.save_action.show(ui.ctx(), &mut self.state);
+        self.load_action.show(ui.ctx(), &mut self.state);
     }
+}
+
+/// Placeholder shown when every save tab has been closed, inviting the
+/// user to open one via the header's Load button.
+fn empty_state(ui: &mut egui::Ui) {
+    egui::CentralPanel::default().show_inside(ui, |ui| {
+        ui.vertical_centered(|ui| {
+            ui.add_space(48.0);
+            ui.heading("No save loaded");
+            ui.add_space(6.0);
+            ui.label("Use the Load button above to open a saved game.");
+        });
+    });
 }
 
 /// Drop keyboard focus from the currently-focused widget when the latest
