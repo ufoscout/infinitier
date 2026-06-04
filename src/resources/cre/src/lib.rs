@@ -1257,6 +1257,409 @@ impl Cre {
     }
 }
 
+// ── Keeper-facing per-version field accessors ───────────────────────
+//
+// Friendly getters/setters the save editor needs, with the
+// per-version field-name dispatch living here on `Cre` so every
+// consumer — and the unit tests below — share one definition of the
+// mapping instead of re-deriving it. Reads return `Option<…>` (getter)
+// / are no-ops (setter) when a field doesn't exist on the given CRE
+// version, so callers can hide/skip the row.
+
+/// Getter + setter for a `u8` field present (under the same name) on
+/// every CRE version.
+macro_rules! cre_u8_field {
+    ($get:ident, $set:ident, $field:ident) => {
+        pub fn $get(&self) -> u8 {
+            match &self.header {
+                CreHeader::V10(h) => h.$field,
+                CreHeader::V12(h) => h.$field,
+                CreHeader::V90(h) => h.$field,
+                CreHeader::V22(h) => h.$field,
+            }
+        }
+        pub fn $set(&mut self, value: u8) {
+            match &mut self.header {
+                CreHeader::V10(h) => h.$field = value,
+                CreHeader::V12(h) => h.$field = value,
+                CreHeader::V90(h) => h.$field = value,
+                CreHeader::V22(h) => h.$field = value,
+            }
+        }
+    };
+}
+
+/// Getter + setter for an AD&D thief-skill `u8` (V1.0 / V1.2 / V9.0);
+/// `None` (read) / no-op (write) on V2.2 (IWD2), which uses d20 skills.
+macro_rules! cre_adnd_skill {
+    ($get:ident, $set:ident, $field:ident) => {
+        pub fn $get(&self) -> Option<u8> {
+            match &self.header {
+                CreHeader::V10(h) => Some(h.$field),
+                CreHeader::V12(h) => Some(h.$field),
+                CreHeader::V90(h) => Some(h.$field),
+                CreHeader::V22(_) => None,
+            }
+        }
+        pub fn $set(&mut self, value: u8) {
+            match &mut self.header {
+                CreHeader::V10(h) => h.$field = value,
+                CreHeader::V12(h) => h.$field = value,
+                CreHeader::V90(h) => h.$field = value,
+                CreHeader::V22(_) => {}
+            }
+        }
+    };
+}
+
+impl Cre {
+    /// Set current hit points (getter: [`Self::current_hit_points`]).
+    pub fn set_current_hit_points(&mut self, value: u16) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.current_hit_points = value,
+            CreHeader::V12(h) => h.current_hit_points = value,
+            CreHeader::V90(h) => h.current_hit_points = value,
+            CreHeader::V22(h) => h.current_hit_points = value,
+        }
+    }
+
+    /// Set maximum hit points (getter: [`Self::maximum_hit_points`]).
+    pub fn set_maximum_hit_points(&mut self, value: u16) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.maximum_hit_points = value,
+            CreHeader::V12(h) => h.maximum_hit_points = value,
+            CreHeader::V90(h) => h.maximum_hit_points = value,
+            CreHeader::V22(h) => h.maximum_hit_points = value,
+        }
+    }
+
+    /// Armour Class (natural) on AD&D engines; the single Armour Class
+    /// on IWD2 (V2.2).
+    pub fn ac_natural(&self) -> i16 {
+        match &self.header {
+            CreHeader::V10(h) => h.armor_class_natural,
+            CreHeader::V12(h) => h.armor_class_natural,
+            CreHeader::V90(h) => h.armor_class_natural,
+            CreHeader::V22(h) => h.armor_class,
+        }
+    }
+    pub fn set_ac_natural(&mut self, value: i16) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.armor_class_natural = value,
+            CreHeader::V12(h) => h.armor_class_natural = value,
+            CreHeader::V90(h) => h.armor_class_natural = value,
+            CreHeader::V22(h) => h.armor_class = value,
+        }
+    }
+
+    /// Armour Class (effective) — AD&D headers only; `None` on IWD2.
+    pub fn ac_effective(&self) -> Option<i16> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.armor_class_effective),
+            CreHeader::V12(h) => Some(h.armor_class_effective),
+            CreHeader::V90(h) => Some(h.armor_class_effective),
+            CreHeader::V22(_) => None,
+        }
+    }
+    pub fn set_ac_effective(&mut self, value: i16) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.armor_class_effective = value,
+            CreHeader::V12(h) => h.armor_class_effective = value,
+            CreHeader::V90(h) => h.armor_class_effective = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+
+    /// THAC0 on AD&D; Base Attack Bonus on IWD2 (shared signed byte).
+    pub fn thac0_or_bab(&self) -> i8 {
+        match &self.header {
+            CreHeader::V10(h) => h.thac0,
+            CreHeader::V12(h) => h.thac0,
+            CreHeader::V90(h) => h.thac0,
+            CreHeader::V22(h) => h.base_attack_bonus_bab_for_non,
+        }
+    }
+    pub fn set_thac0_or_bab(&mut self, value: i8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.thac0 = value,
+            CreHeader::V12(h) => h.thac0 = value,
+            CreHeader::V90(h) => h.thac0 = value,
+            CreHeader::V22(h) => h.base_attack_bonus_bab_for_non = value,
+        }
+    }
+
+    /// Number-of-attacks byte (see [`NumberOfAttacks`] for the encoding).
+    pub fn attacks_byte(&self) -> u8 {
+        match &self.header {
+            CreHeader::V10(h) => h.number_of_attacks.to_u8(),
+            CreHeader::V12(h) => h.number_of_attacks.to_u8(),
+            CreHeader::V90(h) => h.number_of_attacks.to_u8(),
+            CreHeader::V22(h) => h.number_of_attacks.to_u8(),
+        }
+    }
+    pub fn set_attacks_byte(&mut self, value: u8) {
+        let n = NumberOfAttacks::from_u8(value);
+        match &mut self.header {
+            CreHeader::V10(h) => h.number_of_attacks = n,
+            CreHeader::V12(h) => h.number_of_attacks = n,
+            CreHeader::V90(h) => h.number_of_attacks = n,
+            CreHeader::V22(h) => h.number_of_attacks = n,
+        }
+    }
+
+    cre_u8_field!(fatigue, set_fatigue, fatigue);
+    cre_u8_field!(intoxication, set_intoxication, intoxication);
+    cre_u8_field!(luck, set_luck, luck);
+
+    /// Character XP — stored in the summoning-power-level field for
+    /// party CREs (what the editor surfaces as "Experience").
+    pub fn experience(&self) -> u32 {
+        match &self.header {
+            CreHeader::V10(h) => h.creature_power_level_for_summoning_spells,
+            CreHeader::V12(h) => h.creature_power_level_for_summoning_spells,
+            CreHeader::V90(h) => h.creature_power_level_for_summoning_spells,
+            CreHeader::V22(h) => h.creature_power_level_for_summoning_spells,
+        }
+    }
+    pub fn set_experience(&mut self, value: u32) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.creature_power_level_for_summoning_spells = value,
+            CreHeader::V12(h) => h.creature_power_level_for_summoning_spells = value,
+            CreHeader::V90(h) => h.creature_power_level_for_summoning_spells = value,
+            CreHeader::V22(h) => h.creature_power_level_for_summoning_spells = value,
+        }
+    }
+
+    /// XP awarded for killing this creature.
+    pub fn xp_for_kill(&self) -> u32 {
+        match &self.header {
+            CreHeader::V10(h) => h.xp_gained_for_killing_this_creature,
+            CreHeader::V12(h) => h.xp_gained_for_killing_this_creature,
+            CreHeader::V90(h) => h.xp_gained_for_killing_this_creature,
+            CreHeader::V22(h) => h.xp_gained_for_killing_this_creature,
+        }
+    }
+    pub fn set_xp_for_kill(&mut self, value: u32) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.xp_gained_for_killing_this_creature = value,
+            CreHeader::V12(h) => h.xp_gained_for_killing_this_creature = value,
+            CreHeader::V90(h) => h.xp_gained_for_killing_this_creature = value,
+            CreHeader::V22(h) => h.xp_gained_for_killing_this_creature = value,
+        }
+    }
+
+    /// Level in the first class. `None` on IWD2 (per-class fields).
+    pub fn level_first_class(&self) -> Option<u8> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.level_first_class_highest_attained_level),
+            CreHeader::V12(h) => Some(h.highest_attained_level_in_class),
+            CreHeader::V90(h) => Some(h.highest_attained_level_in_class),
+            CreHeader::V22(_) => None,
+        }
+    }
+    pub fn set_level_first_class(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.level_first_class_highest_attained_level = value,
+            CreHeader::V12(h) => h.highest_attained_level_in_class = value,
+            CreHeader::V90(h) => h.highest_attained_level_in_class = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+    pub fn level_second_class(&self) -> Option<u8> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.level_second_class_highest_attained_level),
+            CreHeader::V12(h) => Some(h.highest_attained_level_in_class_2),
+            CreHeader::V90(h) => Some(h.highest_attained_level_in_class_2),
+            CreHeader::V22(_) => None,
+        }
+    }
+    pub fn set_level_second_class(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.level_second_class_highest_attained_level = value,
+            CreHeader::V12(h) => h.highest_attained_level_in_class_2 = value,
+            CreHeader::V90(h) => h.highest_attained_level_in_class_2 = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+    pub fn level_third_class(&self) -> Option<u8> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.level_third_class_highest_attained_level),
+            CreHeader::V12(h) => Some(h.highest_attained_level_in_class_3),
+            CreHeader::V90(h) => Some(h.highest_attained_level_in_class_3),
+            CreHeader::V22(_) => None,
+        }
+    }
+    pub fn set_level_third_class(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.level_third_class_highest_attained_level = value,
+            CreHeader::V12(h) => h.highest_attained_level_in_class_3 = value,
+            CreHeader::V90(h) => h.highest_attained_level_in_class_3 = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+
+    /// The three class-level fields as a triplet (`0` = unused slot).
+    /// `[0; 3]` on IWD2, which has no AD&D multi-class HP rules.
+    pub fn class_levels(&self) -> [u8; 3] {
+        match &self.header {
+            CreHeader::V10(h) => [
+                h.level_first_class_highest_attained_level,
+                h.level_second_class_highest_attained_level,
+                h.level_third_class_highest_attained_level,
+            ],
+            CreHeader::V12(h) => [
+                h.highest_attained_level_in_class,
+                h.highest_attained_level_in_class_2,
+                h.highest_attained_level_in_class_3,
+            ],
+            CreHeader::V90(h) => [
+                h.highest_attained_level_in_class,
+                h.highest_attained_level_in_class_2,
+                h.highest_attained_level_in_class_3,
+            ],
+            CreHeader::V22(_) => [0, 0, 0],
+        }
+    }
+
+    /// Highest level among the character's classes — used for
+    /// level-scaled derived values. IWD2 (V2.2) reports the engine's
+    /// summed `total_levels`.
+    pub fn primary_level(&self) -> u8 {
+        match &self.header {
+            CreHeader::V22(h) => h.total_levels,
+            _ => {
+                let [a, b, c] = self.class_levels();
+                a.max(b).max(c)
+            }
+        }
+    }
+
+    /// Small-portrait resource name (BMP), trailing NULs trimmed.
+    pub fn small_portrait_name(&self) -> &str {
+        match &self.header {
+            CreHeader::V10(h) => &h.small_portrait_bmp,
+            CreHeader::V12(h) => &h.small_portrait_bmp,
+            CreHeader::V90(h) => &h.small_portrait,
+            CreHeader::V22(h) => &h.small_portrait_bmp,
+        }
+    }
+
+    /// Large-portrait resource name (a BMP everywhere except PSTEE's
+    /// V1.0, which stores a BAM here).
+    pub fn large_portrait_name(&self) -> &str {
+        match &self.header {
+            CreHeader::V10(h) => &h.large_portrait_pstee_bam_other_games,
+            CreHeader::V12(h) => &h.large_portrait_bmp,
+            CreHeader::V90(h) => &h.large_portrait,
+            CreHeader::V22(h) => &h.large_portrait_bmp,
+        }
+    }
+
+    /// Morale (AD&D only; `None` on IWD2, which uses saving throws).
+    pub fn morale(&self) -> Option<u8> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.morale_default_value_is_10_capped),
+            CreHeader::V12(h) => Some(h.morale),
+            CreHeader::V90(h) => Some(h.morale),
+            CreHeader::V22(_) => None,
+        }
+    }
+    pub fn set_morale(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.morale_default_value_is_10_capped = value,
+            CreHeader::V12(h) => h.morale = value,
+            CreHeader::V90(h) => h.morale = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+    pub fn morale_break(&self) -> Option<u8> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.morale_break_see_here_for_further),
+            CreHeader::V12(h) => Some(h.morale_break),
+            CreHeader::V90(h) => Some(h.morale_break),
+            CreHeader::V22(_) => None,
+        }
+    }
+    pub fn set_morale_break(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.morale_break_see_here_for_further = value,
+            CreHeader::V12(h) => h.morale_break = value,
+            CreHeader::V90(h) => h.morale_break = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+    pub fn morale_recovery(&self) -> Option<u16> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.morale_recovery_time_see_here_for),
+            CreHeader::V12(h) => Some(h.morale_recovery_time),
+            CreHeader::V90(h) => Some(h.morale_recovery_time),
+            CreHeader::V22(_) => None,
+        }
+    }
+    pub fn set_morale_recovery(&mut self, value: u16) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.morale_recovery_time_see_here_for = value,
+            CreHeader::V12(h) => h.morale_recovery_time = value,
+            CreHeader::V90(h) => h.morale_recovery_time = value,
+            CreHeader::V22(_) => {}
+        }
+    }
+
+    /// "Hide in Shadows" (V1.0 / V9.0 / V2.2). `None` on V1.2, which
+    /// folds hide + silent into one unified stealth field.
+    pub fn hide_in_shadows(&self) -> Option<u8> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.hide_in_shadows_base),
+            CreHeader::V12(_) => None,
+            CreHeader::V90(h) => Some(h.hide_in_shadows_base),
+            CreHeader::V22(h) => Some(h.hide_in_shadows_base),
+        }
+    }
+    pub fn set_hide_in_shadows(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.hide_in_shadows_base = value,
+            CreHeader::V12(_) => {}
+            CreHeader::V90(h) => h.hide_in_shadows_base = value,
+            CreHeader::V22(h) => h.hide_in_shadows_base = value,
+        }
+    }
+
+    /// "Move Silently" (V1.0 / V2.2) or the unified "Stealth" value
+    /// (V1.2 / V9.0, stored in `stealth`). See
+    /// [`Self::move_silently_label`] for the row's display name.
+    pub fn move_silently(&self) -> u8 {
+        match &self.header {
+            CreHeader::V10(h) => h.move_silently,
+            CreHeader::V12(h) => h.stealth,
+            CreHeader::V90(h) => h.stealth,
+            CreHeader::V22(h) => h.move_silently,
+        }
+    }
+    pub fn set_move_silently(&mut self, value: u8) {
+        match &mut self.header {
+            CreHeader::V10(h) => h.move_silently = value,
+            CreHeader::V12(h) => h.stealth = value,
+            CreHeader::V90(h) => h.stealth = value,
+            CreHeader::V22(h) => h.move_silently = value,
+        }
+    }
+    /// UI label for the move-silently row: "Stealth" on V1.2 / V9.0
+    /// (which store a unified value), else "Move Silently".
+    pub fn move_silently_label(&self) -> &'static str {
+        match &self.header {
+            CreHeader::V12(_) | CreHeader::V90(_) => "Stealth",
+            _ => "Move Silently",
+        }
+    }
+
+    cre_adnd_skill!(lockpicking, set_lockpicking, lockpicking);
+    cre_adnd_skill!(find_traps, set_find_traps, find_disarm_traps);
+    cre_adnd_skill!(set_traps, set_set_traps, set_traps);
+    cre_adnd_skill!(pick_pockets, set_pick_pockets, pick_pockets);
+    cre_adnd_skill!(detect_illusion, set_detect_illusion, detect_illusion);
+    cre_adnd_skill!(lore, set_lore, lore);
+}
+
 /// One 16-byte IWD2 sub-section slot. The on-disk layout is the
 /// same for class spells, domain spells, abilities, songs and
 /// shapes — NI uses four distinct Java classes for UI labelling but
@@ -1519,5 +1922,120 @@ mod tests {
             panic!("fixture is not a V2.2 CRE");
         }
         assert!(!cre.is_dual_classed());
+    }
+
+    #[test]
+    fn cre_field_accessors_round_trip_on_v10() {
+        let mut cre = crate::test_support::import_fixture("v1_0/THIEF3.cre");
+
+        cre.set_current_hit_points(45);
+        assert_eq!(cre.current_hit_points(), 45);
+        cre.set_maximum_hit_points(123);
+        assert_eq!(cre.maximum_hit_points(), 123);
+        cre.set_ac_natural(-3);
+        assert_eq!(cre.ac_natural(), -3);
+        cre.set_ac_effective(-5);
+        assert_eq!(cre.ac_effective(), Some(-5));
+        cre.set_thac0_or_bab(7);
+        assert_eq!(cre.thac0_or_bab(), 7);
+        cre.set_attacks_byte(5);
+        assert_eq!(cre.attacks_byte(), 5);
+
+        cre.set_fatigue(9);
+        assert_eq!(cre.fatigue(), 9);
+        cre.set_intoxication(3);
+        assert_eq!(cre.intoxication(), 3);
+        cre.set_luck(4);
+        assert_eq!(cre.luck(), 4);
+
+        cre.set_experience(50_000);
+        assert_eq!(cre.experience(), 50_000);
+        cre.set_xp_for_kill(64);
+        assert_eq!(cre.xp_for_kill(), 64);
+
+        cre.set_level_first_class(9);
+        cre.set_level_second_class(7);
+        cre.set_level_third_class(0);
+        assert_eq!(cre.level_first_class(), Some(9));
+        assert_eq!(cre.level_second_class(), Some(7));
+        assert_eq!(cre.level_third_class(), Some(0));
+        assert_eq!(cre.class_levels(), [9, 7, 0]);
+        assert_eq!(cre.primary_level(), 9); // max(9, 7, 0)
+
+        cre.set_morale(10);
+        cre.set_morale_break(7);
+        cre.set_morale_recovery(60);
+        assert_eq!(cre.morale(), Some(10));
+        assert_eq!(cre.morale_break(), Some(7));
+        assert_eq!(cre.morale_recovery(), Some(60));
+
+        cre.set_lore(40);
+        cre.set_lockpicking(55);
+        cre.set_find_traps(33);
+        cre.set_set_traps(20);
+        cre.set_pick_pockets(11);
+        cre.set_detect_illusion(2);
+        cre.set_hide_in_shadows(66);
+        cre.set_move_silently(77);
+        assert_eq!(cre.lore(), Some(40));
+        assert_eq!(cre.lockpicking(), Some(55));
+        assert_eq!(cre.find_traps(), Some(33));
+        assert_eq!(cre.set_traps(), Some(20));
+        assert_eq!(cre.pick_pockets(), Some(11));
+        assert_eq!(cre.detect_illusion(), Some(2));
+        assert_eq!(cre.hide_in_shadows(), Some(66));
+        assert_eq!(cre.move_silently(), 77);
+        assert_eq!(cre.move_silently_label(), "Move Silently");
+
+        // Portrait names resolve to the version-correct field.
+        let _ = cre.small_portrait_name();
+        let _ = cre.large_portrait_name();
+    }
+
+    #[test]
+    fn cre_field_accessors_are_version_aware() {
+        // V2.2 (IWD2): AD&D-only rows are absent.
+        let iwd2 = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        assert_eq!(iwd2.ac_effective(), None);
+        assert_eq!(iwd2.morale(), None);
+        assert_eq!(iwd2.morale_break(), None);
+        assert_eq!(iwd2.morale_recovery(), None);
+        assert_eq!(iwd2.lore(), None);
+        assert_eq!(iwd2.lockpicking(), None);
+        assert_eq!(iwd2.level_first_class(), None);
+        assert_eq!(iwd2.class_levels(), [0, 0, 0]);
+        // V2.2 reports its summed total level.
+        if let CreHeader::V22(h) = &iwd2.header {
+            assert_eq!(iwd2.primary_level(), h.total_levels);
+        } else {
+            panic!("fixture is not V2.2");
+        }
+
+        // V1.2 folds hide-in-shadows into the unified stealth field.
+        let pst = crate::test_support::import_fixture("v1_2/THIEF3.cre");
+        assert_eq!(pst.hide_in_shadows(), None);
+        assert_eq!(pst.move_silently_label(), "Stealth");
+
+        // V9.0 also labels the stealth row "Stealth".
+        let iwd = crate::test_support::import_fixture("v9_0/BARBWAR2.cre");
+        assert_eq!(iwd.move_silently_label(), "Stealth");
+    }
+
+    #[test]
+    fn cre_setters_are_noops_for_absent_fields() {
+        let mut iwd2 = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        iwd2.set_ac_effective(-9);
+        iwd2.set_morale(5);
+        iwd2.set_lore(5);
+        iwd2.set_level_first_class(5);
+        assert_eq!(iwd2.ac_effective(), None);
+        assert_eq!(iwd2.morale(), None);
+        assert_eq!(iwd2.lore(), None);
+        assert_eq!(iwd2.level_first_class(), None);
+
+        // V1.2 has no hide-in-shadows field — the setter is a no-op.
+        let mut pst = crate::test_support::import_fixture("v1_2/THIEF3.cre");
+        pst.set_hide_in_shadows(50);
+        assert_eq!(pst.hide_in_shadows(), None);
     }
 }

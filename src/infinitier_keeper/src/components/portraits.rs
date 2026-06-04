@@ -25,8 +25,6 @@ use infinitier_core::resource::ResourceType;
 use infinitier_core::resource::bmp::BmpImporter;
 use infinitier_core::resource::cre::Cre;
 
-use crate::components::cre_fields;
-
 #[derive(Default)]
 pub struct PortraitCache {
     entries: HashMap<String, Option<egui::TextureHandle>>,
@@ -42,13 +40,13 @@ impl PortraitCache {
         game_data: &GameData,
         ctx: &egui::Context,
     ) -> Option<egui::TextureHandle> {
-        let large = cre_fields::large_portrait_name(cre).to_ascii_lowercase();
+        let large = cre.large_portrait_name().to_ascii_lowercase();
         if !large.is_empty()
             && let Some(tex) = self.get_or_load(&large, game_data, ctx)
         {
             return Some(tex);
         }
-        let small = cre_fields::small_portrait_name(cre).to_ascii_lowercase();
+        let small = cre.small_portrait_name().to_ascii_lowercase();
         if small.is_empty() {
             return None;
         }

@@ -23,7 +23,6 @@ use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
 
-use crate::components::cre_fields;
 use crate::components::editable_fields::{
     AttacksOption, EditableField, KeeperEditors, Section, commit_attacks,
 };
@@ -515,14 +514,14 @@ impl CreSnapshot {
             constitution: cre.constitution(),
             intelligence: cre.intelligence(),
             wisdom: cre.wisdom(),
-            lore: cre_fields::lore(cre).unwrap_or(0),
-            thac0_or_bab: cre_fields::thac0_or_bab(cre),
-            ac_natural: cre_fields::ac_natural(cre),
-            max_hit_points: cre_fields::max_hit_points(cre),
-            primary_level: cre_fields::primary_level(cre),
+            lore: cre.lore().unwrap_or(0),
+            thac0_or_bab: cre.thac0_or_bab(),
+            ac_natural: cre.ac_natural(),
+            max_hit_points: cre.maximum_hit_points(),
+            primary_level: cre.primary_level(),
             is_warrior,
             hp_roll_cap,
-            class_levels: cre_fields::class_levels(cre),
+            class_levels: cre.class_levels(),
             is_dual: cre.is_dual_classed(),
             ability_total,
             labels,
