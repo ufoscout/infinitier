@@ -121,7 +121,7 @@ impl GameData {
     /// Add a resource to the data structure.
     /// If a resource with the same name and type already exists, it is replaced.
     fn add_resource(&mut self, resource: GameResource) {
-        let key = (resource.name.clone(), resource.r#type);
+        let key = (resource.name.to_lowercase(), resource.r#type);
         if let Some(&existing_id) = self.name_type_index.get(&key) {
             // Same (name, type) → replacing in place. The id is already
             // present in `type_index[type]`, no index update needed.

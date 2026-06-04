@@ -1,7 +1,7 @@
 //! Proficiencies tab — read-only weapon-proficiency table.
 //!
 //! [`data`] extracts the first/second-class points (CRE header block
-//! + `op233` proficiency effects); [`view`] paints EEKeeper's
+//! plus `op233` proficiency effects); [`view`] paints EEKeeper's
 //! three-column table.
 
 mod data;

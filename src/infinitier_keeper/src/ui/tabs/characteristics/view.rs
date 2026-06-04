@@ -119,8 +119,7 @@ fn miscellaneous_card(ui: &mut egui::Ui, data: &CharData) {
             .num_columns(2)
             .spacing([24.0, 4.0])
             .show(ui, |ui| {
-                for row in 0..mid {
-                    let (l_label, l_bit) = MISC_FLAGS[row];
+                for (row, (l_label, l_bit)) in MISC_FLAGS.iter().enumerate().take(mid) {
                     read_only_check(ui, l_label, data.flags & l_bit != 0);
                     if let Some(&(r_label, r_bit)) = MISC_FLAGS.get(mid + row) {
                         read_only_check(ui, r_label, data.flags & r_bit != 0);
