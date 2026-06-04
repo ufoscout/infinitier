@@ -6,9 +6,9 @@ use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
 use crate::{
-    CRE_SIGNATURE, Cre, CreHeader, CreVersion, EffectList, EffectV1, EffectV2, Item, ItemFlags,
-    Iwd2Slot, Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell, SpellMemorizationInfo,
-    SpellType, SubSections, V1SubSections, V22SubSections,
+    CRE_SIGNATURE, Cre, CreHeader, CreVersion, Effect, EffectList, EffectV1, EffectV2, Item,
+    ItemFlags, Iwd2Slot, Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell, Proficiency,
+    SpellMemorizationInfo, SpellType, SubSections, V1SubSections, V22SubSections,
     header_generated::{
         parse_header_v1_0, parse_header_v1_2, parse_header_v2_2, parse_header_v9_0,
     },
@@ -603,14 +603,18 @@ fn parse_effects(
                 reader.set_position(start + i * EFFECT_V2_LEN)?;
                 let mut buf = vec![0u8; 264];
                 reader.read_exact(&mut buf)?;
-                // Opcode (dword at 0x08) selects the typed variant.
-                // `op187` is "set local variable"; everything else is
-                // kept verbatim.
+                // Opcode (dword at 0x08) selects the typed variant:
+                // `op187` → local variable, `op233` → proficiency, any
+                // other opcode → a fully-parsed `Effect`.
                 let opcode = u32::from_le_bytes([buf[0x08], buf[0x09], buf[0x0A], buf[0x0B]]);
-                out.push(if opcode == EffectV2::LOCAL_VARIABLE_OPCODE {
-                    EffectV2::LocalVariable(LocalVariable::from_record(&buf))
-                } else {
-                    EffectV2::Raw(buf)
+                out.push(match opcode {
+                    EffectV2::LOCAL_VARIABLE_OPCODE => {
+                        EffectV2::LocalVariable(LocalVariable::from_record(&buf))
+                    }
+                    EffectV2::PROFICIENCY_OPCODE => {
+                        EffectV2::Proficiency(Proficiency::from_record(&buf))
+                    }
+                    _ => EffectV2::Effect(Box::new(Effect::from_record(&buf))),
                 });
             }
             Ok(EffectList::V2(out))

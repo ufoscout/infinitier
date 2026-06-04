@@ -568,42 +568,55 @@ pub struct EffectV1 {
     pub raw: [u8; 48],
 }
 
-/// One V2 (264-byte) effect record.
+/// One V2 (264-byte) effect record, parsed into a typed variant.
 ///
-/// Most opcodes are kept verbatim as [`EffectV2::Raw`] — there are
-/// 300+ and we don't model their inner layout. Opcodes we *do*
-/// understand get a typed variant; today the only one is
-/// [`EffectV2::LocalVariable`] (`op187`, "set local variable"), which
-/// the Enhanced Edition uses to persist a creature's `LOCALS`-scope
-/// script variables.
+/// Three opcodes get their own minimal, easily-editable representation
+/// — [`LocalVariable`] (`op187`) and [`Proficiency`] (`op233`), each
+/// rebuilt from a canonical template, and every other opcode as a
+/// fully-parsed [`Effect`] (all fields modelled, so it round-trips
+/// without keeping the raw bytes). [`EffectV2::Raw`] only survives for
+/// records too short to parse.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EffectV2 {
-    /// An effect kept byte-for-byte (any opcode we don't model).
+    /// A record kept byte-for-byte — only used when a record is shorter
+    /// than the 264-byte V2 layout (it otherwise never occurs).
     Raw(Vec<u8>),
     /// A creature-local script variable (`op187`), parsed into its
     /// editable [`name`](LocalVariable::name) / [`value`](LocalVariable::value).
     LocalVariable(LocalVariable),
+    /// A weapon-proficiency setter (`op233`), parsed into its editable
+    /// [`proficiency`](Proficiency::proficiency) / [`points`](Proficiency::points).
+    Proficiency(Proficiency),
+    /// Any other effect, fully parsed into editable fields. Boxed to
+    /// keep the enum (and the per-creature `Vec<EffectV2>`) small.
+    Effect(Box<Effect>),
 }
 
 impl EffectV2 {
     /// Effect opcode that sets a creature-local script variable.
     pub const LOCAL_VARIABLE_OPCODE: u32 = 187;
+    /// Effect opcode that sets a weapon proficiency.
+    pub const PROFICIENCY_OPCODE: u32 = 233;
 
     /// The effect opcode (dword at record offset 0x08).
     pub fn opcode(&self) -> u32 {
         match self {
             EffectV2::Raw(r) => u32::from_le_bytes([r[0x08], r[0x09], r[0x0A], r[0x0B]]),
             EffectV2::LocalVariable(_) => Self::LOCAL_VARIABLE_OPCODE,
+            EffectV2::Proficiency(_) => Self::PROFICIENCY_OPCODE,
+            EffectV2::Effect(e) => e.opcode,
         }
     }
 
-    /// The 264-byte on-disk record for this effect. `Raw` effects are
-    /// emitted verbatim; a [`LocalVariable`] is rebuilt from its parsed
-    /// fields via [`LocalVariable::to_record`].
+    /// The 264-byte on-disk record for this effect. `LocalVariable` /
+    /// `Proficiency` are rebuilt from their templates; a full
+    /// [`Effect`] serialises every field; `Raw` is emitted verbatim.
     pub(crate) fn to_record(&self) -> Vec<u8> {
         match self {
             EffectV2::Raw(r) => r.clone(),
             EffectV2::LocalVariable(lv) => lv.to_record(),
+            EffectV2::Proficiency(p) => p.to_record(),
+            EffectV2::Effect(e) => e.to_record(),
         }
     }
 }
@@ -694,6 +707,309 @@ impl LocalVariable {
     }
 }
 
+/// A weapon-proficiency setter, parsed from an `op233` ("set
+/// proficiency") V2 effect record.
+///
+/// `param1` is the number of points and `param2` the `IE_PROFICIENCY*`
+/// stat the points apply to. Those two are the only editable values;
+/// the exporter rebuilds the rest from [`Self::TEMPLATE`] (op233's
+/// other fields — permanent timing, 100% probability, "no target"
+/// markers — are constant, so this round-trips faithfully).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Proficiency {
+    /// `param2` — the `IE_PROFICIENCY*` stat the points apply to.
+    pub proficiency: u32,
+    /// `param1` — the number of proficiency points granted.
+    pub points: u32,
+}
+
+impl Proficiency {
+    /// `param1` (points) / `param2` (proficiency stat) record offsets.
+    const POINTS_OFFSET: usize = 0x14;
+    const PROFICIENCY_OFFSET: usize = 0x18;
+
+    /// Canonical 264-byte `op233` record with `param1` / `param2`
+    /// zeroed. Captured from a BG2EE save; the surviving bytes are the
+    /// structural constants every proficiency effect shares — opcode
+    /// `233` (0x08), permanent timing mode `9` (0x1C), 100% probability
+    /// (0x24), and the `0xFF` "no target" markers.
+    #[rustfmt::skip]
+    const TEMPLATE: [u8; 264] = [
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ];
+
+    /// Parse an `op233` record into its proficiency / points. The
+    /// caller must have verified the opcode is
+    /// [`EffectV2::PROFICIENCY_OPCODE`]; `record` must be ≥ 264 bytes.
+    pub(crate) fn from_record(record: &[u8]) -> Self {
+        Proficiency {
+            points: rd_u32(record, Self::POINTS_OFFSET),
+            proficiency: rd_u32(record, Self::PROFICIENCY_OFFSET),
+        }
+    }
+
+    /// Serialise back to a 264-byte `op233` record: the canonical
+    /// [`Self::TEMPLATE`] with `points` (`param1`) and `proficiency`
+    /// (`param2`) written in.
+    pub(crate) fn to_record(self) -> Vec<u8> {
+        let mut r = Self::TEMPLATE.to_vec();
+        r[Self::POINTS_OFFSET..Self::POINTS_OFFSET + 4].copy_from_slice(&self.points.to_le_bytes());
+        r[Self::PROFICIENCY_OFFSET..Self::PROFICIENCY_OFFSET + 4]
+            .copy_from_slice(&self.proficiency.to_le_bytes());
+        r
+    }
+}
+
+/// A fully-parsed EE (V2, 264-byte) effect record — every field is
+/// modelled, so it is freely editable and round-trips without keeping
+/// the original bytes.
+///
+/// Field offsets follow the EE feature-block layout (cf. NearInfinity's
+/// `BaseOpcode`), taken relative to the opcode at record offset 0x08.
+/// [`header`](Self::header) (0x00, the standalone-`EFF` signature /
+/// version, zero for embedded records) and [`trailing`](Self::trailing)
+/// (0xD0, reserved) are kept verbatim so nothing is lost.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Effect {
+    /// 0x00: 8-byte signature/version prefix (zero for CRE-embedded).
+    pub header: [u8; 8],
+    /// 0x08: effect opcode.
+    pub opcode: u32,
+    /// 0x0C: target dispatcher.
+    pub target: u32,
+    /// 0x10: power.
+    pub power: u32,
+    /// 0x14: parameter 1.
+    pub param1: u32,
+    /// 0x18: parameter 2.
+    pub param2: u32,
+    /// 0x1C: timing mode.
+    pub timing_mode: u32,
+    /// 0x20: duration.
+    pub duration: u32,
+    /// 0x24: probability (upper).
+    pub probability1: u16,
+    /// 0x26: probability (lower).
+    pub probability2: u16,
+    /// 0x28: primary resource (8-byte resref).
+    pub resource: String,
+    /// 0x30: dice thrown / max level.
+    pub dice_thrown: u32,
+    /// 0x34: dice sides / min level.
+    pub dice_sides: u32,
+    /// 0x38: saving-throw type.
+    pub save_type: u32,
+    /// 0x3C: saving-throw bonus.
+    pub save_bonus: u32,
+    /// 0x40: special / "is variable".
+    pub special: u32,
+    /// 0x44: primary type (school).
+    pub primary_type: u32,
+    /// 0x48: unknown.
+    pub unknown_48: u32,
+    /// 0x4C: minimum level (parent resource).
+    pub parent_lowest_level: u32,
+    /// 0x50: maximum level (parent resource).
+    pub parent_highest_level: u32,
+    /// 0x54: dispel / resistance.
+    pub resistance: u32,
+    /// 0x58: parameter 3.
+    pub param3: u32,
+    /// 0x5C: parameter 4.
+    pub param4: u32,
+    /// 0x60: parameter 5.
+    pub param5: u32,
+    /// 0x64: time applied (game-time when the effect was applied).
+    pub time_applied: u32,
+    /// 0x68: secondary resource (8-byte resref).
+    pub resource2: String,
+    /// 0x70: tertiary resource (8-byte resref).
+    pub resource3: String,
+    /// 0x78: caster location X.
+    pub caster_x: u32,
+    /// 0x7C: caster location Y.
+    pub caster_y: u32,
+    /// 0x80: target location X.
+    pub target_x: u32,
+    /// 0x84: target location Y.
+    pub target_y: u32,
+    /// 0x88: parent-resource type.
+    pub parent_resource_type: u32,
+    /// 0x8C: parent resource (8-byte resref).
+    pub parent_resource: String,
+    /// 0x94: parent-resource flags.
+    pub parent_resource_flags: u32,
+    /// 0x98: projectile.
+    pub projectile: u32,
+    /// 0x9C: parent-resource slot.
+    pub parent_resource_slot: u32,
+    /// 0xA0: variable name (32-byte field).
+    pub variable: String,
+    /// 0xC0: caster level.
+    pub caster_level: u32,
+    /// 0xC4: first-apply flag.
+    pub first_apply: u32,
+    /// 0xC8: secondary type.
+    pub secondary_type: u32,
+    /// 0xCC: unknown.
+    pub unknown_cc: u32,
+    /// 0xD0: 56-byte reserved trailer, kept verbatim.
+    pub trailing: [u8; 56],
+}
+
+impl Effect {
+    /// Parse a 264-byte EE V2 effect record into typed fields. `record`
+    /// must be at least 264 bytes.
+    pub(crate) fn from_record(r: &[u8]) -> Self {
+        Effect {
+            header: r[0x00..0x08].try_into().unwrap(),
+            opcode: rd_u32(r, 0x08),
+            target: rd_u32(r, 0x0C),
+            power: rd_u32(r, 0x10),
+            param1: rd_u32(r, 0x14),
+            param2: rd_u32(r, 0x18),
+            timing_mode: rd_u32(r, 0x1C),
+            duration: rd_u32(r, 0x20),
+            probability1: rd_u16(r, 0x24),
+            probability2: rd_u16(r, 0x26),
+            resource: rd_resref(r, 0x28),
+            dice_thrown: rd_u32(r, 0x30),
+            dice_sides: rd_u32(r, 0x34),
+            save_type: rd_u32(r, 0x38),
+            save_bonus: rd_u32(r, 0x3C),
+            special: rd_u32(r, 0x40),
+            primary_type: rd_u32(r, 0x44),
+            unknown_48: rd_u32(r, 0x48),
+            parent_lowest_level: rd_u32(r, 0x4C),
+            parent_highest_level: rd_u32(r, 0x50),
+            resistance: rd_u32(r, 0x54),
+            param3: rd_u32(r, 0x58),
+            param4: rd_u32(r, 0x5C),
+            param5: rd_u32(r, 0x60),
+            time_applied: rd_u32(r, 0x64),
+            resource2: rd_resref(r, 0x68),
+            resource3: rd_resref(r, 0x70),
+            caster_x: rd_u32(r, 0x78),
+            caster_y: rd_u32(r, 0x7C),
+            target_x: rd_u32(r, 0x80),
+            target_y: rd_u32(r, 0x84),
+            parent_resource_type: rd_u32(r, 0x88),
+            parent_resource: rd_resref(r, 0x8C),
+            parent_resource_flags: rd_u32(r, 0x94),
+            projectile: rd_u32(r, 0x98),
+            parent_resource_slot: rd_u32(r, 0x9C),
+            variable: rd_resref_n(r, 0xA0, 32),
+            caster_level: rd_u32(r, 0xC0),
+            first_apply: rd_u32(r, 0xC4),
+            secondary_type: rd_u32(r, 0xC8),
+            unknown_cc: rd_u32(r, 0xCC),
+            trailing: r[0xD0..0x108].try_into().unwrap(),
+        }
+    }
+
+    /// Serialise back to a 264-byte EE V2 effect record.
+    pub(crate) fn to_record(&self) -> Vec<u8> {
+        let mut r = vec![0u8; 264];
+        r[0x00..0x08].copy_from_slice(&self.header);
+        wr_u32(&mut r, 0x08, self.opcode);
+        wr_u32(&mut r, 0x0C, self.target);
+        wr_u32(&mut r, 0x10, self.power);
+        wr_u32(&mut r, 0x14, self.param1);
+        wr_u32(&mut r, 0x18, self.param2);
+        wr_u32(&mut r, 0x1C, self.timing_mode);
+        wr_u32(&mut r, 0x20, self.duration);
+        wr_u16(&mut r, 0x24, self.probability1);
+        wr_u16(&mut r, 0x26, self.probability2);
+        wr_resref(&mut r, 0x28, &self.resource);
+        wr_u32(&mut r, 0x30, self.dice_thrown);
+        wr_u32(&mut r, 0x34, self.dice_sides);
+        wr_u32(&mut r, 0x38, self.save_type);
+        wr_u32(&mut r, 0x3C, self.save_bonus);
+        wr_u32(&mut r, 0x40, self.special);
+        wr_u32(&mut r, 0x44, self.primary_type);
+        wr_u32(&mut r, 0x48, self.unknown_48);
+        wr_u32(&mut r, 0x4C, self.parent_lowest_level);
+        wr_u32(&mut r, 0x50, self.parent_highest_level);
+        wr_u32(&mut r, 0x54, self.resistance);
+        wr_u32(&mut r, 0x58, self.param3);
+        wr_u32(&mut r, 0x5C, self.param4);
+        wr_u32(&mut r, 0x60, self.param5);
+        wr_u32(&mut r, 0x64, self.time_applied);
+        wr_resref(&mut r, 0x68, &self.resource2);
+        wr_resref(&mut r, 0x70, &self.resource3);
+        wr_u32(&mut r, 0x78, self.caster_x);
+        wr_u32(&mut r, 0x7C, self.caster_y);
+        wr_u32(&mut r, 0x80, self.target_x);
+        wr_u32(&mut r, 0x84, self.target_y);
+        wr_u32(&mut r, 0x88, self.parent_resource_type);
+        wr_resref(&mut r, 0x8C, &self.parent_resource);
+        wr_u32(&mut r, 0x94, self.parent_resource_flags);
+        wr_u32(&mut r, 0x98, self.projectile);
+        wr_u32(&mut r, 0x9C, self.parent_resource_slot);
+        wr_resref_n(&mut r, 0xA0, 32, &self.variable);
+        wr_u32(&mut r, 0xC0, self.caster_level);
+        wr_u32(&mut r, 0xC4, self.first_apply);
+        wr_u32(&mut r, 0xC8, self.secondary_type);
+        wr_u32(&mut r, 0xCC, self.unknown_cc);
+        r[0xD0..0x108].copy_from_slice(&self.trailing);
+        r
+    }
+}
+
+fn rd_u32(b: &[u8], o: usize) -> u32 {
+    u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]])
+}
+
+fn rd_u16(b: &[u8], o: usize) -> u16 {
+    u16::from_le_bytes([b[o], b[o + 1]])
+}
+
+/// Read an 8-byte ASCIIZ resref (WINDOWS-1252, NUL-trimmed).
+fn rd_resref(b: &[u8], o: usize) -> String {
+    rd_resref_n(b, o, 8)
+}
+
+/// Read an `n`-byte ASCIIZ string field (WINDOWS-1252, NUL-trimmed).
+fn rd_resref_n(b: &[u8], o: usize, n: usize) -> String {
+    let (decoded, _, _) = encoding_rs::WINDOWS_1252.decode(&b[o..o + n]);
+    decoded.trim_end_matches('\0').to_owned()
+}
+
+fn wr_u32(b: &mut [u8], o: usize, v: u32) {
+    b[o..o + 4].copy_from_slice(&v.to_le_bytes());
+}
+
+fn wr_u16(b: &mut [u8], o: usize, v: u16) {
+    b[o..o + 2].copy_from_slice(&v.to_le_bytes());
+}
+
+fn wr_resref(b: &mut [u8], o: usize, s: &str) {
+    wr_resref_n(b, o, 8, s);
+}
+
+/// Write an `n`-byte ASCIIZ string field (WINDOWS-1252, NUL-padded).
+fn wr_resref_n(b: &mut [u8], o: usize, n: usize, s: &str) {
+    let (encoded, _, _) = encoding_rs::WINDOWS_1252.encode(s);
+    let len = encoded.len().min(n);
+    b[o..o + len].copy_from_slice(&encoded[..len]);
+}
+
 impl Cre {
     /// The creature's local script variables (`LOCALS` scope), in CRE
     /// file order. These are stored as `op187` effects, parsed by the
@@ -712,7 +1028,7 @@ impl Cre {
         };
         list.iter().filter_map(|e| match e {
             EffectV2::LocalVariable(lv) => Some(lv),
-            EffectV2::Raw(_) => None,
+            _ => None,
         })
     }
 }
@@ -838,19 +1154,52 @@ mod tests {
     }
 
     #[test]
-    fn effect_v2_opcode_for_both_variants() {
-        let typed = EffectV2::LocalVariable(LocalVariable {
+    fn effect_v2_opcode_for_variants() {
+        let lv = EffectV2::LocalVariable(LocalVariable {
             name: "X".to_owned(),
             value: 1,
         });
-        assert_eq!(typed.opcode(), EffectV2::LOCAL_VARIABLE_OPCODE);
-        assert_eq!(typed.to_record().len(), 264);
+        assert_eq!(lv.opcode(), EffectV2::LOCAL_VARIABLE_OPCODE);
+        assert_eq!(lv.to_record().len(), 264);
 
-        // A different opcode stays Raw and reports its own opcode.
-        let mut other = vec![0u8; 264];
-        other[0x08..0x0C].copy_from_slice(&233u32.to_le_bytes());
-        let raw = EffectV2::Raw(other.clone());
-        assert_eq!(raw.opcode(), 233);
-        assert_eq!(raw.to_record(), other);
+        let prof = EffectV2::Proficiency(Proficiency {
+            proficiency: 89,
+            points: 2,
+        });
+        assert_eq!(prof.opcode(), EffectV2::PROFICIENCY_OPCODE);
+
+        let raw = EffectV2::Raw(vec![0u8; 16]);
+        assert_eq!(raw.opcode(), 0);
+    }
+
+    #[test]
+    fn proficiency_round_trips_and_is_op233() {
+        let original = Proficiency {
+            proficiency: 89,
+            points: 2,
+        };
+        let record = original.to_record();
+        assert_eq!(record.len(), 264);
+        assert_eq!(
+            u32::from_le_bytes([record[0x08], record[0x09], record[0x0A], record[0x0B]]),
+            EffectV2::PROFICIENCY_OPCODE,
+        );
+        assert_eq!(record[0x1C], 9, "permanent timing mode");
+        assert_eq!(Proficiency::from_record(&record), original);
+    }
+
+    /// Every byte of a V2 record is read and written back by
+    /// [`Effect`] — fill a record with a NUL-free pattern (so the
+    /// resref / variable fields survive intact) and assert a parse →
+    /// serialise round-trip reproduces it byte-for-byte. This proves no
+    /// field offset is missed and nothing is silently dropped.
+    #[test]
+    fn effect_full_round_trip_is_byte_exact() {
+        let original: Vec<u8> = (0..264u32)
+            .map(|i| 0x20 + (i % 0x5E) as u8) // printable ASCII, no NUL
+            .collect();
+        let effect = Effect::from_record(&original);
+        let produced = effect.to_record();
+        assert_eq!(produced, original, "Effect must cover every byte");
     }
 }

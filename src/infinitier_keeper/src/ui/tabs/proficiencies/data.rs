@@ -130,19 +130,14 @@ fn effect_proficiency_points(cre: &Cre) -> HashMap<u32, u32> {
         return points;
     };
     match &sub.effects {
-        // EE / BG2 264-byte records: an 8-byte prefix, then opcode at
-        // 0x08 with dword param1 / param2 at 0x14 / 0x18.
+        // EE / BG2 264-byte records: `op233` parses to a typed
+        // `Proficiency` (`proficiency` = stat, `points` = points).
         EffectList::V2(effects) => {
             for e in effects {
-                // op233 is a generic effect, never a local variable, so
-                // only the `Raw` records can carry it.
-                let EffectV2::Raw(r) = e else { continue };
-                if r.len() < 0x1C {
+                let EffectV2::Proficiency(p) = e else {
                     continue;
-                }
-                if rd_u32(r, 0x08) == SET_PROFICIENCY_OPCODE {
-                    *points.entry(rd_u32(r, 0x18)).or_default() += rd_u32(r, 0x14);
-                }
+                };
+                *points.entry(p.proficiency).or_default() += p.points;
             }
         }
         // Classic 48-byte records: word opcode at 0x00, dword param1 /

@@ -147,7 +147,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Cleric => ClericTab.show(ui, cre, &state.game_data),
         CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, gam, game),
         CharacterTab::Resistances => ResistancesTab.show(ui, cre, gam, game),
-        CharacterTab::Effects => EffectsTab.show(ui, cre, gam, game),
+        // Effects resolves resource resrefs to spell names via their
+        // SPL files and `dialog.tlk`, so it needs `game_data`.
+        CharacterTab::Effects => EffectsTab.show(ui, cre, &state.game_data),
         CharacterTab::LocalVariables => LocalVariablesTab.show(ui, cre, gam, game),
         CharacterTab::GlobalVariables => GlobalVariablesTab.show(ui, cre, gam, game),
         CharacterTab::JournalEntries => JournalEntriesTab.show(ui, cre, gam, game),
