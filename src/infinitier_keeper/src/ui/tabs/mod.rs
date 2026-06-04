@@ -139,7 +139,10 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         // `game_data`; the kill statistics live in the GAM party
         // slot's raw struct, so it also takes `member`.
         CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, member, &state.game_data),
-        CharacterTab::Appearance => AppearanceTab.show(ui, cre, gam, game),
+        // Appearance resolves the animation id via ANIMATE.IDS and the
+        // colour-gradient swatches via the palette BMP, so it needs
+        // `game_data`.
+        CharacterTab::Appearance => AppearanceTab.show(ui, cre, &state.game_data),
         // Inventory resolves each item slot's ITM (for the name + icon
         // BAM) and `dialog.tlk`, so it needs `game_data`.
         CharacterTab::Inventory => InventoryTab.show(ui, cre, &state.game_data),
