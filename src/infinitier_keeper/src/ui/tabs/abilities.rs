@@ -174,15 +174,30 @@ fn combat_status_card(
             // The stored `maximum_hit_points` excludes the CON bonus
             // (the engine re-applies it at runtime — unlike THAC0/AC,
             // current HP can exceed stored max). Effective = stored +
-            // per-Hit-Die CON bonus × HP-rolling levels (warrior table
-            // for warriors), capped at the class's last HP-roll level.
-            let hp_levels = u32::from(snap.hp_roll_cap.min(snap.primary_level));
-            let effective_max_hp: i32 = i32::from(max_hp_base)
-                + state.engine_caps.max_hp_constitution_bonus(
+            // CON bonus.
+            //
+            // Multi-class splits the bonus across classes
+            // (`floor(con/level × Σ min(level_c, cap) / N)`); single- and
+            // dual-class apply the per-Hit-Die bonus over the (capped)
+            // level — a dual freezes its first class, which the max-level
+            // form already captures for the common fighter-dual case.
+            let active_classes = snap.class_levels.iter().filter(|&&l| l > 0).count();
+            let con_bonus = if active_classes >= 2 && !snap.is_dual {
+                state.engine_caps.max_hp_constitution_bonus_multiclass(
+                    constitution,
+                    snap.is_warrior,
+                    snap.hp_roll_cap,
+                    &snap.class_levels,
+                )
+            } else {
+                let hp_levels = u32::from(snap.hp_roll_cap.min(snap.primary_level));
+                state.engine_caps.max_hp_constitution_bonus(
                     constitution,
                     snap.is_warrior,
                     hp_levels,
-                );
+                )
+            };
+            let effective_max_hp: i32 = i32::from(max_hp_base) + con_bonus;
 
             for &field in EditableField::ALL {
                 if field.section() != Section::CombatStatus || !snap.is_visible(field) {
@@ -441,6 +456,11 @@ struct CreSnapshot {
     /// Highest level that still rolls a Hit Die (and so earns the
     /// CON HP bonus): 9 for warriors/priests, 10 for rogues/wizards.
     hp_roll_cap: u8,
+    /// Per-class levels (0 = unused slot). Drives the multi-class CON
+    /// HP split.
+    class_levels: [u8; 3],
+    /// Dual-classed (vs multi-classed) — they use different HP rules.
+    is_dual: bool,
     ability_total: u32,
     labels: HashMap<EditableField, &'static str>,
     visible: HashMap<EditableField, bool>,
@@ -502,6 +522,8 @@ impl CreSnapshot {
             primary_level: cre_fields::primary_level(cre),
             is_warrior,
             hp_roll_cap,
+            class_levels: cre_fields::class_levels(cre),
+            is_dual: cre.is_dual_classed(),
             ability_total,
             labels,
             visible,

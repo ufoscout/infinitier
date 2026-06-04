@@ -292,6 +292,31 @@ pub fn primary_level(cre: &Cre) -> u8 {
     }
 }
 
+/// The three class-level fields as a triplet (`0` = unused class slot).
+/// Used by the multi-class Hit-Point math, which sums the per-class
+/// Constitution bonus across classes. V22 (IWD2) has no AD&D
+/// multi-class HP rules, so it reports none.
+pub fn class_levels(cre: &Cre) -> [u8; 3] {
+    match &cre.header {
+        CreHeader::V10(h) => [
+            h.level_first_class_highest_attained_level,
+            h.level_second_class_highest_attained_level,
+            h.level_third_class_highest_attained_level,
+        ],
+        CreHeader::V12(h) => [
+            h.highest_attained_level_in_class,
+            h.highest_attained_level_in_class_2,
+            h.highest_attained_level_in_class_3,
+        ],
+        CreHeader::V90(h) => [
+            h.highest_attained_level_in_class,
+            h.highest_attained_level_in_class_2,
+            h.highest_attained_level_in_class_3,
+        ],
+        CreHeader::V22(_) => [0, 0, 0],
+    }
+}
+
 pub fn level_third_class(cre: &Cre) -> Option<u8> {
     match &cre.header {
         CreHeader::V10(h) => Some(h.level_third_class_highest_attained_level),

@@ -458,6 +458,45 @@ impl EngineCaps {
         self.constitution_hp_per_level(constitution, is_warrior) * levels_with_hp_roll as i32
     }
 
+    /// CON contribution to a **multi-class** creature's maximum HP, per
+    /// the BG "Hit Dice" rules: the per-level CON bonus (the *warrior*
+    /// column when any component is a warrior) is applied to the **sum**
+    /// of the class levels — each capped at the governing Hit-Die `cap`
+    /// — then divided by the number of classes and rounded down:
+    ///
+    /// `floor( con_per_level × Σ min(level_c, cap) / num_classes )`
+    ///
+    /// Examples (verified in IWD:EE): a Fighter 9 / Thief 11 with CON 16
+    /// → `floor(2 × (9 + 9) / 2) = 18`; a Cleric 9 / Ranger 8 with CON 16
+    /// → `floor(2 × (9 + 8) / 2) = 17`. (Each class is capped at the
+    /// warrior's level-9 cap, not its own.)
+    ///
+    /// Only meaningful for true multi-class creatures — *dual*-class
+    /// follows different rules and must not be routed here.
+    pub fn max_hp_constitution_bonus_multiclass(
+        &self,
+        constitution: u8,
+        is_warrior: bool,
+        cap: u8,
+        class_levels: &[u8],
+    ) -> i32 {
+        let per_level = self.constitution_hp_per_level(constitution, is_warrior);
+        let mut summed_levels = 0i32;
+        let mut classes = 0i32;
+        for &level in class_levels {
+            if level > 0 {
+                summed_levels += i32::from(cap.min(level));
+                classes += 1;
+            }
+        }
+        if classes == 0 {
+            return 0;
+        }
+        // Round toward negative infinity so a CON *penalty* rounds the
+        // same way the engine floors the bonus.
+        (per_level * summed_levels).div_euclid(classes)
+    }
+
     /// Warrior flag + CON HP-roll cap for a creature's class, from its
     /// raw `CLASS.IDS` byte. Single entry point for HP math:
     ///
@@ -482,26 +521,40 @@ impl EngineCaps {
             .unwrap_or_else(|| hp_profile_heuristic(symbol))
     }
 
-    /// Data-driven warrior + cap from stock 2DAs (`HPCLASS.2DA` →
-    /// `HP*.2DA`): a class is a *warrior* (larger CON→HP bonus) when
-    /// its Hit Die is d10+ (`SIDES >= 10`); the cap is the highest
-    /// level that still rolls a die. Multi/dual classes split on `_`
-    /// and take the per-component maximum (e.g. `MAGE_THIEF` →
-    /// max(HPWIZ, HPROG) = 10), which is what the engine credits CON
-    /// HP against. `None` when `HPCLASS.2DA` isn't available (classic
-    /// engines) so the caller can fall back to the heuristic.
+    /// Data-driven warrior + CON-HP-roll cap from stock 2DAs
+    /// (`HPCLASS.2DA` → `HP*.2DA`): a class is a *warrior* (larger
+    /// CON→HP bonus) when its Hit Die is d10+ (`SIDES >= 10`); a
+    /// component's cap is the highest level that still rolls a die.
+    ///
+    /// The cap is the level past which CON stops adding HP. The engine
+    /// credits it against a single Hit-Die progression, and the
+    /// **warrior** group's (lower) cap governs the whole character when
+    /// any component is a warrior: a Fighter/Thief caps CON HP at the
+    /// Fighter's level 9, *not* the Thief's 10 (verified in IWD:EE — a
+    /// Fighter 9 / Thief 11 with CON 16 gets +18, i.e. `2 × 9`). Pure
+    /// non-warrior multis use the largest component cap.
+    ///
+    /// `None` when `HPCLASS.2DA` isn't available (classic engines) so
+    /// the caller can fall back to the heuristic.
     fn class_hp_profile_from_tables(&self, class_symbol: &str) -> Option<(bool, u8)> {
         if self.class_hp_tables.is_empty() {
             return None;
         }
         let mut is_warrior = false;
-        let mut cap = 0u8;
+        let mut max_cap = 0u8;
+        let mut warrior_cap: Option<u8> = None;
         for component in class_symbol.split('_').filter(|s| !s.is_empty()) {
             let table = self.class_hp_tables.get(&component.to_ascii_lowercase())?;
             let profile = self.hp_table_profiles.get(table)?;
-            is_warrior |= profile.sides >= 10;
-            cap = cap.max(profile.roll_cap);
+            let warrior = profile.sides >= 10;
+            is_warrior |= warrior;
+            max_cap = max_cap.max(profile.roll_cap);
+            if warrior {
+                warrior_cap =
+                    Some(warrior_cap.map_or(profile.roll_cap, |c| c.min(profile.roll_cap)));
+            }
         }
+        let cap = warrior_cap.unwrap_or(max_cap);
         (cap > 0).then_some((is_warrior, cap))
     }
 
@@ -660,7 +713,12 @@ fn load_class_symbols(game_data: &GameData) -> HashMap<i32, String> {
 fn hp_profile_heuristic(class_symbol: &str) -> (bool, u8) {
     let has = |needle: &str| class_symbol.contains(needle);
     let is_warrior = has("FIGHTER") || has("PALADIN") || has("RANGER") || has("BARBARIAN");
-    let cap = if has("MAGE") || has("SORCERER") || has("THIEF") || has("BARD") {
+    // Warriors credit CON HP only through their Hit-Die cap (level 9),
+    // even when multiclassed with a rogue/mage; the warrior cap governs.
+    // Pure rogue/arcane classes roll Hit Dice through 10.
+    let cap = if is_warrior {
+        9
+    } else if has("MAGE") || has("SORCERER") || has("THIEF") || has("BARD") {
         10
     } else {
         9
@@ -941,10 +999,17 @@ mod tests {
             caps.class_hp_profile_from_tables("CLERIC_MAGE"),
             Some((false, 10))
         );
-        // Fighter/Mage: warrior (fighter d10), cap = max(9, 10).
+        // Fighter/Mage: warrior (fighter d10) → the warrior cap (9)
+        // governs, not the mage's 10.
         assert_eq!(
             caps.class_hp_profile_from_tables("FIGHTER_MAGE"),
-            Some((true, 10))
+            Some((true, 9))
+        );
+        // Fighter/Thief: same — the warrior cap (9) governs, not the
+        // thief's 10. (IWD:EE: Fighter 9 / Thief 11, CON 16 → +18.)
+        assert_eq!(
+            caps.class_hp_profile_from_tables("FIGHTER_THIEF"),
+            Some((true, 9))
         );
         // Unknown component → None so the caller falls back.
         assert_eq!(caps.class_hp_profile_from_tables("GISH"), None);
@@ -968,8 +1033,39 @@ mod tests {
         let mut caps = ee_caps();
         caps.class_symbols.insert(3, "PALADIN".into());
         caps.class_symbols.insert(21, "MAGE_THIEF".into());
+        caps.class_symbols.insert(9, "FIGHTER_THIEF".into());
         assert_eq!(caps.class_hp_profile(3), (true, 9)); // heuristic: warrior, 9
         assert_eq!(caps.class_hp_profile(21), (false, 10)); // heuristic: mage/thief, 10
+        // Warrior+rogue multi: warrior cap (9) governs, not the thief's 10.
+        assert_eq!(caps.class_hp_profile(9), (true, 9));
+    }
+
+    #[test]
+    fn multiclass_con_bonus_splits_across_classes() {
+        let caps = ee_caps();
+        // Fighter 9 / Thief 11, CON 16 (+2), governing cap 9:
+        // floor(2 × (min(9,9) + min(11,9)) / 2) = floor(36/2) = 18.
+        assert_eq!(
+            caps.max_hp_constitution_bonus_multiclass(16, true, 9, &[9, 11, 0]),
+            18
+        );
+        // Cleric 9 / Ranger 8, CON 16, cap 9:
+        // floor(2 × (9 + 8) / 2) = floor(34/2) = 17.
+        assert_eq!(
+            caps.max_hp_constitution_bonus_multiclass(16, true, 9, &[9, 8, 0]),
+            17
+        );
+        // Wiki example — Fighter/Mage/Cleric 7/7/7, CON 18 (warrior +4):
+        // floor(4 × (7+7+7) / 3) = floor(84/3) = 28.
+        assert_eq!(
+            caps.max_hp_constitution_bonus_multiclass(18, true, 7, &[7, 7, 7]),
+            28
+        );
+        // One active class behaves like the single-class path.
+        assert_eq!(
+            caps.max_hp_constitution_bonus_multiclass(17, true, 9, &[9, 0, 0]),
+            27
+        );
     }
 
     #[test]

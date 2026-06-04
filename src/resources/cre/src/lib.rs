@@ -288,6 +288,31 @@ impl Cre {
         }
     }
 
+    /// Whether this creature is *dual*-classed (as opposed to
+    /// multi-classed) — relevant on the AD&D engines, where dual- and
+    /// multi-class characters compute hit points differently (a dual
+    /// freezes its first class until the second surpasses it; a multi
+    /// splits each level's HP across its classes).
+    ///
+    /// The engine records the former class of a dual with exactly one
+    /// `MC_WAS_*` bit (`0x08`..=`0x100`) in the creature-flags field at
+    /// offset `0x10`; a true multi-class has none set. Mirrors GemRB's
+    /// `Actor::IsDualClassed` (`CountBits(flags & MC_WAS_ANY) == 1`).
+    ///
+    /// Always `false` for V2.2 (IWD2), whose 3e rules have no
+    /// dual-classing and reuse those flag bits.
+    pub fn is_dual_classed(&self) -> bool {
+        /// `MC_WAS_FIGHTER | MAGE | CLERIC | THIEF | DRUID | RANGER`.
+        const MC_WAS_ANY: u32 = 0x01F8;
+        let flags = match &self.header {
+            CreHeader::V10(h) => h.creature_flags,
+            CreHeader::V12(h) => h.creature_flags,
+            CreHeader::V90(h) => h.creature_flags,
+            CreHeader::V22(_) => return false,
+        };
+        (flags & MC_WAS_ANY).count_ones() == 1
+    }
+
     /// 4-byte `strref` pointing into `dialog.tlk` for the creature's
     /// long-name (proper-noun display name).
     pub fn long_name_strref(&self) -> u32 {
@@ -1443,5 +1468,56 @@ mod tests {
 
         let raw = EffectV1::Raw(vec![233, 0, 0, 0]);
         assert_eq!(raw.opcode(), 233);
+    }
+
+    /// Force the V1.0 creature-flags field to `flags` so dual-class
+    /// detection can be exercised independently of the fixture's data.
+    fn with_flags(cre: &mut Cre, flags: u32) {
+        match &mut cre.header {
+            CreHeader::V10(h) => h.creature_flags = flags,
+            _ => panic!("fixture is not a V1.0 CRE"),
+        }
+    }
+
+    #[test]
+    fn is_dual_classed_requires_exactly_one_mc_was_bit() {
+        let mut cre = crate::test_support::import_fixture("v1_0/THIEF3.cre");
+
+        // No former-class bits → single- or multi-class, never dual.
+        with_flags(&mut cre, 0x0000);
+        assert!(!cre.is_dual_classed());
+
+        // Exactly one MC_WAS_* bit → dual. Check a couple of the bits.
+        with_flags(&mut cre, 0x0008); // MC_WAS_FIGHTER
+        assert!(cre.is_dual_classed());
+        with_flags(&mut cre, 0x0100); // MC_WAS_RANGER (top of the mask)
+        assert!(cre.is_dual_classed());
+
+        // Two former-class bits (kuo-toa-style garbage, or a true multi
+        // marker) → not a dual.
+        with_flags(&mut cre, 0x0008 | 0x0040); // FIGHTER | THIEF
+        assert!(!cre.is_dual_classed());
+
+        // Bits outside the MC_WAS mask are ignored: "show longname"
+        // (0x01) alone is not dual, but combined with one MC_WAS bit it
+        // still is.
+        with_flags(&mut cre, 0x0001);
+        assert!(!cre.is_dual_classed());
+        with_flags(&mut cre, 0x0001 | 0x0010); // show-longname | MC_WAS_MAGE
+        assert!(cre.is_dual_classed());
+    }
+
+    #[test]
+    fn is_dual_classed_is_always_false_for_iwd2() {
+        // V2.2 (IWD2) has no dual-classing and reuses the low flag bits,
+        // so detection must short-circuit to false even with an
+        // MC_WAS-shaped bit pattern.
+        let mut cre = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        if let CreHeader::V22(h) = &mut cre.header {
+            h.creature_flags = 0x0008;
+        } else {
+            panic!("fixture is not a V2.2 CRE");
+        }
+        assert!(!cre.is_dual_classed());
     }
 }
