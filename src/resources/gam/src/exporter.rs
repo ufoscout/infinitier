@@ -260,7 +260,7 @@ fn extend_iwd_unknown(
 
 fn write_common_header(out: &mut [u8], h: &GamHeader) {
     debug_assert!(out.len() >= COMMON_HEADER_LEN);
-    out[0x08..0x0C].copy_from_slice(&h.game_time.to_le_bytes());
+    out[0x08..0x0C].copy_from_slice(&h.game_time.game_seconds().to_le_bytes());
     out[0x0C..0x0E].copy_from_slice(&h.selected_formation.to_le_bytes());
     for (i, v) in h.formation_buttons.iter().enumerate() {
         let off = 0x0E + i * 2;

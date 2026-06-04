@@ -13,9 +13,9 @@ use log::{debug, error};
 
 use crate::{
     Bg2GamData, BgGamData, BgSaveVersion, COMMON_HEADER_LEN, EeGamData, Familiar, GAM_SIGNATURE,
-    Gam, GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, Iwd2GamData, IwdGamData,
-    IwdUnknownTrailer, JournalEntry, ModronMaze, ModronMazeEntry, NpcCharStats, PstGamData,
-    StoredLocation, UnknownSection3, char_stats_offset_for_engine,
+    Gam, GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, GameTime, Iwd2GamData,
+    IwdGamData, IwdUnknownTrailer, JournalEntry, ModronMaze, ModronMazeEntry, NpcCharStats,
+    PstGamData, StoredLocation, UnknownSection3, char_stats_offset_for_engine,
 };
 
 /// On-disk size of one [`GamVariable`] record: a 32-byte name, the
@@ -173,7 +173,7 @@ impl Importer for GamImporter<'_> {
 /// signature + version).
 fn parse_header(reader: &mut GamReader) -> std::io::Result<GamHeader> {
     reader.set_position(0x08)?;
-    let game_time = reader.read_u32()?;
+    let game_time = GameTime::from_game_seconds(reader.read_u32()?);
     let selected_formation = reader.read_u16()?;
     let formation_buttons = [
         reader.read_u16()?,

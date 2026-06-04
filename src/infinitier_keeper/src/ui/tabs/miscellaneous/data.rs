@@ -14,14 +14,7 @@
 
 use infinitier_core::imported_resource::gam::{ImportedGam, ImportedGamNpc};
 use infinitier_core::resource::cre::{Cre, CreHeader};
-
-/// A day / hour / minute triple.
-#[derive(Default)]
-pub struct Dhm {
-    pub day: u32,
-    pub hour: u32,
-    pub minute: u32,
-}
+use infinitier_core::resource::gam::Dhm;
 
 /// Everything the Miscellaneous tab paints.
 #[derive(Default)]
@@ -46,10 +39,16 @@ pub struct MiscData {
 
 pub fn misc_data(cre: &Cre, gam: &ImportedGam, npc: &ImportedGamNpc) -> MiscData {
     let game_time = gam.header.game_time;
+    // "Joined Party" is the game time elapsed since the member joined:
+    // now minus their join timestamp. Computed in ticks so the join
+    // time's sub-game-second precision isn't lost.
+    let joined = game_time
+        .to_ticks()
+        .saturating_sub(npc.char_stats.join_time);
     let mut data = MiscData {
-        world_time: dhm_from_game_seconds(game_time),
-        game_time: dhm_from_game_seconds(game_time),
-        joined_party: time_since_join(game_time, npc.char_stats.join_time),
+        world_time: game_time.dhm(),
+        game_time: game_time.dhm(),
+        joined_party: joined.dhm(),
         ..MiscData::default()
     };
 
@@ -69,29 +68,6 @@ pub fn misc_data(cre: &Cre, gam: &ImportedGam, npc: &ImportedGamNpc) -> MiscData
         data.default_script = h.creature_script_default.clone();
     }
     data
-}
-
-/// Convert the GAM `game_time` (game-seconds; 1 hour = 300 s) to a
-/// day/hour/minute calendar triple.
-fn dhm_from_game_seconds(game_time: u32) -> Dhm {
-    let total_hours = game_time / 300;
-    Dhm {
-        day: total_hours / 24,
-        hour: total_hours % 24,
-        minute: (game_time % 300) / 5,
-    }
-}
-
-/// Game time elapsed since the member joined the party. `game_time` is
-/// in game-seconds (×15 → ticks); `join_time` is already in ticks.
-fn time_since_join(game_time: u32, join_time: u32) -> Dhm {
-    let now_ticks = u64::from(game_time) * 15;
-    let elapsed = now_ticks.saturating_sub(u64::from(join_time));
-    Dhm {
-        day: (elapsed / 108_000) as u32,
-        hour: ((elapsed % 108_000) / 4500) as u32,
-        minute: ((elapsed % 4500) / 75) as u32,
-    }
 }
 
 /// Decode an ASCIIZ header string field (bytes up to the first NUL).

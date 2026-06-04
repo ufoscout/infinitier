@@ -11,7 +11,9 @@ use egui_components::scroll_area::ScrollArea;
 use egui_components::theme::Theme;
 use egui_components::{Card, Label, LabelTone};
 
-use super::data::{Dhm, MiscData};
+use infinitier_core::resource::gam::Dhm;
+
+use super::data::MiscData;
 
 /// Width of a value box in the wide "Other" card.
 const FIELD_W: f32 = 150.0;

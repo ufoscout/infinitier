@@ -74,6 +74,107 @@ impl GamVersion {
     }
 }
 
+/// A game-world time broken into day / hour / minute, the way the
+/// in-game clock and the keeper display it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Dhm {
+    pub day: u32,
+    pub hour: u32,
+    pub minute: u32,
+}
+
+/// A game-world time, measured in **game-seconds**.
+///
+/// The engine calendar runs at 1 game-hour = 300 game-seconds, hence
+/// 1 game-day = 7200 game-seconds and 1 game-minute = 5 game-seconds.
+/// This is the unit the GAM stores its `game_time` in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct GameTime {
+    game_seconds: u32,
+}
+
+impl GameTime {
+    /// Wrap a raw game-second count.
+    pub fn from_game_seconds(game_seconds: u32) -> Self {
+        Self { game_seconds }
+    }
+
+    /// The underlying game-second count.
+    pub fn game_seconds(self) -> u32 {
+        self.game_seconds
+    }
+
+    /// The same instant expressed in ticks (×15). Use this when
+    /// combining with tick-based values so no precision is lost.
+    pub fn to_ticks(self) -> GameTicks {
+        GameTicks::from_ticks(self.game_seconds.saturating_mul(GameTicks::PER_GAME_SECOND))
+    }
+
+    /// Break the time into day / hour / minute.
+    pub fn dhm(self) -> Dhm {
+        self.to_ticks().dhm()
+    }
+}
+
+/// A game-world time, measured in **engine ticks** (15 ticks per
+/// game-second).
+///
+/// Some on-disk fields (e.g. a party member's join time) are stored in
+/// ticks rather than game-seconds, so this keeps the raw tick value
+/// for byte-exact round-trip while still converting to game-seconds /
+/// [`GameTime`] / [`Dhm`] on demand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct GameTicks {
+    ticks: u32,
+}
+
+impl GameTicks {
+    /// Ticks per game-second.
+    pub const PER_GAME_SECOND: u32 = 15;
+    /// Ticks per game-minute (5 game-seconds).
+    pub const PER_MINUTE: u32 = 75;
+    /// Ticks per game-hour (300 game-seconds).
+    pub const PER_HOUR: u32 = 4500;
+    /// Ticks per game-day (24 hours).
+    pub const PER_DAY: u32 = 108_000;
+
+    /// Wrap a raw tick count.
+    pub fn from_ticks(ticks: u32) -> Self {
+        Self { ticks }
+    }
+
+    /// The underlying tick count.
+    pub fn ticks(self) -> u32 {
+        self.ticks
+    }
+
+    /// The time in game-seconds (ticks ÷ 15, truncated).
+    pub fn game_seconds(self) -> u32 {
+        self.ticks / Self::PER_GAME_SECOND
+    }
+
+    /// The time as a [`GameTime`] (game-second precision).
+    pub fn game_time(self) -> GameTime {
+        GameTime::from_game_seconds(self.game_seconds())
+    }
+
+    /// Ticks elapsed between two instants (saturating at zero).
+    pub fn saturating_sub(self, earlier: GameTicks) -> GameTicks {
+        GameTicks {
+            ticks: self.ticks.saturating_sub(earlier.ticks),
+        }
+    }
+
+    /// Break the time into day / hour / minute (full tick precision).
+    pub fn dhm(self) -> Dhm {
+        Dhm {
+            day: self.ticks / Self::PER_DAY,
+            hour: (self.ticks % Self::PER_DAY) / Self::PER_HOUR,
+            minute: (self.ticks % Self::PER_HOUR) / Self::PER_MINUTE,
+        }
+    }
+}
+
 /// A parsed GAM file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Gam {
@@ -109,8 +210,8 @@ pub struct Gam {
 /// version.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GamHeader {
-    /// Game time in 1/300-of-an-hour units (300 = 1 hour).
-    pub game_time: u32,
+    /// Total elapsed game time (game-seconds; 1 hour = 300).
+    pub game_time: GameTime,
     /// Index of the currently-selected formation preset.
     pub selected_formation: u16,
     /// The five formation hot-buttons (1..=5) at the bottom of the UI.
@@ -282,8 +383,8 @@ pub struct NpcCharStats {
     pub most_powerful_vanquished_xp: u32,
     /// 0x08: time spent in the party (1/15-second "ticks").
     pub time_in_party: u32,
-    /// 0x0C: game time the member joined the party.
-    pub join_time: u32,
+    /// 0x0C: game time the member joined the party (in ticks).
+    pub join_time: GameTicks,
     /// 0x10: currently in the party (`0`/`1`).
     pub in_party: u8,
     /// 0x11: unknown / preserved verbatim.
@@ -327,7 +428,7 @@ impl NpcCharStats {
             most_powerful_vanquished_name: rd_u32(b, 0x00),
             most_powerful_vanquished_xp: rd_u32(b, 0x04),
             time_in_party: rd_u32(b, 0x08),
-            join_time: rd_u32(b, 0x0C),
+            join_time: GameTicks::from_ticks(rd_u32(b, 0x0C)),
             in_party: b[0x10],
             unknown_0x11: rd_u16(b, 0x11),
             initial_character: b[0x13],
@@ -363,7 +464,7 @@ impl NpcCharStats {
         b[0x00..0x04].copy_from_slice(&self.most_powerful_vanquished_name.to_le_bytes());
         b[0x04..0x08].copy_from_slice(&self.most_powerful_vanquished_xp.to_le_bytes());
         b[0x08..0x0C].copy_from_slice(&self.time_in_party.to_le_bytes());
-        b[0x0C..0x10].copy_from_slice(&self.join_time.to_le_bytes());
+        b[0x0C..0x10].copy_from_slice(&self.join_time.ticks().to_le_bytes());
         b[0x10] = self.in_party;
         b[0x11..0x13].copy_from_slice(&self.unknown_0x11.to_le_bytes());
         b[0x13] = self.initial_character;
@@ -922,5 +1023,57 @@ mod char_stats_tests {
         assert_eq!(char_stats_offset_for_engine(Engine::Ee), 228);
         assert_eq!(char_stats_offset_for_engine(Engine::Pst), 236);
         assert_eq!(char_stats_offset_for_engine(Engine::Iwd2), 482);
+    }
+}
+
+#[cfg(test)]
+mod game_time_tests {
+    use super::*;
+
+    #[test]
+    fn game_time_to_dhm() {
+        // From the BG2EE reference save: game_time 1219219 game-seconds
+        // is day 169, hour 8, minute 3.
+        assert_eq!(
+            GameTime::from_game_seconds(1219219).dhm(),
+            Dhm {
+                day: 169,
+                hour: 8,
+                minute: 3
+            }
+        );
+    }
+
+    #[test]
+    fn ticks_round_trip_and_game_seconds() {
+        let t = GameTicks::from_ticks(6214308);
+        assert_eq!(t.ticks(), 6214308);
+        assert_eq!(t.game_seconds(), 414287); // 6214308 / 15, truncated
+        assert_eq!(GameTime::from_game_seconds(300).to_ticks().ticks(), 4500);
+    }
+
+    #[test]
+    fn elapsed_since_join_uses_tick_precision() {
+        // "Joined Party" = now (game-seconds → ticks) − join (ticks).
+        // Keldorn join 6214308 ticks → 111d 19h 6m; Aerie 13987044 →
+        // 39d 19h 49m. Computing in ticks (not truncated game-seconds)
+        // is what yields Aerie's minute 49 rather than 50.
+        let now = GameTime::from_game_seconds(1219219).to_ticks();
+        assert_eq!(
+            now.saturating_sub(GameTicks::from_ticks(6214308)).dhm(),
+            Dhm {
+                day: 111,
+                hour: 19,
+                minute: 6
+            }
+        );
+        assert_eq!(
+            now.saturating_sub(GameTicks::from_ticks(13987044)).dhm(),
+            Dhm {
+                day: 39,
+                hour: 19,
+                minute: 49
+            }
+        );
     }
 }
