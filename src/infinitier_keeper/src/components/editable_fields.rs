@@ -6,10 +6,10 @@
 //! buffers — egui has no InputState entities, no subscriptions, no
 //! lazy init. Each frame:
 //!
-//! 1. [`KeeperEditors::prepare`] re-pulls the buffer values from the
-//!    current CRE / GAM if the selected party slot has changed
-//!    since the last frame (or if a commit just snapped a value to
-//!    its clamped form).
+//! 1. [`KeeperEditors::prepare`] re-mirrors every buffer from the
+//!    current CRE / GAM, so the displayed values always track the
+//!    active save / party slot. Only the field with keyboard focus is
+//!    skipped, so in-flight typing isn't clobbered.
 //! 2. The abilities tab renders one [`KeeperEditors::show_input`]
 //!    per visible row, which wraps `egui::TextEdit::singleline`
 //!    around the buffer and commits on focus-loss / Enter.
@@ -585,10 +585,10 @@ pub struct KeeperEditors {
     /// Selected index into [`AttacksOption::ALL`]. `None` when the
     /// active CRE's attacks byte isn't a documented variant.
     pub attacks_idx: Option<usize>,
-    /// Last party slot we synced from. `None` means "force a rebind
-    /// on next prepare" — used after commits to refresh the buffers
-    /// with the clamped value.
-    bound_to: Option<usize>,
+    /// The field currently being edited (has keyboard focus), if any.
+    /// [`Self::prepare`] leaves this one buffer alone so in-flight text
+    /// isn't clobbered while every other field re-mirrors the model.
+    focused_field: Option<EditableField>,
 }
 
 impl KeeperEditors {
@@ -596,25 +596,24 @@ impl KeeperEditors {
         Self::default()
     }
 
-    /// Per-frame sync. Refresh all in-flight text buffers from the
-    /// active CRE / GAM whenever the selected slot changes.
+    /// Per-frame sync. Mirror every editable field's buffer from the
+    /// active CRE / GAM so the view always reflects the current save —
+    /// no cache invalidation to get wrong. The only field left untouched
+    /// is the one being edited right now ([`Self::focused_field`]),
+    /// whose in-flight text stands until it commits on focus loss.
+    ///
+    /// Because it reads the model directly every frame, any change to
+    /// what's active (switching party slot, switching save tab, opening
+    /// a different save) is reflected the moment the model changes —
+    /// there's nothing to stale.
     pub fn prepare(&mut self, state: &AppState) {
-        let selected = state.active().selected_party_index;
-        if self.bound_to == selected {
-            return;
-        }
-        self.refresh_from_state(state);
-        self.bound_to = selected;
-    }
-
-    fn refresh_from_state(&mut self, state: &AppState) {
         let Some(cre) = selected_cre(state) else {
             self.inputs.clear();
             self.attacks_idx = None;
             return;
         };
         for &field in EditableField::ALL {
-            if field == EditableField::Attacks {
+            if field == EditableField::Attacks || self.focused_field == Some(field) {
                 continue;
             }
             self.inputs
@@ -645,6 +644,13 @@ impl KeeperEditors {
     ) -> bool {
         let mut buf = std::mem::take(self.inputs.entry(field).or_default());
         let response = ui.add(egui_components::Input::new(&mut buf).width(width).small());
+        // Track which field owns keyboard focus so `prepare` can leave
+        // its in-flight text alone while re-mirroring every other field.
+        if response.has_focus() {
+            self.focused_field = Some(field);
+        } else if self.focused_field == Some(field) {
+            self.focused_field = None;
+        }
         let committed = response.lost_focus();
         if committed {
             commit(field, &buf, state);

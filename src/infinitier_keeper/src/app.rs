@@ -52,17 +52,7 @@ impl eframe::App for KeeperApp {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // Per-frame sync. Both prepare calls are cheap no-ops when
-        // nothing changed; the borrows of `&self.state` only overlap
-        // the immutable side, so the `&mut self.state` panels take
-        // later don't conflict. Skipped when no save is open (every
-        // tab was closed) — they read `state.active()`.
         let has_save = !self.state.tabs.is_empty();
-        if has_save {
-            self.party_selector.prepare(&self.state, ui.ctx());
-            self.editors.prepare(&self.state);
-        }
-
         let header_action = self.header_panel.show(ui);
         if header_action.save_clicked && has_save {
             self.save_action.open(&self.state);
@@ -70,21 +60,27 @@ impl eframe::App for KeeperApp {
         if header_action.load_clicked {
             self.load_action.open(&self.state);
         }
-        // Save-tab strip — one tab per open save, each closable. It may
-        // remove the active (or last) tab this frame, so re-check
-        // emptiness afterwards before painting the per-save panels.
+        // ── Update phase — everything that can mutate `state` runs
+        // first, so the view below reads a settled state in the same
+        // frame (no repaint round-trip). The tab strip switches/closes
+        // tabs; the modal dialogs (foreground layer, so still painted
+        // on top) may open a different save into the active tab.
         self.save_tab_strip.show(ui, &mut self.state);
+        self.save_action.show(ui.ctx(), &mut self.state);
+        self.load_action.show(ui.ctx(), &mut self.state);
+
+        // ── View phase — render from the now-settled state. `prepare`
+        // re-mirrors the editor buffers from whatever save is active, so
+        // a switch made above shows immediately.
         if self.state.tabs.is_empty() {
             empty_state(ui);
         } else {
+            self.party_selector.prepare(&self.state, ui.ctx());
+            self.editors.prepare(&self.state);
             self.party_selector.show(ui, &mut self.state);
             self.character_panel
                 .show(ui, &mut self.state, &mut self.editors);
         }
-
-        // Modal dialogs — painted on top of the panels.
-        self.save_action.show(ui.ctx(), &mut self.state);
-        self.load_action.show(ui.ctx(), &mut self.state);
     }
 }
 

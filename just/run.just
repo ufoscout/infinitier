@@ -76,7 +76,7 @@ run_iwd_keeper:
 # Run Infinitier Keeper with local Icewind Dale - Enhanced Edition
 [group('run_keeper')]
 run_iwdee_keeper:
-  cargo run -p infinitier_keeper -- --savegame 0 --game-path "{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition","{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Icewind Dale - Enhanced Edition"
+  cargo run -p infinitier_keeper -- --savegame 2 --game-path "{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition","{{GAMES_FOLDER}}/Icewind Dale - Enhanced Edition/wineprefix/drive_c/users/ufo/Documents/Icewind Dale - Enhanced Edition"
 
 # Run Infinitier ExplKeeperorer with local Icewind Dale 2
 [group('run_keeper')]
