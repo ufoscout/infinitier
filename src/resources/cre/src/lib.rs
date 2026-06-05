@@ -1224,20 +1224,20 @@ impl Cre {
         })
     }
 
-    /// First-/second-class weapon-proficiency points packed into the
-    /// V1.0 header for an `IE_PROFICIENCY*` stat.
+    /// The raw packed weapon-proficiency byte stored in the V1.0 header
+    /// for an `IE_PROFICIENCY*` stat.
     ///
     /// The V1.0 header carries 20 packed bytes covering stats
-    /// `89..=108`; each byte stores the first-class points in the low
-    /// 3 bits and the second-class (dual/multi-class) points in the
-    /// next 3. Returns `(first, second)`, or `(0, 0)` for stats outside
-    /// the packed range or headers that don't use this layout (PST /
-    /// IWD / IWD2 model proficiencies differently).
-    pub fn header_proficiency(&self, stat: u8) -> (u8, u8) {
+    /// `89..=108`; each byte stores the first-class points in the low 3
+    /// bits and the second-class (dual/multi-class) points in the next
+    /// 3 — unpack with `byte & 7` / `(byte >> 3) & 7`. Returns `0` for
+    /// stats outside the packed range or headers that don't use this
+    /// layout (PST / IWD / IWD2 model proficiencies differently).
+    pub fn header_proficiency_byte(&self, stat: u8) -> u8 {
         /// `IE_PROFICIENCYBASTARDSWORD` — first stat in the packed block.
         const PROF_STAT_BASE: u8 = 89;
         let CreHeader::V10(h) = &self.header else {
-            return (0, 0);
+            return 0;
         };
         let packed = [
             h.bg1_large_swords_proficiency_other_games,
@@ -1261,11 +1261,9 @@ impl Cre {
             h.bg1_6,
             h.bg1_7,
         ];
-        let byte = stat
-            .checked_sub(PROF_STAT_BASE)
+        stat.checked_sub(PROF_STAT_BASE)
             .and_then(|i| packed.get(i as usize).copied())
-            .unwrap_or(0);
-        (byte & 0x07, (byte >> 3) & 0x07)
+            .unwrap_or(0)
     }
 }
 

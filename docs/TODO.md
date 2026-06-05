@@ -33,5 +33,3 @@
 ## errors:
 
 
-## Missing data
-- [ ] effective Thief Skills 
