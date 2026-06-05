@@ -66,21 +66,27 @@ impl GameData {
             .and_then(|&id| self.resources.get(id))
     }
 
-    /// Import a resource by name and type
+    /// Import a resource by name and type. Returns a [`io::ErrorKind::NotFound`]
+    /// error when no resource with that name and type exists in the game data.
     pub fn import_by_name_and_type(
         &self,
         name: &str,
         r#type: ResourceType,
-    ) -> io::Result<Option<Cow<'_, ImportedResource>>> {
+    ) -> io::Result<Cow<'_, ImportedResource>> {
         self.get_by_name_and_type(name, r#type)
-            .map(|resource| resource.import(self))
-            .transpose()
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("resource '{name}' of type {:?} not found in game data", r#type),
+                )
+            })?
+            .import(self)
     }
 
     /// Return every resource of `r#type`. Lookup is constant-time via
     /// the pre-built type index; iteration is then linear in the number
     /// of matches. Yields nothing when no resource of that type exists.
-    pub fn get_all_by_type(&self, r#type: ResourceType) -> impl Iterator<Item = &GameResource> {
+    pub fn get_all_resources_by_type(&self, r#type: ResourceType) -> impl Iterator<Item = &GameResource> {
         self.type_index
             .get(&r#type)
             .into_iter()
@@ -95,8 +101,8 @@ impl GameData {
     /// Locate and load the game's `dialog.tlk`.
     pub fn dialog_tlk(&self) -> io::Result<Cow<'_, infinitier_tlk_resource::Tlk>> {
         match self.import_by_name_and_type("dialog", ResourceType::Tlk)? {
-            Some(Cow::Borrowed(ImportedResource::Tlk(tlk))) => Ok(Cow::Borrowed(tlk)),
-            Some(Cow::Owned(ImportedResource::Tlk(tlk))) => Ok(Cow::Owned(tlk)),
+            Cow::Borrowed(ImportedResource::Tlk(tlk)) => Ok(Cow::Borrowed(tlk)),
+            Cow::Owned(ImportedResource::Tlk(tlk)) => Ok(Cow::Owned(tlk)),
             _ => Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 "dialog.tlk not found in game data",
@@ -361,6 +367,8 @@ pub struct GameDataBuilder {
     key_file: String,
     /// Resource overrides folders
     overrides: Vec<String>,
+    /// Resource types to preload
+    preload: Vec<ResourceType>,
     /// Game Type
     game_type: Game,
 }
@@ -385,6 +393,12 @@ impl GameDataBuilder {
                 ],
             )?,
             overrides: vec!["override".to_string()],
+            preload: vec![
+                ResourceType::TwoDA,
+                ResourceType::Ids,
+                ResourceType::Spl,
+                ResourceType::Itm,
+            ],
             key_file: "chitin.key".to_string(),
         })
     }
@@ -400,6 +414,14 @@ impl GameDataBuilder {
     /// Default: ["override"]
     pub fn with_overrides(mut self, overrides: Vec<String>) -> GameDataBuilder {
         self.overrides = overrides;
+        self
+    }
+
+    /// Set the resource types to preload.
+    /// Default: `[2DA, IDS, SPL, ITM]`. Pass an empty `Vec` to disable
+    /// preloading entirely.
+    pub fn with_preload(mut self, preload: Vec<ResourceType>) -> GameDataBuilder {
+        self.preload = preload;
         self
     }
 
@@ -608,7 +630,45 @@ impl GameDataBuilder {
 
         self.add_resources_from_dir(&mut game_data, "override", None, false)?;
 
+        self.preload_resources(&mut game_data);
+
         Ok(game_data)
+    }
+
+    /// Import every resource whose type is in [`self.preload`](Self::preload)
+    /// and cache the result in [`GameResource::imported`], so later lookups
+    /// return the value borrowed instead of re-importing.
+    ///
+    /// Runs after all resources are registered (importers may resolve
+    /// cross-references against the fully-built `game_data`). Import failures
+    /// are logged and skipped — a resource that fails to preload simply stays
+    /// un-cached and imports lazily on first access.
+    fn preload_resources(&self, game_data: &mut GameData) {
+        if self.preload.is_empty() {
+            return;
+        }
+
+        // First pass: import under a shared borrow of `game_data` (importers
+        // need it to resolve references). Collect owned results keyed by id so
+        // the borrow ends before we mutate.
+        let mut preloaded: Vec<(ResourceId, ImportedResource)> = Vec::new();
+        for (id, resource) in game_data.resources.iter().enumerate() {
+            if resource.datasource.is_none() || !self.preload.contains(&resource.r#type) {
+                continue;
+            }
+            match resource.import(game_data) {
+                Ok(imported) => preloaded.push((id, imported.into_owned())),
+                Err(e) => warn!(
+                    "Failed to preload {}.{:?}: {e}",
+                    resource.name, resource.r#type
+                ),
+            }
+        }
+
+        // Second pass: store the cached imports.
+        for (id, imported) in preloaded {
+            game_data.resources[id].imported = Some(imported);
+        }
     }
 
     fn add_resources_from_dir(
@@ -1039,20 +1099,20 @@ mod tests {
         ));
 
         let bam_names: Vec<&str> = game_data
-            .get_all_by_type(ResourceType::Bam)
+            .get_all_resources_by_type(ResourceType::Bam)
             .map(|r| r.name.as_str())
             .collect();
         assert_eq!(bam_names, vec!["A", "C"]);
 
         let wed_names: Vec<&str> = game_data
-            .get_all_by_type(ResourceType::Wed)
+            .get_all_resources_by_type(ResourceType::Wed)
             .map(|r| r.name.as_str())
             .collect();
         assert_eq!(wed_names, vec!["B"]);
 
         // The replacement must be observable through the type index.
         let a = game_data
-            .get_all_by_type(ResourceType::Bam)
+            .get_all_resources_by_type(ResourceType::Bam)
             .find(|r| r.name == "A")
             .unwrap();
         assert_eq!(
@@ -1063,6 +1123,6 @@ mod tests {
         );
 
         // Unknown type → empty.
-        assert_eq!(game_data.get_all_by_type(ResourceType::Tga).count(), 0);
+        assert_eq!(game_data.get_all_resources_by_type(ResourceType::Tga).count(), 0);
     }
 }

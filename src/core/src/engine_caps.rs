@@ -683,8 +683,8 @@ pub fn d20_modifier(score: u8) -> i8 {
 /// Resolve + import a 2DA by name, or `None` if absent / not a 2DA.
 fn load_two_da<'a>(game_data: &'a GameData, name: &str) -> Option<Cow<'a, TwoDA>> {
     match game_data.import_by_name_and_type(name, ResourceType::TwoDA) {
-        Ok(Some(Cow::Borrowed(ImportedResource::TwoDA(two_da)))) => Some(Cow::Borrowed(two_da)),
-        Ok(Some(Cow::Owned(ImportedResource::TwoDA(two_da)))) => Some(Cow::Owned(two_da)),
+        Ok(Cow::Borrowed(ImportedResource::TwoDA(two_da))) => Some(Cow::Borrowed(two_da)),
+        Ok(Cow::Owned(ImportedResource::TwoDA(two_da))) => Some(Cow::Owned(two_da)),
         _ => None,
     }
 }
@@ -759,7 +759,7 @@ fn load_class_hp_data(
 /// its conservative default for every class.
 fn load_class_symbols(game_data: &GameData) -> HashMap<i32, String> {
     match game_data.import_by_name_and_type("class", ResourceType::Ids) {
-        Ok(Some(cow)) => match cow.as_ref() {
+        Ok(cow) => match cow.as_ref() {
             ImportedResource::Ids(ids) => ids
                 .entries
                 .iter()

@@ -227,11 +227,14 @@ fn ids_pretty(game_data: &GameData, ids_file: &str, value: i32, sep: &str) -> St
 /// Look up the raw IDS symbol for `value` in `<ids_file>.IDS`.
 fn ids_symbol(game_data: &GameData, ids_file: &str, value: i32) -> Option<String> {
     match game_data.import_by_name_and_type(ids_file, ResourceType::Ids) {
-        Ok(Some(ImportedResource::Ids(ids))) => ids
-            .entries
-            .iter()
-            .find(|e| e.value == value)
-            .map(|e| e.name.clone()),
+        Ok(cow) => match cow.as_ref() {
+            ImportedResource::Ids(ids) => ids
+                .entries
+                .iter()
+                .find(|e| e.value == value)
+                .map(|e| e.name.clone()),
+            _ => None,
+        },
         _ => None,
     }
 }

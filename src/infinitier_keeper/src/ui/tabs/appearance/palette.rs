@@ -7,6 +7,8 @@
 //! centre stepping down to the darkest at the edges by Chebyshev
 //! distance. We reproduce that here so the swatches match.
 
+use std::borrow::Cow;
+
 use eframe::egui;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
@@ -28,7 +30,8 @@ impl Palette {
     pub fn load(game_data: &GameData) -> Option<Palette> {
         let img = ["RANGES12", "MPALETTE"].into_iter().find_map(|name| {
             match game_data.import_by_name_and_type(name, ResourceType::Bmp) {
-                Ok(Some(ImportedResource::Image(img))) => Some(img),
+                Ok(Cow::Borrowed(ImportedResource::Image(img))) => Some(Cow::Borrowed(img)),
+                Ok(Cow::Owned(ImportedResource::Image(img))) => Some(Cow::Owned(img)),
                 _ => None,
             }
         })?;

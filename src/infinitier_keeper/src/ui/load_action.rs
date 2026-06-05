@@ -446,7 +446,7 @@ fn load_bmp_texture(
     let bmp = BmpImporter { name }.import(ds).ok()?;
     let buffer = ImportedImage::from_bmp(bmp).image;
     let size = [buffer.width() as usize, buffer.height() as usize];
-    let color = egui::ColorImage::from_rgba_unmultiplied(size, &buffer.into_raw());
+    let color = egui::ColorImage::from_rgba_unmultiplied(size, buffer.as_raw());
     Some(ctx.load_texture(name, color, egui::TextureOptions::LINEAR))
 }
 

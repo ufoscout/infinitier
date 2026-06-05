@@ -131,7 +131,7 @@ fn resolve_items(
 
     let tlk = game_data.dialog_tlk().ok();
     for resref in misses {
-        let display = load_item(game_data, tlk.as_ref(), resref);
+        let display = load_item(game_data, tlk.as_deref(), resref);
         cache.insert(resref.to_owned(), display);
     }
     ui.ctx().data_mut(|d| d.insert_temp(id, cache.clone()));
@@ -144,9 +144,13 @@ fn load_item(
     tlk: Option<&infinitier_core::resource::tlk::Tlk>,
     resref: &str,
 ) -> ItemDisplay {
-    let Ok(Some(ImportedResource::Itm(itm))) =
-        game_data.import_by_name_and_type(resref, ResourceType::Itm)
-    else {
+    let Ok(imported) = game_data.import_by_name_and_type(resref, ResourceType::Itm) else {
+        return ItemDisplay {
+            name: String::new(),
+            icon: String::new(),
+        };
+    };
+    let ImportedResource::Itm(itm) = imported.as_ref() else {
         return ItemDisplay {
             name: String::new(),
             icon: String::new(),
@@ -161,7 +165,7 @@ fn load_item(
 
     ItemDisplay {
         name,
-        icon: icon_resref(&itm).to_string(),
+        icon: icon_resref(itm).to_string(),
     }
 }
 
@@ -208,11 +212,10 @@ fn resolve_icons(
 /// Load an inventory-icon BAM, composite its first frame, and upload it
 /// as an egui texture.
 fn load_icon(ctx: &egui::Context, game_data: &GameData, icon: &str) -> Option<egui::TextureHandle> {
-    let ImportedResource::Bam(bam) = game_data
+    let imported = game_data
         .import_by_name_and_type(icon, ResourceType::Bam)
-        .ok()
-        .flatten()?
-    else {
+        .ok()?;
+    let ImportedResource::Bam(bam) = imported.as_ref() else {
         return None;
     };
     let frame = bam.render_frame_centered(0, 0)?;

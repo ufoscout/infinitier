@@ -16,6 +16,8 @@
 //!
 //! This mirrors GemRB's `Calendar` and its `bg2/GUIJRNL.py` date logic.
 
+use std::borrow::Cow;
+
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::resource::ResourceType;
@@ -154,9 +156,10 @@ impl Calendar {
     }
 }
 
-fn load_2da(game_data: &GameData, name: &str) -> Option<TwoDA> {
+fn load_2da<'a>(game_data: &'a GameData, name: &str) -> Option<Cow<'a, TwoDA>> {
     match game_data.import_by_name_and_type(name, ResourceType::TwoDA) {
-        Ok(Some(ImportedResource::TwoDA(t))) => Some(t),
+        Ok(Cow::Borrowed(ImportedResource::TwoDA(t))) => Some(Cow::Borrowed(t)),
+        Ok(Cow::Owned(ImportedResource::TwoDA(t))) => Some(Cow::Owned(t)),
         _ => None,
     }
 }

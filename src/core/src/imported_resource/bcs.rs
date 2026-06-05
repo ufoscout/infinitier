@@ -41,7 +41,7 @@ impl ImportedBcs {
         let mut ctx = BafContext::new(triggers, actions, game).with_indent("    ");
 
         // Layer in every other IDS file we can find.
-        for resource in game_data.get_all_by_type(ResourceType::Ids) {
+        for resource in game_data.get_all_resources_by_type(ResourceType::Ids) {
             if resource.name == "trigger" || resource.name == "action" {
                 continue;
             }

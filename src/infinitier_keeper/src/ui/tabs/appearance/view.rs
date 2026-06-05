@@ -9,6 +9,7 @@
 //! store (the resolved name per id, the palette once, each swatch
 //! texture per colour index).
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use eframe::egui;
@@ -99,9 +100,10 @@ fn resolve_name(ui: &mut egui::Ui, game_data: &GameData, animation_id: u32) -> S
     resolved
 }
 
-fn load_animate_ids(game_data: &GameData) -> Option<Ids> {
+fn load_animate_ids(game_data: &GameData) -> Option<Cow<'_, Ids>> {
     match game_data.import_by_name_and_type("ANIMATE", ResourceType::Ids) {
-        Ok(Some(ImportedResource::Ids(ids))) => Some(ids),
+        Ok(Cow::Borrowed(ImportedResource::Ids(ids))) => Some(Cow::Borrowed(ids)),
+        Ok(Cow::Owned(ImportedResource::Ids(ids))) => Some(Cow::Owned(ids)),
         _ => None,
     }
 }

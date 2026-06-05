@@ -9,6 +9,7 @@
 //! mapped to EEKeeper's labels. The table is wide, so it lives in a
 //! both-axis scroll area with fixed, resizable columns.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use eframe::egui;
@@ -186,7 +187,7 @@ fn resolve_resources(
         let map = d.get_temp_mut_or_default::<HashMap<String, String>>(id);
         for resref in misses {
             map.entry(resref.to_owned())
-                .or_insert_with(|| resource_display(spell_ids.as_ref(), resref));
+                .or_insert_with(|| resource_display(spell_ids.as_deref(), resref));
         }
         map.clone()
     })
@@ -245,9 +246,11 @@ fn title_case(symbol: &str) -> String {
 }
 
 /// Load and parse `SPELL.IDS`. `None` if absent / unreadable.
-fn load_spell_ids(game_data: &GameData) -> Option<Ids> {
+fn load_spell_ids(game_data: &GameData) -> Option<Cow<'_, Ids>> {
     match game_data.import_by_name_and_type("SPELL", ResourceType::Ids) {
-        Ok(Some(ImportedResource::Ids(ids))) => Some(ids),
+        Ok(Cow::Borrowed(ImportedResource::Ids(ids))) => Some(Cow::Borrowed(ids)),
+        Ok(Cow::Owned(ImportedResource::Ids(ids))) => Some(Cow::Owned(ids)),
         _ => None,
     }
 }
+

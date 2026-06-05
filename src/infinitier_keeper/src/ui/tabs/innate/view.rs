@@ -75,10 +75,10 @@ fn spell_name(ui: &mut egui::Ui, game_data: &GameData, resref: &str) -> String {
 /// Load the SPL, read its generic-name strref, and resolve it through
 /// `dialog.tlk`. `None` if any step fails or the name is empty.
 fn resolve_spell_name(game_data: &GameData, resref: &str) -> Option<String> {
-    let ImportedResource::Spl(spl) = game_data
+    let imported = game_data
         .import_by_name_and_type(resref, ResourceType::Spl)
-        .ok()??
-    else {
+        .ok()?;
+    let ImportedResource::Spl(spl) = imported.as_ref() else {
         return None;
     };
     let name = game_data.dialog_tlk().ok()?.get(spl.header.name_strref())?;
