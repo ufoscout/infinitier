@@ -26,7 +26,7 @@ const TILE_PIXEL_BYTES: usize = (TILE_DIMENSION as usize) * (TILE_DIMENSION as u
 /// A preloaded TIS file: every tile's pixels are decoded ahead of time
 /// into a single contiguous buffer, plus the "expected" tiles-per-row
 /// value derived from the area's WED (if any).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedTis {
     /// Tile side length in pixels (always 64).
     pub tile_dimension: u32,
@@ -283,6 +283,7 @@ mod tests {
                 file_size: Some(file_size),
                 datasource: Some(DataSource::new(real_path.as_path())),
                 data_origin: DataOrigin::Missing,
+                imported: None,
             });
         }
         GameData::new(
@@ -419,6 +420,7 @@ mod tests {
                 file_size: Some(std::fs::metadata(&tis_path).unwrap().len()),
                 datasource: Some(DataSource::new(tis_path.as_path())),
                 data_origin: DataOrigin::Missing,
+                imported: None,
             },
             GameResource {
                 game_type: Game::Bg2,
@@ -427,6 +429,7 @@ mod tests {
                 file_size: Some(wed_bytes.len() as u64),
                 datasource: Some(DataSource::new(wed_bytes)),
                 data_origin: DataOrigin::Missing,
+                imported: None,
             },
         ];
         GameData::new(

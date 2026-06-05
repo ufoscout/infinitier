@@ -10,7 +10,7 @@ pub use exporter::WedExporter;
 pub use importer::WedImporter;
 
 /// Represents a Wed file.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Wed {
     pub overlays: Vec<WedOverlay>,
     pub doors: Vec<WedDoor>,
@@ -21,13 +21,13 @@ pub struct Wed {
     pub door_tile_cells: Vec<u16>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceReference {
     pub name: String,
     pub r#type: ResourceType,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WedOverlay {
     pub width: u16,
     pub height: u16,
@@ -46,7 +46,7 @@ pub struct WedOverlay {
     pub tile_index_lookup: Vec<u16>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WedTilemapEntry {
     /// Start index into the owning overlay's `tile_index_lookup`.
     pub start_index_in_lookup: u16,
@@ -63,7 +63,7 @@ pub struct WedTilemapEntry {
     pub unknown: [u8; 3],
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WedDoor {
     pub name: String,
     pub state: WedDoorState,
@@ -73,7 +73,7 @@ pub struct WedDoor {
     pub closed_polygons: Vec<WedPolygon>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WedDoorState {
     Open,
     Closed,
@@ -96,7 +96,7 @@ impl WedDoorState {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WedPolygon {
     pub vertex_index: u32,
     pub vertex_count: u32,
@@ -120,13 +120,13 @@ bitflags::bitflags! {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WedWallGroup {
     pub polygon_index: u16,
     pub polygon_count: u16,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WedVertex {
     pub x: i16,
     pub y: i16,

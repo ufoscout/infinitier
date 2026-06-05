@@ -135,7 +135,7 @@ impl ResourceViewer {
                 let viewer: Box<dyn ResourceViewerTrait> =
                     if let Some(resource) = state.game_data.get_by_id(resource_id) {
                         match resource.import(&state.game_data) {
-                            Ok(imported) => match imported {
+                            Ok(imported) => match imported.into_owned() {
                                 ImportedResource::Bam(bam) => {
                                     Box::new(BamViewer::new(bam, ui, resource_id))
                                 }

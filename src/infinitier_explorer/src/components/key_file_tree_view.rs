@@ -98,6 +98,7 @@ mod tests {
                     file_size: None,
                     datasource: None,
                     data_origin,
+                    imported: None,
                 })
                 .collect(),
             Game::Bg2,

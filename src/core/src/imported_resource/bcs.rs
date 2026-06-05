@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::io;
 
 use infinitier_bcs_resource::{Bcs, baf::BafContext, signatures::Signatures};
@@ -9,7 +10,7 @@ use crate::imported_resource::ImportedResource;
 
 /// A preloaded BCS script: the parsed bytecode plus its decompiled BAF
 /// source.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedBcs {
     /// The original parsed BCS bytecode.
     pub bcs: Bcs,
@@ -44,7 +45,9 @@ impl ImportedBcs {
             if resource.name == "trigger" || resource.name == "action" {
                 continue;
             }
-            if let Ok(ImportedResource::Ids(ids)) = resource.import(game_data) {
+            if let Ok(ImportedResource::Ids(ids)) =
+                resource.import(game_data).map(Cow::into_owned)
+            {
                 ctx = ctx.with_ids(&resource.name, ids);
             }
         }
@@ -62,7 +65,7 @@ fn load_ids(game_data: &GameData, name: &str) -> io::Result<Ids> {
                 "IDS resource '{name}' not found in GameData (required to decompile BCS to BAF)"
             ))
         })?;
-    match resource.import(game_data)? {
+    match resource.import(game_data)?.into_owned() {
         ImportedResource::Ids(ids) => Ok(ids),
         _ => Err(io::Error::other(format!(
             "resource '{name}' is not an IDS resource"
@@ -111,6 +114,7 @@ mod tests {
                 file_size,
                 datasource: Some(DataSource::new(path.as_path())),
                 data_origin: DataOrigin::Missing,
+                imported: None,
             });
         }
         GameData::new(

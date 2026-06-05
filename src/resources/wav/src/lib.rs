@@ -395,6 +395,21 @@ impl std::fmt::Debug for WavDecoder {
     }
 }
 
+impl Clone for WavDecoder {
+    /// Cloning re-opens the stream from the start: the decoder wraps live
+    /// streaming state (a RIFF reader, an inner [`AcmDecoder`], or Symphonia
+    /// `dyn` format/decoder trait objects) that cannot be duplicated, so we
+    /// reconstruct a fresh decoder from the retained [`DataSource`] instead.
+    ///
+    /// # Panics
+    /// Panics if the source can no longer be opened — it was opened
+    /// successfully once, so this only fires if it has since disappeared.
+    fn clone(&self) -> Self {
+        WavDecoder::open(&self.datasource, self.name.clone())
+            .expect("WavDecoder::clone: reopening the datasource failed")
+    }
+}
+
 impl WavDecoder {
     /// Open a WAV / WAVC / Ogg-Vorbis stream from a [`DataSource`].
     /// The first four bytes determine the flavour:

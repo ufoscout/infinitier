@@ -26,7 +26,7 @@ pub mod movie;
 pub mod sound;
 pub mod tis;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ImportedResource {
     Are,
     Bah,

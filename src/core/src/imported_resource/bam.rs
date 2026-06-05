@@ -11,7 +11,7 @@ use crate::game::GameData;
 
 /// A preloaded BAM file. All pixel data is decoded eagerly so the UI /
 /// game loop only needs to upload textures and apply per-cycle anchoring.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedBam {
     pub r#type: ResourceType,
     /// The on-disk BAM variant.
@@ -20,7 +20,7 @@ pub struct ImportedBam {
     pub cycles: Vec<BamCycle>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BamFrame {
     /// Frame width in pixels — matches `image.width()`.
     pub width: u32,
@@ -34,7 +34,7 @@ pub struct BamFrame {
     pub image: ImageBuffer<Rgba<u8>, Vec<u8>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BamCycle {
     /// Indices into [`ImportedBam::frames`] that make up this animation.
     pub frame_indices: Vec<usize>,
@@ -372,6 +372,7 @@ mod tests {
                 file_size: Some(file_size),
                 datasource: Some(DataSource::new(real_path.as_path())),
                 data_origin: DataOrigin::Missing,
+                imported: None,
             });
         }
         GameData::new(

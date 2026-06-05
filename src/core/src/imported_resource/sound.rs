@@ -54,7 +54,7 @@ impl fmt::Display for SoundFormat {
 
 /// Streaming audio decoder for either of the two formats Infinity Engine
 /// ships under `.ACM` / `.WAV` extensions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SoundDecoder {
     Acm(AcmDecoder),
     Wav(WavDecoder),

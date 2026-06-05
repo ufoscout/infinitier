@@ -4,7 +4,7 @@
 //! format's bespoke importer output, so adding a new image format is a
 //! single new constructor here rather than a fresh viewer.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use std::io;
 
 use image::{ImageBuffer, Rgba};
@@ -21,10 +21,10 @@ use crate::game::GameData;
 /// Pixel data is always RGBA8 regardless of source — callers don't need
 /// to dispatch on the source format unless they want to surface
 /// format-specific details (e.g. BMP bit depth in an info bar).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportedImage {
     /// Decoded RGBA8 pixels at the image's natural dimensions.
-    pub image: ImageBuffer<Rgba<u8>, Vec<u8>>,
+    pub image: Arc<ImageBuffer<Rgba<u8>, Vec<u8>>>,
     /// Format the image was decoded from, with any format-specific
     /// metadata the viewer might want to show.
     pub source: ImageSource,
@@ -34,7 +34,7 @@ pub struct ImportedImage {
 /// original source format so the viewer can show "32 bpp, BI_RGB" for
 /// BMP vs "DXT5" for PVRZ without spreading every variant's fields
 /// onto every image.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ImageSource {
     Bmp {
         /// Original bit depth as declared in the DIB header
@@ -67,7 +67,7 @@ impl ImportedImage {
     /// the new wrapper, no allocation.
     pub fn from_bmp(bmp: Bmp) -> Self {
         Self {
-            image: bmp.image,
+            image: Arc::new(bmp.image),
             source: ImageSource::Bmp {
                 bit_count: bmp.bit_count,
                 compression: bmp.compression,
@@ -79,7 +79,7 @@ impl ImportedImage {
     /// the new wrapper, no allocation.
     pub fn from_pvrz(pvrz: Pvrz) -> Self {
         Self {
-            image: pvrz.image,
+            image: Arc::new(pvrz.image),
             source: ImageSource::Pvr {
                 pixel_format: pvrz.header.pixel_format,
             },
@@ -90,7 +90,7 @@ impl ImportedImage {
     /// the new wrapper, no allocation.
     pub fn from_png(png: Png) -> Self {
         Self {
-            image: png.image,
+            image: Arc::new(png.image),
             source: ImageSource::Png {
                 bit_depth: png.bit_depth,
                 color_type: png.color_type,
@@ -107,7 +107,7 @@ impl ImportedImage {
             Mos::V1(v1) => {
                 let variant = v1.r#type;
                 Ok(Self {
-                    image: v1.to_image(),
+                    image: Arc::new(v1.to_image()),
                     source: ImageSource::Mos { variant },
                 })
             }
@@ -123,7 +123,7 @@ impl ImportedImage {
             mos_v2_paste_block(block, pvrz, v2.width, image.as_mut());
         }
         Ok(Self {
-            image,
+            image: Arc::new(image),
             source: ImageSource::Mos { variant: v2.r#type },
         })
     }
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn test_format_description_png() {
         let img = ImportedImage {
-            image: ImageBuffer::new(1, 1),
+            image: Arc::new(ImageBuffer::new(1, 1)),
             source: ImageSource::Png {
                 bit_depth: 8,
                 color_type: PngColorType::Rgba,
@@ -387,7 +387,7 @@ mod tests {
         // Build a PVR-flavoured ImportedImage manually so we don't have
         // to round-trip through DataSource just to test the description.
         let img = ImportedImage {
-            image: ImageBuffer::new(1, 1),
+            image: Arc::new(ImageBuffer::new(1, 1)),
             source: ImageSource::Pvr {
                 pixel_format: PvrDataCompression::DXT5,
             },
@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(img.format_description(), "V1");
         assert_images_are_equal(
             &image::open(get_assets_path().join("MOS/V1/GTRSPCAP.png")).unwrap(),
-            &img.image.into(),
+            &(*img.image).clone().into(),
             None,
         );
     }
@@ -441,7 +441,7 @@ mod tests {
         assert_eq!(img.format_description(), "MOSC");
         assert_images_are_equal(
             &image::open(get_assets_path().join("MOS/MOSC/GUIWRLP8.png")).unwrap(),
-            &img.image.into(),
+            &(*img.image).clone().into(),
             None,
         );
     }

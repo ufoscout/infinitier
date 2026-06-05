@@ -66,7 +66,7 @@ fn test_import_all_resources() {
                 continue;
             }
             let result: std::io::Result<()> = match resource.import(&game_data) {
-                Ok(res) => match res {
+                Ok(res) => match res.into_owned() {
                     ImportedResource::Sound(mut sound_decoder) => {
                         sound_decoder.decode_all().map(|_| ())
                     }

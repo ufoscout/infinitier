@@ -12,32 +12,32 @@ pub use exporter::BcsExporter;
 pub use importer::BcsImporter;
 
 /// A parsed BCS script file.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Bcs {
     pub condition_responses: Vec<ConditionResponse>,
 }
 
 /// One condition–response block (`CR … CR`).
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionResponse {
     pub condition: Condition,
     pub response_set: ResponseSet,
 }
 
 /// The condition part (`CO … CO`) — all triggers must be true.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Condition {
     pub triggers: Vec<Trigger>,
 }
 
 /// The response-set part (`RS … RS`) — one response is chosen by weight.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResponseSet {
     pub responses: Vec<Response>,
 }
 
 /// One response (`RE … RE`) with a probability weight and a list of actions.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Response {
     pub weight: i32,
     pub actions: Vec<Action>,
@@ -49,7 +49,7 @@ pub struct Response {
 /// `flags & 1` means the trigger result is negated. `t7` carries the PST-only
 /// point parameter; it is `None` outside PST so bytecode round-trips don't
 /// emit a phantom `[0,0]` for non-PST scripts.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Trigger {
     pub id: i32,
     pub flags: i32,
@@ -76,7 +76,7 @@ pub struct BcsPoint {
 ///
 /// Parameters follow the BG/BG2 byte-code order:
 /// id, a1-object, a2-object, a3-object, a4, a5(x,y), a6, a7, a8-string, a9-string.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Action {
     pub id: i32,
     pub a1: BcsObject,
@@ -102,7 +102,7 @@ pub struct Action {
 /// `name` is the script name string. `region` carries the rectangular search
 /// area used by PST / IWD / IWD2 scripts (`[x.y.w.h]`); on BG it stays at the
 /// default empty value.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BcsObject {
     pub targets: Vec<i32>,
     pub identifiers: [i32; 5],

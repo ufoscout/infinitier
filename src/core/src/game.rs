@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, sync::Arc};
+use std::{borrow::Cow, collections::HashMap, io, sync::Arc};
 
 use infinitier_acm_resource::AcmImporter;
 use infinitier_bif_resource::{BifEmbeddedResource, BifImporter};
@@ -71,7 +71,7 @@ impl GameData {
         &self,
         name: &str,
         r#type: ResourceType,
-    ) -> io::Result<Option<ImportedResource>> {
+    ) -> io::Result<Option<Cow<'_, ImportedResource>>> {
         self.get_by_name_and_type(name, r#type)
             .map(|resource| resource.import(self))
             .transpose()
@@ -93,9 +93,10 @@ impl GameData {
     }
 
     /// Locate and load the game's `dialog.tlk`.
-    pub fn dialog_tlk(&self) -> io::Result<infinitier_tlk_resource::Tlk> {
+    pub fn dialog_tlk(&self) -> io::Result<Cow<'_, infinitier_tlk_resource::Tlk>> {
         match self.import_by_name_and_type("dialog", ResourceType::Tlk)? {
-            Some(ImportedResource::Tlk(tlk)) => Ok(tlk),
+            Some(Cow::Borrowed(ImportedResource::Tlk(tlk))) => Ok(Cow::Borrowed(tlk)),
+            Some(Cow::Owned(ImportedResource::Tlk(tlk))) => Ok(Cow::Owned(tlk)),
             _ => Err(io::Error::new(
                 io::ErrorKind::NotFound,
                 "dialog.tlk not found in game data",
@@ -150,6 +151,10 @@ pub struct GameResource {
     pub datasource: Option<DataSource>,
     /// Where the resource is loaded
     pub data_origin: DataOrigin,
+    /// Pre-imported resource. When `Some`, [`import`](Self::import) returns
+    /// this cached value (borrowed) instead of performing a full import
+    /// cycle from the [`datasource`](Self::datasource).
+    pub imported: Option<ImportedResource>,
 }
 
 impl GameResource {
@@ -194,7 +199,13 @@ impl GameResource {
     pub fn import(
         &self,
         game_data: &GameData,
-    ) -> io::Result<crate::imported_resource::ImportedResource> {
+    ) -> io::Result<Cow<'_, crate::imported_resource::ImportedResource>> {
+        // Already imported: hand back the cached value borrowed, skipping the
+        // full import cycle entirely.
+        if let Some(imported) = &self.imported {
+            return Ok(Cow::Borrowed(imported));
+        }
+
         use crate::imported_resource::{
             ImportedResource, bam::ImportedBam, bcs::ImportedBcs, image::ImportedImage,
             tis::ImportedTis,
@@ -223,7 +234,7 @@ impl GameResource {
             .datasource
             .as_ref()
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no datasource available"))?;
-        match self.r#type {
+        let imported = match self.r#type {
             ResourceType::Acm => AcmImporter { name: &self.name }
                 .import(ds)
                 .map(SoundDecoder::from)
@@ -337,7 +348,8 @@ impl GameResource {
                 .map(ImportedResource::Wed),
             ResourceType::Wfx => Ok(ImportedResource::Wfx),
             ResourceType::Wmp => Ok(ImportedResource::Wmp),
-        }
+        }?;
+        Ok(Cow::Owned(imported))
     }
 }
 
@@ -497,6 +509,7 @@ impl GameDataBuilder {
                         data_origin: DataOrigin::Bif {
                             name: bif.name.clone(),
                         },
+                        imported: None,
                     });
                 } else {
                     warn!(
@@ -510,6 +523,7 @@ impl GameDataBuilder {
                         file_size: None,
                         datasource: None,
                         data_origin: DataOrigin::Missing,
+                        imported: None,
                     });
                 }
             } else {
@@ -521,6 +535,7 @@ impl GameDataBuilder {
                     file_size: None,
                     datasource: None,
                     data_origin: DataOrigin::Missing,
+                    imported: None,
                 });
             }
         }
@@ -626,6 +641,7 @@ impl GameDataBuilder {
                 game_type: self.game_type,
                 r#type,
                 name,
+                imported: None,
             });
             count += 1;
         }
@@ -732,7 +748,10 @@ mod tests {
             .get_by_name_and_type("ar0714", ResourceType::Tis)
             .unwrap();
 
-        let imported = resource.import(&game_data).expect("TIS import succeeds");
+        let imported = resource
+            .import(&game_data)
+            .expect("TIS import succeeds")
+            .into_owned();
         let ImportedResource::Tis(tis) = imported else {
             panic!("expected ImportedResource::Tis");
         };
@@ -824,6 +843,7 @@ mod tests {
             file_size: None,
             datasource: None,
             data_origin: origin,
+            imported: None,
         }
     }
 

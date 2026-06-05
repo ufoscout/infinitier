@@ -77,14 +77,15 @@ fn load_portrait(
     // already-lowercased form so the index hits regardless of the
     // CRE field's original casing.
     if let Some(resource) = game_data.get_by_name_and_type(name, ResourceType::Bmp)
-        && let Ok(ImportedResource::Image(img)) = resource.import(game_data)
+        && let Ok(imported) = resource.import(game_data)
+        && let ImportedResource::Image(img) = imported.as_ref()
     {
         return Some(to_texture(ctx, name, img));
     }
     if let Some(path) = find_in_portraits_folder(game_data, name) {
         let ds = DataSource::new(path);
         if let Ok(bmp) = (BmpImporter { name }).import(&ds) {
-            return Some(to_texture(ctx, name, ImportedImage::from_bmp(bmp)));
+            return Some(to_texture(ctx, name, &ImportedImage::from_bmp(bmp)));
         }
     }
     None
@@ -113,11 +114,11 @@ fn find_in_portraits_folder(game_data: &GameData, name: &str) -> Option<PathBuf>
 /// `egui::ColorImage` expects unmultiplied RGBA, which is exactly
 /// what `ImportedImage` carries — no channel swap needed (unlike the
 /// gpui port, which has to convert to BGRA).
-fn to_texture(ctx: &egui::Context, name: &str, img: ImportedImage) -> egui::TextureHandle {
-    let buffer = img.image;
+fn to_texture(ctx: &egui::Context, name: &str, img: &ImportedImage) -> egui::TextureHandle {
+    let buffer = &img.image;
     let size = [buffer.width() as usize, buffer.height() as usize];
-    let pixels = buffer.into_raw();
-    let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &pixels);
+    let pixels = buffer.as_raw();
+    let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels);
     ctx.load_texture(
         format!("party-portrait/{name}"),
         color_image,

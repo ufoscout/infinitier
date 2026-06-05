@@ -9,7 +9,7 @@ pub use exporter::TwoDAExporter;
 pub use importer::TwoDAImporter;
 
 /// Represents a 2DA file.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TwoDA {
     pub headers: Vec<String>,
     pub default: String,

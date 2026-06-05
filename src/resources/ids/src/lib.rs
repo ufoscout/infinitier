@@ -11,13 +11,13 @@ pub use importer::IdsImporter;
 /// An IDS file — an ordered list of integer/symbol pairs.
 ///
 /// Insertion order is preserved; duplicate values are allowed.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Ids {
     pub entries: Vec<IdsEntry>,
 }
 
 /// A single integer/symbol pair inside an IDS file.
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IdsEntry {
     pub value: i32,
     pub value_str: String,

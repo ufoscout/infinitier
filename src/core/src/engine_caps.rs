@@ -17,6 +17,7 @@
 //! The entry point is [`EngineCaps::new`] — it needs a [`GameData`]
 //! so it can resolve and parse the 2DAs at construction time.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io;
 
@@ -680,9 +681,10 @@ pub fn d20_modifier(score: u8) -> i8 {
 /// Resolve `<name>.2DA` from `game_data` (override → BIFs), import
 /// it, and project the first matching column into a [`BonusTable`].
 /// Resolve + import a 2DA by name, or `None` if absent / not a 2DA.
-fn load_two_da(game_data: &GameData, name: &str) -> Option<TwoDA> {
+fn load_two_da<'a>(game_data: &'a GameData, name: &str) -> Option<Cow<'a, TwoDA>> {
     match game_data.import_by_name_and_type(name, ResourceType::TwoDA) {
-        Ok(Some(ImportedResource::TwoDA(two_da))) => Some(two_da),
+        Ok(Some(Cow::Borrowed(ImportedResource::TwoDA(two_da)))) => Some(Cow::Borrowed(two_da)),
+        Ok(Some(Cow::Owned(ImportedResource::TwoDA(two_da)))) => Some(Cow::Owned(two_da)),
         _ => None,
     }
 }
@@ -757,11 +759,14 @@ fn load_class_hp_data(
 /// its conservative default for every class.
 fn load_class_symbols(game_data: &GameData) -> HashMap<i32, String> {
     match game_data.import_by_name_and_type("class", ResourceType::Ids) {
-        Ok(Some(ImportedResource::Ids(ids))) => ids
-            .entries
-            .iter()
-            .map(|e| (e.value, e.name.clone()))
-            .collect(),
+        Ok(Some(cow)) => match cow.as_ref() {
+            ImportedResource::Ids(ids) => ids
+                .entries
+                .iter()
+                .map(|e| (e.value, e.name.clone()))
+                .collect(),
+            _ => HashMap::new(),
+        },
         _ => HashMap::new(),
     }
 }
@@ -804,7 +809,7 @@ fn load_bonus_table(
             )
         })?;
     let imported = resource.import(game_data)?;
-    let ImportedResource::TwoDA(two_da) = imported else {
+    let ImportedResource::TwoDA(two_da) = imported.as_ref() else {
         return Err(io::Error::other(format!(
             "{}.2DA did not import as a 2DA resource",
             name.to_ascii_uppercase()
@@ -1334,6 +1339,7 @@ mod tests {
                 file_size: path.metadata().ok().map(|m| m.len()),
                 datasource: Some(DataSource::new(path.as_path())),
                 data_origin: DataOrigin::Missing,
+                imported: None,
             });
         }
         GameData::new(resources, game, infinitier_fs::CaseInsensitiveFS::empty())

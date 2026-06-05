@@ -9,20 +9,20 @@ pub use exporter::IniExporter;
 pub use importer::IniImporter;
 
 /// A parsed INI file: an ordered list of sections.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Ini {
     pub sections: Vec<IniSection>,
 }
 
 /// A single section inside an INI file.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IniSection {
     pub name: String,
     pub entries: Vec<IniEntry>,
 }
 
 /// A single key=value entry inside a section.
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IniEntry {
     pub key: String,
     /// Raw string value; empty when the file had `key=` with nothing after it.

@@ -185,6 +185,21 @@ impl std::fmt::Debug for AcmDecoder {
     }
 }
 
+impl Clone for AcmDecoder {
+    /// Cloning re-opens the stream from the start: the decoder holds live
+    /// bitstream/block state and a boxed `dyn` reader that cannot be
+    /// duplicated, so we reconstruct a fresh decoder from the retained
+    /// [`DataSource`] (rewound to the beginning) instead.
+    ///
+    /// # Panics
+    /// Panics if the source can no longer be opened — it was opened
+    /// successfully once, so this only fires if it has since disappeared.
+    fn clone(&self) -> Self {
+        AcmDecoder::open(&self.datasource, self.output_channels, self.name.clone())
+            .expect("AcmDecoder::clone: reopening the datasource failed")
+    }
+}
+
 impl AcmDecoder {
     /// Open an ACM stream from a [`DataSource`]. The decoder pulls bytes
     /// lazily — block by block, like GemRB's ACMReader plugin — so memory
