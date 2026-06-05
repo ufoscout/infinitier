@@ -11,18 +11,21 @@
 - [X] bgee
     - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Wrong for dual-classed characters (e.g Imoen)
+    - [X] Proficiencies -> Wrong label `Scimitar / Wakizashi / NinjatÅ`
 - [ ] bg2 (TODO)
 - [X] bg2ee
     - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Check Imoen for a dual class
     - [X] Proficiencies -> Create a dual classed character and check the values
 - [ ] iwd (TODO)
-- [X] iwdee
+- [ ] iwdee
     - [X] Proficiencies -> Create a dual classed character and check the values
+    - [ ] Characteristics -> to verify the names of Kit and Racial
 - [ ] iwd2 (TODO)
 - [ ] pst (TODO)
     - [ ] Inventory -> missing
-- [X] pstee
+- [ ] pstee
+    - [ ] Abilities -> Thief skills bonus are slightly different from EEkeeper (check th game though)
     - [X] Characteristics -> Wrong kits for some classes
     - [X] Characteristics -> Original class for some dual-classed characters not reported (ignore it, I think we are right here)
     - [X] Characteristics -> Miscellaneous issues

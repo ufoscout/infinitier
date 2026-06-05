@@ -1611,6 +1611,7 @@ dependencies = [
 name = "infinitier_core"
 version = "0.0.8"
 dependencies = [
+ "encoding_rs",
  "image",
  "infinitier_acm_resource",
  "infinitier_bam_resource",

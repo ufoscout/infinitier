@@ -2,7 +2,7 @@ use std::{borrow::Cow, collections::HashMap, io, sync::Arc};
 
 use infinitier_acm_resource::AcmImporter;
 use infinitier_bif_resource::{BifEmbeddedResource, BifImporter};
-use infinitier_common::{Game, ResourceType};
+use infinitier_common::{Engine, Game, ResourceType};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CiPath, roots::Roots};
 use infinitier_key_resource::KeyImporter;
@@ -245,6 +245,21 @@ impl GameResource {
     }
 }
 
+/// The text encoding of a game's `dialog.tlk` string section.
+///
+/// Enhanced Edition games (the [`Engine::Ee`] family — BG:EE / BG2:EE /
+/// IWD:EE / PST:EE / EET / SoD) store the TLK as UTF-8. Classic (pre-EE)
+/// releases use the WINDOWS-1252 single-byte code page for Western
+/// locales — the importer's default — so they keep it. (Non-Western
+/// classic locales use other legacy code pages; those aren't modelled
+/// here yet.)
+fn dialog_tlk_encoding(game: Game) -> &'static encoding_rs::Encoding {
+    match game.engine() {
+        Engine::Ee => encoding_rs::UTF_8,
+        _ => encoding_rs::WINDOWS_1252,
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum DataOrigin {
     Bif { name: String },
@@ -399,9 +414,14 @@ impl GameResource {
                 .import(ds)
                 .and_then(|tis| ImportedTis::load(tis, game_data, &self.name))
                 .map(ImportedResource::Tis),
-            ResourceType::Tlk => TlkImporter { name: &self.name }
-                .import(ds)
-                .map(ImportedResource::Tlk),
+            ResourceType::Tlk => {
+                let source = ds
+                    .clone()
+                    .with_encoding(dialog_tlk_encoding(self.game_type));
+                TlkImporter { name: &self.name }
+                    .import(&source)
+                    .map(ImportedResource::Tlk)
+            }
             ResourceType::Toh => Ok(ImportedResource::Toh),
             ResourceType::Tot => Ok(ImportedResource::Tot),
             ResourceType::Ttf => TtfImporter { name: &self.name }
@@ -1201,6 +1221,95 @@ mod tests {
                 .get_all_resources_by_type(ResourceType::Tga)
                 .count(),
             0
+        );
+    }
+
+    // ── dialog.tlk encoding ──────────────────────────────────────────
+
+    /// Build a minimal one-entry TLK V1 byte stream whose single string
+    /// is `string_bytes` (raw, undecoded).
+    fn synth_tlk_bytes(string_bytes: &[u8]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"TLK ");
+        buf.extend_from_slice(b"V1  ");
+        buf.extend_from_slice(&0u16.to_le_bytes()); // language id
+        buf.extend_from_slice(&1u32.to_le_bytes()); // entry count
+        let strings_offset: u32 = 18 + 26; // header + one entry
+        buf.extend_from_slice(&strings_offset.to_le_bytes());
+        // Entry 0: flags, sound resref, variances, then (offset, length)
+        // into the strings section.
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&[0u8; 8]);
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(&(string_bytes.len() as u32).to_le_bytes());
+        buf.extend_from_slice(string_bytes);
+        buf
+    }
+
+    /// A `GameData` carrying a single in-memory `dialog.tlk`, tagged as
+    /// `game` so the importer picks the matching encoding.
+    fn game_data_with_dialog(game: Game, tlk_bytes: Vec<u8>) -> GameData {
+        let res = GameResource {
+            game_type: game,
+            name: "dialog".to_string(),
+            r#type: ResourceType::Tlk,
+            file_size: Some(tlk_bytes.len() as u64),
+            datasource: Some(DataSource::new(tlk_bytes)),
+            data_origin: DataOrigin::Missing,
+            imported: None,
+        };
+        GameData::new(vec![res], game, infinitier_fs::CaseInsensitiveFS::empty())
+    }
+
+    #[test]
+    fn dialog_tlk_encoding_is_utf8_for_ee_and_w1252_for_classic() {
+        for ee in [
+            Game::Bgee,
+            Game::BgeeSod,
+            Game::Bg2ee,
+            Game::Eet,
+            Game::Iwdee,
+            Game::Pstee,
+        ] {
+            assert_eq!(dialog_tlk_encoding(ee), encoding_rs::UTF_8, "{ee:?}");
+        }
+        for classic in [
+            Game::Bg,
+            Game::Bg2,
+            Game::Tutu,
+            Game::Iwd,
+            Game::Iwd2,
+            Game::Pst,
+        ] {
+            assert_eq!(
+                dialog_tlk_encoding(classic),
+                encoding_rs::WINDOWS_1252,
+                "{classic:?}"
+            );
+        }
+    }
+
+    /// Enhanced Edition `dialog.tlk` is UTF-8: a multi-byte glyph (the
+    /// "ō" in "Ninjatō", UTF-8 `0xC5 0x8D`) must decode intact rather
+    /// than mojibake into "Å…" as it would under WINDOWS-1252.
+    /// Regression for the Proficiencies-tab "Scimitar / Wakizashi /
+    /// Ninjatō" label.
+    #[test]
+    fn ee_dialog_tlk_decodes_utf8_multibyte_glyphs() {
+        let bytes = synth_tlk_bytes("Ninjatō".as_bytes());
+
+        let ee = game_data_with_dialog(Game::Bgee, bytes.clone());
+        assert_eq!(ee.dialog_tlk().unwrap().get(0).as_deref(), Some("Ninjatō"));
+
+        // The very same bytes under a classic game are decoded as
+        // WINDOWS-1252 → not equal, proving the per-game selection
+        // actually changes the result.
+        let classic = game_data_with_dialog(Game::Bg, bytes);
+        assert_ne!(
+            classic.dialog_tlk().unwrap().get(0).as_deref(),
+            Some("Ninjatō")
         );
     }
 }
