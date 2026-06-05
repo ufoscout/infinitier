@@ -302,6 +302,142 @@ impl SkillRaceBonuses {
     }
 }
 
+// ── Weapon proficiencies (WEAPPROF.2DA) ─────────────────────────────
+
+/// One weapon-proficiency category shown in the Proficiencies tab.
+///
+/// The set and naming are game-specific: BG/BG2/IWD(:EE) list the 24
+/// AD&D weapon proficiencies + fighting styles, while PST:EE lists its
+/// six categories (Axe, Bow, Club, Edged Weapon, Fist, Hammer). Both
+/// come from the engine's `WEAPPROF.2DA`, so the right set falls out of
+/// the data — see [`EngineCaps::proficiencies`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Proficiency {
+    /// The `IE_PROFICIENCY*` stat number — the CRE proficiency stat /
+    /// `op233` `param2` the points apply to (see `Cre::proficiency`).
+    pub stat: u8,
+    /// Display name. Resolved from the `WEAPPROF.2DA` row's `NAME_REF`
+    /// strref via `dialog.tlk`; the 2DA row label is the fallback when
+    /// the strref can't be resolved (e.g. a TLK-less test fixture).
+    pub name: String,
+}
+
+/// Lowest `IE_PROFICIENCY*` stat the EE engines use for the "modern"
+/// (AD&D 2e weapon + fighting-style) proficiency set. `WEAPPROF.2DA`
+/// also carries legacy BG1 categories (stats `0..=7`: Large Sword,
+/// Bow, Blunt, …) that the proficiency GUI does not show, so they're
+/// filtered out by this threshold.
+const FIRST_MODERN_PROFICIENCY_STAT: u8 = 89;
+
+/// Fallback proficiency list — the 24 entries EEKeeper shows for
+/// BG2/EE, used only when `WEAPPROF.2DA` is missing (classic BG / IWD /
+/// PST and IWD2 ship none). Blackjack (108), Gun (109) and Martial Arts
+/// (110) are omitted, as in EEKeeper.
+const FALLBACK_PROFICIENCIES: &[(u8, &str)] = &[
+    (92, "Axe"),
+    (89, "Bastard Sword"),
+    (115, "Club"),
+    (103, "Crossbow"),
+    (96, "Dagger"),
+    (106, "Dart"),
+    (100, "Flail/Morning Star"),
+    (99, "Halberd"),
+    (94, "Katana"),
+    (90, "Long Sword"),
+    (104, "Longbow"),
+    (101, "Mace"),
+    (102, "Quarterstaff"),
+    (95, "Scimitar / Wakizashi / Ninjato"),
+    (91, "Short Sword"),
+    (105, "Shortbow"),
+    (113, "Single-Weapon Style"),
+    (107, "Sling"),
+    (98, "Spear"),
+    (112, "Sword and Shield Style"),
+    (93, "Two-Handed Sword"),
+    (111, "Two-Handed Weapon Style"),
+    (114, "Two-Weapon Style"),
+    (97, "War Hammer"),
+];
+
+/// Resolve the proficiency list for `game_data` from `WEAPPROF.2DA`,
+/// falling back to [`FALLBACK_PROFICIENCIES`] when the table is absent.
+///
+/// Each `WEAPPROF.2DA` row carries an `ID` (the `IE_PROFICIENCY*` stat)
+/// and a `NAME_REF` (display strref). Rows are filtered to the modern
+/// stat range (`>= 89`, dropping the legacy BG1 categories) with a
+/// non-zero name, the name is resolved against `dialog.tlk` (the row
+/// label is the fallback), and the list is sorted by display name —
+/// matching EEKeeper's alphabetical column.
+fn load_proficiencies(game_data: &GameData) -> Vec<Proficiency> {
+    match weapprof_proficiencies(game_data) {
+        Some(list) if !list.is_empty() => list,
+        _ => FALLBACK_PROFICIENCIES
+            .iter()
+            .map(|&(stat, name)| Proficiency {
+                stat,
+                name: name.to_owned(),
+            })
+            .collect(),
+    }
+}
+
+/// Build the proficiency list from `WEAPPROF.2DA` (+ `dialog.tlk`), or
+/// `None` when the table can't be loaded.
+fn weapprof_proficiencies(game_data: &GameData) -> Option<Vec<Proficiency>> {
+    let two_da = game_data.import_2da_by_name("weapprof").ok()?;
+    let tlk = game_data.dialog_tlk().ok();
+    Some(proficiencies_from_2da(&two_da, |strref| {
+        tlk.as_ref().and_then(|t| t.get(strref))
+    }))
+}
+
+/// Pure builder: filter `WEAPPROF.2DA` rows to the modern stat range
+/// with a non-zero name, resolve each name via `resolve_name`
+/// (`NAME_REF` strref → display string; row label is the fallback), and
+/// sort by display name. Returns empty when the `ID`/`NAME_REF` columns
+/// are absent. Split out from [`weapprof_proficiencies`] so it can be
+/// unit-tested without a live `GameData`/`Tlk`.
+fn proficiencies_from_2da(
+    two_da: &TwoDA,
+    resolve_name: impl Fn(u32) -> Option<String>,
+) -> Vec<Proficiency> {
+    let (Some(id_col), Some(name_col)) =
+        (two_da_column(two_da, "ID"), two_da_column(two_da, "NAME_REF"))
+    else {
+        return Vec::new();
+    };
+    let mut list: Vec<Proficiency> = two_da
+        .rows
+        .iter()
+        .filter_map(|(label, cells)| {
+            let stat: u8 = cells.get(id_col)?.trim().parse().ok()?;
+            if stat < FIRST_MODERN_PROFICIENCY_STAT {
+                return None; // legacy BG1 category — not shown
+            }
+            let strref: u32 = cells.get(name_col)?.trim().parse().ok()?;
+            if strref == 0 {
+                return None; // EXTRA* placeholder row
+            }
+            let name = resolve_name(strref)
+                .map(|s| s.trim().to_owned())
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| label.trim().to_owned());
+            Some(Proficiency { stat, name })
+        })
+        .collect();
+    list.sort_by(|a, b| a.name.cmp(&b.name));
+    list
+}
+
+/// Case-insensitive lookup of a 2DA column index by header label.
+fn two_da_column(two_da: &TwoDA, label: &str) -> Option<usize> {
+    two_da
+        .headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case(label))
+}
+
 // ── Per-engine caps + bonuses ───────────────────────────────────────
 
 /// Bundle of per-field caps + per-engine bonus tables. Built once at
@@ -400,6 +536,10 @@ pub struct EngineCaps {
     /// shares [`Engine::Ee`] with BG:EE, so the engine alone can't tell
     /// them apart.
     con_hp_uncapped: bool,
+    /// Weapon-proficiency categories to show in the Proficiencies tab,
+    /// resolved from `WEAPPROF.2DA` at construction. See
+    /// [`Self::proficiencies`].
+    proficiencies: Vec<Proficiency>,
 }
 
 /// Hit-Die shape of a class's `HP*.2DA` table.
@@ -577,6 +717,7 @@ impl EngineCaps {
         };
         let class_symbols = load_class_symbols(game_data);
         let race_symbols = load_race_symbols(game_data);
+        let proficiencies = load_proficiencies(game_data);
         Ok(Self {
             engine,
             ability_score: ranges.ability_score,
@@ -612,7 +753,16 @@ impl EngineCaps {
             hp_table_profiles,
             class_symbols,
             con_hp_uncapped: matches!(game_data.game(), Game::Pst | Game::Pstee),
+            proficiencies,
         })
+    }
+
+    /// The weapon-proficiency categories to display, in EEKeeper's
+    /// alphabetical order, resolved from `WEAPPROF.2DA` at construction
+    /// (or the BG2/EE fallback list when the game ships no such table).
+    /// Each entry pairs the `IE_PROFICIENCY*` stat with its display name.
+    pub fn proficiencies(&self) -> &[Proficiency] {
+        &self.proficiencies
     }
 
     /// AD&D 2e to-hit bonus from STR + the 18/XX percentile when
@@ -1158,6 +1308,7 @@ mod tests {
             hp_table_profiles: HashMap::new(),
             class_symbols: HashMap::new(),
             con_hp_uncapped: false,
+            proficiencies: Vec::new(),
         }
     }
 
@@ -1660,6 +1811,116 @@ mod tests {
             result.is_ok(),
             "EngineCaps should build from pst_ee fixtures: {:?}",
             result.err()
+        );
+    }
+
+    // ── Weapon proficiencies (WEAPPROF.2DA) ──────────────────────────
+    //
+    // `assets/engine_caps/<key>/WEAPPROF.2DA` holds the extracted table
+    // for each install that ships one (bg2, bg_ee, bg2_ee, iwd_ee,
+    // pst_ee). The fixture `GameData` carries no `dialog.tlk`, so names
+    // resolve to the row label here — the *stat* set (the engine-driven
+    // logic this exercises) is what these tests pin. Display-name
+    // resolution is covered by `proficiencies_from_2da_*` below.
+
+    /// PST:EE lists exactly its six categories — Axe, Bow, Club, Edged
+    /// Weapon, Fist, Hammer — at the stats `WEAPPROF.2DA` maps them to.
+    #[test]
+    fn pstee_proficiencies_are_the_six_pst_categories() {
+        let caps =
+            EngineCaps::new(&fixture_game_data("pst_ee", infinitier_common::Game::Pstee)).unwrap();
+        let mut stats: Vec<u8> = caps.proficiencies().iter().map(|p| p.stat).collect();
+        stats.sort_unstable();
+        assert_eq!(
+            stats,
+            [89, 92, 96, 97, 103, 115],
+            "PST:EE should expose only its six proficiency stats",
+        );
+    }
+
+    /// BG2:EE lists the 24 modern AD&D proficiencies + fighting styles,
+    /// dropping the legacy BG1 categories (`stat < 89`) and the empty
+    /// `EXTRA*` rows.
+    #[test]
+    fn bg2ee_proficiencies_are_the_modern_set_with_styles() {
+        let caps =
+            EngineCaps::new(&fixture_game_data("bg2_ee", infinitier_common::Game::Bg2ee)).unwrap();
+        let stats: std::collections::HashSet<u8> =
+            caps.proficiencies().iter().map(|p| p.stat).collect();
+        assert_eq!(caps.proficiencies().len(), 24);
+        assert!(
+            caps.proficiencies().iter().all(|p| p.stat >= 89),
+            "legacy BG1 categories should be filtered out",
+        );
+        for style in [111u8, 112, 113, 114] {
+            assert!(stats.contains(&style), "missing fighting style stat {style}");
+        }
+        assert!(!stats.contains(&2), "legacy 'Bow' (stat 2) should be dropped");
+    }
+
+    /// A game that ships no `WEAPPROF.2DA` (classic PST) falls back to
+    /// the hardcoded BG2/EE list.
+    #[test]
+    fn games_without_weapprof_use_the_fallback_list() {
+        let caps =
+            EngineCaps::new(&fixture_game_data("pst", infinitier_common::Game::Pst)).unwrap();
+        assert_eq!(caps.proficiencies().len(), FALLBACK_PROFICIENCIES.len());
+        assert_eq!(caps.proficiencies()[0].name, "Axe");
+    }
+
+    /// Name resolution: `NAME_REF` strrefs resolve through the supplied
+    /// resolver (PST renames Bastard Sword → "Fist"); legacy stats and
+    /// `NAME_REF == 0` rows drop; the result sorts by display name.
+    #[test]
+    fn proficiencies_from_2da_resolves_names_filters_and_sorts() {
+        let two_da = make_two_da(
+            &["ID", "NAME_REF"],
+            &[
+                ("BASTARDSWORD", &["89", "100"]),
+                ("AXE", &["92", "101"]),
+                ("CROSSBOW", &["103", "102"]),
+                ("BOW", &["2", "999"]),    // legacy stat < 89 → dropped
+                ("EXTRA2", &["116", "0"]), // NAME_REF 0 → dropped
+            ],
+        );
+        let resolver = |strref: u32| match strref {
+            100 => Some("Fist".to_string()),
+            101 => Some("Axe".to_string()),
+            102 => Some("Bow".to_string()),
+            _ => None,
+        };
+        let list = proficiencies_from_2da(&two_da, resolver);
+        assert_eq!(
+            list,
+            vec![
+                Proficiency {
+                    stat: 92,
+                    name: "Axe".into()
+                },
+                Proficiency {
+                    stat: 103,
+                    name: "Bow".into()
+                },
+                Proficiency {
+                    stat: 89,
+                    name: "Fist".into() // Bastard Sword renamed by NAME_REF
+                },
+            ],
+        );
+    }
+
+    /// Without a resolver match (e.g. a TLK-less install) the row label
+    /// is used so the entry still appears.
+    #[test]
+    fn proficiencies_from_2da_falls_back_to_row_label() {
+        let two_da = make_two_da(&["ID", "NAME_REF"], &[("WARHAMMER", &["97", "55"])]);
+        let list = proficiencies_from_2da(&two_da, |_| None);
+        assert_eq!(
+            list,
+            vec![Proficiency {
+                stat: 97,
+                name: "WARHAMMER".into()
+            }]
         );
     }
 

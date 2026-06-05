@@ -150,7 +150,7 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Innate => InnateTab.show(ui, cre, &state.game_data),
         CharacterTab::Wizard => WizardTab.show(ui, cre, &state.game_data),
         CharacterTab::Cleric => ClericTab.show(ui, cre, &state.game_data),
-        CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, gam, game),
+        CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, &state.engine_caps),
         CharacterTab::Resistances => ResistancesTab.show(ui, cre, gam, game),
         // Effects resolves resource resrefs to spell names via their
         // SPL files and `dialog.tlk`, so it needs `game_data`.

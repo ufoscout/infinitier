@@ -1,65 +1,37 @@
 //! Read-only extraction of weapon-proficiency points for the
 //! Proficiencies tab.
 //!
-//! The resolution (CRE header block + `op233` "set proficiency" effects,
-//! unpacked into first/second-class points) lives in the
-//! [`infinitier_cre_resource`] crate via [`Cre::proficiency`]; this
-//! module just maps each `IE_PROFICIENCY*` stat to its display name and
-//! reads the resolved value.
+//! The *list* of proficiencies — which `IE_PROFICIENCY*` stats to show
+//! and their display names — is resolved once at startup by
+//! [`EngineCaps`](infinitier_core::engine_caps::EngineCaps) from the
+//! game's `WEAPPROF.2DA` (PST:EE thus shows its own six categories,
+//! BG/BG2/IWD(:EE) the 24 AD&D ones). This module only pairs each entry
+//! with the creature's effective first/second-class points, resolved by
+//! the [`infinitier_cre_resource`] crate via [`Cre::proficiency`].
 
+use infinitier_core::engine_caps::Proficiency;
 use infinitier_core::resource::cre::Cre;
 
 /// One table row: a proficiency and its first/second-class points.
 pub struct ProfRow {
-    pub name: &'static str,
+    pub name: String,
     pub first: u32,
     pub second: u32,
 }
 
-/// The proficiencies EEKeeper lists, in its display order, paired with
-/// their `IE_PROFICIENCY*` stat number. This set (24 entries) is fixed
-/// for BG2/EE — there is no stock 2DA that maps stat → display name,
-/// so the names are spelled out here (as NearInfinity / EEKeeper do).
-/// Blackjack (108), Gun (109) and Martial Arts (110) are intentionally
-/// omitted — they aren't part of the BG2 weapon-proficiency UI.
-const PROFICIENCIES: &[(u8, &str)] = &[
-    (92, "Axe"),
-    (89, "Bastard Sword"),
-    (115, "Club"),
-    (103, "Crossbow"),
-    (96, "Dagger"),
-    (106, "Dart"),
-    (100, "Flail/Morning Star"),
-    (99, "Halberd"),
-    (94, "Katana"),
-    (90, "Long Sword"),
-    (104, "Longbow"),
-    (101, "Mace"),
-    (102, "Quarterstaff"),
-    (95, "Scimitar / Wakizashi / Ninjato"),
-    (91, "Short Sword"),
-    (105, "Shortbow"),
-    (113, "Single-Weapon Style"),
-    (107, "Sling"),
-    (98, "Spear"),
-    (112, "Sword and Shield Style"),
-    (93, "Two-Handed Sword"),
-    (111, "Two-Handed Weapon Style"),
-    (114, "Two-Weapon Style"),
-    (97, "War Hammer"),
-];
-
-/// Build the table rows for a creature: each `IE_PROFICIENCY*` stat's
-/// effective first/second-class points, resolved by [`Cre::proficiency`].
-pub fn proficiency_rows(cre: &Cre) -> Vec<ProfRow> {
-    PROFICIENCIES
+/// Build the table rows: each proficiency from `proficiencies` (the
+/// engine's `WEAPPROF.2DA`-derived list) paired with `cre`'s effective
+/// points for that stat. The list order is preserved so the table
+/// renders in EEKeeper's alphabetical order.
+pub fn proficiency_rows(cre: &Cre, proficiencies: &[Proficiency]) -> Vec<ProfRow> {
+    proficiencies
         .iter()
-        .map(|&(stat, name)| {
-            let p = cre.proficiency(stat);
+        .map(|p| {
+            let points = cre.proficiency(p.stat);
             ProfRow {
-                name,
-                first: u32::from(p.first_class),
-                second: u32::from(p.second_class),
+                name: p.name.clone(),
+                first: u32::from(points.first_class),
+                second: u32::from(points.second_class),
             }
         })
         .collect()
@@ -73,9 +45,9 @@ mod tests {
     use infinitier_core::resource::Game;
     use infinitier_core::resource::gam::GamImporter;
 
-    /// A shipped BGEE save whose pre-built party includes the dual-class
-    /// thief/mage Imoen (`*MOEN1`) and the single-class fighter PC
-    /// (`*HARBASE`) — both carry their proficiencies as `op233` effects.
+    /// A shipped BGEE save whose pre-built party includes the single-class
+    /// fighter PC (`*HARBASE`) — carrying its proficiencies as `op233`
+    /// effects.
     const SAVE: &str = "SAV_GAM/bg_ee/save/000000001-Salvataggio Rapido/BALDUR.gam";
 
     fn party_cre(name: &str) -> Box<Cre> {
@@ -99,34 +71,35 @@ mod tests {
             .unwrap_or_else(|| panic!("party member {name} not found"))
     }
 
-    fn fs(rows: &[ProfRow], name: &str) -> (u32, u32) {
-        let r = rows.iter().find(|r| r.name == name).unwrap();
-        (r.first, r.second)
-    }
-
+    /// `proficiency_rows` keeps the engine-caps list (order + names) and
+    /// fills each row from `Cre::proficiency` — including untrained
+    /// proficiencies, which stay in the table at 0/0.
     #[test]
-    fn dual_class_proficiencies_unpack_into_first_and_second() {
-        // Imoen (dual Thief→Mage): EEKeeper swaps the two slots for a
-        // dual-class character's *weapons* (active class low, suspended
-        // original = "First Class" high), so Sling 10 reads 1/2 and
-        // Dagger 1 reads 0/1. Fighting styles (Single-Weapon Style) are
-        // not swapped. (`Cre::proficiency` owns this orientation.)
-        let rows = proficiency_rows(&party_cre("*MOEN1"));
-        assert_eq!(fs(&rows, "Dagger"), (0, 1)); // packed 1, swapped
-        assert_eq!(fs(&rows, "Short Sword"), (1, 1)); // packed 9
-        assert_eq!(fs(&rows, "Shortbow"), (1, 1)); // packed 9
-        assert_eq!(fs(&rows, "Single-Weapon Style"), (1, 0)); // style: not swapped
-        assert_eq!(fs(&rows, "Sling"), (1, 2)); // packed 10, swapped
-        assert_eq!(fs(&rows, "Axe"), (0, 0));
-    }
-
-    #[test]
-    fn single_class_proficiencies_are_first_class_only() {
-        // The fighter PC's pips all land in First Class (low 3 bits),
-        // none in Second — calibrating the bit order.
-        let rows = proficiency_rows(&party_cre("*HARBASE"));
-        assert_eq!(fs(&rows, "Axe"), (5, 0));
-        assert_eq!(fs(&rows, "Long Sword"), (5, 0));
-        assert_eq!(fs(&rows, "Two-Weapon Style"), (3, 0));
+    fn rows_pair_engine_caps_list_with_cre_values() {
+        let cre = party_cre("*HARBASE"); // single-class fighter
+        let profs = vec![
+            Proficiency {
+                stat: 92,
+                name: "Axe".into(),
+            },
+            Proficiency {
+                stat: 90,
+                name: "Long Sword".into(),
+            },
+            Proficiency {
+                stat: 103,
+                name: "Crossbow".into(),
+            },
+        ];
+        let rows = proficiency_rows(&cre, &profs);
+        assert_eq!(rows.len(), 3);
+        // List order + names preserved; values come from the CRE.
+        assert_eq!(rows[0].name, "Axe");
+        assert_eq!((rows[0].first, rows[0].second), (5, 0));
+        assert_eq!(rows[1].name, "Long Sword");
+        assert_eq!((rows[1].first, rows[1].second), (5, 0));
+        // Untrained, but still shown (the list is engine-driven).
+        assert_eq!(rows[2].name, "Crossbow");
+        assert_eq!((rows[2].first, rows[2].second), (0, 0));
     }
 }

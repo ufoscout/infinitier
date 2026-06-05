@@ -22,7 +22,7 @@ pub fn render(ui: &mut egui::Ui, rows: &[ProfRow]) {
                 ui.end_row();
 
                 for row in rows {
-                    ui.add(Label::new(row.name));
+                    ui.add(Label::new(row.name.clone()));
                     value_cell(ui, row.first);
                     value_cell(ui, row.second);
                     ui.end_row();

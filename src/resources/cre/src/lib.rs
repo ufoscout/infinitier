@@ -1446,10 +1446,7 @@ impl Cre {
         self.orient_proficiency(stat, self.effect_proficiency_byte(stat))
     }
 
-    /// The effective weapon proficiency the engine resolves for a stat:
-    /// the header base with any `op233` effect applied on top (real saves
-    /// store a proficiency in the header XOR in an effect, so the larger
-    /// packed byte matches the engine for both layouts).
+    /// The effective weapon proficiency the engine resolves for a stat.
     ///
     /// The packed byte's two 3-bit slots map to first/second class the
     /// way EEKeeper shows them: for a **dual-classed** character's weapon
@@ -1458,9 +1455,11 @@ impl Cre {
     /// in the high slot); single/multi-class characters and fighting
     /// styles (stats `111..=114`) are not swapped.
     pub fn proficiency(&self, stat: u8) -> WeaponProficiency {
-        let byte = self
-            .header_proficiency_byte(stat)
-            .max(self.effect_proficiency_byte(stat));
+        let byte = if self.has_proficiency_effects() {
+            self.effect_proficiency_byte(stat)
+        } else {
+            self.header_proficiency_byte(stat)
+        };
         self.orient_proficiency(stat, byte)
     }
 
@@ -2377,6 +2376,44 @@ mod tests {
         assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(4, 1));
         assert_eq!(op233_points(&cre, BASTARD_SWORD), None); // no effect created
         assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(4, 1));
+    }
+
+    /// Append a raw `op233` proficiency effect (packed `points`) to a
+    /// V1.0 creature's effect list, making it "effect-based".
+    fn push_op233(cre: &mut Cre, stat: u8, packed_points: u32) {
+        let p = Proficiency {
+            proficiency: u32::from(stat),
+            points: packed_points,
+        };
+        let SubSections::V1(s) = &mut cre.sub_sections else {
+            panic!("expected V1 sub-sections");
+        };
+        match &mut s.effects {
+            EffectList::V2(l) => l.push(EffectV2::Proficiency(p)),
+            EffectList::V1(l) => l.push(EffectV1::Proficiency(p)),
+        }
+    }
+
+    /// Once a creature carries `op233` proficiency effects, its V1.0
+    /// header block stops being authoritative: a stat present only in
+    /// the (now stale) header reads as empty, matching EEKeeper. This
+    /// reproduces the PST:EE party-member bug where a leftover header
+    /// byte rendered as a phantom "Bow" proficiency until the header was
+    /// ignored.
+    #[test]
+    fn header_proficiency_is_ignored_once_effects_present() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        // Standalone CRE: the header block is authoritative.
+        assert_eq!(cre.proficiency(BASTARD_SWORD), prof(2, 0)); // header 89=2
+        assert_eq!(cre.proficiency(AXE), prof(1, 0)); // header 92=1
+
+        // Adding an op233 effect (Short Sword) makes the creature
+        // effect-based; the header stops being authoritative.
+        push_op233(&mut cre, SHORT_SWORD, 4); // packed low=4 → first=4
+        assert_eq!(cre.proficiency(SHORT_SWORD), prof(4, 0)); // from the effect
+        // Stats that lived only in the stale header now read empty.
+        assert_eq!(cre.proficiency(BASTARD_SWORD), prof(0, 0));
+        assert_eq!(cre.proficiency(AXE), prof(0, 0));
     }
 
     /// Reproduces the exact `op233` bytes EEKeeper writes for the four

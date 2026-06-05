@@ -21,12 +21,13 @@
     - [X] Proficiencies -> Create a dual classed character and check the values
 - [ ] iwd2 (TODO)
 - [ ] pst (TODO)
-- [ ] pstee
+    - [ ] Inventory -> missing
+- [X] pstee
     - [X] Characteristics -> Wrong kits for some classes
     - [X] Characteristics -> Original class for some dual-classed characters not reported (ignore it, I think we are right here)
     - [X] Characteristics -> Miscellaneous issues
     - [X] Inventory -> missing
-    - [ ] Proficiency -> wrong list and values
+    - [X] Proficiency -> wrong list and values
     - [X] Resistances -> Ignus -> cold & magic cold are reported as 206 but it should be -50
     - [X] Miscellaneous -> Others -> Tracking Target is empty in EEkeeper but has strange values in Keeper
 

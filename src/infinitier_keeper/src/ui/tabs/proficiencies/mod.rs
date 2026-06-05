@@ -8,14 +8,17 @@ mod data;
 mod view;
 
 use eframe::egui;
-use infinitier_core::imported_resource::gam::ImportedGam;
-use infinitier_core::resource::{Game, cre::Cre};
+use infinitier_core::engine_caps::EngineCaps;
+use infinitier_core::resource::cre::Cre;
 
 pub struct ProficienciesTab;
 
 impl ProficienciesTab {
-    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, _gam: &ImportedGam, _game: Game) {
-        let rows = data::proficiency_rows(cre);
+    /// The proficiency list (stats + display names) is resolved once at
+    /// startup into `engine_caps` from the game's `WEAPPROF.2DA`; the tab
+    /// just pairs it with the creature's points.
+    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, engine_caps: &EngineCaps) {
+        let rows = data::proficiency_rows(cre, engine_caps.proficiencies());
         view::render(ui, &rows);
     }
 }
