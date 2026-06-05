@@ -1,29 +1,13 @@
 //! Read-only extraction of weapon-proficiency points for the
 //! Proficiencies tab.
 //!
-//! Two sources are combined, mirroring how the engine resolves a
-//! creature's proficiencies:
-//!
-//! 1. The CRE header proficiency block (0x6E..0x81 on V1.0), one byte
-//!    per weapon stat. Each byte packs the *first-class* points in the
-//!    low 3 bits and the *second-class* points (dual/multi) in the
-//!    next 3 — exactly EEKeeper's two columns.
-//! 2. Permanent `op233` ("set proficiency") effects on the creature.
-//!    Save-game party members frequently carry their proficiencies
-//!    here with a zero header block (the BG2EE reference save does),
-//!    so these must be folded in or the table reads all-zero.
-//!
-//! `param2` of an op233 effect is the `IE_PROFICIENCY*` stat number
-//! (89 = Bastard Sword … 114 = Two-Weapon Style — GemRB `ie_stats.h`);
-//! `param1` is the **same packed byte** as the header (low 3 bits =
-//! first class, next 3 = second), NOT a plain point count. So a
-//! dual-class Imoen's Short Sword effect of `9` (`0b001001`) is 1 point
-//! in each class, not 9 — it must be unpacked, exactly like the header.
-//! op233 set-sets (max), so header and effect combine via `max`.
+//! The resolution (CRE header block + `op233` "set proficiency" effects,
+//! unpacked into first/second-class points) lives in the
+//! [`infinitier_cre_resource`] crate via [`Cre::proficiency`]; this
+//! module just maps each `IE_PROFICIENCY*` stat to its display name and
+//! reads the resolved value.
 
-use std::collections::HashMap;
-
-use infinitier_core::resource::cre::{Cre, EffectList, EffectV1, EffectV2, SubSections};
+use infinitier_core::resource::cre::Cre;
 
 /// One table row: a proficiency and its first/second-class points.
 pub struct ProfRow {
@@ -65,64 +49,20 @@ const PROFICIENCIES: &[(u8, &str)] = &[
     (97, "War Hammer"),
 ];
 
-/// Build the table rows for a creature. The packed proficiency byte for
-/// each stat is the larger of the CRE header byte (via
-/// [`Cre::header_proficiency_byte`]) and any `op233` effect value (which
-/// is the same packed byte — save-game party members carry their
-/// proficiencies there). The byte is then split into first/second-class
-/// points, exactly like EEKeeper's two columns.
+/// Build the table rows for a creature: each `IE_PROFICIENCY*` stat's
+/// effective first/second-class points, resolved by [`Cre::proficiency`].
 pub fn proficiency_rows(cre: &Cre) -> Vec<ProfRow> {
-    let effects = effect_proficiency_bytes(cre);
-
     PROFICIENCIES
         .iter()
         .map(|&(stat, name)| {
-            let effect = effects.get(&u32::from(stat)).copied().unwrap_or(0);
-            // op233 is a set-if-greater (GemRB `fx_set_proficiency`), so
-            // the effective packed byte is the max of header and effect.
-            let packed = cre.header_proficiency_byte(stat).max(effect);
+            let p = cre.proficiency(stat);
             ProfRow {
                 name,
-                first: u32::from(packed & 0x07),
-                second: u32::from((packed >> 3) & 0x07),
+                first: u32::from(p.first_class),
+                second: u32::from(p.second_class),
             }
         })
         .collect()
-}
-
-/// The packed proficiency byte granted by `op233` ("set proficiency")
-/// effects, keyed by the targeted `IE_PROFICIENCY*` stat (`param2`).
-/// `param1` is the packed byte; op233 keeps the largest, so we reduce
-/// duplicates with `max` rather than summing.
-fn effect_proficiency_bytes(cre: &Cre) -> HashMap<u32, u8> {
-    let mut bytes: HashMap<u32, u8> = HashMap::new();
-    let SubSections::V1(sub) = &cre.sub_sections else {
-        return bytes;
-    };
-    let mut record = |stat: u32, packed: u32| {
-        let packed = packed.min(u32::from(u8::MAX)) as u8;
-        let entry = bytes.entry(stat).or_default();
-        *entry = (*entry).max(packed);
-    };
-    // `op233` parses to a typed `Proficiency` variant in both effect
-    // versions (`proficiency` = stat, `points` = the packed byte).
-    match &sub.effects {
-        EffectList::V2(effects) => {
-            for e in effects {
-                if let EffectV2::Proficiency(p) = e {
-                    record(p.proficiency, p.points);
-                }
-            }
-        }
-        EffectList::V1(effects) => {
-            for e in effects {
-                if let EffectV1::Proficiency(p) = e {
-                    record(p.proficiency, p.points);
-                }
-            }
-        }
-    }
-    bytes
 }
 
 #[cfg(test)]

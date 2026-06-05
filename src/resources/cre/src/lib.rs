@@ -886,6 +886,37 @@ pub struct Proficiency {
     pub points: u32,
 }
 
+/// Weapon-proficiency points for one weapon stat, split by class slot.
+///
+/// The Infinity Engine packs both slots into a single byte: the
+/// first-class points in bits 0–2 and the second-class (dual/multi-class)
+/// points in bits 3–5. Both fields are `0..=7` (in practice `0..=5`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct WeaponProficiency {
+    pub first_class: u8,
+    pub second_class: u8,
+}
+
+impl WeaponProficiency {
+    /// Unpack the engine's packed proficiency byte.
+    pub fn from_packed(byte: u8) -> Self {
+        Self {
+            first_class: byte & 0x07,
+            second_class: (byte >> 3) & 0x07,
+        }
+    }
+
+    /// Repack into the engine's byte; each slot is clamped to `0..=7`.
+    pub fn to_packed(self) -> u8 {
+        (self.first_class & 0x07) | ((self.second_class & 0x07) << 3)
+    }
+
+    /// `true` when both slots are zero.
+    pub fn is_empty(self) -> bool {
+        self.first_class == 0 && self.second_class == 0
+    }
+}
+
 impl Proficiency {
     /// `param1` (points) / `param2` (proficiency stat) record offsets.
     const POINTS_OFFSET: usize = 0x14;
@@ -1224,47 +1255,192 @@ impl Cre {
         })
     }
 
-    /// The raw packed weapon-proficiency byte stored in the V1.0 header
-    /// for an `IE_PROFICIENCY*` stat.
+    /// The CRE header's weapon proficiency for an `IE_PROFICIENCY*` stat,
+    /// unpacked into first/second-class points.
     ///
-    /// The V1.0 header carries 20 packed bytes covering stats
-    /// `89..=108`; each byte stores the first-class points in the low 3
-    /// bits and the second-class (dual/multi-class) points in the next
-    /// 3 — unpack with `byte & 7` / `(byte >> 3) & 7`. Returns `0` for
-    /// stats outside the packed range or headers that don't use this
-    /// layout (PST / IWD / IWD2 model proficiencies differently).
-    pub fn header_proficiency_byte(&self, stat: u8) -> u8 {
-        /// `IE_PROFICIENCYBASTARDSWORD` — first stat in the packed block.
-        const PROF_STAT_BASE: u8 = 89;
-        let CreHeader::V10(h) = &self.header else {
-            return 0;
-        };
-        let packed = [
-            h.bg1_large_swords_proficiency_other_games,
-            h.bg1_small_swords_proficiency,
-            h.bg1_bows_proficiency,
-            h.bg1_spears_proficiency,
-            h.bg1_blunt_proficiency,
-            h.bg1_spiked_proficiency,
-            h.bg1_axe_proficiency,
-            h.bg1_missile_proficiency,
-            h.unused_proficiency_proficiencies_are_packed_into,
-            h.unused_proficiency_proficiencies_are_packed_into_2,
-            h.unused_proficiency_proficiencies_are_packed_into_3,
-            h.unused_proficiency_proficiencies_are_packed_into_4,
-            h.unused_proficiency_proficiencies_are_packed_into_5,
-            h.bg1,
-            h.bg1_2,
-            h.bg1_3,
-            h.bg1_4,
-            h.bg1_5,
-            h.bg1_6,
-            h.bg1_7,
-        ];
-        stat.checked_sub(PROF_STAT_BASE)
-            .and_then(|i| packed.get(i as usize).copied())
-            .unwrap_or(0)
+    /// Only the V1.0 header carries this packed block (20 bytes covering
+    /// stats `89..=108`); other versions model proficiencies differently
+    /// (PST / IWD V9.0 use older single-category slots, IWD2 is d20), so
+    /// this returns an empty proficiency there.
+    pub fn header_proficiency(&self, stat: u8) -> WeaponProficiency {
+        WeaponProficiency::from_packed(self.header_proficiency_byte(stat))
     }
+
+    /// The weapon proficiency an `op233` ("set proficiency") effect sets
+    /// for a stat, unpacked. Save-game party members store their
+    /// proficiencies here (with a zeroed header); empty when no effect
+    /// targets the stat.
+    pub fn effect_proficiency(&self, stat: u8) -> WeaponProficiency {
+        WeaponProficiency::from_packed(self.effect_proficiency_byte(stat))
+    }
+
+    /// The effective weapon proficiency the engine resolves for a stat:
+    /// the header base with any `op233` effect applied on top. Real saves
+    /// store a proficiency in the header XOR in an effect, so taking the
+    /// larger packed byte matches the engine (op233 is set-if-greater)
+    /// for both layouts.
+    pub fn proficiency(&self, stat: u8) -> WeaponProficiency {
+        let packed = self
+            .header_proficiency_byte(stat)
+            .max(self.effect_proficiency_byte(stat));
+        WeaponProficiency::from_packed(packed)
+    }
+
+    /// Set the weapon proficiency for an `IE_PROFICIENCY*` stat.
+    ///
+    /// Writes **both** the V1.0 header byte and any existing `op233`
+    /// effect targeting the stat, so the change is honoured whether the
+    /// engine reads the header (a standalone CRE) or the effect (a
+    /// save-game party member). Editing only the header is the classic
+    /// "proficiencies vanish on save" bug — the op233 effect overrides
+    /// it. Existing effects are updated in place; none are created (the
+    /// header already covers a stat with no effect).
+    pub fn set_proficiency(&mut self, stat: u8, value: WeaponProficiency) {
+        let packed = value.to_packed();
+        if let CreHeader::V10(h) = &mut self.header
+            && let Some(byte) = v10_proficiency_byte_mut(h, stat)
+        {
+            *byte = packed;
+        }
+        self.set_effect_proficiency_byte(stat, packed);
+    }
+
+    /// Raw packed proficiency byte from the V1.0 header (0 elsewhere).
+    fn header_proficiency_byte(&self, stat: u8) -> u8 {
+        match &self.header {
+            CreHeader::V10(h) => v10_proficiency_byte(h, stat),
+            _ => 0,
+        }
+    }
+
+    /// Highest packed proficiency byte set by `op233` effects for `stat`.
+    fn effect_proficiency_byte(&self, stat: u8) -> u8 {
+        let effects = match &self.sub_sections {
+            SubSections::V1(s) => &s.effects,
+            SubSections::V22(s) => &s.effects,
+        };
+        let mut best = 0u8;
+        // `param2`'s low word is the stat; the high word is the EE
+        // increment flag, which set-mode saves leave at 0.
+        let mut consider = |prof: u32, points: u32| {
+            if prof & 0xFFFF == u32::from(stat) {
+                best = best.max((points & 0xFF) as u8);
+            }
+        };
+        match effects {
+            EffectList::V2(list) => {
+                for e in list {
+                    if let EffectV2::Proficiency(p) = e {
+                        consider(p.proficiency, p.points);
+                    }
+                }
+            }
+            EffectList::V1(list) => {
+                for e in list {
+                    if let EffectV1::Proficiency(p) = e {
+                        consider(p.proficiency, p.points);
+                    }
+                }
+            }
+        }
+        best
+    }
+
+    /// Overwrite the packed `points` of every `op233` effect targeting
+    /// `stat`. Does not create effects.
+    fn set_effect_proficiency_byte(&mut self, stat: u8, packed: u8) {
+        let effects = match &mut self.sub_sections {
+            SubSections::V1(s) => &mut s.effects,
+            SubSections::V22(s) => &mut s.effects,
+        };
+        match effects {
+            EffectList::V2(list) => {
+                for e in list.iter_mut() {
+                    if let EffectV2::Proficiency(p) = e
+                        && p.proficiency & 0xFFFF == u32::from(stat)
+                    {
+                        p.points = u32::from(packed);
+                    }
+                }
+            }
+            EffectList::V1(list) => {
+                for e in list.iter_mut() {
+                    if let EffectV1::Proficiency(p) = e
+                        && p.proficiency & 0xFFFF == u32::from(stat)
+                    {
+                        p.points = u32::from(packed);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// `IE_PROFICIENCYBASTARDSWORD` — first stat in the packed V1.0 block.
+const PROF_STAT_BASE: u8 = 89;
+/// Number of packed proficiency bytes in the V1.0 header (stats 89..=108).
+const PROF_STAT_COUNT: u8 = 20;
+
+/// Index into the V1.0 header proficiency block for a stat, if it falls
+/// within the packed range.
+fn v10_proficiency_index(stat: u8) -> Option<usize> {
+    stat.checked_sub(PROF_STAT_BASE)
+        .filter(|&i| i < PROF_STAT_COUNT)
+        .map(usize::from)
+}
+
+/// Read the packed proficiency byte for `stat` from a V1.0 header.
+fn v10_proficiency_byte(h: &CreHeaderV10, stat: u8) -> u8 {
+    let packed = [
+        h.bg1_large_swords_proficiency_other_games,
+        h.bg1_small_swords_proficiency,
+        h.bg1_bows_proficiency,
+        h.bg1_spears_proficiency,
+        h.bg1_blunt_proficiency,
+        h.bg1_spiked_proficiency,
+        h.bg1_axe_proficiency,
+        h.bg1_missile_proficiency,
+        h.unused_proficiency_proficiencies_are_packed_into,
+        h.unused_proficiency_proficiencies_are_packed_into_2,
+        h.unused_proficiency_proficiencies_are_packed_into_3,
+        h.unused_proficiency_proficiencies_are_packed_into_4,
+        h.unused_proficiency_proficiencies_are_packed_into_5,
+        h.bg1,
+        h.bg1_2,
+        h.bg1_3,
+        h.bg1_4,
+        h.bg1_5,
+        h.bg1_6,
+        h.bg1_7,
+    ];
+    v10_proficiency_index(stat).map_or(0, |i| packed[i])
+}
+
+/// Mutable reference to the packed proficiency byte for `stat` in a V1.0
+/// header, or `None` for stats outside the packed range.
+fn v10_proficiency_byte_mut(h: &mut CreHeaderV10, stat: u8) -> Option<&mut u8> {
+    Some(match v10_proficiency_index(stat)? {
+        0 => &mut h.bg1_large_swords_proficiency_other_games,
+        1 => &mut h.bg1_small_swords_proficiency,
+        2 => &mut h.bg1_bows_proficiency,
+        3 => &mut h.bg1_spears_proficiency,
+        4 => &mut h.bg1_blunt_proficiency,
+        5 => &mut h.bg1_spiked_proficiency,
+        6 => &mut h.bg1_axe_proficiency,
+        7 => &mut h.bg1_missile_proficiency,
+        8 => &mut h.unused_proficiency_proficiencies_are_packed_into,
+        9 => &mut h.unused_proficiency_proficiencies_are_packed_into_2,
+        10 => &mut h.unused_proficiency_proficiencies_are_packed_into_3,
+        11 => &mut h.unused_proficiency_proficiencies_are_packed_into_4,
+        12 => &mut h.unused_proficiency_proficiencies_are_packed_into_5,
+        13 => &mut h.bg1,
+        14 => &mut h.bg1_2,
+        15 => &mut h.bg1_3,
+        16 => &mut h.bg1_4,
+        17 => &mut h.bg1_5,
+        18 => &mut h.bg1_6,
+        _ => &mut h.bg1_7,
+    })
 }
 
 // ── Keeper-facing per-version field accessors ───────────────────────
@@ -1827,6 +2003,88 @@ mod tests {
         );
         assert_eq!(record[0x1C], 9, "permanent timing mode");
         assert_eq!(Proficiency::from_record(&record), original);
+    }
+
+    // ── Weapon-proficiency resolution + editing ──────────────────────
+
+    // IE_PROFICIENCY stat numbers used below (GemRB `ie_stats.h`).
+    const SHORT_SWORD: u8 = 91;
+    const AXE: u8 = 92;
+    const DAGGER: u8 = 96;
+    const SLING: u8 = 107;
+
+    fn prof(first_class: u8, second_class: u8) -> WeaponProficiency {
+        WeaponProficiency {
+            first_class,
+            second_class,
+        }
+    }
+
+    fn round_trip(cre: &Cre) -> Cre {
+        use infinitier_common::Game;
+        use infinitier_datasource::{DataSource, Importer};
+        let mut bytes = Vec::new();
+        CreExporter.export(cre, &mut bytes).unwrap();
+        CreImporter {
+            name: "round-trip",
+            game: Game::Bgee,
+        }
+        .import(&DataSource::new(bytes))
+        .unwrap()
+    }
+
+    #[test]
+    fn weapon_proficiency_packs_and_unpacks() {
+        assert_eq!(WeaponProficiency::from_packed(9), prof(1, 1)); // 0b001001
+        assert_eq!(WeaponProficiency::from_packed(10), prof(2, 1)); // 0b001010
+        assert_eq!(prof(3, 2).to_packed(), 19); // 0b010011
+        for b in 0u8..64 {
+            assert_eq!(WeaponProficiency::from_packed(b).to_packed(), b);
+        }
+    }
+
+    /// A dual-class save-game member (Imoen, Thief→Mage) carries her
+    /// proficiencies as packed `op233` effects with a zeroed header.
+    /// `proficiency` must unpack them, not echo the raw byte.
+    #[test]
+    fn dual_class_proficiency_resolves_from_op233_effects() {
+        let cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
+        // Header empty; the values live in the effects.
+        assert_eq!(cre.header_proficiency(SHORT_SWORD), prof(0, 0));
+        assert_eq!(cre.effect_proficiency(SHORT_SWORD), prof(1, 1)); // packed 9
+        assert_eq!(cre.proficiency(SHORT_SWORD), prof(1, 1));
+        assert_eq!(cre.proficiency(SLING), prof(2, 1)); // packed 10
+        assert_eq!(cre.proficiency(DAGGER), prof(1, 0)); // packed 1
+        // A weapon she has no proficiency in.
+        assert_eq!(cre.proficiency(AXE), prof(0, 0));
+    }
+
+    /// Editing a proficiency that lives in an `op233` effect must update
+    /// the effect (and the header, for good measure) so the change
+    /// survives export/import — and, in-game, doesn't "vanish on save".
+    #[test]
+    fn set_proficiency_updates_effect_and_round_trips() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
+        cre.set_proficiency(SHORT_SWORD, prof(3, 2));
+        assert_eq!(cre.header_proficiency(SHORT_SWORD), prof(3, 2));
+        assert_eq!(cre.effect_proficiency(SHORT_SWORD), prof(3, 2));
+
+        let rt = round_trip(&cre);
+        assert_eq!(rt.effect_proficiency(SHORT_SWORD), prof(3, 2));
+        assert_eq!(rt.proficiency(SHORT_SWORD), prof(3, 2));
+    }
+
+    /// Setting a stat that has no existing `op233` effect writes the
+    /// header byte (no effect is created), and round-trips.
+    #[test]
+    fn set_proficiency_without_effect_writes_header() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
+        cre.set_proficiency(AXE, prof(4, 1)); // packed 12
+        assert_eq!(cre.header_proficiency(AXE), prof(4, 1));
+        assert_eq!(cre.effect_proficiency(AXE), prof(0, 0)); // none created
+
+        let rt = round_trip(&cre);
+        assert_eq!(rt.proficiency(AXE), prof(4, 1));
     }
 
     /// Every byte of a V2 record is read and written back by
