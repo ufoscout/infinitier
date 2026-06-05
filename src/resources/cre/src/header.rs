@@ -430,28 +430,9 @@ pub struct CreHeaderV10 {
     pub local_area_actor_enumeration_value: u16,
     /// 0x0280 (32 B): Death Variable (set SPRITE_IS_DEADvariable on death)
     pub death_variable_set_sprite_is_deadvariable: String,
-    /// 0x02A0 (4 B): Known spells offset
-    pub known_spells_offset: u32,
-    /// 0x02A4 (4 B): Known spells count
-    pub known_spells_count: u32,
-    /// 0x02A8 (4 B): Spell memorization info offset
-    pub spell_memorization_info_offset: u32,
-    /// 0x02AC (4 B): Spell memorization info entries count
-    pub spell_memorization_info_entries_count: u32,
-    /// 0x02B0 (4 B): Memorized spells offset
-    pub memorized_spells_offset: u32,
-    /// 0x02B4 (4 B): Memorized spells count
-    pub memorized_spells_count: u32,
-    /// 0x02B8 (4 B): Offset to Item slots
-    pub offset_to_item_slots: u32,
-    /// 0x02BC (4 B): Offset to Items
-    pub offset_to_items: u32,
-    /// 0x02C0 (4 B): Count of Items
-    pub count_of_items: u32,
-    /// 0x02C4 (4 B): Offset to effects
-    pub offset_to_effects: u32,
-    /// 0x02C8 (4 B): Count of effects .
-    pub count_of_effects: u32,
+    // 0x02A0..0x02CC: the sub-section table (known-spells / spell-memo /
+    // memorized-spells / item-slots / items / effects offsets+counts) is
+    // pure file layout — recomputed by the exporter, not stored here.
     /// 0x02CC (8 B): Dialog file
     pub dialog_file: String,
 }
@@ -578,17 +559,7 @@ pub(crate) fn parse_header_v1_0(header: &[u8], game: Game) -> std::io::Result<Cr
         global_actor_enumeration_value: read_u16(0x027C),
         local_area_actor_enumeration_value: read_u16(0x027E),
         death_variable_set_sprite_is_deadvariable: read_resref(&header[0x0280..0x02A0]),
-        known_spells_offset: read_u32(0x02A0),
-        known_spells_count: read_u32(0x02A4),
-        spell_memorization_info_offset: read_u32(0x02A8),
-        spell_memorization_info_entries_count: read_u32(0x02AC),
-        memorized_spells_offset: read_u32(0x02B0),
-        memorized_spells_count: read_u32(0x02B4),
-        offset_to_item_slots: read_u32(0x02B8),
-        offset_to_items: read_u32(0x02BC),
-        count_of_items: read_u32(0x02C0),
-        offset_to_effects: read_u32(0x02C4),
-        count_of_effects: read_u32(0x02C8),
+        // 0x02A0..0x02CC sub-section table is recomputed on export.
         dialog_file: read_resref(&header[0x02CC..0x02D4]),
     })
 }
@@ -734,17 +705,7 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
         &mut buf[0x0280..0x02A0],
         &h.death_variable_set_sprite_is_deadvariable,
     );
-    buf[0x02A0..0x02A4].copy_from_slice(&h.known_spells_offset.to_le_bytes());
-    buf[0x02A4..0x02A8].copy_from_slice(&h.known_spells_count.to_le_bytes());
-    buf[0x02A8..0x02AC].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
-    buf[0x02AC..0x02B0].copy_from_slice(&h.spell_memorization_info_entries_count.to_le_bytes());
-    buf[0x02B0..0x02B4].copy_from_slice(&h.memorized_spells_offset.to_le_bytes());
-    buf[0x02B4..0x02B8].copy_from_slice(&h.memorized_spells_count.to_le_bytes());
-    buf[0x02B8..0x02BC].copy_from_slice(&h.offset_to_item_slots.to_le_bytes());
-    buf[0x02BC..0x02C0].copy_from_slice(&h.offset_to_items.to_le_bytes());
-    buf[0x02C0..0x02C4].copy_from_slice(&h.count_of_items.to_le_bytes());
-    buf[0x02C4..0x02C8].copy_from_slice(&h.offset_to_effects.to_le_bytes());
-    buf[0x02C8..0x02CC].copy_from_slice(&h.count_of_effects.to_le_bytes());
+    // 0x02A0..0x02CC: sub-section table written by the exporter.
     write_resref(&mut buf[0x02CC..0x02D4], &h.dialog_file);
     buf
 }
@@ -1071,28 +1032,9 @@ pub struct CreHeaderV12 {
     pub local_area_actor_enumeration_value: u16,
     /// 0x0324 (32 B): Death Variable (set SPRITE_IS_DEADvariable on death)
     pub death_variable_set_sprite_is_deadvariable: String,
-    /// 0x0344 (4 B): Known spells offset
-    pub known_spells_offset: u32,
-    /// 0x0348 (4 B): Known spells count
-    pub known_spells_count: u32,
-    /// 0x034C (4 B): Spell memorization info offset
-    pub spell_memorization_info_offset: u32,
-    /// 0x0350 (4 B): Spell memorization info entries count
-    pub spell_memorization_info_entries_count: u32,
-    /// 0x0354 (4 B): Memorized spells offset
-    pub memorized_spells_offset: u32,
-    /// 0x0358 (4 B): Memorized spells count
-    pub memorized_spells_count: u32,
-    /// 0x035C (4 B): Item slots offset
-    pub item_slots_offset: u32,
-    /// 0x0360 (4 B): Items offset
-    pub items_offset: u32,
-    /// 0x0364 (4 B): Items count
-    pub items_count: u32,
-    /// 0x0368 (4 B): Offset to effects
-    pub offset_to_effects: u32,
-    /// 0x036C (4 B): Count to effects
-    pub count_to_effects: u32,
+    // 0x0344..0x0370: the sub-section table is file layout — recomputed
+    // by the exporter, not stored. (The PST overlay offset/size at
+    // 0x0294/0x0298 are separate semantic fields and are kept.)
     /// 0x0370 (8 B): Dialog file
     pub dialog_file: String,
 }
@@ -1262,17 +1204,7 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
         global_actor_enumeration_value: read_u16(0x0320),
         local_area_actor_enumeration_value: read_u16(0x0322),
         death_variable_set_sprite_is_deadvariable: read_resref(&header[0x0324..0x0344]),
-        known_spells_offset: read_u32(0x0344),
-        known_spells_count: read_u32(0x0348),
-        spell_memorization_info_offset: read_u32(0x034C),
-        spell_memorization_info_entries_count: read_u32(0x0350),
-        memorized_spells_offset: read_u32(0x0354),
-        memorized_spells_count: read_u32(0x0358),
-        item_slots_offset: read_u32(0x035C),
-        items_offset: read_u32(0x0360),
-        items_count: read_u32(0x0364),
-        offset_to_effects: read_u32(0x0368),
-        count_to_effects: read_u32(0x036C),
+        // 0x0344..0x0370 sub-section table is recomputed on export.
         dialog_file: read_resref(&header[0x0370..0x0378]),
     })
 }
@@ -1526,17 +1458,7 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
         &mut buf[0x0324..0x0344],
         &h.death_variable_set_sprite_is_deadvariable,
     );
-    buf[0x0344..0x0348].copy_from_slice(&h.known_spells_offset.to_le_bytes());
-    buf[0x0348..0x034C].copy_from_slice(&h.known_spells_count.to_le_bytes());
-    buf[0x034C..0x0350].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
-    buf[0x0350..0x0354].copy_from_slice(&h.spell_memorization_info_entries_count.to_le_bytes());
-    buf[0x0354..0x0358].copy_from_slice(&h.memorized_spells_offset.to_le_bytes());
-    buf[0x0358..0x035C].copy_from_slice(&h.memorized_spells_count.to_le_bytes());
-    buf[0x035C..0x0360].copy_from_slice(&h.item_slots_offset.to_le_bytes());
-    buf[0x0360..0x0364].copy_from_slice(&h.items_offset.to_le_bytes());
-    buf[0x0364..0x0368].copy_from_slice(&h.items_count.to_le_bytes());
-    buf[0x0368..0x036C].copy_from_slice(&h.offset_to_effects.to_le_bytes());
-    buf[0x036C..0x0370].copy_from_slice(&h.count_to_effects.to_le_bytes());
+    // 0x0344..0x0370: sub-section table written by the exporter.
     write_resref(&mut buf[0x0370..0x0378], &h.dialog_file);
     buf
 }
@@ -1801,28 +1723,8 @@ pub struct CreHeaderV90 {
     pub local_area_actor_enumeration_value: u16,
     /// 0x02E8 (32 B): Death Variable (set SPRITE_IS_DEADvariable on death)
     pub death_variable_set_sprite_is_deadvariable: String,
-    /// 0x0308 (4 B): Known spells offset
-    pub known_spells_offset: u32,
-    /// 0x030C (4 B): Known spells count
-    pub known_spells_count: u32,
-    /// 0x0310 (4 B): Spell memorization info offset
-    pub spell_memorization_info_offset: u32,
-    /// 0x0314 (4 B): Spell memorization info entries count
-    pub spell_memorization_info_entries_count: u32,
-    /// 0x0318 (4 B): Memorized spells offset
-    pub memorized_spells_offset: u32,
-    /// 0x031C (4 B): Memorized spells count
-    pub memorized_spells_count: u32,
-    /// 0x0320 (4 B): Offset to Item slots
-    pub offset_to_item_slots: u32,
-    /// 0x0324 (4 B): Offset to Items
-    pub offset_to_items: u32,
-    /// 0x0328 (4 B): Count of Items
-    pub count_of_items: u32,
-    /// 0x032C (4 B): Offset to effects
-    pub offset_to_effects: u32,
-    /// 0x0330 (4 B): Count of effects
-    pub count_of_effects: u32,
+    // 0x0308..0x0334: sub-section table is file layout — recomputed by
+    // the exporter, not stored.
     /// 0x0334 (8 B): Dialog file
     pub dialog_file: String,
 }
@@ -1961,17 +1863,7 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
         global_actor_enumeration_value: read_u16(0x02E4),
         local_area_actor_enumeration_value: read_u16(0x02E6),
         death_variable_set_sprite_is_deadvariable: read_resref(&header[0x02E8..0x0308]),
-        known_spells_offset: read_u32(0x0308),
-        known_spells_count: read_u32(0x030C),
-        spell_memorization_info_offset: read_u32(0x0310),
-        spell_memorization_info_entries_count: read_u32(0x0314),
-        memorized_spells_offset: read_u32(0x0318),
-        memorized_spells_count: read_u32(0x031C),
-        offset_to_item_slots: read_u32(0x0320),
-        offset_to_items: read_u32(0x0324),
-        count_of_items: read_u32(0x0328),
-        offset_to_effects: read_u32(0x032C),
-        count_of_effects: read_u32(0x0330),
+        // 0x0308..0x0334 sub-section table is recomputed on export.
         dialog_file: read_resref(&header[0x0334..0x033C]),
     })
 }
@@ -2145,17 +2037,7 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
         &mut buf[0x02E8..0x0308],
         &h.death_variable_set_sprite_is_deadvariable,
     );
-    buf[0x0308..0x030C].copy_from_slice(&h.known_spells_offset.to_le_bytes());
-    buf[0x030C..0x0310].copy_from_slice(&h.known_spells_count.to_le_bytes());
-    buf[0x0310..0x0314].copy_from_slice(&h.spell_memorization_info_offset.to_le_bytes());
-    buf[0x0314..0x0318].copy_from_slice(&h.spell_memorization_info_entries_count.to_le_bytes());
-    buf[0x0318..0x031C].copy_from_slice(&h.memorized_spells_offset.to_le_bytes());
-    buf[0x031C..0x0320].copy_from_slice(&h.memorized_spells_count.to_le_bytes());
-    buf[0x0320..0x0324].copy_from_slice(&h.offset_to_item_slots.to_le_bytes());
-    buf[0x0324..0x0328].copy_from_slice(&h.offset_to_items.to_le_bytes());
-    buf[0x0328..0x032C].copy_from_slice(&h.count_of_items.to_le_bytes());
-    buf[0x032C..0x0330].copy_from_slice(&h.offset_to_effects.to_le_bytes());
-    buf[0x0330..0x0334].copy_from_slice(&h.count_of_effects.to_le_bytes());
+    // 0x0308..0x0334: sub-section table written by the exporter.
     write_resref(&mut buf[0x0334..0x033C], &h.dialog_file);
     buf
 }
@@ -2522,316 +2404,9 @@ pub struct CreHeaderV22 {
     pub classmsk_bitfield_value_duplicate_of_class: u16,
     /// 0x03B8 (2 B): Unknown
     pub unknown_15: u16,
-    /// 0x03BA (4 B): Bard Spell Offset (Level 1)
-    pub bard_spell_offset_level_1: u32,
-    /// 0x03BE (4 B): Bard Spell Offset (Level 2)
-    pub bard_spell_offset_level_2: u32,
-    /// 0x03C2 (4 B): Bard Spell Offset (Level 3)
-    pub bard_spell_offset_level_3: u32,
-    /// 0x03C6 (4 B): Bard Spell Offset (Level 4)
-    pub bard_spell_offset_level_4: u32,
-    /// 0x03CA (4 B): Bard Spell Offset (Level 5)
-    pub bard_spell_offset_level_5: u32,
-    /// 0x03CE (4 B): Bard Spell Offset (Level 6)
-    pub bard_spell_offset_level_6: u32,
-    /// 0x03D2 (4 B): Bard Spell Offset (Level 7)
-    pub bard_spell_offset_level_7: u32,
-    /// 0x03D6 (4 B): Bard Spell Offset (Level 8)
-    pub bard_spell_offset_level_8: u32,
-    /// 0x03DA (4 B): Bard Spell Offset (Level 9)
-    pub bard_spell_offset_level_9: u32,
-    /// 0x03DE (4 B): Cleric Spell Offset (Level 1)
-    pub cleric_spell_offset_level_1: u32,
-    /// 0x03E2 (4 B): Cleric Spell Offset (Level 2)
-    pub cleric_spell_offset_level_2: u32,
-    /// 0x03E6 (4 B): Cleric Spell Offset (Level 3)
-    pub cleric_spell_offset_level_3: u32,
-    /// 0x03EA (4 B): Cleric Spell Offset (Level 4)
-    pub cleric_spell_offset_level_4: u32,
-    /// 0x03EE (4 B): Cleric Spell Offset (Level 5)
-    pub cleric_spell_offset_level_5: u32,
-    /// 0x03F2 (4 B): Cleric Spell Offset (Level 6)
-    pub cleric_spell_offset_level_6: u32,
-    /// 0x03F6 (4 B): Cleric Spell Offset (Level 7)
-    pub cleric_spell_offset_level_7: u32,
-    /// 0x03FA (4 B): Cleric Spell Offset (Level 8)
-    pub cleric_spell_offset_level_8: u32,
-    /// 0x03FE (4 B): Cleric Spell Offset (Level 9)
-    pub cleric_spell_offset_level_9: u32,
-    /// 0x0402 (4 B): Druid Spell Offset (Level 1)
-    pub druid_spell_offset_level_1: u32,
-    /// 0x0406 (4 B): Druid Spell Offset (Level 2)
-    pub druid_spell_offset_level_2: u32,
-    /// 0x040A (4 B): Druid Spell Offset (Level 3)
-    pub druid_spell_offset_level_3: u32,
-    /// 0x040E (4 B): Druid Spell Offset (Level 4)
-    pub druid_spell_offset_level_4: u32,
-    /// 0x0412 (4 B): Druid Spell Offset (Level 5)
-    pub druid_spell_offset_level_5: u32,
-    /// 0x0416 (4 B): Druid Spell Offset (Level 6)
-    pub druid_spell_offset_level_6: u32,
-    /// 0x041A (4 B): Druid Spell Offset (Level 7)
-    pub druid_spell_offset_level_7: u32,
-    /// 0x041E (4 B): Druid Spell Offset (Level 8)
-    pub druid_spell_offset_level_8: u32,
-    /// 0x0422 (4 B): Druid Spell Offset (Level 9)
-    pub druid_spell_offset_level_9: u32,
-    /// 0x0426 (4 B): Paladin Spell Offset (Level 1)
-    pub paladin_spell_offset_level_1: u32,
-    /// 0x042A (4 B): Paladin Spell Offset (Level 2)
-    pub paladin_spell_offset_level_2: u32,
-    /// 0x042E (4 B): Paladin Spell Offset (Level 3)
-    pub paladin_spell_offset_level_3: u32,
-    /// 0x0432 (4 B): Paladin Spell Offset (Level 4)
-    pub paladin_spell_offset_level_4: u32,
-    /// 0x0436 (4 B): Paladin Spell Offset (Level 5)
-    pub paladin_spell_offset_level_5: u32,
-    /// 0x043A (4 B): Paladin Spell Offset (Level 6)
-    pub paladin_spell_offset_level_6: u32,
-    /// 0x043E (4 B): Paladin Spell Offset (Level 7)
-    pub paladin_spell_offset_level_7: u32,
-    /// 0x0442 (4 B): Paladin Spell Offset (Level 8)
-    pub paladin_spell_offset_level_8: u32,
-    /// 0x0446 (4 B): Paladin Spell Offset (Level 9)
-    pub paladin_spell_offset_level_9: u32,
-    /// 0x044A (4 B): Ranger Spell Offset (Level 1)
-    pub ranger_spell_offset_level_1: u32,
-    /// 0x044E (4 B): Ranger Spell Offset (Level 2)
-    pub ranger_spell_offset_level_2: u32,
-    /// 0x0452 (4 B): Ranger Spell Offset (Level 3)
-    pub ranger_spell_offset_level_3: u32,
-    /// 0x0456 (4 B): Ranger Spell Offset (Level 4)
-    pub ranger_spell_offset_level_4: u32,
-    /// 0x045A (4 B): Ranger Spell Offset (Level 5)
-    pub ranger_spell_offset_level_5: u32,
-    /// 0x045E (4 B): Ranger Spell Offset (Level 6)
-    pub ranger_spell_offset_level_6: u32,
-    /// 0x0462 (4 B): Ranger Spell Offset (Level 7)
-    pub ranger_spell_offset_level_7: u32,
-    /// 0x0466 (4 B): Ranger Spell Offset (Level 8)
-    pub ranger_spell_offset_level_8: u32,
-    /// 0x046A (4 B): Ranger Spell Offset (Level 9)
-    pub ranger_spell_offset_level_9: u32,
-    /// 0x046E (4 B): Sorcerer Spell Offset (Level 1)
-    pub sorcerer_spell_offset_level_1: u32,
-    /// 0x0472 (4 B): Sorcerer Spell Offset (Level 2)
-    pub sorcerer_spell_offset_level_2: u32,
-    /// 0x0476 (4 B): Sorcerer Spell Offset (Level 3)
-    pub sorcerer_spell_offset_level_3: u32,
-    /// 0x047A (4 B): Sorcerer Spell Offset (Level 4)
-    pub sorcerer_spell_offset_level_4: u32,
-    /// 0x047E (4 B): Sorcerer Spell Offset (Level 5)
-    pub sorcerer_spell_offset_level_5: u32,
-    /// 0x0482 (4 B): Sorcerer Spell Offset (Level 6)
-    pub sorcerer_spell_offset_level_6: u32,
-    /// 0x0486 (4 B): Sorcerer Spell Offset (Level 7)
-    pub sorcerer_spell_offset_level_7: u32,
-    /// 0x048A (4 B): Sorcerer Spell Offset (Level 8)
-    pub sorcerer_spell_offset_level_8: u32,
-    /// 0x048E (4 B): Sorcerer Spell Offset (Level 9)
-    pub sorcerer_spell_offset_level_9: u32,
-    /// 0x0492 (4 B): Wizard Spell Offset (Level 1)
-    pub wizard_spell_offset_level_1: u32,
-    /// 0x0496 (4 B): Wizard Spell Offset (Level 2)
-    pub wizard_spell_offset_level_2: u32,
-    /// 0x049A (4 B): Wizard Spell Offset (Level 3)
-    pub wizard_spell_offset_level_3: u32,
-    /// 0x049E (4 B): Wizard Spell Offset (Level 4)
-    pub wizard_spell_offset_level_4: u32,
-    /// 0x04A2 (4 B): Wizard Spell Offset (Level 5)
-    pub wizard_spell_offset_level_5: u32,
-    /// 0x04A6 (4 B): Wizard Spell Offset (Level 6)
-    pub wizard_spell_offset_level_6: u32,
-    /// 0x04AA (4 B): Wizard Spell Offset (Level 7)
-    pub wizard_spell_offset_level_7: u32,
-    /// 0x04AE (4 B): Wizard Spell Offset (Level 8)
-    pub wizard_spell_offset_level_8: u32,
-    /// 0x04B2 (4 B): Wizard Spell Offset (Level 9)
-    pub wizard_spell_offset_level_9: u32,
-    /// 0x04B6 (4 B): Bard Spell Count (Level 1)
-    pub bard_spell_count_level_1: u32,
-    /// 0x04BA (4 B): Bard Spell Count (Level 2)
-    pub bard_spell_count_level_2: u32,
-    /// 0x04BE (4 B): Bard Spell Count (Level 3)
-    pub bard_spell_count_level_3: u32,
-    /// 0x04C2 (4 B): Bard Spell Count (Level 4)
-    pub bard_spell_count_level_4: u32,
-    /// 0x04C6 (4 B): Bard Spell Count (Level 5)
-    pub bard_spell_count_level_5: u32,
-    /// 0x04CA (4 B): Bard Spell Count (Level 6)
-    pub bard_spell_count_level_6: u32,
-    /// 0x04CE (4 B): Bard Spell Count (Level 7)
-    pub bard_spell_count_level_7: u32,
-    /// 0x04D2 (4 B): Bard Spell Count (Level 8)
-    pub bard_spell_count_level_8: u32,
-    /// 0x04D6 (4 B): Bard Spell Count (Level 9)
-    pub bard_spell_count_level_9: u32,
-    /// 0x04DA (4 B): Cleric Spell Count (Level 1)
-    pub cleric_spell_count_level_1: u32,
-    /// 0x04DE (4 B): Cleric Spell Count (Level 2)
-    pub cleric_spell_count_level_2: u32,
-    /// 0x04E2 (4 B): Cleric Spell Count (Level 3)
-    pub cleric_spell_count_level_3: u32,
-    /// 0x04E6 (4 B): Cleric Spell Count (Level 4)
-    pub cleric_spell_count_level_4: u32,
-    /// 0x04EA (4 B): Cleric Spell Count (Level 5)
-    pub cleric_spell_count_level_5: u32,
-    /// 0x04EE (4 B): Cleric Spell Count (Level 6)
-    pub cleric_spell_count_level_6: u32,
-    /// 0x04F2 (4 B): Cleric Spell Count (Level 7)
-    pub cleric_spell_count_level_7: u32,
-    /// 0x04F6 (4 B): Cleric Spell Count (Level 8)
-    pub cleric_spell_count_level_8: u32,
-    /// 0x04FA (4 B): Cleric Spell Count (Level 9)
-    pub cleric_spell_count_level_9: u32,
-    /// 0x04FE (4 B): Druid Spell Count (Level 1)
-    pub druid_spell_count_level_1: u32,
-    /// 0x0502 (4 B): Druid Spell Count (Level 2)
-    pub druid_spell_count_level_2: u32,
-    /// 0x0506 (4 B): Druid Spell Count (Level 3)
-    pub druid_spell_count_level_3: u32,
-    /// 0x050A (4 B): Druid Spell Count (Level 4)
-    pub druid_spell_count_level_4: u32,
-    /// 0x050E (4 B): Druid Spell Count (Level 5)
-    pub druid_spell_count_level_5: u32,
-    /// 0x0512 (4 B): Druid Spell Count (Level 6)
-    pub druid_spell_count_level_6: u32,
-    /// 0x0516 (4 B): Druid Spell Count (Level 7)
-    pub druid_spell_count_level_7: u32,
-    /// 0x051A (4 B): Druid Spell Count (Level 8)
-    pub druid_spell_count_level_8: u32,
-    /// 0x051E (4 B): Druid Spell Count (Level 9)
-    pub druid_spell_count_level_9: u32,
-    /// 0x0522 (4 B): Paladin Spell Count (Level 1)
-    pub paladin_spell_count_level_1: u32,
-    /// 0x0526 (4 B): Paladin Spell Count (Level 2)
-    pub paladin_spell_count_level_2: u32,
-    /// 0x052A (4 B): Paladin Spell Count (Level 3)
-    pub paladin_spell_count_level_3: u32,
-    /// 0x052E (4 B): Paladin Spell Count (Level 4)
-    pub paladin_spell_count_level_4: u32,
-    /// 0x0532 (4 B): Paladin Spell Count (Level 5)
-    pub paladin_spell_count_level_5: u32,
-    /// 0x0536 (4 B): Paladin Spell Count (Level 6)
-    pub paladin_spell_count_level_6: u32,
-    /// 0x053A (4 B): Paladin Spell Count (Level 7)
-    pub paladin_spell_count_level_7: u32,
-    /// 0x053E (4 B): Paladin Spell Count (Level 8)
-    pub paladin_spell_count_level_8: u32,
-    /// 0x0542 (4 B): Paladin Spell Count (Level 9)
-    pub paladin_spell_count_level_9: u32,
-    /// 0x0546 (4 B): Ranger Spell Count (Level 1)
-    pub ranger_spell_count_level_1: u32,
-    /// 0x054A (4 B): Ranger Spell Count (Level 2)
-    pub ranger_spell_count_level_2: u32,
-    /// 0x054E (4 B): Ranger Spell Count (Level 3)
-    pub ranger_spell_count_level_3: u32,
-    /// 0x0552 (4 B): Ranger Spell Count (Level 4)
-    pub ranger_spell_count_level_4: u32,
-    /// 0x0556 (4 B): Ranger Spell Count (Level 5)
-    pub ranger_spell_count_level_5: u32,
-    /// 0x055A (4 B): Ranger Spell Count (Level 6)
-    pub ranger_spell_count_level_6: u32,
-    /// 0x055E (4 B): Ranger Spell Count (Level 7)
-    pub ranger_spell_count_level_7: u32,
-    /// 0x0562 (4 B): Ranger Spell Count (Level 8)
-    pub ranger_spell_count_level_8: u32,
-    /// 0x0566 (4 B): Ranger Spell Count (Level 9)
-    pub ranger_spell_count_level_9: u32,
-    /// 0x056A (4 B): Sorcerer Spell Count (Level 1)
-    pub sorcerer_spell_count_level_1: u32,
-    /// 0x056E (4 B): Sorcerer Spell Count (Level 2)
-    pub sorcerer_spell_count_level_2: u32,
-    /// 0x0572 (4 B): Sorcerer Spell Count (Level 3)
-    pub sorcerer_spell_count_level_3: u32,
-    /// 0x0576 (4 B): Sorcerer Spell Count (Level 4)
-    pub sorcerer_spell_count_level_4: u32,
-    /// 0x057A (4 B): Sorcerer Spell Count (Level 5)
-    pub sorcerer_spell_count_level_5: u32,
-    /// 0x057E (4 B): Sorcerer Spell Count (Level 6)
-    pub sorcerer_spell_count_level_6: u32,
-    /// 0x0582 (4 B): Sorcerer Spell Count (Level 7)
-    pub sorcerer_spell_count_level_7: u32,
-    /// 0x0586 (4 B): Sorcerer Spell Count (Level 8)
-    pub sorcerer_spell_count_level_8: u32,
-    /// 0x058A (4 B): Sorcerer Spell Count (Level 9)
-    pub sorcerer_spell_count_level_9: u32,
-    /// 0x058E (4 B): Wizard Spell Count (Level 1)
-    pub wizard_spell_count_level_1: u32,
-    /// 0x0592 (4 B): Wizard Spell Count (Level 2)
-    pub wizard_spell_count_level_2: u32,
-    /// 0x0596 (4 B): Wizard Spell Count (Level 3)
-    pub wizard_spell_count_level_3: u32,
-    /// 0x059A (4 B): Wizard Spell Count (Level 4)
-    pub wizard_spell_count_level_4: u32,
-    /// 0x059E (4 B): Wizard Spell Count (Level 5)
-    pub wizard_spell_count_level_5: u32,
-    /// 0x05A2 (4 B): Wizard Spell Count (Level 6)
-    pub wizard_spell_count_level_6: u32,
-    /// 0x05A6 (4 B): Wizard Spell Count (Level 7)
-    pub wizard_spell_count_level_7: u32,
-    /// 0x05AA (4 B): Wizard Spell Count (Level 8)
-    pub wizard_spell_count_level_8: u32,
-    /// 0x05AE (4 B): Wizard Spell Count (Level 9)
-    pub wizard_spell_count_level_9: u32,
-    /// 0x05B2 (4 B): Domain1 Spell Offset
-    pub domain1_spell_offset: u32,
-    /// 0x05B6 (4 B): Domain2 Spell Offset
-    pub domain2_spell_offset: u32,
-    /// 0x05BA (4 B): Domain3 Spell Offset
-    pub domain3_spell_offset: u32,
-    /// 0x05BE (4 B): Domain4 Spell Offset
-    pub domain4_spell_offset: u32,
-    /// 0x05C2 (4 B): Domain5 Spell Offset
-    pub domain5_spell_offset: u32,
-    /// 0x05C6 (4 B): Domain6 Spell Offset
-    pub domain6_spell_offset: u32,
-    /// 0x05CA (4 B): Domain7 Spell Offset
-    pub domain7_spell_offset: u32,
-    /// 0x05CE (4 B): Domain8 Spell Offset
-    pub domain8_spell_offset: u32,
-    /// 0x05D2 (4 B): Domain9 Spell Offset
-    pub domain9_spell_offset: u32,
-    /// 0x05D6 (4 B): Domain1 Spell Count
-    pub domain1_spell_count: u32,
-    /// 0x05DA (4 B): Domain2 Spell Count
-    pub domain2_spell_count: u32,
-    /// 0x05DE (4 B): Domain3 Spell Count
-    pub domain3_spell_count: u32,
-    /// 0x05E2 (4 B): Domain4 Spell Count
-    pub domain4_spell_count: u32,
-    /// 0x05E6 (4 B): Domain5 Spell Count
-    pub domain5_spell_count: u32,
-    /// 0x05EA (4 B): Domain6 Spell Count
-    pub domain6_spell_count: u32,
-    /// 0x05EE (4 B): Domain7 Spell Count
-    pub domain7_spell_count: u32,
-    /// 0x05F2 (4 B): Domain8 Spell Count
-    pub domain8_spell_count: u32,
-    /// 0x05F6 (4 B): Domain9 Spell Count
-    pub domain9_spell_count: u32,
-    /// 0x05FA (4 B): Abilities Offset
-    pub abilities_offset: u32,
-    /// 0x05FE (4 B): Abilities Count
-    pub abilities_count: u32,
-    /// 0x0602 (4 B): Song Offset
-    pub song_offset: u32,
-    /// 0x0606 (4 B): Song Count
-    pub song_count: u32,
-    /// 0x060A (4 B): Shapes Offset
-    pub shapes_offset: u32,
-    /// 0x060E (4 B): Shapes Count
-    pub shapes_count: u32,
-    /// 0x0612 (4 B): Item slots Offset
-    pub item_slots_offset: u32,
-    /// 0x0616 (4 B): Item Offset
-    pub item_offset: u32,
-    /// 0x061A (4 B): Item Count
-    pub item_count: u32,
-    /// 0x061E (4 B): Effects Offset
-    pub effects_offset: u32,
-    /// 0x0622 (4 B): Effects Count
-    pub effects_count: u32,
+    // 0x03BA..0x0626: the IWD2 sub-section table (class/domain spell tables,
+    // abilities/songs/shapes, item slots, items, effects) is file layout —
+    // recomputed by the exporter, not stored.
     /// 0x0626 (8 B): Dialog
     pub dialog: String,
 }
@@ -3021,161 +2596,7 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
         avclass_value_duplicate_of_class_used: read_u16(0x03B4),
         classmsk_bitfield_value_duplicate_of_class: read_u16(0x03B6),
         unknown_15: read_u16(0x03B8),
-        bard_spell_offset_level_1: read_u32(0x03BA),
-        bard_spell_offset_level_2: read_u32(0x03BE),
-        bard_spell_offset_level_3: read_u32(0x03C2),
-        bard_spell_offset_level_4: read_u32(0x03C6),
-        bard_spell_offset_level_5: read_u32(0x03CA),
-        bard_spell_offset_level_6: read_u32(0x03CE),
-        bard_spell_offset_level_7: read_u32(0x03D2),
-        bard_spell_offset_level_8: read_u32(0x03D6),
-        bard_spell_offset_level_9: read_u32(0x03DA),
-        cleric_spell_offset_level_1: read_u32(0x03DE),
-        cleric_spell_offset_level_2: read_u32(0x03E2),
-        cleric_spell_offset_level_3: read_u32(0x03E6),
-        cleric_spell_offset_level_4: read_u32(0x03EA),
-        cleric_spell_offset_level_5: read_u32(0x03EE),
-        cleric_spell_offset_level_6: read_u32(0x03F2),
-        cleric_spell_offset_level_7: read_u32(0x03F6),
-        cleric_spell_offset_level_8: read_u32(0x03FA),
-        cleric_spell_offset_level_9: read_u32(0x03FE),
-        druid_spell_offset_level_1: read_u32(0x0402),
-        druid_spell_offset_level_2: read_u32(0x0406),
-        druid_spell_offset_level_3: read_u32(0x040A),
-        druid_spell_offset_level_4: read_u32(0x040E),
-        druid_spell_offset_level_5: read_u32(0x0412),
-        druid_spell_offset_level_6: read_u32(0x0416),
-        druid_spell_offset_level_7: read_u32(0x041A),
-        druid_spell_offset_level_8: read_u32(0x041E),
-        druid_spell_offset_level_9: read_u32(0x0422),
-        paladin_spell_offset_level_1: read_u32(0x0426),
-        paladin_spell_offset_level_2: read_u32(0x042A),
-        paladin_spell_offset_level_3: read_u32(0x042E),
-        paladin_spell_offset_level_4: read_u32(0x0432),
-        paladin_spell_offset_level_5: read_u32(0x0436),
-        paladin_spell_offset_level_6: read_u32(0x043A),
-        paladin_spell_offset_level_7: read_u32(0x043E),
-        paladin_spell_offset_level_8: read_u32(0x0442),
-        paladin_spell_offset_level_9: read_u32(0x0446),
-        ranger_spell_offset_level_1: read_u32(0x044A),
-        ranger_spell_offset_level_2: read_u32(0x044E),
-        ranger_spell_offset_level_3: read_u32(0x0452),
-        ranger_spell_offset_level_4: read_u32(0x0456),
-        ranger_spell_offset_level_5: read_u32(0x045A),
-        ranger_spell_offset_level_6: read_u32(0x045E),
-        ranger_spell_offset_level_7: read_u32(0x0462),
-        ranger_spell_offset_level_8: read_u32(0x0466),
-        ranger_spell_offset_level_9: read_u32(0x046A),
-        sorcerer_spell_offset_level_1: read_u32(0x046E),
-        sorcerer_spell_offset_level_2: read_u32(0x0472),
-        sorcerer_spell_offset_level_3: read_u32(0x0476),
-        sorcerer_spell_offset_level_4: read_u32(0x047A),
-        sorcerer_spell_offset_level_5: read_u32(0x047E),
-        sorcerer_spell_offset_level_6: read_u32(0x0482),
-        sorcerer_spell_offset_level_7: read_u32(0x0486),
-        sorcerer_spell_offset_level_8: read_u32(0x048A),
-        sorcerer_spell_offset_level_9: read_u32(0x048E),
-        wizard_spell_offset_level_1: read_u32(0x0492),
-        wizard_spell_offset_level_2: read_u32(0x0496),
-        wizard_spell_offset_level_3: read_u32(0x049A),
-        wizard_spell_offset_level_4: read_u32(0x049E),
-        wizard_spell_offset_level_5: read_u32(0x04A2),
-        wizard_spell_offset_level_6: read_u32(0x04A6),
-        wizard_spell_offset_level_7: read_u32(0x04AA),
-        wizard_spell_offset_level_8: read_u32(0x04AE),
-        wizard_spell_offset_level_9: read_u32(0x04B2),
-        bard_spell_count_level_1: read_u32(0x04B6),
-        bard_spell_count_level_2: read_u32(0x04BA),
-        bard_spell_count_level_3: read_u32(0x04BE),
-        bard_spell_count_level_4: read_u32(0x04C2),
-        bard_spell_count_level_5: read_u32(0x04C6),
-        bard_spell_count_level_6: read_u32(0x04CA),
-        bard_spell_count_level_7: read_u32(0x04CE),
-        bard_spell_count_level_8: read_u32(0x04D2),
-        bard_spell_count_level_9: read_u32(0x04D6),
-        cleric_spell_count_level_1: read_u32(0x04DA),
-        cleric_spell_count_level_2: read_u32(0x04DE),
-        cleric_spell_count_level_3: read_u32(0x04E2),
-        cleric_spell_count_level_4: read_u32(0x04E6),
-        cleric_spell_count_level_5: read_u32(0x04EA),
-        cleric_spell_count_level_6: read_u32(0x04EE),
-        cleric_spell_count_level_7: read_u32(0x04F2),
-        cleric_spell_count_level_8: read_u32(0x04F6),
-        cleric_spell_count_level_9: read_u32(0x04FA),
-        druid_spell_count_level_1: read_u32(0x04FE),
-        druid_spell_count_level_2: read_u32(0x0502),
-        druid_spell_count_level_3: read_u32(0x0506),
-        druid_spell_count_level_4: read_u32(0x050A),
-        druid_spell_count_level_5: read_u32(0x050E),
-        druid_spell_count_level_6: read_u32(0x0512),
-        druid_spell_count_level_7: read_u32(0x0516),
-        druid_spell_count_level_8: read_u32(0x051A),
-        druid_spell_count_level_9: read_u32(0x051E),
-        paladin_spell_count_level_1: read_u32(0x0522),
-        paladin_spell_count_level_2: read_u32(0x0526),
-        paladin_spell_count_level_3: read_u32(0x052A),
-        paladin_spell_count_level_4: read_u32(0x052E),
-        paladin_spell_count_level_5: read_u32(0x0532),
-        paladin_spell_count_level_6: read_u32(0x0536),
-        paladin_spell_count_level_7: read_u32(0x053A),
-        paladin_spell_count_level_8: read_u32(0x053E),
-        paladin_spell_count_level_9: read_u32(0x0542),
-        ranger_spell_count_level_1: read_u32(0x0546),
-        ranger_spell_count_level_2: read_u32(0x054A),
-        ranger_spell_count_level_3: read_u32(0x054E),
-        ranger_spell_count_level_4: read_u32(0x0552),
-        ranger_spell_count_level_5: read_u32(0x0556),
-        ranger_spell_count_level_6: read_u32(0x055A),
-        ranger_spell_count_level_7: read_u32(0x055E),
-        ranger_spell_count_level_8: read_u32(0x0562),
-        ranger_spell_count_level_9: read_u32(0x0566),
-        sorcerer_spell_count_level_1: read_u32(0x056A),
-        sorcerer_spell_count_level_2: read_u32(0x056E),
-        sorcerer_spell_count_level_3: read_u32(0x0572),
-        sorcerer_spell_count_level_4: read_u32(0x0576),
-        sorcerer_spell_count_level_5: read_u32(0x057A),
-        sorcerer_spell_count_level_6: read_u32(0x057E),
-        sorcerer_spell_count_level_7: read_u32(0x0582),
-        sorcerer_spell_count_level_8: read_u32(0x0586),
-        sorcerer_spell_count_level_9: read_u32(0x058A),
-        wizard_spell_count_level_1: read_u32(0x058E),
-        wizard_spell_count_level_2: read_u32(0x0592),
-        wizard_spell_count_level_3: read_u32(0x0596),
-        wizard_spell_count_level_4: read_u32(0x059A),
-        wizard_spell_count_level_5: read_u32(0x059E),
-        wizard_spell_count_level_6: read_u32(0x05A2),
-        wizard_spell_count_level_7: read_u32(0x05A6),
-        wizard_spell_count_level_8: read_u32(0x05AA),
-        wizard_spell_count_level_9: read_u32(0x05AE),
-        domain1_spell_offset: read_u32(0x05B2),
-        domain2_spell_offset: read_u32(0x05B6),
-        domain3_spell_offset: read_u32(0x05BA),
-        domain4_spell_offset: read_u32(0x05BE),
-        domain5_spell_offset: read_u32(0x05C2),
-        domain6_spell_offset: read_u32(0x05C6),
-        domain7_spell_offset: read_u32(0x05CA),
-        domain8_spell_offset: read_u32(0x05CE),
-        domain9_spell_offset: read_u32(0x05D2),
-        domain1_spell_count: read_u32(0x05D6),
-        domain2_spell_count: read_u32(0x05DA),
-        domain3_spell_count: read_u32(0x05DE),
-        domain4_spell_count: read_u32(0x05E2),
-        domain5_spell_count: read_u32(0x05E6),
-        domain6_spell_count: read_u32(0x05EA),
-        domain7_spell_count: read_u32(0x05EE),
-        domain8_spell_count: read_u32(0x05F2),
-        domain9_spell_count: read_u32(0x05F6),
-        abilities_offset: read_u32(0x05FA),
-        abilities_count: read_u32(0x05FE),
-        song_offset: read_u32(0x0602),
-        song_count: read_u32(0x0606),
-        shapes_offset: read_u32(0x060A),
-        shapes_count: read_u32(0x060E),
-        item_slots_offset: read_u32(0x0612),
-        item_offset: read_u32(0x0616),
-        item_count: read_u32(0x061A),
-        effects_offset: read_u32(0x061E),
-        effects_count: read_u32(0x0622),
+        // 0x03BA..0x0626 section table is recomputed on export.
         dialog: read_resref(&header[0x0626..0x062E]),
     })
 }
@@ -3454,161 +2875,7 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x03B6..0x03B8]
         .copy_from_slice(&h.classmsk_bitfield_value_duplicate_of_class.to_le_bytes());
     buf[0x03B8..0x03BA].copy_from_slice(&h.unknown_15.to_le_bytes());
-    buf[0x03BA..0x03BE].copy_from_slice(&h.bard_spell_offset_level_1.to_le_bytes());
-    buf[0x03BE..0x03C2].copy_from_slice(&h.bard_spell_offset_level_2.to_le_bytes());
-    buf[0x03C2..0x03C6].copy_from_slice(&h.bard_spell_offset_level_3.to_le_bytes());
-    buf[0x03C6..0x03CA].copy_from_slice(&h.bard_spell_offset_level_4.to_le_bytes());
-    buf[0x03CA..0x03CE].copy_from_slice(&h.bard_spell_offset_level_5.to_le_bytes());
-    buf[0x03CE..0x03D2].copy_from_slice(&h.bard_spell_offset_level_6.to_le_bytes());
-    buf[0x03D2..0x03D6].copy_from_slice(&h.bard_spell_offset_level_7.to_le_bytes());
-    buf[0x03D6..0x03DA].copy_from_slice(&h.bard_spell_offset_level_8.to_le_bytes());
-    buf[0x03DA..0x03DE].copy_from_slice(&h.bard_spell_offset_level_9.to_le_bytes());
-    buf[0x03DE..0x03E2].copy_from_slice(&h.cleric_spell_offset_level_1.to_le_bytes());
-    buf[0x03E2..0x03E6].copy_from_slice(&h.cleric_spell_offset_level_2.to_le_bytes());
-    buf[0x03E6..0x03EA].copy_from_slice(&h.cleric_spell_offset_level_3.to_le_bytes());
-    buf[0x03EA..0x03EE].copy_from_slice(&h.cleric_spell_offset_level_4.to_le_bytes());
-    buf[0x03EE..0x03F2].copy_from_slice(&h.cleric_spell_offset_level_5.to_le_bytes());
-    buf[0x03F2..0x03F6].copy_from_slice(&h.cleric_spell_offset_level_6.to_le_bytes());
-    buf[0x03F6..0x03FA].copy_from_slice(&h.cleric_spell_offset_level_7.to_le_bytes());
-    buf[0x03FA..0x03FE].copy_from_slice(&h.cleric_spell_offset_level_8.to_le_bytes());
-    buf[0x03FE..0x0402].copy_from_slice(&h.cleric_spell_offset_level_9.to_le_bytes());
-    buf[0x0402..0x0406].copy_from_slice(&h.druid_spell_offset_level_1.to_le_bytes());
-    buf[0x0406..0x040A].copy_from_slice(&h.druid_spell_offset_level_2.to_le_bytes());
-    buf[0x040A..0x040E].copy_from_slice(&h.druid_spell_offset_level_3.to_le_bytes());
-    buf[0x040E..0x0412].copy_from_slice(&h.druid_spell_offset_level_4.to_le_bytes());
-    buf[0x0412..0x0416].copy_from_slice(&h.druid_spell_offset_level_5.to_le_bytes());
-    buf[0x0416..0x041A].copy_from_slice(&h.druid_spell_offset_level_6.to_le_bytes());
-    buf[0x041A..0x041E].copy_from_slice(&h.druid_spell_offset_level_7.to_le_bytes());
-    buf[0x041E..0x0422].copy_from_slice(&h.druid_spell_offset_level_8.to_le_bytes());
-    buf[0x0422..0x0426].copy_from_slice(&h.druid_spell_offset_level_9.to_le_bytes());
-    buf[0x0426..0x042A].copy_from_slice(&h.paladin_spell_offset_level_1.to_le_bytes());
-    buf[0x042A..0x042E].copy_from_slice(&h.paladin_spell_offset_level_2.to_le_bytes());
-    buf[0x042E..0x0432].copy_from_slice(&h.paladin_spell_offset_level_3.to_le_bytes());
-    buf[0x0432..0x0436].copy_from_slice(&h.paladin_spell_offset_level_4.to_le_bytes());
-    buf[0x0436..0x043A].copy_from_slice(&h.paladin_spell_offset_level_5.to_le_bytes());
-    buf[0x043A..0x043E].copy_from_slice(&h.paladin_spell_offset_level_6.to_le_bytes());
-    buf[0x043E..0x0442].copy_from_slice(&h.paladin_spell_offset_level_7.to_le_bytes());
-    buf[0x0442..0x0446].copy_from_slice(&h.paladin_spell_offset_level_8.to_le_bytes());
-    buf[0x0446..0x044A].copy_from_slice(&h.paladin_spell_offset_level_9.to_le_bytes());
-    buf[0x044A..0x044E].copy_from_slice(&h.ranger_spell_offset_level_1.to_le_bytes());
-    buf[0x044E..0x0452].copy_from_slice(&h.ranger_spell_offset_level_2.to_le_bytes());
-    buf[0x0452..0x0456].copy_from_slice(&h.ranger_spell_offset_level_3.to_le_bytes());
-    buf[0x0456..0x045A].copy_from_slice(&h.ranger_spell_offset_level_4.to_le_bytes());
-    buf[0x045A..0x045E].copy_from_slice(&h.ranger_spell_offset_level_5.to_le_bytes());
-    buf[0x045E..0x0462].copy_from_slice(&h.ranger_spell_offset_level_6.to_le_bytes());
-    buf[0x0462..0x0466].copy_from_slice(&h.ranger_spell_offset_level_7.to_le_bytes());
-    buf[0x0466..0x046A].copy_from_slice(&h.ranger_spell_offset_level_8.to_le_bytes());
-    buf[0x046A..0x046E].copy_from_slice(&h.ranger_spell_offset_level_9.to_le_bytes());
-    buf[0x046E..0x0472].copy_from_slice(&h.sorcerer_spell_offset_level_1.to_le_bytes());
-    buf[0x0472..0x0476].copy_from_slice(&h.sorcerer_spell_offset_level_2.to_le_bytes());
-    buf[0x0476..0x047A].copy_from_slice(&h.sorcerer_spell_offset_level_3.to_le_bytes());
-    buf[0x047A..0x047E].copy_from_slice(&h.sorcerer_spell_offset_level_4.to_le_bytes());
-    buf[0x047E..0x0482].copy_from_slice(&h.sorcerer_spell_offset_level_5.to_le_bytes());
-    buf[0x0482..0x0486].copy_from_slice(&h.sorcerer_spell_offset_level_6.to_le_bytes());
-    buf[0x0486..0x048A].copy_from_slice(&h.sorcerer_spell_offset_level_7.to_le_bytes());
-    buf[0x048A..0x048E].copy_from_slice(&h.sorcerer_spell_offset_level_8.to_le_bytes());
-    buf[0x048E..0x0492].copy_from_slice(&h.sorcerer_spell_offset_level_9.to_le_bytes());
-    buf[0x0492..0x0496].copy_from_slice(&h.wizard_spell_offset_level_1.to_le_bytes());
-    buf[0x0496..0x049A].copy_from_slice(&h.wizard_spell_offset_level_2.to_le_bytes());
-    buf[0x049A..0x049E].copy_from_slice(&h.wizard_spell_offset_level_3.to_le_bytes());
-    buf[0x049E..0x04A2].copy_from_slice(&h.wizard_spell_offset_level_4.to_le_bytes());
-    buf[0x04A2..0x04A6].copy_from_slice(&h.wizard_spell_offset_level_5.to_le_bytes());
-    buf[0x04A6..0x04AA].copy_from_slice(&h.wizard_spell_offset_level_6.to_le_bytes());
-    buf[0x04AA..0x04AE].copy_from_slice(&h.wizard_spell_offset_level_7.to_le_bytes());
-    buf[0x04AE..0x04B2].copy_from_slice(&h.wizard_spell_offset_level_8.to_le_bytes());
-    buf[0x04B2..0x04B6].copy_from_slice(&h.wizard_spell_offset_level_9.to_le_bytes());
-    buf[0x04B6..0x04BA].copy_from_slice(&h.bard_spell_count_level_1.to_le_bytes());
-    buf[0x04BA..0x04BE].copy_from_slice(&h.bard_spell_count_level_2.to_le_bytes());
-    buf[0x04BE..0x04C2].copy_from_slice(&h.bard_spell_count_level_3.to_le_bytes());
-    buf[0x04C2..0x04C6].copy_from_slice(&h.bard_spell_count_level_4.to_le_bytes());
-    buf[0x04C6..0x04CA].copy_from_slice(&h.bard_spell_count_level_5.to_le_bytes());
-    buf[0x04CA..0x04CE].copy_from_slice(&h.bard_spell_count_level_6.to_le_bytes());
-    buf[0x04CE..0x04D2].copy_from_slice(&h.bard_spell_count_level_7.to_le_bytes());
-    buf[0x04D2..0x04D6].copy_from_slice(&h.bard_spell_count_level_8.to_le_bytes());
-    buf[0x04D6..0x04DA].copy_from_slice(&h.bard_spell_count_level_9.to_le_bytes());
-    buf[0x04DA..0x04DE].copy_from_slice(&h.cleric_spell_count_level_1.to_le_bytes());
-    buf[0x04DE..0x04E2].copy_from_slice(&h.cleric_spell_count_level_2.to_le_bytes());
-    buf[0x04E2..0x04E6].copy_from_slice(&h.cleric_spell_count_level_3.to_le_bytes());
-    buf[0x04E6..0x04EA].copy_from_slice(&h.cleric_spell_count_level_4.to_le_bytes());
-    buf[0x04EA..0x04EE].copy_from_slice(&h.cleric_spell_count_level_5.to_le_bytes());
-    buf[0x04EE..0x04F2].copy_from_slice(&h.cleric_spell_count_level_6.to_le_bytes());
-    buf[0x04F2..0x04F6].copy_from_slice(&h.cleric_spell_count_level_7.to_le_bytes());
-    buf[0x04F6..0x04FA].copy_from_slice(&h.cleric_spell_count_level_8.to_le_bytes());
-    buf[0x04FA..0x04FE].copy_from_slice(&h.cleric_spell_count_level_9.to_le_bytes());
-    buf[0x04FE..0x0502].copy_from_slice(&h.druid_spell_count_level_1.to_le_bytes());
-    buf[0x0502..0x0506].copy_from_slice(&h.druid_spell_count_level_2.to_le_bytes());
-    buf[0x0506..0x050A].copy_from_slice(&h.druid_spell_count_level_3.to_le_bytes());
-    buf[0x050A..0x050E].copy_from_slice(&h.druid_spell_count_level_4.to_le_bytes());
-    buf[0x050E..0x0512].copy_from_slice(&h.druid_spell_count_level_5.to_le_bytes());
-    buf[0x0512..0x0516].copy_from_slice(&h.druid_spell_count_level_6.to_le_bytes());
-    buf[0x0516..0x051A].copy_from_slice(&h.druid_spell_count_level_7.to_le_bytes());
-    buf[0x051A..0x051E].copy_from_slice(&h.druid_spell_count_level_8.to_le_bytes());
-    buf[0x051E..0x0522].copy_from_slice(&h.druid_spell_count_level_9.to_le_bytes());
-    buf[0x0522..0x0526].copy_from_slice(&h.paladin_spell_count_level_1.to_le_bytes());
-    buf[0x0526..0x052A].copy_from_slice(&h.paladin_spell_count_level_2.to_le_bytes());
-    buf[0x052A..0x052E].copy_from_slice(&h.paladin_spell_count_level_3.to_le_bytes());
-    buf[0x052E..0x0532].copy_from_slice(&h.paladin_spell_count_level_4.to_le_bytes());
-    buf[0x0532..0x0536].copy_from_slice(&h.paladin_spell_count_level_5.to_le_bytes());
-    buf[0x0536..0x053A].copy_from_slice(&h.paladin_spell_count_level_6.to_le_bytes());
-    buf[0x053A..0x053E].copy_from_slice(&h.paladin_spell_count_level_7.to_le_bytes());
-    buf[0x053E..0x0542].copy_from_slice(&h.paladin_spell_count_level_8.to_le_bytes());
-    buf[0x0542..0x0546].copy_from_slice(&h.paladin_spell_count_level_9.to_le_bytes());
-    buf[0x0546..0x054A].copy_from_slice(&h.ranger_spell_count_level_1.to_le_bytes());
-    buf[0x054A..0x054E].copy_from_slice(&h.ranger_spell_count_level_2.to_le_bytes());
-    buf[0x054E..0x0552].copy_from_slice(&h.ranger_spell_count_level_3.to_le_bytes());
-    buf[0x0552..0x0556].copy_from_slice(&h.ranger_spell_count_level_4.to_le_bytes());
-    buf[0x0556..0x055A].copy_from_slice(&h.ranger_spell_count_level_5.to_le_bytes());
-    buf[0x055A..0x055E].copy_from_slice(&h.ranger_spell_count_level_6.to_le_bytes());
-    buf[0x055E..0x0562].copy_from_slice(&h.ranger_spell_count_level_7.to_le_bytes());
-    buf[0x0562..0x0566].copy_from_slice(&h.ranger_spell_count_level_8.to_le_bytes());
-    buf[0x0566..0x056A].copy_from_slice(&h.ranger_spell_count_level_9.to_le_bytes());
-    buf[0x056A..0x056E].copy_from_slice(&h.sorcerer_spell_count_level_1.to_le_bytes());
-    buf[0x056E..0x0572].copy_from_slice(&h.sorcerer_spell_count_level_2.to_le_bytes());
-    buf[0x0572..0x0576].copy_from_slice(&h.sorcerer_spell_count_level_3.to_le_bytes());
-    buf[0x0576..0x057A].copy_from_slice(&h.sorcerer_spell_count_level_4.to_le_bytes());
-    buf[0x057A..0x057E].copy_from_slice(&h.sorcerer_spell_count_level_5.to_le_bytes());
-    buf[0x057E..0x0582].copy_from_slice(&h.sorcerer_spell_count_level_6.to_le_bytes());
-    buf[0x0582..0x0586].copy_from_slice(&h.sorcerer_spell_count_level_7.to_le_bytes());
-    buf[0x0586..0x058A].copy_from_slice(&h.sorcerer_spell_count_level_8.to_le_bytes());
-    buf[0x058A..0x058E].copy_from_slice(&h.sorcerer_spell_count_level_9.to_le_bytes());
-    buf[0x058E..0x0592].copy_from_slice(&h.wizard_spell_count_level_1.to_le_bytes());
-    buf[0x0592..0x0596].copy_from_slice(&h.wizard_spell_count_level_2.to_le_bytes());
-    buf[0x0596..0x059A].copy_from_slice(&h.wizard_spell_count_level_3.to_le_bytes());
-    buf[0x059A..0x059E].copy_from_slice(&h.wizard_spell_count_level_4.to_le_bytes());
-    buf[0x059E..0x05A2].copy_from_slice(&h.wizard_spell_count_level_5.to_le_bytes());
-    buf[0x05A2..0x05A6].copy_from_slice(&h.wizard_spell_count_level_6.to_le_bytes());
-    buf[0x05A6..0x05AA].copy_from_slice(&h.wizard_spell_count_level_7.to_le_bytes());
-    buf[0x05AA..0x05AE].copy_from_slice(&h.wizard_spell_count_level_8.to_le_bytes());
-    buf[0x05AE..0x05B2].copy_from_slice(&h.wizard_spell_count_level_9.to_le_bytes());
-    buf[0x05B2..0x05B6].copy_from_slice(&h.domain1_spell_offset.to_le_bytes());
-    buf[0x05B6..0x05BA].copy_from_slice(&h.domain2_spell_offset.to_le_bytes());
-    buf[0x05BA..0x05BE].copy_from_slice(&h.domain3_spell_offset.to_le_bytes());
-    buf[0x05BE..0x05C2].copy_from_slice(&h.domain4_spell_offset.to_le_bytes());
-    buf[0x05C2..0x05C6].copy_from_slice(&h.domain5_spell_offset.to_le_bytes());
-    buf[0x05C6..0x05CA].copy_from_slice(&h.domain6_spell_offset.to_le_bytes());
-    buf[0x05CA..0x05CE].copy_from_slice(&h.domain7_spell_offset.to_le_bytes());
-    buf[0x05CE..0x05D2].copy_from_slice(&h.domain8_spell_offset.to_le_bytes());
-    buf[0x05D2..0x05D6].copy_from_slice(&h.domain9_spell_offset.to_le_bytes());
-    buf[0x05D6..0x05DA].copy_from_slice(&h.domain1_spell_count.to_le_bytes());
-    buf[0x05DA..0x05DE].copy_from_slice(&h.domain2_spell_count.to_le_bytes());
-    buf[0x05DE..0x05E2].copy_from_slice(&h.domain3_spell_count.to_le_bytes());
-    buf[0x05E2..0x05E6].copy_from_slice(&h.domain4_spell_count.to_le_bytes());
-    buf[0x05E6..0x05EA].copy_from_slice(&h.domain5_spell_count.to_le_bytes());
-    buf[0x05EA..0x05EE].copy_from_slice(&h.domain6_spell_count.to_le_bytes());
-    buf[0x05EE..0x05F2].copy_from_slice(&h.domain7_spell_count.to_le_bytes());
-    buf[0x05F2..0x05F6].copy_from_slice(&h.domain8_spell_count.to_le_bytes());
-    buf[0x05F6..0x05FA].copy_from_slice(&h.domain9_spell_count.to_le_bytes());
-    buf[0x05FA..0x05FE].copy_from_slice(&h.abilities_offset.to_le_bytes());
-    buf[0x05FE..0x0602].copy_from_slice(&h.abilities_count.to_le_bytes());
-    buf[0x0602..0x0606].copy_from_slice(&h.song_offset.to_le_bytes());
-    buf[0x0606..0x060A].copy_from_slice(&h.song_count.to_le_bytes());
-    buf[0x060A..0x060E].copy_from_slice(&h.shapes_offset.to_le_bytes());
-    buf[0x060E..0x0612].copy_from_slice(&h.shapes_count.to_le_bytes());
-    buf[0x0612..0x0616].copy_from_slice(&h.item_slots_offset.to_le_bytes());
-    buf[0x0616..0x061A].copy_from_slice(&h.item_offset.to_le_bytes());
-    buf[0x061A..0x061E].copy_from_slice(&h.item_count.to_le_bytes());
-    buf[0x061E..0x0622].copy_from_slice(&h.effects_offset.to_le_bytes());
-    buf[0x0622..0x0626].copy_from_slice(&h.effects_count.to_le_bytes());
+    // 0x03BA..0x0626: IWD2 section table written by the exporter.
     write_resref(&mut buf[0x0626..0x062E], &h.dialog);
     buf
 }

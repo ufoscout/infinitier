@@ -6,10 +6,12 @@
 //! aren't surfaced as fields and won't survive — the importer
 //! ignores them, so struct-equality still holds.
 //!
-//! The exporter writes the header (preserved bytes) at offset 0,
-//! then writes each sub-section at the offset recorded in the
-//! header. Callers who mutate sub-section counts must keep the
-//! header's offset/count fields in sync; the writer trusts them.
+//! Section offsets and counts are NOT stored on the header struct — the
+//! V1-family writer recomputes them from the sub-section sizes and lays
+//! the sections out contiguously after the fixed-width header, so adding
+//! or removing records (e.g. an op233 effect) can never desync a stored
+//! offset. (V2.2 / IWD2 still places sections at the offsets read back
+//! from the header bytes.)
 
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
@@ -32,7 +34,9 @@ const ITEM_LEN: usize = 20;
 const IWD2_RECORD_LEN: usize = 16;
 
 const V22_CLASS_SPELL_BASE: usize = 0x03BA;
+const V22_CLASS_SPELL_COUNT_BASE: usize = 0x04B6;
 const V22_DOMAIN_SPELL_BASE: usize = 0x05B2;
+const V22_DOMAIN_SPELL_COUNT_BASE: usize = 0x05D6;
 const V22_TAIL_TABLE_BASE: usize = 0x05FA;
 
 /// File writer for CRE resources.
@@ -69,22 +73,19 @@ fn serialize(cre: &Cre) -> io::Result<Vec<u8>> {
         ));
     }
 
-    // Serialise the typed header into its fixed-width byte form
-    // first — the section pointers we need to lay out sub-sections
-    // live inside it.
+    // Serialise the typed header into its fixed-width byte form. The
+    // section pointers/counts are NOT in the header struct — they are
+    // recomputed here from the actual sub-section sizes and patched in,
+    // so the layout always matches the data (adding/removing records
+    // can never desync a stored offset).
     let header_bytes = serialize_header(&cre.header);
 
-    let file_size = compute_file_size(cre, &header_bytes)?;
-    let mut buf = vec![0u8; file_size];
-
-    buf[..header_bytes.len()].copy_from_slice(&header_bytes);
-
-    match (cre.version, &cre.sub_sections) {
+    let buf = match (cre.version, &cre.sub_sections) {
         (CreVersion::V1_0 | CreVersion::V1_2 | CreVersion::V9_0, SubSections::V1(s)) => {
-            write_v1_sub_sections(&mut buf, &header_bytes, cre.version, s)?;
+            serialize_v1(cre.version, &header_bytes, s)
         }
         (CreVersion::V2_2, SubSections::V22(s)) => {
-            write_v22_sub_sections(&mut buf, &header_bytes, s)?;
+            serialize_v22(&header_bytes, s)
         }
         (v, _) => {
             return Err(io::Error::new(
@@ -92,37 +93,227 @@ fn serialize(cre: &Cre) -> io::Result<Vec<u8>> {
                 format!("CRE sub-sections variant doesn't match version {v:?}"),
             ));
         }
-    }
-
-    // The effect list is the one sub-section the editing API can grow or
-    // shrink (e.g. `Cre::set_proficiency` adds an op233 effect). Effects
-    // are the last section in every shipped CRE, so the records are
-    // written and `compute_file_size` already accounts for the new
-    // length — only the header's stale count field needs syncing.
-    patch_effect_count(&mut buf, cre);
+    };
 
     debug!("Serialised CRE ({:?}): total={} B", cre.version, buf.len());
     Ok(buf)
 }
 
-/// Overwrite the header's "count of effects" with the actual effect-list
-/// length, so adding/removing effects round-trips without the caller
-/// hand-patching the header.
-fn patch_effect_count(buf: &mut [u8], cre: &Cre) {
-    let count = match &cre.sub_sections {
-        SubSections::V1(s) => s.effects.len(),
-        SubSections::V22(s) => s.effects.len(),
-    } as u32;
-    // Per-version offset of the 4-byte effect-count field.
-    let off = match cre.version {
-        CreVersion::V1_0 => 0x02C8,
-        CreVersion::V1_2 => 0x036C,
-        CreVersion::V9_0 => 0x0330,
-        CreVersion::V2_2 => 0x0622,
+// ─────────────────────────────────────────────────────────────────────
+//  V1.0 / V1.2 / V9.0 — recomputed contiguous layout
+// ─────────────────────────────────────────────────────────────────────
+
+/// Computed section table for a V1-family CRE: every offset/count is
+/// derived from the sub-section sizes, never read from the header.
+struct V1Layout {
+    known_spells_off: u32,
+    known_spells_cnt: u32,
+    spell_mem_off: u32,
+    spell_mem_cnt: u32,
+    mem_spells_off: u32,
+    mem_spells_cnt: u32,
+    item_slots_off: u32,
+    items_off: u32,
+    items_cnt: u32,
+    effects_off: u32,
+    effects_cnt: u32,
+    file_size: usize,
+}
+
+/// Lay the sub-sections out contiguously after the fixed-width header
+/// (order: known spells, spell-memorization info, memorized spells, item
+/// slots, items, effects), computing each offset and count. Item slots
+/// is followed by items so the importer's gap-derived slot length comes
+/// out as `item_slots.len()`.
+fn compute_v1_layout(version: CreVersion, s: &V1SubSections) -> V1Layout {
+    let mut pos = version.header_len() as u32;
+    let mut place = |len: usize| -> u32 {
+        let off = pos;
+        pos += len as u32;
+        off
     };
-    if off + 4 <= buf.len() {
-        buf[off..off + 4].copy_from_slice(&count.to_le_bytes());
+    let known_spells_off = place(s.known_spells.len() * KNOWN_SPELL_LEN);
+    let spell_mem_off = place(s.spell_memorization_info.len() * SPELL_MEMORIZATION_INFO_LEN);
+    let mem_spells_off = place(s.memorized_spells.len() * MEMORIZED_SPELL_LEN);
+    let item_slots_off = place(s.item_slots.len());
+    let items_off = place(s.items.len() * ITEM_LEN);
+    let effects_off = place(s.effects.len() * s.effects.record_size());
+    let file_size = pos as usize;
+    V1Layout {
+        known_spells_off,
+        known_spells_cnt: s.known_spells.len() as u32,
+        spell_mem_off,
+        spell_mem_cnt: s.spell_memorization_info.len() as u32,
+        mem_spells_off,
+        mem_spells_cnt: s.memorized_spells.len() as u32,
+        item_slots_off,
+        items_off,
+        items_cnt: s.items.len() as u32,
+        effects_off,
+        effects_cnt: s.effects.len() as u32,
+        file_size,
     }
+}
+
+fn serialize_v1(version: CreVersion, header_bytes: &[u8], s: &V1SubSections) -> Vec<u8> {
+    let layout = compute_v1_layout(version, s);
+    let mut buf = vec![0u8; layout.file_size];
+    buf[..header_bytes.len()].copy_from_slice(header_bytes);
+    write_v1_section_table(&mut buf, version, &layout);
+    write_v1_sub_sections(&mut buf, &layout, s);
+    buf
+}
+
+/// Patch the computed offsets/counts into the header's section table.
+fn write_v1_section_table(buf: &mut [u8], version: CreVersion, l: &V1Layout) {
+    let base = v1_section_table_base(version);
+    let mut put = |delta: usize, val: u32| {
+        buf[base + delta..base + delta + 4].copy_from_slice(&val.to_le_bytes());
+    };
+    put(0x00, l.known_spells_off);
+    put(0x04, l.known_spells_cnt);
+    put(0x08, l.spell_mem_off);
+    put(0x0C, l.spell_mem_cnt);
+    put(0x10, l.mem_spells_off);
+    put(0x14, l.mem_spells_cnt);
+    put(0x18, l.item_slots_off);
+    put(0x1C, l.items_off);
+    put(0x20, l.items_cnt);
+    put(0x24, l.effects_off);
+    put(0x28, l.effects_cnt);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  V2.2 — IWD2 recomputed contiguous layout
+// ─────────────────────────────────────────────────────────────────────
+
+/// Computed IWD2 section table — every offset/count derived from the
+/// sub-section sizes. A spell/tail table is "present" (gets a non-zero
+/// offset and its 8-byte trailer) exactly when it isn't the default
+/// (empty) table, so absent and present-but-empty tables both round-trip.
+struct V22Layout {
+    class_spell_offsets: [[u32; 9]; 7],
+    class_spell_counts: [[u32; 9]; 7],
+    domain_spell_offsets: [u32; 9],
+    domain_spell_counts: [u32; 9],
+    abilities_off: u32,
+    abilities_cnt: u32,
+    song_off: u32,
+    song_cnt: u32,
+    shapes_off: u32,
+    shapes_cnt: u32,
+    item_slots_off: u32,
+    items_off: u32,
+    items_cnt: u32,
+    effects_off: u32,
+    effects_cnt: u32,
+    file_size: usize,
+}
+
+/// Place one IWD2 spell/tail table if it carries data, advancing `pos`.
+/// Returns its `(offset, record_count)`; a default (empty) table gets
+/// `(0, 0)` — no bytes, read back as absent.
+fn place_iwd2_table(pos: &mut u32, t: &Iwd2Table) -> (u32, u32) {
+    if *t == Iwd2Table::default() {
+        return (0, 0);
+    }
+    let off = *pos;
+    *pos += (t.entries.len() * IWD2_RECORD_LEN + 8) as u32;
+    (off, t.entries.len() as u32)
+}
+
+fn compute_v22_layout(s: &V22SubSections) -> V22Layout {
+    let mut pos = CreVersion::V2_2.header_len() as u32;
+    let class_lists: [&[Iwd2Table; 9]; 7] = [
+        &s.bard_spells,
+        &s.cleric_spells,
+        &s.druid_spells,
+        &s.paladin_spells,
+        &s.ranger_spells,
+        &s.sorcerer_spells,
+        &s.wizard_spells,
+    ];
+    let mut class_spell_offsets = [[0u32; 9]; 7];
+    let mut class_spell_counts = [[0u32; 9]; 7];
+    for (c, list) in class_lists.iter().enumerate() {
+        for (l, table) in list.iter().enumerate() {
+            let (off, cnt) = place_iwd2_table(&mut pos, table);
+            class_spell_offsets[c][l] = off;
+            class_spell_counts[c][l] = cnt;
+        }
+    }
+    let mut domain_spell_offsets = [0u32; 9];
+    let mut domain_spell_counts = [0u32; 9];
+    for (i, table) in s.domain_spells.iter().enumerate() {
+        let (off, cnt) = place_iwd2_table(&mut pos, table);
+        domain_spell_offsets[i] = off;
+        domain_spell_counts[i] = cnt;
+    }
+    let (abilities_off, abilities_cnt) = place_iwd2_table(&mut pos, &s.abilities);
+    let (song_off, song_cnt) = place_iwd2_table(&mut pos, &s.songs);
+    let (shapes_off, shapes_cnt) = place_iwd2_table(&mut pos, &s.shapes);
+    let item_slots_off = pos;
+    pos += s.item_slots.len() as u32;
+    let items_off = pos;
+    pos += (s.items.len() * ITEM_LEN) as u32;
+    let effects_off = pos;
+    pos += (s.effects.len() * s.effects.record_size()) as u32;
+    V22Layout {
+        class_spell_offsets,
+        class_spell_counts,
+        domain_spell_offsets,
+        domain_spell_counts,
+        abilities_off,
+        abilities_cnt,
+        song_off,
+        song_cnt,
+        shapes_off,
+        shapes_cnt,
+        item_slots_off,
+        items_off,
+        items_cnt: s.items.len() as u32,
+        effects_off,
+        effects_cnt: s.effects.len() as u32,
+        file_size: pos as usize,
+    }
+}
+
+fn serialize_v22(header_bytes: &[u8], s: &V22SubSections) -> Vec<u8> {
+    let layout = compute_v22_layout(s);
+    let mut buf = vec![0u8; layout.file_size];
+    buf[..header_bytes.len()].copy_from_slice(header_bytes);
+    write_v22_section_table(&mut buf, &layout);
+    write_v22_sub_sections(&mut buf, &layout, s);
+    buf
+}
+
+/// Patch the computed IWD2 offsets/counts into the header section tables.
+fn write_v22_section_table(buf: &mut [u8], l: &V22Layout) {
+    let mut put = |off: usize, val: u32| {
+        buf[off..off + 4].copy_from_slice(&val.to_le_bytes());
+    };
+    for c in 0..7 {
+        for lvl in 0..9 {
+            let idx = c * 9 + lvl;
+            put(V22_CLASS_SPELL_BASE + idx * 4, l.class_spell_offsets[c][lvl]);
+            put(V22_CLASS_SPELL_COUNT_BASE + idx * 4, l.class_spell_counts[c][lvl]);
+        }
+    }
+    for i in 0..9 {
+        put(V22_DOMAIN_SPELL_BASE + i * 4, l.domain_spell_offsets[i]);
+        put(V22_DOMAIN_SPELL_COUNT_BASE + i * 4, l.domain_spell_counts[i]);
+    }
+    put(V22_TAIL_TABLE_BASE, l.abilities_off);
+    put(V22_TAIL_TABLE_BASE + 0x04, l.abilities_cnt);
+    put(V22_TAIL_TABLE_BASE + 0x08, l.song_off);
+    put(V22_TAIL_TABLE_BASE + 0x0C, l.song_cnt);
+    put(V22_TAIL_TABLE_BASE + 0x10, l.shapes_off);
+    put(V22_TAIL_TABLE_BASE + 0x14, l.shapes_cnt);
+    put(V22_TAIL_TABLE_BASE + 0x18, l.item_slots_off);
+    put(V22_TAIL_TABLE_BASE + 0x1C, l.items_off);
+    put(V22_TAIL_TABLE_BASE + 0x20, l.items_cnt);
+    put(V22_TAIL_TABLE_BASE + 0x24, l.effects_off);
+    put(V22_TAIL_TABLE_BASE + 0x28, l.effects_cnt);
 }
 
 /// Dispatch the typed header back to its byte form.
@@ -133,113 +324,6 @@ fn serialize_header(h: &CreHeader) -> Vec<u8> {
         CreHeader::V90(h) => serialize_header_v9_0(h),
         CreHeader::V22(h) => serialize_header_v2_2(h),
     }
-}
-
-fn compute_file_size(cre: &Cre, header_bytes: &[u8]) -> io::Result<usize> {
-    let header_end = header_bytes.len();
-    let mut file_size = header_end;
-    let extend = |fs: &mut usize, offset: u32, len: usize| {
-        if len > 0 {
-            *fs = (*fs).max(offset as usize + len);
-        }
-    };
-    match (cre.version, &cre.sub_sections) {
-        (CreVersion::V1_0 | CreVersion::V1_2 | CreVersion::V9_0, SubSections::V1(s)) => {
-            let base = v1_section_table_base(cre.version);
-            let read_u32 = |off: usize| {
-                u32::from_le_bytes(header_bytes[base + off..base + off + 4].try_into().unwrap())
-            };
-            extend(
-                &mut file_size,
-                read_u32(0x00),
-                s.known_spells.len() * KNOWN_SPELL_LEN,
-            );
-            extend(
-                &mut file_size,
-                read_u32(0x08),
-                s.spell_memorization_info.len() * SPELL_MEMORIZATION_INFO_LEN,
-            );
-            extend(
-                &mut file_size,
-                read_u32(0x10),
-                s.memorized_spells.len() * MEMORIZED_SPELL_LEN,
-            );
-            extend(&mut file_size, read_u32(0x18), s.item_slots.len());
-            extend(&mut file_size, read_u32(0x1C), s.items.len() * ITEM_LEN);
-            extend(
-                &mut file_size,
-                read_u32(0x24),
-                s.effects.len() * s.effects.record_size(),
-            );
-        }
-        (CreVersion::V2_2, SubSections::V22(s)) => {
-            let read_u32 =
-                |off: usize| u32::from_le_bytes(header_bytes[off..off + 4].try_into().unwrap());
-            // IWD2 sub-section block = `entries.len() * 16` record
-            // bytes + 8-byte trailer. We only emit the trailer when
-            // the table has actually been parsed (non-zero offset);
-            // empty tables at offset zero contribute nothing.
-            let table_bytes = |t: &Iwd2Table, off: u32| {
-                if off == 0 {
-                    0
-                } else {
-                    t.entries.len() * IWD2_RECORD_LEN + 8
-                }
-            };
-            // Class spell tables (7 classes × 9 levels).
-            let class_lists: [&[Iwd2Table; 9]; 7] = [
-                &s.bard_spells,
-                &s.cleric_spells,
-                &s.druid_spells,
-                &s.paladin_spells,
-                &s.ranger_spells,
-                &s.sorcerer_spells,
-                &s.wizard_spells,
-            ];
-            for (c, list) in class_lists.iter().enumerate() {
-                for (l, table) in list.iter().enumerate() {
-                    let off = read_u32(V22_CLASS_SPELL_BASE + (c * 9 + l) * 4);
-                    extend(&mut file_size, off, table_bytes(table, off));
-                }
-            }
-            for (i, table) in s.domain_spells.iter().enumerate() {
-                let off = read_u32(V22_DOMAIN_SPELL_BASE + i * 4);
-                extend(&mut file_size, off, table_bytes(table, off));
-            }
-            // Tail table.
-            let abilities_off = read_u32(V22_TAIL_TABLE_BASE);
-            extend(
-                &mut file_size,
-                abilities_off,
-                table_bytes(&s.abilities, abilities_off),
-            );
-            let songs_off = read_u32(V22_TAIL_TABLE_BASE + 0x08);
-            extend(&mut file_size, songs_off, table_bytes(&s.songs, songs_off));
-            let shapes_off = read_u32(V22_TAIL_TABLE_BASE + 0x10);
-            extend(
-                &mut file_size,
-                shapes_off,
-                table_bytes(&s.shapes, shapes_off),
-            );
-            extend(
-                &mut file_size,
-                read_u32(V22_TAIL_TABLE_BASE + 0x18),
-                s.item_slots.len(),
-            );
-            extend(
-                &mut file_size,
-                read_u32(V22_TAIL_TABLE_BASE + 0x1C),
-                s.items.len() * ITEM_LEN,
-            );
-            extend(
-                &mut file_size,
-                read_u32(V22_TAIL_TABLE_BASE + 0x24),
-                s.effects.len() * s.effects.record_size(),
-            );
-        }
-        _ => unreachable!("variant mismatch caught earlier"),
-    }
-    Ok(file_size)
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -255,37 +339,25 @@ fn v1_section_table_base(version: CreVersion) -> usize {
     }
 }
 
-fn write_v1_sub_sections(
-    buf: &mut [u8],
-    header: &[u8],
-    version: CreVersion,
-    s: &V1SubSections,
-) -> io::Result<()> {
-    let base = v1_section_table_base(version);
-    let read_u32 =
-        |off: usize| u32::from_le_bytes(header[base + off..base + off + 4].try_into().unwrap());
-
-    write_known_spells(buf, read_u32(0x00) as usize, &s.known_spells);
-    write_spell_memorization_info(buf, read_u32(0x08) as usize, &s.spell_memorization_info);
-    write_memorized_spells(buf, read_u32(0x10) as usize, &s.memorized_spells);
+fn write_v1_sub_sections(buf: &mut [u8], l: &V1Layout, s: &V1SubSections) {
+    write_known_spells(buf, l.known_spells_off as usize, &s.known_spells);
+    write_spell_memorization_info(buf, l.spell_mem_off as usize, &s.spell_memorization_info);
+    write_memorized_spells(buf, l.mem_spells_off as usize, &s.memorized_spells);
     // Item-slots are an opaque indices buffer.
-    let item_slots_off = read_u32(0x18) as usize;
+    let item_slots_off = l.item_slots_off as usize;
     let n = s.item_slots.len();
     if n > 0 {
         buf[item_slots_off..item_slots_off + n].copy_from_slice(&s.item_slots);
     }
-    write_items(buf, read_u32(0x1C) as usize, &s.items);
-    write_effects(buf, read_u32(0x24) as usize, &s.effects);
-    Ok(())
+    write_items(buf, l.items_off as usize, &s.items);
+    write_effects(buf, l.effects_off as usize, &s.effects);
 }
 
 // ─────────────────────────────────────────────────────────────────────
 //  V2.2 writer
 // ─────────────────────────────────────────────────────────────────────
 
-fn write_v22_sub_sections(buf: &mut [u8], header: &[u8], s: &V22SubSections) -> io::Result<()> {
-    let read_u32 = |off: usize| u32::from_le_bytes(header[off..off + 4].try_into().unwrap());
-
+fn write_v22_sub_sections(buf: &mut [u8], l: &V22Layout, s: &V22SubSections) {
     let class_lists: [&[Iwd2Table; 9]; 7] = [
         &s.bard_spells,
         &s.cleric_spells,
@@ -296,31 +368,23 @@ fn write_v22_sub_sections(buf: &mut [u8], header: &[u8], s: &V22SubSections) -> 
         &s.wizard_spells,
     ];
     for (c, list) in class_lists.iter().enumerate() {
-        for (l, table) in list.iter().enumerate() {
-            let off = read_u32(V22_CLASS_SPELL_BASE + (c * 9 + l) * 4);
-            write_iwd2_table(buf, off, table);
+        for (lvl, table) in list.iter().enumerate() {
+            write_iwd2_table(buf, l.class_spell_offsets[c][lvl], table);
         }
     }
     for (i, table) in s.domain_spells.iter().enumerate() {
-        let off = read_u32(V22_DOMAIN_SPELL_BASE + i * 4);
-        write_iwd2_table(buf, off, table);
+        write_iwd2_table(buf, l.domain_spell_offsets[i], table);
     }
-
-    write_iwd2_table(buf, read_u32(V22_TAIL_TABLE_BASE), &s.abilities);
-    write_iwd2_table(buf, read_u32(V22_TAIL_TABLE_BASE + 0x08), &s.songs);
-    write_iwd2_table(buf, read_u32(V22_TAIL_TABLE_BASE + 0x10), &s.shapes);
-    let item_slots_off = read_u32(V22_TAIL_TABLE_BASE + 0x18) as usize;
+    write_iwd2_table(buf, l.abilities_off, &s.abilities);
+    write_iwd2_table(buf, l.song_off, &s.songs);
+    write_iwd2_table(buf, l.shapes_off, &s.shapes);
+    let item_slots_off = l.item_slots_off as usize;
     let n = s.item_slots.len();
     if n > 0 {
         buf[item_slots_off..item_slots_off + n].copy_from_slice(&s.item_slots);
     }
-    write_items(buf, read_u32(V22_TAIL_TABLE_BASE + 0x1C) as usize, &s.items);
-    write_effects(
-        buf,
-        read_u32(V22_TAIL_TABLE_BASE + 0x24) as usize,
-        &s.effects,
-    );
-    Ok(())
+    write_items(buf, l.items_off as usize, &s.items);
+    write_effects(buf, l.effects_off as usize, &s.effects);
 }
 
 // ─────────────────────────────────────────────────────────────────────

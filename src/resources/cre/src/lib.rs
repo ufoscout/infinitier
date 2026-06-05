@@ -2227,6 +2227,31 @@ mod tests {
         assert_eq!(op233_points(&imoen, CLUB), Some(18));
     }
 
+    /// The IWD2 (V2.2) exporter recomputes its section table too: growing
+    /// the effect list shifts every downstream offset, and re-import must
+    /// still find the added record — proving no offset is stored/reused.
+    #[test]
+    fn v22_layout_recomputes_after_adding_an_effect() {
+        let mut cre = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        let SubSections::V22(s) = &mut cre.sub_sections else {
+            panic!("expected V2.2 sub-sections");
+        };
+        let before = s.effects.len();
+        let added = Proficiency {
+            proficiency: 89,
+            points: 1,
+        };
+        match &mut s.effects {
+            EffectList::V2(l) => l.push(EffectV2::Proficiency(added)),
+            EffectList::V1(l) => l.push(EffectV1::Proficiency(added)),
+        }
+        let rt = round_trip(&cre);
+        let SubSections::V22(s) = &rt.sub_sections else {
+            panic!("expected V2.2 sub-sections");
+        };
+        assert_eq!(s.effects.len(), before + 1);
+    }
+
     /// Every byte of a V2 record is read and written back by
     /// [`Effect`] — fill a record with a NUL-free pattern (so the
     /// resref / variable fields survive intact) and assert a parse →
