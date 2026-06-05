@@ -17,7 +17,6 @@
 //! The entry point is [`EngineCaps::new`] — it needs a [`GameData`]
 //! so it can resolve and parse the 2DAs at construction time.
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io;
 
@@ -25,8 +24,6 @@ use infinitier_common::{Engine, Game};
 use infinitier_two_da_resource::TwoDA;
 
 use crate::game::GameData;
-use crate::imported_resource::ImportedResource;
-use crate::resource::ResourceType;
 
 /// Inclusive `(min, max)` range over a numeric type. The type
 /// parameter lets each [`EngineCaps`] field carry its on-disk width
@@ -678,17 +675,6 @@ pub fn d20_modifier(score: u8) -> i8 {
     ((score as i16) - 10).div_euclid(2) as i8
 }
 
-/// Resolve `<name>.2DA` from `game_data` (override → BIFs), import
-/// it, and project the first matching column into a [`BonusTable`].
-/// Resolve + import a 2DA by name, or `None` if absent / not a 2DA.
-fn load_two_da<'a>(game_data: &'a GameData, name: &str) -> Option<Cow<'a, TwoDA>> {
-    match game_data.import_by_name_and_type(name, ResourceType::TwoDA) {
-        Ok(Cow::Borrowed(ImportedResource::TwoDA(two_da))) => Some(Cow::Borrowed(two_da)),
-        Ok(Cow::Owned(ImportedResource::TwoDA(two_da))) => Some(Cow::Owned(two_da)),
-        _ => None,
-    }
-}
-
 /// Case-insensitive column index by header name.
 fn column_index(two_da: &TwoDA, header: &str) -> Option<usize> {
     two_da
@@ -707,7 +693,7 @@ fn load_class_hp_data(
     let mut class_tables = HashMap::new();
     let mut profiles = HashMap::new();
 
-    let Some(hpclass) = load_two_da(game_data, "hpclass") else {
+    let Ok(hpclass) = game_data.import_2da_by_name("hpclass") else {
         return (class_tables, profiles);
     };
     let Some(table_col) = column_index(&hpclass, "TABLE") else {
@@ -726,7 +712,7 @@ fn load_class_hp_data(
         if profiles.contains_key(table) {
             continue;
         }
-        let Some(two_da) = load_two_da(game_data, table) else {
+        let Ok(two_da) = game_data.import_2da_by_name(table) else {
             continue;
         };
         let sides_col = column_index(&two_da, "SIDES");
@@ -758,16 +744,9 @@ fn load_class_hp_data(
 /// (missing IDS) just makes [`EngineCaps::class_hp_profile`] return
 /// its conservative default for every class.
 fn load_class_symbols(game_data: &GameData) -> HashMap<i32, String> {
-    match game_data.import_by_name_and_type("class", ResourceType::Ids) {
-        Ok(cow) => match cow.as_ref() {
-            ImportedResource::Ids(ids) => ids
-                .entries
-                .iter()
-                .map(|e| (e.value, e.name.clone()))
-                .collect(),
-            _ => HashMap::new(),
-        },
-        _ => HashMap::new(),
+    match game_data.import_ids_by_name("class") {
+        Ok(ids) => ids.entries.iter().map(|e| (e.value, e.name.clone())).collect(),
+        Err(_) => HashMap::new(),
     }
 }
 
@@ -800,21 +779,7 @@ fn load_bonus_table(
     name: &str,
     column_candidates: &[&str],
 ) -> io::Result<BonusTable> {
-    let resource = game_data
-        .get_by_name_and_type(name, ResourceType::TwoDA)
-        .ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::NotFound,
-                format!("{}.2DA missing from game data", name.to_ascii_uppercase()),
-            )
-        })?;
-    let imported = resource.import(game_data)?;
-    let ImportedResource::TwoDA(two_da) = imported.as_ref() else {
-        return Err(io::Error::other(format!(
-            "{}.2DA did not import as a 2DA resource",
-            name.to_ascii_uppercase()
-        )));
-    };
+    let two_da = game_data.import_2da_by_name(name)?;
     BonusTable::from_two_da_any(&two_da, column_candidates).ok_or_else(|| {
         io::Error::new(
             io::ErrorKind::InvalidData,
@@ -831,6 +796,8 @@ fn load_bonus_table(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
+    use crate::resource::ResourceType;
 
     use super::*;
 

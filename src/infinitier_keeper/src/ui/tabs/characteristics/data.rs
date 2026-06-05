@@ -20,10 +20,9 @@
 //! 64000, chapter 413 / 3090880, game 1813 / 8750681).
 
 use infinitier_core::game::GameData;
-use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::resource::cre::{Cre, CreHeader};
 use infinitier_core::resource::gam::NpcCharStats;
-use infinitier_core::resource::{Game, ResourceType};
+use infinitier_core::resource::Game;
 
 /// Resolved, display-ready characteristics for one creature.
 #[derive(Debug, Default, Clone)]
@@ -226,17 +225,11 @@ fn ids_pretty(game_data: &GameData, ids_file: &str, value: i32, sep: &str) -> St
 
 /// Look up the raw IDS symbol for `value` in `<ids_file>.IDS`.
 fn ids_symbol(game_data: &GameData, ids_file: &str, value: i32) -> Option<String> {
-    match game_data.import_by_name_and_type(ids_file, ResourceType::Ids) {
-        Ok(cow) => match cow.as_ref() {
-            ImportedResource::Ids(ids) => ids
-                .entries
-                .iter()
-                .find(|e| e.value == value)
-                .map(|e| e.name.clone()),
-            _ => None,
-        },
-        _ => None,
-    }
+    let ids = game_data.import_ids_by_name(ids_file).ok()?;
+    ids.entries
+        .iter()
+        .find(|e| e.value == value)
+        .map(|e| e.name.clone())
 }
 
 /// `KIT.IDS` stores the kit in a word-swapped form versus the CRE

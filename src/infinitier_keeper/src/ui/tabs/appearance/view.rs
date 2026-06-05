@@ -9,7 +9,6 @@
 //! store (the resolved name per id, the palette once, each swatch
 //! texture per colour index).
 
-use std::borrow::Cow;
 use std::collections::HashMap;
 
 use eframe::egui;
@@ -17,9 +16,6 @@ use egui_components::theme::Theme;
 use egui_components::{Card, Label, LabelTone};
 
 use infinitier_core::game::GameData;
-use infinitier_core::imported_resource::ImportedResource;
-use infinitier_core::resource::ResourceType;
-use infinitier_core::resource::ids::Ids;
 
 use super::data::AppearanceData;
 use super::palette::{Palette, SWATCH_PX};
@@ -90,7 +86,9 @@ fn resolve_name(ui: &mut egui::Ui, game_data: &GameData, animation_id: u32) -> S
     {
         return hit;
     }
-    let resolved = load_animate_ids(game_data)
+    let resolved = game_data
+        .import_ids_by_name("ANIMATE")
+        .ok()
         .and_then(|ids| ids.of_value(animation_id as i32).map(title_case))
         .unwrap_or_else(|| format!("0x{animation_id:04X}"));
     ui.ctx().data_mut(|d| {
@@ -98,14 +96,6 @@ fn resolve_name(ui: &mut egui::Ui, game_data: &GameData, animation_id: u32) -> S
             .insert(animation_id, resolved.clone());
     });
     resolved
-}
-
-fn load_animate_ids(game_data: &GameData) -> Option<Cow<'_, Ids>> {
-    match game_data.import_by_name_and_type("ANIMATE", ResourceType::Ids) {
-        Ok(Cow::Borrowed(ImportedResource::Ids(ids))) => Some(Cow::Borrowed(ids)),
-        Ok(Cow::Owned(ImportedResource::Ids(ids))) => Some(Cow::Owned(ids)),
-        _ => None,
-    }
 }
 
 /// Build the palette once and memoise it in the egui frame store.

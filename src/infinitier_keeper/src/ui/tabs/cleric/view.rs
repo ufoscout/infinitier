@@ -14,8 +14,6 @@ use eframe::egui;
 use egui_components::Label;
 use egui_components::scroll_area::ScrollArea;
 use infinitier_core::game::GameData;
-use infinitier_core::imported_resource::ImportedResource;
-use infinitier_core::resource::ResourceType;
 
 use super::data::ClericRow;
 
@@ -79,12 +77,7 @@ fn spell_name(ui: &mut egui::Ui, game_data: &GameData, resref: &str) -> String {
 /// Load the SPL, read its generic-name strref, and resolve it through
 /// `dialog.tlk`. `None` if any step fails or the name is empty.
 fn resolve_spell_name(game_data: &GameData, resref: &str) -> Option<String> {
-    let imported = game_data
-        .import_by_name_and_type(resref, ResourceType::Spl)
-        .ok()?;
-    let ImportedResource::Spl(spl) = imported.as_ref() else {
-        return None;
-    };
+    let spl = game_data.import_spl_by_name(resref).ok()?;
     let name = game_data.dialog_tlk().ok()?.get(spl.header.name_strref())?;
     (!name.is_empty()).then_some(name)
 }

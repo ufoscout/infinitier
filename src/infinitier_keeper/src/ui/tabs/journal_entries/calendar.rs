@@ -16,13 +16,8 @@
 //!
 //! This mirrors GemRB's `Calendar` and its `bg2/GUIJRNL.py` date logic.
 
-use std::borrow::Cow;
-
 use infinitier_core::game::GameData;
-use infinitier_core::imported_resource::ImportedResource;
-use infinitier_core::resource::ResourceType;
 use infinitier_core::resource::gam::{GameTicks, GameTime};
-use infinitier_core::resource::two_da::TwoDA;
 
 /// `dialog.tlk` strref of the journal date wrapper format string.
 const DATE_FORMAT_STRREF: u32 = 15980;
@@ -59,8 +54,8 @@ impl Calendar {
     /// Build the calendar from `MONTHS.2DA` + `YEARS.2DA` + `dialog.tlk`.
     /// Returns `None` if any required resource is missing or malformed.
     pub fn load(game_data: &GameData) -> Option<Calendar> {
-        let months = load_2da(game_data, "MONTHS")?;
-        let years = load_2da(game_data, "YEARS")?;
+        let months = game_data.import_2da_by_name("MONTHS").ok()?;
+        let years = game_data.import_2da_by_name("YEARS").ok()?;
         let tlk = game_data.dialog_tlk().ok()?;
 
         // Walk MONTHS.2DA in row order (keys "0", "1", ...): column 0 is
@@ -156,10 +151,3 @@ impl Calendar {
     }
 }
 
-fn load_2da<'a>(game_data: &'a GameData, name: &str) -> Option<Cow<'a, TwoDA>> {
-    match game_data.import_by_name_and_type(name, ResourceType::TwoDA) {
-        Ok(Cow::Borrowed(ImportedResource::TwoDA(t))) => Some(Cow::Borrowed(t)),
-        Ok(Cow::Owned(ImportedResource::TwoDA(t))) => Some(Cow::Owned(t)),
-        _ => None,
-    }
-}

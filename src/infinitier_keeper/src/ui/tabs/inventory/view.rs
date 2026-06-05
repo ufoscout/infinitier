@@ -144,13 +144,7 @@ fn load_item(
     tlk: Option<&infinitier_core::resource::tlk::Tlk>,
     resref: &str,
 ) -> ItemDisplay {
-    let Ok(imported) = game_data.import_by_name_and_type(resref, ResourceType::Itm) else {
-        return ItemDisplay {
-            name: String::new(),
-            icon: String::new(),
-        };
-    };
-    let ImportedResource::Itm(itm) = imported.as_ref() else {
+    let Ok(itm) = game_data.import_itm_by_name(resref) else {
         return ItemDisplay {
             name: String::new(),
             icon: String::new(),
@@ -165,7 +159,7 @@ fn load_item(
 
     ItemDisplay {
         name,
-        icon: icon_resref(itm).to_string(),
+        icon: icon_resref(&itm).to_string(),
     }
 }
 
