@@ -48,12 +48,12 @@ fn serialize(itm: &Itm) -> io::Result<Vec<u8>> {
         ));
     }
 
+    // Recompute the section layout: abilities directly after the fixed
+    // header, then the effects — never reuse a stored offset.
     let header_len = itm.version.header_len();
-    let abilities_end =
-        (itm.header.extended_headers_offset() as usize) + itm.abilities.len() * ABILITY_LEN;
-    let effects_end =
-        (itm.header.feature_blocks_offset() as usize) + itm.effects.len() * EFFECT_LEN;
-    let file_size = header_len.max(abilities_end).max(effects_end);
+    let abilities_off = header_len;
+    let effects_off = header_len + itm.abilities.len() * ABILITY_LEN;
+    let file_size = effects_off + itm.effects.len() * EFFECT_LEN;
 
     let mut buf = vec![0u8; file_size];
 
@@ -66,21 +66,20 @@ fn serialize(itm: &Itm) -> io::Result<Vec<u8>> {
         ItmHeader::V2(h) => write_header_v2(&mut buf[..HEADER_LEN_V2], h),
     }
 
-    // Abilities.
-    {
-        let mut off = itm.header.extended_headers_offset() as usize;
-        for a in &itm.abilities {
-            write_ability(&mut buf[off..off + ABILITY_LEN], a);
-            off += ABILITY_LEN;
-        }
+    // Section table — same byte positions in every ITM version.
+    buf[0x64..0x68].copy_from_slice(&(abilities_off as u32).to_le_bytes());
+    buf[0x68..0x6A].copy_from_slice(&(itm.abilities.len() as u16).to_le_bytes());
+    buf[0x6A..0x6E].copy_from_slice(&(effects_off as u32).to_le_bytes());
+
+    let mut off = abilities_off;
+    for a in &itm.abilities {
+        write_ability(&mut buf[off..off + ABILITY_LEN], a);
+        off += ABILITY_LEN;
     }
-    // Effects.
-    {
-        let mut off = itm.header.feature_blocks_offset() as usize;
-        for e in &itm.effects {
-            write_effect(&mut buf[off..off + EFFECT_LEN], e);
-            off += EFFECT_LEN;
-        }
+    let mut off = effects_off;
+    for e in &itm.effects {
+        write_effect(&mut buf[off..off + EFFECT_LEN], e);
+        off += EFFECT_LEN;
     }
 
     debug!(
@@ -126,9 +125,7 @@ fn write_header_v1(out: &mut [u8], h: &ItmHeaderV1) {
     out[0x54..0x58].copy_from_slice(&h.description_identified.to_le_bytes());
     write_resref(&mut out[0x58..0x60], &h.description_icon);
     out[0x60..0x64].copy_from_slice(&h.enchantment.to_le_bytes());
-    out[0x64..0x68].copy_from_slice(&h.extended_headers_offset.to_le_bytes());
-    out[0x68..0x6A].copy_from_slice(&h.extended_headers_count.to_le_bytes());
-    out[0x6A..0x6E].copy_from_slice(&h.feature_blocks_offset.to_le_bytes());
+    // 0x64/0x68/0x6A section table written by the exporter (recomputed).
     out[0x6E..0x70].copy_from_slice(&h.equipping_feature_offset.to_le_bytes());
     out[0x70..0x72].copy_from_slice(&h.equipping_feature_count.to_le_bytes());
 }
@@ -159,9 +156,7 @@ fn write_header_v1_1(out: &mut [u8], h: &ItmHeaderV1_1) {
     out[0x54..0x58].copy_from_slice(&h.description_identified.to_le_bytes());
     write_resref(&mut out[0x58..0x60], &h.pickup_sound);
     out[0x60..0x64].copy_from_slice(&h.enchantment.to_le_bytes());
-    out[0x64..0x68].copy_from_slice(&h.extended_headers_offset.to_le_bytes());
-    out[0x68..0x6A].copy_from_slice(&h.extended_headers_count.to_le_bytes());
-    out[0x6A..0x6E].copy_from_slice(&h.feature_blocks_offset.to_le_bytes());
+    // 0x64/0x68/0x6A section table written by the exporter (recomputed).
     out[0x6E..0x70].copy_from_slice(&h.equipping_feature_offset.to_le_bytes());
     out[0x70..0x72].copy_from_slice(&h.equipping_feature_count.to_le_bytes());
     write_resref(&mut out[0x72..0x7A], &h.dialog);
@@ -206,9 +201,6 @@ fn write_header_v2(out: &mut [u8], h: &ItmHeaderV2) {
         description_identified: h.description_identified,
         description_icon: h.description_icon.clone(),
         enchantment: h.enchantment,
-        extended_headers_offset: h.extended_headers_offset,
-        extended_headers_count: h.extended_headers_count,
-        feature_blocks_offset: h.feature_blocks_offset,
         equipping_feature_offset: h.equipping_feature_offset,
         equipping_feature_count: h.equipping_feature_count,
     };

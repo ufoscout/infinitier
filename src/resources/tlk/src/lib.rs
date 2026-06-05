@@ -96,15 +96,10 @@ pub struct Tlk {
     /// Russian / Polish / Korean / Chinese builds use the matching
     /// Windows code page.
     pub language_id: u16,
-    /// Absolute file offset of the strings section as stored on disk
-    /// at header offset 0x0E. Preserved verbatim so the exporter can
-    /// reproduce non-canonical inputs (e.g. tools that leave a gap
-    /// between the entries block and the strings block) byte-for-byte.
-    /// For every shipped IE engine this equals the canonical value
-    /// `0x12 + entries.len() * 26` (no gap). Callers who add or
-    /// remove entries must update this field accordingly — the
-    /// exporter rejects values that would overlap the entries block.
-    pub strings_offset: u32,
+    // The strings-section offset (header 0x0E) is file layout — the
+    // canonical `0x12 + entries.len() * 26` — recomputed by the exporter,
+    // not stored. (Per-entry `string_offset`/`string_length` cursors are
+    // relative to the strings blob and ARE kept.)
     /// One entry per strref — sound + offset/length metadata.
     pub entries: Vec<TlkEntry>,
     /// Raw bytes of the strings section. Each entry's
@@ -212,7 +207,6 @@ impl Tlk {
     pub(crate) fn new(
         version: TlkVersion,
         language_id: u16,
-        strings_offset: u32,
         entries: Vec<TlkEntry>,
         strings: Vec<u8>,
         encoding: &'static encoding_rs::Encoding,
@@ -220,7 +214,6 @@ impl Tlk {
         Self {
             version,
             language_id,
-            strings_offset,
             entries,
             strings,
             encoding,

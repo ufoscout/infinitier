@@ -10,15 +10,15 @@
 - [ ] bg (TODO)
 - [ ] bgee
     - [ ] Characteristics -> Miscellaneous issues
-    - [ ] Proficiencies -> Wrong for dual-classed characters (e.g Imoen)
+    - [X] Proficiencies -> Wrong for dual-classed characters (e.g Imoen)
 - [ ] bg2 (TODO)
 - [ ] bg2ee
     - [ ] Characteristics -> Miscellaneous issues
-    - [ ] Proficiencies -> Check Imoen for a dual class
-    - [ ] Proficiencies -> Create a dual classed character and check the values
+    - [X] Proficiencies -> Check Imoen for a dual class
+    - [X] Proficiencies -> Create a dual classed character and check the values
 - [ ] iwd (TODO)
-- [ ] iwdee
-    - [ ] Proficiencies -> Create a dual classed character and check the values
+- [X] iwdee
+    - [X] Proficiencies -> Create a dual classed character and check the values
 - [ ] iwd2 (TODO)
 - [ ] pst (TODO)
 - [ ] pstee

@@ -16,13 +16,12 @@
 //!    cursors are not regenerated, so caller edits that leave the
 //!    cursors intact survive round-trip exactly.
 //!
-//! The exporter honours [`Tlk::strings_offset`] when writing — if a
-//! source file padded the gap between the entries block and the
-//! strings section (a non-canonical but engine-accepted layout),
-//! the gap is reproduced as zero bytes so the byte-exact promise
-//! still holds. The exporter rejects [`Tlk::strings_offset`] values
-//! that would overlap the entries block, since that would corrupt
-//! either the entries or the lookups.
+//! The strings-section offset (header 0x0E) is recomputed from the entry
+//! count — the canonical `0x12 + entries.len() * 26` every shipped IE
+//! engine uses — rather than reused from the parsed file, so adding or
+//! removing entries can never desync it. (Byte-exactness still holds for
+//! the canonical files; a hypothetical padded-gap input would lose its
+//! gap.)
 
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
@@ -53,16 +52,10 @@ impl TlkExporter {
 
 fn serialize(tlk: &Tlk) -> io::Result<Vec<u8>> {
     let n_entries = tlk.entries.len();
-    let entries_end = HEADER_LEN + n_entries * ENTRY_LEN;
-    let strings_offset = tlk.strings_offset as usize;
-    if strings_offset < entries_end {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!(
-                "TLK strings_offset {strings_offset} overlaps entries section (ends at {entries_end})",
-            ),
-        ));
-    }
+    // Recompute the strings-section offset from the entry count — the
+    // canonical layout (strings directly after the entries block) — so
+    // adding/removing entries can never desync a stored offset.
+    let strings_offset = HEADER_LEN + n_entries * ENTRY_LEN;
     let file_size = strings_offset + tlk.strings.len();
     let mut buf = vec![0u8; file_size];
 
@@ -71,16 +64,13 @@ fn serialize(tlk: &Tlk) -> io::Result<Vec<u8>> {
     buf[0x04..0x08].copy_from_slice(tlk.version.as_bytes());
     buf[0x08..0x0A].copy_from_slice(&tlk.language_id.to_le_bytes());
     buf[0x0A..0x0E].copy_from_slice(&(n_entries as u32).to_le_bytes());
-    buf[0x0E..0x12].copy_from_slice(&tlk.strings_offset.to_le_bytes());
+    buf[0x0E..0x12].copy_from_slice(&(strings_offset as u32).to_le_bytes());
 
     // Entries
     for (i, entry) in tlk.entries.iter().enumerate() {
         let off = HEADER_LEN + i * ENTRY_LEN;
         write_entry(&mut buf[off..off + ENTRY_LEN], entry);
     }
-
-    // Any gap between the entries block and the declared
-    // strings_offset stays zero-filled (`buf` is already zeroed).
 
     // Strings section — copied verbatim, so entries that haven't
     // been touched land at exactly the byte position they came from.
@@ -195,10 +185,6 @@ mod tests {
                 re_imported.language_id, original.language_id,
                 "{name}: language_id"
             );
-            assert_eq!(
-                re_imported.strings_offset, original.strings_offset,
-                "{name}: strings_offset",
-            );
             assert_eq!(re_imported.entries, original.entries, "{name}: entries");
             assert_eq!(re_imported.strings, original.strings, "{name}: strings");
         }
@@ -217,21 +203,26 @@ mod tests {
             .unwrap();
         assert_eq!(re_imported.entries, tlk.entries);
         assert_eq!(re_imported.strings, tlk.strings);
-        assert_eq!(re_imported.strings_offset, tlk.strings_offset);
     }
 
+    /// Adding an entry shifts the strings section; the recomputed
+    /// strings offset keeps the file consistent (no stored offset to
+    /// desync).
     #[test]
-    fn rejects_strings_offset_overlapping_entries() {
-        let bytes = synth_tlk();
-        let mut tlk = TlkImporter { name: "tmp" }
+    fn added_entry_relayouts_strings_section() {
+        let tlk = TlkImporter { name: "grow" }
+            .import(&DataSource::new(synth_tlk()))
+            .unwrap();
+        let mut grown = TlkImporter { name: "grow2" }
+            .import(&DataSource::new(synth_tlk()))
+            .unwrap();
+        grown.entries.push(grown.entries[0].clone());
+        let mut bytes = Vec::new();
+        TlkExporter.export(&grown, &mut bytes).unwrap();
+        let re = TlkImporter { name: "grow3" }
             .import(&DataSource::new(bytes))
             .unwrap();
-        // Push the strings_offset behind the entries block — must
-        // refuse rather than silently corrupting the output.
-        tlk.strings_offset = 0;
-        let err = TlkExporter
-            .export(&tlk, &mut Vec::new())
-            .expect_err("must reject overlap");
-        assert!(err.to_string().contains("overlaps entries"));
+        assert_eq!(re.entries.len(), tlk.entries.len() + 1);
+        assert_eq!(re.strings, grown.strings);
     }
 }

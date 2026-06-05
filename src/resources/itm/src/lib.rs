@@ -153,27 +153,6 @@ impl ItmHeader {
             ItmHeader::V2(h) => h.enchantment,
         }
     }
-    pub fn extended_headers_offset(&self) -> u32 {
-        match self {
-            ItmHeader::V1(h) => h.extended_headers_offset,
-            ItmHeader::V1_1(h) => h.extended_headers_offset,
-            ItmHeader::V2(h) => h.extended_headers_offset,
-        }
-    }
-    pub fn extended_headers_count(&self) -> u16 {
-        match self {
-            ItmHeader::V1(h) => h.extended_headers_count,
-            ItmHeader::V1_1(h) => h.extended_headers_count,
-            ItmHeader::V2(h) => h.extended_headers_count,
-        }
-    }
-    pub fn feature_blocks_offset(&self) -> u32 {
-        match self {
-            ItmHeader::V1(h) => h.feature_blocks_offset,
-            ItmHeader::V1_1(h) => h.feature_blocks_offset,
-            ItmHeader::V2(h) => h.feature_blocks_offset,
-        }
-    }
     pub fn equipping_feature_offset(&self) -> u16 {
         match self {
             ItmHeader::V1(h) => h.equipping_feature_offset,
@@ -256,12 +235,8 @@ pub struct ItmHeaderV1 {
     pub description_icon: String,
     /// 0x60: enchantment level.
     pub enchantment: u32,
-    /// 0x64: file offset of the first extended-header record.
-    pub extended_headers_offset: u32,
-    /// 0x68: number of extended-header records.
-    pub extended_headers_count: u16,
-    /// 0x6A: file offset of the first feature-block record.
-    pub feature_blocks_offset: u32,
+    // 0x64 extended-headers offset, 0x68 count, 0x6A feature-blocks offset
+    // are file layout — recomputed by the exporter, not stored.
     /// 0x6E: index into the effects array of the first "equipping"
     /// feature-block.
     pub equipping_feature_offset: u16,
@@ -303,9 +278,7 @@ pub struct ItmHeaderV1_1 {
     /// **pickup sound** resref.
     pub pickup_sound: String,
     pub enchantment: u32,
-    pub extended_headers_offset: u32,
-    pub extended_headers_count: u16,
-    pub feature_blocks_offset: u32,
+    // 0x64/0x68/0x6A section table recomputed by the exporter, not stored.
     pub equipping_feature_offset: u16,
     pub equipping_feature_count: u16,
     /// 0x72: 8-byte DLG resref for the conversable item's dialog.
@@ -353,9 +326,7 @@ pub struct ItmHeaderV2 {
     pub description_identified: u32,
     pub description_icon: String,
     pub enchantment: u32,
-    pub extended_headers_offset: u32,
-    pub extended_headers_count: u16,
-    pub feature_blocks_offset: u32,
+    // 0x64/0x68/0x6A section table recomputed by the exporter, not stored.
     pub equipping_feature_offset: u16,
     pub equipping_feature_count: u16,
     /// 0x72..0x82: 16 bytes IWD2 reserves for unknown use.

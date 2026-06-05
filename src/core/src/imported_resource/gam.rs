@@ -4,8 +4,7 @@ use infinitier_common::Game;
 use infinitier_cre_resource::{Cre, CreExporter, CreImporter};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_gam_resource::{
-    Gam, GamEngineData, GamExporter, GamHeader, GamNpc, GamVariable, GamVersion, JournalEntry,
-    NpcCharStats,
+    Gam, GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, JournalEntry, NpcCharStats,
 };
 use infinitier_tlk_resource::Tlk;
 
@@ -33,19 +32,6 @@ pub struct ImportedGam {
     /// Party-inventory raw bytes (20-byte item records, layout not
     /// decoded), preserved verbatim.
     pub party_inventory: Vec<u8>,
-    /// "Safe" offset where [`Self::export`] will place freshly
-    /// re-serialised CRE blobs. Captured from the original GAM's
-    /// total file size at import time — guaranteed to sit past
-    /// every header-declared section, every engine-data sub-section
-    /// (familiar info, stored locations, modron maze, …), and the
-    /// original CRE region.
-    ///
-    /// This is an internal layout hint, not a value the engine
-    /// reads — but the field is `pub` so user-built GAMs (without an
-    /// import round-trip) can supply their own base. Set to 0 to
-    /// have `export()` place CREs at byte 0, which only makes sense
-    /// for synthetic GAMs that carry no embedded CREs.
-    pub cre_layout_base: u32,
 }
 
 /// One NPC slot with its embedded CRE pre-parsed and its name
@@ -130,19 +116,6 @@ impl ImportedGam {
     /// "tracking target" field), and the CRE version tag alone can't tell
     /// PST:EE apart from the other Enhanced-Edition games.
     pub fn load_with_tlk(gam: Gam, game: Game, tlk: Option<&Tlk>) -> io::Result<ImportedGam> {
-        // Find the original file's total byte size — re-serialising
-        // the source GAM with the existing exporter gives us a value
-        // that's strictly past every section the writer touches
-        // (header + engine sub-sections + NPC raws + CRE blobs +
-        // variables + journal + inventory). We stash it as
-        // `cre_layout_base` so `export()` can re-pack CREs into a
-        // region guaranteed not to collide with any of the above.
-        let cre_layout_base = {
-            let mut buf = Vec::new();
-            GamExporter.export(&gam, &mut buf)?;
-            buf.len() as u32
-        };
-
         let engine = gam.engine_data.engine();
         let Gam {
             version,
@@ -173,7 +146,6 @@ impl ImportedGam {
             variables,
             journal,
             party_inventory,
-            cre_layout_base,
         })
     }
 
@@ -190,28 +162,22 @@ impl ImportedGam {
     /// Round-trip semantics: **functional**, not byte-exact. Each
     /// embedded CRE is re-serialised via [`CreExporter`] (which is
     /// struct-equal but not byte-exact — leftover bytes outside the
-    /// parsed sections aren't carried), and the resulting blobs are
-    /// repacked starting from the highest `cre_offset + cre_size`
-    /// the source file used. After
+    /// parsed sections aren't carried). [`infinitier_gam_resource::GamExporter`] then lays out
+    /// the whole file contiguously, computing each CRE blob's offset
+    /// and size on the fly, so re-serialised blobs of any size pack
+    /// without collision. After
     /// `import → load → export → GamExporter → GamImporter → load`,
     /// the second `ImportedGam` is functionally equivalent: same
     /// party / non-party CRE values, same header, same variables /
     /// journal / inventory.
     pub fn export(self) -> io::Result<Gam> {
-        // Lay out fresh CREs starting at the layout base captured at
-        // import time. Using a single high-water mark (rather than
-        // max(original cre_end)) keeps us clear of engine-data
-        // sub-sections — `GamExporter` writes those *after* the
-        // NPC CRE blobs, so a collision would silently clobber the
-        // CREs.
-        let mut cursor = self.cre_layout_base;
         let mut party_npcs = Vec::with_capacity(self.party_npcs.len());
         for npc in self.party_npcs {
-            party_npcs.push(rebuild_gam_npc(npc, &mut cursor)?);
+            party_npcs.push(rebuild_gam_npc(npc)?);
         }
         let mut non_party_npcs = Vec::with_capacity(self.non_party_npcs.len());
         for npc in self.non_party_npcs {
-            non_party_npcs.push(rebuild_gam_npc(npc, &mut cursor)?);
+            non_party_npcs.push(rebuild_gam_npc(npc)?);
         }
 
         Ok(Gam {
@@ -227,9 +193,12 @@ impl ImportedGam {
     }
 }
 
-/// Build a [`GamNpc`] from a resolved [`ImportedGamNpc`], advancing
-/// `cre_cursor` past the freshly-serialised CRE bytes (if any).
-fn rebuild_gam_npc(npc: ImportedGamNpc, cre_cursor: &mut u32) -> io::Result<GamNpc> {
+/// Build a [`GamNpc`] from a resolved [`ImportedGamNpc`]. The embedded
+/// CRE blob's file offset and size are no longer computed here —
+/// [`infinitier_gam_resource::GamExporter`] places every blob contiguously and patches each
+/// NPC record's `raw[0x04..0x0C]` with the recomputed values, so a
+/// re-serialised CRE of any size lays out without collision.
+fn rebuild_gam_npc(npc: ImportedGamNpc) -> io::Result<GamNpc> {
     let cre_bytes: Vec<u8> = match &npc.cre {
         Some(NpcCre::Cre(c)) => {
             let mut buf = Vec::new();
@@ -239,29 +208,12 @@ fn rebuild_gam_npc(npc: ImportedGamNpc, cre_cursor: &mut u32) -> io::Result<GamN
         // External resref or empty slot: no embedded bytes.
         Some(NpcCre::Ref(_)) | None => Vec::new(),
     };
-    let (cre_offset, cre_size) = if cre_bytes.is_empty() {
-        (0u32, 0u32)
-    } else {
-        let offset = *cre_cursor;
-        *cre_cursor = cre_cursor.saturating_add(cre_bytes.len() as u32);
-        (offset, cre_bytes.len() as u32)
-    };
-    // Patch the front of the preserved raw bytes with the new
-    // cre_offset / cre_size so the exporter's verbatim write of
-    // `raw` lines up with the freshly-laid-out CRE blob.
-    let mut raw = npc.raw;
-    if raw.len() >= 12 {
-        raw[4..8].copy_from_slice(&cre_offset.to_le_bytes());
-        raw[8..12].copy_from_slice(&cre_size.to_le_bytes());
-    }
     Ok(GamNpc {
         selection_state: npc.selection_state,
         party_order: npc.party_order,
-        cre_offset,
-        cre_size,
         character_name: npc.character_name,
         char_stats: npc.char_stats,
-        raw,
+        raw: npc.raw,
         cre: cre_bytes,
     })
 }
@@ -281,15 +233,13 @@ fn resolve_npc(
     let GamNpc {
         selection_state,
         party_order,
-        cre_offset: _,
-        cre_size: _,
         character_name,
         char_stats,
         raw,
         cre: cre_bytes,
     } = npc;
 
-    // Classify the CRE pointer. `cre_size == 0` means no embedded
+    // Classify the CRE pointer. An empty `cre` blob means no embedded
     // bytes — either the slot is empty (party has fewer than 6
     // characters) or it references an external CRE by resref.
     let resref = character_name.trim_matches('\0').trim();

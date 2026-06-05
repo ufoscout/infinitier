@@ -107,28 +107,38 @@ impl Importer for GamImporter<'_> {
                 ),
             ));
         }
-        let header = parse_header(&mut reader)?;
+        // The common header's section *offsets* and *counts* (party /
+        // non-party NPC, globals, journal, party-inventory) are file-
+        // layout details we read transiently to drive parsing but do
+        // not persist on `GamHeader` — the exporter recomputes them.
+        let (header, table) = parse_header(&mut reader)?;
         let engine_data = parse_engine_data(&mut reader, self.engine, file_size, self.name)?;
 
         let variables = parse_variables(
             &mut reader,
-            header.globals_offset,
-            header.globals_count,
+            table.globals_offset,
+            table.globals_count,
             self.name,
             "variable",
         )?;
         let journal = parse_journal(
             &mut reader,
-            header.journal_offset,
-            header.journal_count,
+            table.journal_offset,
+            table.journal_count,
             self.name,
         )?;
-        let party_inventory = extract_party_inventory(&mut reader, &header, file_size, self.name)?;
-        let npc_size = npc_record_size(&header, version);
+        let party_inventory = extract_party_inventory(
+            &mut reader,
+            &table,
+            header.party_inventory_count,
+            file_size,
+            self.name,
+        )?;
+        let npc_size = npc_record_size(&table, version);
         let party_npcs = parse_npcs(
             &mut reader,
-            header.party_npc_offset,
-            header.party_npc_count,
+            table.party_npc_offset,
+            table.party_npc_count,
             npc_size,
             "party NPC",
             self.name,
@@ -136,8 +146,8 @@ impl Importer for GamImporter<'_> {
         )?;
         let non_party_npcs = parse_npcs(
             &mut reader,
-            header.non_party_npc_offset,
-            header.non_party_npc_count,
+            table.non_party_npc_offset,
+            table.non_party_npc_count,
             npc_size,
             "non-party NPC",
             self.name,
@@ -168,10 +178,28 @@ impl Importer for GamImporter<'_> {
     }
 }
 
+/// Transient view of the common header's section table — the
+/// offset/count pairs that locate the variable-length sections. Read
+/// during import to drive parsing, then discarded: they are layout
+/// details the exporter recomputes, so they are not kept on
+/// [`GamHeader`].
+struct SectionTable {
+    party_npc_offset: u32,
+    party_npc_count: u32,
+    party_inventory_offset: u32,
+    non_party_npc_offset: u32,
+    non_party_npc_count: u32,
+    globals_offset: u32,
+    globals_count: u32,
+    journal_offset: u32,
+    journal_count: u32,
+}
+
 /// Parse the universally-shared 0x00..0x54 header. Assumes the
 /// reader's cursor is positioned at offset 0x08 (right after
-/// signature + version).
-fn parse_header(reader: &mut GamReader) -> std::io::Result<GamHeader> {
+/// signature + version). Returns the persisted [`GamHeader`] fields
+/// alongside the transient [`SectionTable`] used only during parsing.
+fn parse_header(reader: &mut GamReader) -> std::io::Result<(GamHeader, SectionTable)> {
     reader.set_position(0x08)?;
     let game_time = GameTime::from_game_seconds(reader.read_u32()?);
     let selected_formation = reader.read_u16()?;
@@ -197,37 +225,41 @@ fn parse_header(reader: &mut GamReader) -> std::io::Result<GamHeader> {
     let current_link = reader.read_u32()?;
     let journal_count = reader.read_u32()?;
     let journal_offset = reader.read_u32()?;
-    Ok(GamHeader {
-        game_time,
-        selected_formation,
-        formation_buttons,
-        party_gold,
-        active_npc_or_party_count,
-        weather,
-        party_npc_offset,
-        party_npc_count,
-        party_inventory_offset,
-        party_inventory_count,
-        non_party_npc_offset,
-        non_party_npc_count,
-        globals_offset,
-        globals_count,
-        world_area,
-        current_link,
-        journal_count,
-        journal_offset,
-    })
+    Ok((
+        GamHeader {
+            game_time,
+            selected_formation,
+            formation_buttons,
+            party_gold,
+            active_npc_or_party_count,
+            weather,
+            party_inventory_count,
+            world_area,
+            current_link,
+        },
+        SectionTable {
+            party_npc_offset,
+            party_npc_count,
+            party_inventory_offset,
+            non_party_npc_offset,
+            non_party_npc_count,
+            globals_offset,
+            globals_count,
+            journal_offset,
+            journal_count,
+        },
+    ))
 }
 
 /// Derive the per-NPC record size.
-fn npc_record_size(h: &GamHeader, version: GamVersion) -> u32 {
+fn npc_record_size(t: &SectionTable, version: GamVersion) -> u32 {
     match version {
         GamVersion::V2_2 => 832,
         GamVersion::V2_0 | GamVersion::V2_1 => 352,
         GamVersion::V1_1 => {
-            if h.party_npc_count > 0 && h.party_inventory_offset > h.party_npc_offset {
-                let span = h.party_inventory_offset - h.party_npc_offset;
-                let derived = span / h.party_npc_count;
+            if t.party_npc_count > 0 && t.party_inventory_offset > t.party_npc_offset {
+                let span = t.party_inventory_offset - t.party_npc_offset;
+                let derived = span / t.party_npc_count;
                 if derived >= NPC_HEADER_LEN as u32 {
                     return derived;
                 }
@@ -359,6 +391,13 @@ fn parse_npc(
     reader.set_position(offset)?;
     let mut raw = vec![0u8; record_size as usize];
     reader.read_exact(&mut raw)?;
+    // The embedded-CRE pointer (0x04) and size (0x08) are file-layout
+    // details: the exporter recomputes them and patches them back into
+    // `raw`. Normalise them to zero here so a round-tripped record
+    // (whose blob may have moved or been resized) still compares equal
+    // — the live values live in the transient `cre_offset`/`cre_size`
+    // locals and the `cre` blob below, not in `raw`.
+    raw[0x04..0x0C].fill(0);
     // Pull the embedded CRE blob from its **absolute** position in
     // the GAM file (cre_offset is into the whole file, not into this
     // NPC's bytes — see `GamNpc::cre_offset` for the NI cross-ref).
@@ -382,8 +421,6 @@ fn parse_npc(
     Ok(GamNpc {
         selection_state,
         party_order,
-        cre_offset,
-        cre_size,
         character_name,
         char_stats,
         raw,
@@ -393,15 +430,16 @@ fn parse_npc(
 
 fn extract_party_inventory(
     reader: &mut GamReader,
-    header: &GamHeader,
+    table: &SectionTable,
+    party_inventory_count: u32,
     file_size: u64,
     name: &str,
 ) -> std::io::Result<Vec<u8>> {
-    if header.party_inventory_count == 0 || header.party_inventory_offset == 0 {
+    if party_inventory_count == 0 || table.party_inventory_offset == 0 {
         return Ok(Vec::new());
     }
-    let start = header.party_inventory_offset as u64;
-    let end = following_offset(header.party_inventory_offset, header, file_size as u32) as u64;
+    let start = table.party_inventory_offset as u64;
+    let end = following_offset(table.party_inventory_offset, table, file_size as u32) as u64;
     if end > file_size || start > end {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -416,14 +454,14 @@ fn extract_party_inventory(
     Ok(out)
 }
 
-fn following_offset(from: u32, h: &GamHeader, file_size: u32) -> u32 {
+fn following_offset(from: u32, t: &SectionTable, file_size: u32) -> u32 {
     let mut next = file_size;
     for o in [
-        h.party_npc_offset,
-        h.party_inventory_offset,
-        h.non_party_npc_offset,
-        h.globals_offset,
-        h.journal_offset,
+        t.party_npc_offset,
+        t.party_inventory_offset,
+        t.non_party_npc_offset,
+        t.globals_offset,
+        t.journal_offset,
     ] {
         if o > from && o < next {
             next = o;
@@ -522,12 +560,7 @@ fn parse_bg2(reader: &mut GamReader, name: &str) -> std::io::Result<Bg2GamData> 
         master_area,
         configuration,
         save_version,
-        familiar_offset,
-        stored_locations_offset,
-        stored_locations_count,
         real_time,
-        pocket_plane_locations_offset,
-        pocket_plane_locations_count,
         unknown,
         familiar,
         stored_locations,
@@ -574,12 +607,7 @@ fn parse_ee(reader: &mut GamReader, name: &str) -> std::io::Result<EeGamData> {
         master_area,
         configuration,
         save_version,
-        familiar_offset,
-        stored_locations_offset,
-        stored_locations_count,
         real_time,
-        pocket_plane_locations_offset,
-        pocket_plane_locations_count,
         zoom_level,
         random_encounter_area,
         worldmap,
@@ -613,8 +641,6 @@ fn parse_iwd(reader: &mut GamReader, file_size: u64, name: &str) -> std::io::Res
         reputation,
         master_area,
         configuration,
-        unknown_count,
-        unknown_offset,
         unknown,
         unknown_section3,
         unknown_trailer,
@@ -656,8 +682,6 @@ fn parse_iwd2(reader: &mut GamReader, file_size: u64, name: &str) -> std::io::Re
         reputation,
         master_area,
         configuration,
-        unknown_count,
-        unknown_offset,
         nightmare_mode,
         unknown,
         unknown_section3,
@@ -692,12 +716,8 @@ fn parse_pst(reader: &mut GamReader, name: &str) -> std::io::Result<PstGamData> 
     let bestiary = parse_bestiary(reader, bestiary_offset, name)?;
 
     Ok(PstGamData {
-        modron_maze_offset,
         reputation,
         master_area,
-        kill_variables_offset,
-        kill_variables_count,
-        bestiary_offset,
         master_area_2,
         unknown,
         modron_maze,
@@ -776,7 +796,6 @@ fn parse_familiar(
     };
     Ok(Some(Familiar {
         default_cre_per_alignment,
-        resources_offset,
         counts,
         extra_resources,
     }))
@@ -829,7 +848,7 @@ fn parse_unknown_section3_block(
         let extra = read_fixed_bytes(reader, 4)?;
         blob.extend_from_slice(&extra);
     }
-    Ok((records, Some(IwdUnknownTrailer { end_offset, blob })))
+    Ok((records, Some(IwdUnknownTrailer { blob })))
 }
 
 fn parse_modron_maze(
@@ -901,10 +920,8 @@ mod tests {
         let gam = import_fixture("bg/Save/000000001-Quick-Save/BALDUR.GAM");
         assert_eq!(gam.version, GamVersion::V1_1);
         assert!(matches!(gam.engine_data, GamEngineData::Bg(_)));
-        assert!(gam.header.party_npc_count >= 1);
         assert!(!gam.party_npcs.is_empty());
-        assert_eq!(gam.header.party_npc_count as usize, gam.party_npcs.len());
-        assert_eq!(gam.header.globals_count as usize, gam.variables.len());
+        assert!(!gam.variables.is_empty());
     }
 
     #[test]
@@ -917,25 +934,13 @@ mod tests {
         };
         assert!(!pst.master_area.is_empty());
         assert!(!gam.variables.is_empty());
-        assert_eq!(pst.kill_variables_count as usize, pst.kill_variables.len());
     }
 
     #[test]
     fn test_parse_v2_0_bg2_vanilla() {
         let gam = import_fixture("bg2/save/000000000-Auto-Save/BALDUR.GAM");
         assert_eq!(gam.version, GamVersion::V2_0);
-        let bg2 = match &gam.engine_data {
-            GamEngineData::Bg2(b) => b,
-            other => panic!("expected Bg2GamData, got {other:?}"),
-        };
-        assert_eq!(
-            bg2.stored_locations_count as usize,
-            bg2.stored_locations.len()
-        );
-        assert_eq!(
-            bg2.pocket_plane_locations_count as usize,
-            bg2.pocket_plane_locations.len()
-        );
+        assert!(matches!(gam.engine_data, GamEngineData::Bg2(_)));
     }
 
     #[test]
@@ -947,38 +952,22 @@ mod tests {
 
     #[test]
     fn test_party_npcs_have_embedded_cre_blobs() {
-        // Regression for a real-world bug: `GamNpc::cre_offset` is an
-        // **absolute** GAM-file offset, not relative to the NPC
-        // struct. A BG:EE save's party NPCs each carry a sizeable
-        // embedded CRE (typically ~1.5–30 KB); when the offset was
-        // (wrongly) treated as NPC-relative, `cre_data()` returned
+        // Regression for a real-world bug: the embedded-CRE pointer in
+        // an NPC slot is an **absolute** GAM-file offset, not relative
+        // to the NPC struct. A BG:EE save's party NPCs each carry a
+        // sizeable embedded CRE (typically ~1.5–30 KB); when the offset
+        // was (wrongly) treated as NPC-relative, `cre_data()` returned
         // empty for every slot and downstream parsers thought the
-        // creature record was missing. The fix lifts the bytes from
-        // the file at the absolute offset on import.
+        // creature record was missing. The fix lifts the bytes from the
+        // file at the absolute offset on import.
         let gam = import_fixture("bg_ee/save/000000000-Auto-Salvataggio/BALDUR.gam");
         let main_pc = gam
             .party_npcs
             .iter()
-            .find(|n| n.cre_size > 0)
+            .find(|n| !n.cre.is_empty())
             .expect("expected at least one party NPC with an embedded CRE");
         // The blob should start with the CRE file signature.
-        assert!(
-            main_pc.cre.len() == main_pc.cre_size as usize,
-            "cre.len()={} but cre_size={}",
-            main_pc.cre.len(),
-            main_pc.cre_size
-        );
         assert_eq!(&main_pc.cre[0..4], b"CRE ", "first 4 bytes weren't 'CRE '");
-        // Slots without an embedded creature (cre_size == 0) must
-        // produce an empty Vec, not garbage.
-        for npc in gam
-            .non_party_npcs
-            .iter()
-            .chain(gam.party_npcs.iter())
-            .filter(|n| n.cre_size == 0)
-        {
-            assert!(npc.cre.is_empty(), "expected empty cre for cre_size=0 slot");
-        }
     }
 
     #[test]
@@ -989,7 +978,9 @@ mod tests {
             GamEngineData::Iwd2(i) => i,
             other => panic!("expected Iwd2GamData, got {other:?}"),
         };
-        assert_eq!(iwd2.unknown_count as usize, iwd2.unknown_section3.len());
+        // A multiplayer default IWD2 save carries no "section 3"
+        // records; just confirm the variant parsed.
+        let _ = &iwd2.unknown_section3;
     }
 
     // ── corpus walk ───────────────────────────────────────────────────
@@ -1015,31 +1006,6 @@ mod tests {
                 "engine_data variant mismatch for {}",
                 path.display(),
             );
-            assert_eq!(
-                gam.header.party_npc_count as usize,
-                gam.party_npcs.len(),
-                "party count mismatch in {}",
-                path.display(),
-            );
-            assert_eq!(
-                gam.header.non_party_npc_count as usize,
-                gam.non_party_npcs.len(),
-                "non-party count mismatch in {}",
-                path.display(),
-            );
-            assert_eq!(
-                gam.header.globals_count as usize,
-                gam.variables.len(),
-                "globals count mismatch in {}",
-                path.display(),
-            );
-            assert_eq!(
-                gam.header.journal_count as usize,
-                gam.journal.len(),
-                "journal count mismatch in {}",
-                path.display(),
-            );
-
             let idx = match gam.version {
                 GamVersion::V1_1 => 0,
                 GamVersion::V2_0 => 1,

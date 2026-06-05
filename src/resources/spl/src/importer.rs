@@ -68,23 +68,21 @@ impl Importer for SplImporter<'_> {
             SplVersion::V2_0 => SplHeader::V2(parse_header_v2(&mut reader)?),
         };
 
-        let abilities = parse_abilities(
-            &mut reader,
-            header.abilities_offset(),
-            header.abilities_count(),
-            self.name,
-        )?;
+        // The section table (abilities offset/count + effects offset) is
+        // file layout, not stored on the header — read it transiently.
+        // Same byte positions in both SPL versions.
+        reader.set_position(0x64)?;
+        let abilities_offset = reader.read_u32()?;
+        let abilities_count = reader.read_u16()?;
+        let effects_offset = reader.read_u32()?;
+
+        let abilities = parse_abilities(&mut reader, abilities_offset, abilities_count, self.name)?;
         // The effects section's record count is the **max
         // first_effect_index + num_effects** across every ability,
         // plus the casting feature-blocks. We compute it that way
         // because the SPL header doesn't expose a flat effect count.
         let effects_count = compute_effects_count(&abilities, &header);
-        let effects = parse_effects(
-            &mut reader,
-            header.effects_offset(),
-            effects_count,
-            self.name,
-        )?;
+        let effects = parse_effects(&mut reader, effects_offset, effects_count, self.name)?;
 
         debug!(
             "Loaded {} [SPL {:?}]: file={} B, abilities={}, effects={}",
@@ -155,9 +153,11 @@ fn parse_header_v1(reader: &mut SplReader) -> std::io::Result<SplHeaderV1> {
     let description_identified = reader.read_u32()?;
     let description_icon = reader.read_string(8)?;
     let enchantment = reader.read_u32()?;
-    let abilities_offset = reader.read_u32()?;
-    let abilities_count = reader.read_u16()?;
-    let effects_offset = reader.read_u32()?;
+    // 0x64/0x68/0x6A section table is file layout — skipped (recomputed
+    // on export).
+    let _ = reader.read_u32()?; // abilities offset
+    let _ = reader.read_u16()?; // abilities count
+    let _ = reader.read_u32()?; // effects offset
     let casting_feature_offset = reader.read_u16()?;
     let casting_feature_count = reader.read_u16()?;
     debug_assert_eq!(reader.position()?, HEADER_LEN_V1 as u64);
@@ -193,9 +193,6 @@ fn parse_header_v1(reader: &mut SplReader) -> std::io::Result<SplHeaderV1> {
         description_identified,
         description_icon,
         enchantment,
-        abilities_offset,
-        abilities_count,
-        effects_offset,
         casting_feature_offset,
         casting_feature_count,
     })
@@ -243,9 +240,6 @@ fn parse_header_v2(reader: &mut SplReader) -> std::io::Result<SplHeaderV2> {
         description_identified: v1.description_identified,
         description_icon: v1.description_icon,
         enchantment: v1.enchantment,
-        abilities_offset: v1.abilities_offset,
-        abilities_count: v1.abilities_count,
-        effects_offset: v1.effects_offset,
         casting_feature_offset: v1.casting_feature_offset,
         casting_feature_count: v1.casting_feature_count,
         duration_modifier_per_level,
@@ -400,9 +394,6 @@ mod tests {
         let spl = import_fixture("v1/bg2_SPIN572.spl");
         assert_eq!(spl.version, SplVersion::V1);
         assert!(matches!(spl.header, SplHeader::V1(_)));
-        // Header offset / count fields must agree with what we
-        // actually parsed.
-        assert_eq!(spl.header.abilities_count() as usize, spl.abilities.len());
         // BG2 SPIN572 is 250 B = 114 B header + 1 ability (40 B) +
         // some effects (48 B each). Should have at least 1 ability.
         assert!(!spl.abilities.is_empty());
@@ -454,12 +445,6 @@ mod tests {
             }
             .import(&DataSource::new(path.as_path()))
             .unwrap_or_else(|e| panic!("parse {} failed: {e}", path.display()));
-            assert_eq!(
-                spl.header.abilities_count() as usize,
-                spl.abilities.len(),
-                "abilities count mismatch in {}",
-                path.display(),
-            );
             assert_eq!(spl.header.version(), spl.version);
         }
     }

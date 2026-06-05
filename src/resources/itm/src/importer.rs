@@ -69,22 +69,20 @@ impl Importer for ItmImporter<'_> {
             ItmVersion::V2_0 => ItmHeader::V2(parse_header_v2(&mut reader)?),
         };
 
-        let abilities = parse_abilities(
-            &mut reader,
-            header.extended_headers_offset(),
-            header.extended_headers_count(),
-            self.name,
-        )?;
+        // The section table (abilities offset/count + effects offset) is
+        // file layout, not stored on the header — read it transiently to
+        // locate the sub-sections. Same byte positions in every version.
+        reader.set_position(0x64)?;
+        let abilities_offset = reader.read_u32()?;
+        let abilities_count = reader.read_u16()?;
+        let effects_offset = reader.read_u32()?;
+
+        let abilities = parse_abilities(&mut reader, abilities_offset, abilities_count, self.name)?;
         // Effects count isn't carried in the header — it's the max
         // (first_effect_index + num_effects) across every ability,
         // plus the equipping-feature window. Mirrors what NI does.
         let effects_count = compute_effects_count(&abilities, &header);
-        let effects = parse_effects(
-            &mut reader,
-            header.feature_blocks_offset(),
-            effects_count,
-            self.name,
-        )?;
+        let effects = parse_effects(&mut reader, effects_offset, effects_count, self.name)?;
 
         debug!(
             "Loaded {} [ITM {:?}]: file={} B, abilities={}, effects={}",
@@ -161,9 +159,11 @@ fn parse_header_v1(reader: &mut ItmReader) -> std::io::Result<ItmHeaderV1> {
     let description_identified = reader.read_u32()?;
     let description_icon = reader.read_string(8)?;
     let enchantment = reader.read_u32()?;
-    let extended_headers_offset = reader.read_u32()?;
-    let extended_headers_count = reader.read_u16()?;
-    let feature_blocks_offset = reader.read_u32()?;
+    // 0x64/0x68/0x6A section table is file layout — skipped (recomputed
+    // on export).
+    let _ = reader.read_u32()?; // extended-headers offset
+    let _ = reader.read_u16()?; // extended-headers count
+    let _ = reader.read_u32()?; // feature-blocks offset
     let equipping_feature_offset = reader.read_u16()?;
     let equipping_feature_count = reader.read_u16()?;
     debug_assert_eq!(reader.position()?, HEADER_LEN_V1 as u64);
@@ -198,9 +198,6 @@ fn parse_header_v1(reader: &mut ItmReader) -> std::io::Result<ItmHeaderV1> {
         description_identified,
         description_icon,
         enchantment,
-        extended_headers_offset,
-        extended_headers_count,
-        feature_blocks_offset,
         equipping_feature_offset,
         equipping_feature_count,
     })
@@ -231,9 +228,10 @@ fn parse_header_v1_1(reader: &mut ItmReader) -> std::io::Result<ItmHeaderV1_1> {
     let description_identified = reader.read_u32()?;
     let pickup_sound = reader.read_string(8)?;
     let enchantment = reader.read_u32()?;
-    let extended_headers_offset = reader.read_u32()?;
-    let extended_headers_count = reader.read_u16()?;
-    let feature_blocks_offset = reader.read_u32()?;
+    // 0x64/0x68/0x6A section table is file layout — skipped.
+    let _ = reader.read_u32()?; // extended-headers offset
+    let _ = reader.read_u16()?; // extended-headers count
+    let _ = reader.read_u32()?; // feature-blocks offset
     let equipping_feature_offset = reader.read_u16()?;
     let equipping_feature_count = reader.read_u16()?;
     debug_assert_eq!(reader.position()?, 0x72);
@@ -264,9 +262,6 @@ fn parse_header_v1_1(reader: &mut ItmReader) -> std::io::Result<ItmHeaderV1_1> {
         description_identified,
         pickup_sound,
         enchantment,
-        extended_headers_offset,
-        extended_headers_count,
-        feature_blocks_offset,
         equipping_feature_offset,
         equipping_feature_count,
         dialog,
@@ -314,9 +309,6 @@ fn parse_header_v2(reader: &mut ItmReader) -> std::io::Result<ItmHeaderV2> {
         description_identified: v1.description_identified,
         description_icon: v1.description_icon,
         enchantment: v1.enchantment,
-        extended_headers_offset: v1.extended_headers_offset,
-        extended_headers_count: v1.extended_headers_count,
-        feature_blocks_offset: v1.feature_blocks_offset,
         equipping_feature_offset: v1.equipping_feature_offset,
         equipping_feature_count: v1.equipping_feature_count,
         trailing_unknown,
@@ -482,10 +474,6 @@ mod tests {
         assert!(!itm.abilities.is_empty());
         // Inventory icon resref must look sane.
         assert!(!h.inventory_icon.is_empty());
-        assert_eq!(
-            itm.header.extended_headers_count() as usize,
-            itm.abilities.len()
-        );
     }
 
     #[test]
@@ -495,12 +483,8 @@ mod tests {
         let itm = import_fixture("v1/iwdee_SHAMME3.itm");
         assert_eq!(itm.version, ItmVersion::V1);
         assert!(!itm.abilities.is_empty());
-        // Effects must be at or past the header end.
-        assert!(
-            itm.header.feature_blocks_offset() as usize >= itm.version.header_len(),
-            "feature_blocks_offset {:#x} overlaps header",
-            itm.header.feature_blocks_offset()
-        );
+        // A charged item carries effects.
+        assert!(!itm.effects.is_empty());
     }
 
     #[test]
@@ -541,12 +525,6 @@ mod tests {
             }
             .import(&DataSource::new(path.as_path()))
             .unwrap_or_else(|e| panic!("parse {} failed: {e}", path.display()));
-            assert_eq!(
-                itm.header.extended_headers_count() as usize,
-                itm.abilities.len(),
-                "abilities count mismatch in {}",
-                path.display(),
-            );
             assert_eq!(itm.header.version(), itm.version);
         }
     }

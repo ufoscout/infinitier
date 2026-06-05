@@ -51,23 +51,12 @@ fn serialize(spl: &Spl) -> io::Result<Vec<u8>> {
         ));
     }
 
-    // File size = max(header_end, every section's end). For both
-    // versions the abilities + effects sections sit downstream of
-    // the header.
+    // Recompute the section layout: abilities directly after the fixed
+    // header, then the effects — never reuse a stored offset.
     let header_len = spl.version.header_len();
-    let abilities_end =
-        (spl.header.abilities_offset() as usize) + spl.abilities.len() * ABILITY_LEN;
-    let effects_end = (spl.header.effects_offset() as usize) + spl.effects.len() * EFFECT_LEN;
-    let mut file_size = header_len.max(abilities_end).max(effects_end);
-    // Empty section offsets must not retroactively extend the file
-    // when their count is zero — guard with `count > 0` checks above
-    // by re-deriving the conservative size when the slots are zero.
-    if spl.abilities.is_empty() {
-        file_size = file_size.max(header_len);
-    }
-    if spl.effects.is_empty() {
-        file_size = file_size.max(header_len);
-    }
+    let abilities_off = header_len;
+    let effects_off = header_len + spl.abilities.len() * ABILITY_LEN;
+    let file_size = effects_off + spl.effects.len() * EFFECT_LEN;
 
     let mut buf = vec![0u8; file_size];
 
@@ -79,21 +68,20 @@ fn serialize(spl: &Spl) -> io::Result<Vec<u8>> {
         SplHeader::V2(h) => write_header_v2(&mut buf[..HEADER_LEN_V2], h),
     }
 
-    // Abilities.
-    {
-        let mut off = spl.header.abilities_offset() as usize;
-        for a in &spl.abilities {
-            write_ability(&mut buf[off..off + ABILITY_LEN], a);
-            off += ABILITY_LEN;
-        }
+    // Section table — same byte positions in both SPL versions.
+    buf[0x64..0x68].copy_from_slice(&(abilities_off as u32).to_le_bytes());
+    buf[0x68..0x6A].copy_from_slice(&(spl.abilities.len() as u16).to_le_bytes());
+    buf[0x6A..0x6E].copy_from_slice(&(effects_off as u32).to_le_bytes());
+
+    let mut off = abilities_off;
+    for a in &spl.abilities {
+        write_ability(&mut buf[off..off + ABILITY_LEN], a);
+        off += ABILITY_LEN;
     }
-    // Effects.
-    {
-        let mut off = spl.header.effects_offset() as usize;
-        for e in &spl.effects {
-            write_effect(&mut buf[off..off + EFFECT_LEN], e);
-            off += EFFECT_LEN;
-        }
+    let mut off = effects_off;
+    for e in &spl.effects {
+        write_effect(&mut buf[off..off + EFFECT_LEN], e);
+        off += EFFECT_LEN;
     }
 
     debug!(
@@ -140,9 +128,7 @@ fn write_header_v1(out: &mut [u8], h: &SplHeaderV1) {
     out[0x54..0x58].copy_from_slice(&h.description_identified.to_le_bytes());
     write_resref(&mut out[0x58..0x60], &h.description_icon);
     out[0x60..0x64].copy_from_slice(&h.enchantment.to_le_bytes());
-    out[0x64..0x68].copy_from_slice(&h.abilities_offset.to_le_bytes());
-    out[0x68..0x6A].copy_from_slice(&h.abilities_count.to_le_bytes());
-    out[0x6A..0x6E].copy_from_slice(&h.effects_offset.to_le_bytes());
+    // 0x64/0x68/0x6A section table written by the exporter (recomputed).
     out[0x6E..0x70].copy_from_slice(&h.casting_feature_offset.to_le_bytes());
     out[0x70..0x72].copy_from_slice(&h.casting_feature_count.to_le_bytes());
 }
@@ -184,9 +170,6 @@ fn write_header_v2(out: &mut [u8], h: &SplHeaderV2) {
         description_identified: h.description_identified,
         description_icon: h.description_icon.clone(),
         enchantment: h.enchantment,
-        abilities_offset: h.abilities_offset,
-        abilities_count: h.abilities_count,
-        effects_offset: h.effects_offset,
         casting_feature_offset: h.casting_feature_offset,
         casting_feature_count: h.casting_feature_count,
     };

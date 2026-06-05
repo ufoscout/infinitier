@@ -57,80 +57,123 @@ impl GamExporter {
     }
 }
 
+/// Recomputed offsets/counts for the common-header section table.
+/// Every value is derived from the actual data during layout, never
+/// reused from the parsed input.
+struct CommonLayout {
+    party_npc_offset: u32,
+    party_npc_count: u32,
+    party_inventory_offset: u32,
+    non_party_npc_offset: u32,
+    non_party_npc_count: u32,
+    globals_offset: u32,
+    globals_count: u32,
+    journal_offset: u32,
+    journal_count: u32,
+}
+
+/// Recomputed offsets for the engine-specific sub-sections. The
+/// variant-specific offsets (familiar, stored locations, IWD
+/// "section 3", PST maze/bestiary, …) are all derived during layout.
+enum EngineLayout {
+    Bg,
+    /// Shared by BG2 and EE (identical sub-section set).
+    Bg2Ee {
+        familiar_offset: u32,
+        familiar_resources_offset: u32,
+        stored_locations_offset: u32,
+        pocket_plane_locations_offset: u32,
+    },
+    /// Shared by IWD and IWD2. `end_offset` is the recomputed EOS
+    /// pointer (`records_end + 4 + blob.len()`).
+    Iwd {
+        unknown_offset: u32,
+        end_offset: u32,
+    },
+    Pst {
+        modron_maze_offset: u32,
+        kill_variables_offset: u32,
+        bestiary_offset: u32,
+    },
+}
+
 fn serialize(gam: &Gam) -> io::Result<Vec<u8>> {
-    let mut file_size: u32 = engine_header_end(&gam.engine_data) as u32;
-    let h = &gam.header;
-    let extend = |fs: &mut u32, offset: u32, len: usize| {
-        if len > 0 {
-            *fs = (*fs).max(offset.saturating_add(len as u32));
-        }
-    };
+    let engine = gam.engine_data.engine();
+
+    // ── Pass 1: lay everything out contiguously after the engine
+    // header. Each section offset and count is recomputed here from the
+    // current data, so adding/removing records (or editing an embedded
+    // CRE, which changes its blob size) can never desync a stale stored
+    // offset.
     let party_npc_bytes: usize = gam.party_npcs.iter().map(|n| n.raw.len()).sum();
     let non_party_npc_bytes: usize = gam.non_party_npcs.iter().map(|n| n.raw.len()).sum();
-    extend(&mut file_size, h.party_npc_offset, party_npc_bytes);
-    extend(&mut file_size, h.non_party_npc_offset, non_party_npc_bytes);
-    extend(
-        &mut file_size,
-        h.globals_offset,
-        gam.variables.len() * VARIABLE_LEN,
-    );
-    extend(
-        &mut file_size,
-        h.journal_offset,
-        gam.journal.len() * JOURNAL_ENTRY_LEN,
-    );
-    extend(
-        &mut file_size,
-        h.party_inventory_offset,
-        gam.party_inventory.len(),
-    );
-    // Each party / non-party NPC may carry an embedded CRE blob at
-    // an absolute file offset — make sure the buffer extends far
-    // enough to hold those bytes too. Without this the writer would
-    // truncate the CRE region for any save where the blob lives
-    // past the end of the explicitly tracked sections.
-    for npc in gam.party_npcs.iter().chain(gam.non_party_npcs.iter()) {
-        if !npc.cre.is_empty() && npc.cre_offset > 0 {
-            extend(&mut file_size, npc.cre_offset, npc.cre.len());
-        }
-    }
-    extend_for_engine(&mut file_size, &gam.engine_data);
 
-    let mut buf = vec![0u8; file_size as usize];
+    let party_npc_offset = engine_header_end(&gam.engine_data);
+    // The party-inventory section must immediately follow the party
+    // NPCs: V1.1 re-derives the NPC record size from
+    // (party_inventory_offset - party_npc_offset) / party_npc_count,
+    // and the importer bounds the inventory blob by the next section
+    // offset. Keeping inventory adjacent satisfies both.
+    let party_inventory_offset = party_npc_offset + party_npc_bytes;
+    let non_party_npc_offset = party_inventory_offset + gam.party_inventory.len();
+    let globals_offset = non_party_npc_offset + non_party_npc_bytes;
+    let journal_offset = globals_offset + gam.variables.len() * VARIABLE_LEN;
+    let mut cursor = journal_offset + gam.journal.len() * JOURNAL_ENTRY_LEN;
 
+    let engine_layout = compute_engine_layout(&gam.engine_data, &mut cursor);
+
+    // Embedded CRE blobs are placed last, one per slot that carries
+    // one; record each absolute offset to patch into the NPC record.
+    let party_cre_offsets = assign_cre_offsets(&gam.party_npcs, &mut cursor);
+    let non_party_cre_offsets = assign_cre_offsets(&gam.non_party_npcs, &mut cursor);
+    let file_size = cursor;
+
+    let common = CommonLayout {
+        party_npc_offset: party_npc_offset as u32,
+        party_npc_count: gam.party_npcs.len() as u32,
+        party_inventory_offset: party_inventory_offset as u32,
+        non_party_npc_offset: non_party_npc_offset as u32,
+        non_party_npc_count: gam.non_party_npcs.len() as u32,
+        globals_offset: globals_offset as u32,
+        globals_count: gam.variables.len() as u32,
+        journal_offset: journal_offset as u32,
+        journal_count: gam.journal.len() as u32,
+    };
+
+    // ── Pass 2: write.
+    let mut buf = vec![0u8; file_size];
     buf[0..4].copy_from_slice(GAM_SIGNATURE);
     buf[4..8].copy_from_slice(gam.version.as_bytes());
 
-    write_common_header(&mut buf[..COMMON_HEADER_LEN], h);
-    write_engine_header(&mut buf, &gam.engine_data);
+    write_common_header(&mut buf[..COMMON_HEADER_LEN], &gam.header, &common);
+    write_engine_header(&mut buf, &gam.engine_data, &engine_layout);
 
-    let engine = gam.engine_data.engine();
     write_npcs_at(
         &mut buf,
-        h.party_npc_offset as usize,
+        party_npc_offset,
         &gam.party_npcs,
         engine,
+        &party_cre_offsets,
     );
     write_npcs_at(
         &mut buf,
-        h.non_party_npc_offset as usize,
+        non_party_npc_offset,
         &gam.non_party_npcs,
         engine,
+        &non_party_cre_offsets,
     );
-    write_variables_at(&mut buf, h.globals_offset as usize, &gam.variables);
-    write_journal_at(&mut buf, h.journal_offset as usize, &gam.journal);
     if !gam.party_inventory.is_empty() {
-        let off = h.party_inventory_offset as usize;
-        buf[off..off + gam.party_inventory.len()].copy_from_slice(&gam.party_inventory);
+        buf[party_inventory_offset..party_inventory_offset + gam.party_inventory.len()]
+            .copy_from_slice(&gam.party_inventory);
     }
+    write_variables_at(&mut buf, globals_offset, &gam.variables);
+    write_journal_at(&mut buf, journal_offset, &gam.journal);
 
-    write_engine_sections(&mut buf, &gam.engine_data);
+    write_engine_sections(&mut buf, &gam.engine_data, &engine_layout);
 
     debug!(
         "Serialised GAM ({:?} {:?}): total={} B",
-        gam.version,
-        gam.engine_data.engine(),
-        buf.len(),
+        gam.version, engine, file_size,
     );
 
     Ok(buf)
@@ -147,118 +190,145 @@ fn engine_header_end(data: &GamEngineData) -> usize {
     }
 }
 
-fn extend_for_engine(file_size: &mut u32, data: &GamEngineData) {
-    let extend = |fs: &mut u32, offset: u32, len: usize| {
-        if len > 0 && offset > 0 {
-            *fs = (*fs).max(offset.saturating_add(len as u32));
-        }
-    };
+/// Assign each NPC slot's embedded-CRE blob an absolute file offset
+/// (0 when the slot carries no embedded creature), advancing `cursor`
+/// past each placed blob.
+fn assign_cre_offsets(npcs: &[GamNpc], cursor: &mut usize) -> Vec<u32> {
+    npcs.iter()
+        .map(|n| {
+            if n.cre.is_empty() {
+                0
+            } else {
+                let off = *cursor as u32;
+                *cursor += n.cre.len();
+                off
+            }
+        })
+        .collect()
+}
+
+/// Lay out the engine-specific sub-sections starting at `*cursor`,
+/// advancing it past everything placed and returning their recomputed
+/// offsets.
+fn compute_engine_layout(data: &GamEngineData, cursor: &mut usize) -> EngineLayout {
     match data {
-        GamEngineData::Bg(_) => {}
-        GamEngineData::Bg2(b) => {
-            if b.familiar.is_some() {
-                extend(file_size, b.familiar_offset, FAMILIAR_FIXED_LEN);
-            }
-            if let Some(fam) = &b.familiar
-                && !fam.extra_resources.is_empty()
-            {
-                extend(
-                    file_size,
-                    fam.resources_offset,
-                    fam.extra_resources.len() * 8,
-                );
-            }
-            extend(
-                file_size,
-                b.stored_locations_offset,
-                b.stored_locations.len() * STORED_LOCATION_LEN,
-            );
-            extend(
-                file_size,
-                b.pocket_plane_locations_offset,
-                b.pocket_plane_locations.len() * STORED_LOCATION_LEN,
-            );
-        }
-        GamEngineData::Ee(e) => {
-            if e.familiar.is_some() {
-                extend(file_size, e.familiar_offset, FAMILIAR_FIXED_LEN);
-            }
-            if let Some(fam) = &e.familiar
-                && !fam.extra_resources.is_empty()
-            {
-                extend(
-                    file_size,
-                    fam.resources_offset,
-                    fam.extra_resources.len() * 8,
-                );
-            }
-            extend(
-                file_size,
-                e.stored_locations_offset,
-                e.stored_locations.len() * STORED_LOCATION_LEN,
-            );
-            extend(
-                file_size,
-                e.pocket_plane_locations_offset,
-                e.pocket_plane_locations.len() * STORED_LOCATION_LEN,
-            );
-        }
+        GamEngineData::Bg(_) => EngineLayout::Bg,
+        GamEngineData::Bg2(b) => compute_bg2_ee_layout(
+            cursor,
+            b.familiar.as_ref(),
+            b.stored_locations.len(),
+            b.pocket_plane_locations.len(),
+        ),
+        GamEngineData::Ee(e) => compute_bg2_ee_layout(
+            cursor,
+            e.familiar.as_ref(),
+            e.stored_locations.len(),
+            e.pocket_plane_locations.len(),
+        ),
         GamEngineData::Iwd(i) => {
-            extend_iwd_unknown(
-                file_size,
-                i.unknown_offset,
-                i.unknown_count,
-                &i.unknown_trailer,
-                false,
-            );
+            compute_iwd_layout(cursor, i.unknown_section3.len(), i.unknown_trailer.as_ref(), false)
         }
         GamEngineData::Iwd2(i) => {
-            extend_iwd_unknown(
-                file_size,
-                i.unknown_offset,
-                i.unknown_count,
-                &i.unknown_trailer,
-                true,
-            );
+            compute_iwd_layout(cursor, i.unknown_section3.len(), i.unknown_trailer.as_ref(), true)
         }
         GamEngineData::Pst(p) => {
-            if p.modron_maze.is_some() && p.modron_maze_offset > 0 {
-                *file_size = (*file_size).max(p.modron_maze_offset + MODRON_MAZE_LEN as u32);
-            }
-            extend(
-                file_size,
-                p.kill_variables_offset,
-                p.kill_variables.len() * VARIABLE_LEN,
-            );
-            if p.bestiary.is_some() && p.bestiary_offset > 0 {
-                *file_size = (*file_size).max(p.bestiary_offset + BESTIARY_LEN as u32);
+            let modron_maze_offset = if p.modron_maze.is_some() {
+                let off = *cursor as u32;
+                *cursor += MODRON_MAZE_LEN;
+                off
+            } else {
+                0
+            };
+            let kill_variables_offset = if p.kill_variables.is_empty() {
+                0
+            } else {
+                let off = *cursor as u32;
+                *cursor += p.kill_variables.len() * VARIABLE_LEN;
+                off
+            };
+            let bestiary_offset = if p.bestiary.is_some() {
+                let off = *cursor as u32;
+                *cursor += BESTIARY_LEN;
+                off
+            } else {
+                0
+            };
+            EngineLayout::Pst {
+                modron_maze_offset,
+                kill_variables_offset,
+                bestiary_offset,
             }
         }
     }
 }
 
-fn extend_iwd_unknown(
-    file_size: &mut u32,
-    offset: u32,
-    count: u32,
-    trailer: &Option<IwdUnknownTrailer>,
+fn compute_bg2_ee_layout(
+    cursor: &mut usize,
+    familiar: Option<&Familiar>,
+    stored_locations: usize,
+    pocket_plane_locations: usize,
+) -> EngineLayout {
+    let mut familiar_offset = 0;
+    let mut familiar_resources_offset = 0;
+    if let Some(fam) = familiar {
+        familiar_offset = *cursor as u32;
+        *cursor += FAMILIAR_FIXED_LEN;
+        if !fam.extra_resources.is_empty() {
+            familiar_resources_offset = *cursor as u32;
+            *cursor += fam.extra_resources.len() * 8;
+        }
+    }
+    let stored_locations_offset = if stored_locations == 0 {
+        0
+    } else {
+        let off = *cursor as u32;
+        *cursor += stored_locations * STORED_LOCATION_LEN;
+        off
+    };
+    let pocket_plane_locations_offset = if pocket_plane_locations == 0 {
+        0
+    } else {
+        let off = *cursor as u32;
+        *cursor += pocket_plane_locations * STORED_LOCATION_LEN;
+        off
+    };
+    EngineLayout::Bg2Ee {
+        familiar_offset,
+        familiar_resources_offset,
+        stored_locations_offset,
+        pocket_plane_locations_offset,
+    }
+}
+
+fn compute_iwd_layout(
+    cursor: &mut usize,
+    record_count: usize,
+    trailer: Option<&IwdUnknownTrailer>,
     is_iwd2: bool,
-) {
-    if count == 0 {
-        return;
+) -> EngineLayout {
+    if record_count == 0 {
+        return EngineLayout::Iwd {
+            unknown_offset: 0,
+            end_offset: 0,
+        };
     }
-    let records_end = offset.saturating_add(count * UNKNOWN_SECTION3_LEN as u32);
-    *file_size = (*file_size).max(records_end + 4);
-    if let Some(t) = trailer {
-        let blob_end = records_end + 4 + t.blob.len() as u32;
-        *file_size = (*file_size).max(blob_end);
-        if is_iwd2 {
-            *file_size = (*file_size).max(blob_end + 4);
-        }
+    let unknown_offset = *cursor as u32;
+    let records_end = *cursor + record_count * UNKNOWN_SECTION3_LEN;
+    // 4-byte EOS pointer, then the trailing blob.
+    let blob_len = trailer.map_or(0, |t| t.blob.len());
+    let end_offset = (records_end + 4 + blob_len) as u32;
+    *cursor = records_end + 4 + blob_len;
+    if is_iwd2 {
+        // IWD2 tacks a 4-byte "trailing extra" after the blob.
+        *cursor += 4;
+    }
+    EngineLayout::Iwd {
+        unknown_offset,
+        end_offset,
     }
 }
 
-fn write_common_header(out: &mut [u8], h: &GamHeader) {
+fn write_common_header(out: &mut [u8], h: &GamHeader, layout: &CommonLayout) {
     debug_assert!(out.len() >= COMMON_HEADER_LEN);
     out[0x08..0x0C].copy_from_slice(&h.game_time.game_seconds().to_le_bytes());
     out[0x0C..0x0E].copy_from_slice(&h.selected_formation.to_le_bytes());
@@ -269,28 +339,41 @@ fn write_common_header(out: &mut [u8], h: &GamHeader) {
     out[0x18..0x1C].copy_from_slice(&h.party_gold.to_le_bytes());
     out[0x1C..0x1E].copy_from_slice(&h.active_npc_or_party_count.to_le_bytes());
     out[0x1E..0x20].copy_from_slice(&h.weather.to_le_bytes());
-    out[0x20..0x24].copy_from_slice(&h.party_npc_offset.to_le_bytes());
-    out[0x24..0x28].copy_from_slice(&h.party_npc_count.to_le_bytes());
-    out[0x28..0x2C].copy_from_slice(&h.party_inventory_offset.to_le_bytes());
+    out[0x20..0x24].copy_from_slice(&layout.party_npc_offset.to_le_bytes());
+    out[0x24..0x28].copy_from_slice(&layout.party_npc_count.to_le_bytes());
+    out[0x28..0x2C].copy_from_slice(&layout.party_inventory_offset.to_le_bytes());
     out[0x2C..0x30].copy_from_slice(&h.party_inventory_count.to_le_bytes());
-    out[0x30..0x34].copy_from_slice(&h.non_party_npc_offset.to_le_bytes());
-    out[0x34..0x38].copy_from_slice(&h.non_party_npc_count.to_le_bytes());
-    out[0x38..0x3C].copy_from_slice(&h.globals_offset.to_le_bytes());
-    out[0x3C..0x40].copy_from_slice(&h.globals_count.to_le_bytes());
+    out[0x30..0x34].copy_from_slice(&layout.non_party_npc_offset.to_le_bytes());
+    out[0x34..0x38].copy_from_slice(&layout.non_party_npc_count.to_le_bytes());
+    out[0x38..0x3C].copy_from_slice(&layout.globals_offset.to_le_bytes());
+    out[0x3C..0x40].copy_from_slice(&layout.globals_count.to_le_bytes());
     write_string_fixed(&mut out[0x40..0x48], &h.world_area);
     out[0x48..0x4C].copy_from_slice(&h.current_link.to_le_bytes());
-    out[0x4C..0x50].copy_from_slice(&h.journal_count.to_le_bytes());
-    out[0x50..0x54].copy_from_slice(&h.journal_offset.to_le_bytes());
+    out[0x4C..0x50].copy_from_slice(&layout.journal_count.to_le_bytes());
+    out[0x50..0x54].copy_from_slice(&layout.journal_offset.to_le_bytes());
 }
 
-fn write_engine_header(buf: &mut [u8], data: &GamEngineData) {
-    match data {
-        GamEngineData::Bg(b) => write_bg_header(buf, b),
-        GamEngineData::Bg2(b) => write_bg2_header(buf, b),
-        GamEngineData::Ee(e) => write_ee_header(buf, e),
-        GamEngineData::Iwd(i) => write_iwd_header(buf, i),
-        GamEngineData::Iwd2(i) => write_iwd2_header(buf, i),
-        GamEngineData::Pst(p) => write_pst_header(buf, p),
+fn write_engine_header(buf: &mut [u8], data: &GamEngineData, layout: &EngineLayout) {
+    match (data, layout) {
+        (GamEngineData::Bg(b), EngineLayout::Bg) => write_bg_header(buf, b),
+        (GamEngineData::Bg2(b), EngineLayout::Bg2Ee { familiar_offset, stored_locations_offset, pocket_plane_locations_offset, .. }) => {
+            write_bg2_header(buf, b, *familiar_offset, *stored_locations_offset, *pocket_plane_locations_offset);
+        }
+        (GamEngineData::Ee(e), EngineLayout::Bg2Ee { familiar_offset, stored_locations_offset, pocket_plane_locations_offset, .. }) => {
+            write_ee_header(buf, e, *familiar_offset, *stored_locations_offset, *pocket_plane_locations_offset);
+        }
+        (GamEngineData::Iwd(i), EngineLayout::Iwd { unknown_offset, .. }) => {
+            write_iwd_header(buf, i, *unknown_offset);
+        }
+        (GamEngineData::Iwd2(i), EngineLayout::Iwd { unknown_offset, .. }) => {
+            write_iwd2_header(buf, i, *unknown_offset);
+        }
+        (GamEngineData::Pst(p), EngineLayout::Pst { modron_maze_offset, kill_variables_offset, bestiary_offset }) => {
+            write_pst_header(buf, p, *modron_maze_offset, *kill_variables_offset, *bestiary_offset);
+        }
+        // Engine data and layout variants are produced together by
+        // `compute_engine_layout`, so a mismatch is unreachable.
+        _ => unreachable!("engine data / layout variant mismatch"),
     }
 }
 
@@ -302,31 +385,43 @@ fn write_bg_header(buf: &mut [u8], b: &BgGamData) {
     write_bytes_fixed(&mut buf[0x68..0xB4], &b.unknown);
 }
 
-fn write_bg2_header(buf: &mut [u8], b: &Bg2GamData) {
+fn write_bg2_header(
+    buf: &mut [u8],
+    b: &Bg2GamData,
+    familiar_offset: u32,
+    stored_locations_offset: u32,
+    pocket_plane_locations_offset: u32,
+) {
     buf[0x54..0x58].copy_from_slice(&b.reputation.to_le_bytes());
     write_string_fixed(&mut buf[0x58..0x60], &b.master_area);
     buf[0x60..0x64].copy_from_slice(&b.configuration.to_le_bytes());
     buf[0x64..0x68].copy_from_slice(&b.save_version.to_le_bytes());
-    buf[0x68..0x6C].copy_from_slice(&b.familiar_offset.to_le_bytes());
-    buf[0x6C..0x70].copy_from_slice(&b.stored_locations_offset.to_le_bytes());
-    buf[0x70..0x74].copy_from_slice(&b.stored_locations_count.to_le_bytes());
+    buf[0x68..0x6C].copy_from_slice(&familiar_offset.to_le_bytes());
+    buf[0x6C..0x70].copy_from_slice(&stored_locations_offset.to_le_bytes());
+    buf[0x70..0x74].copy_from_slice(&(b.stored_locations.len() as u32).to_le_bytes());
     buf[0x74..0x78].copy_from_slice(&b.real_time.to_le_bytes());
-    buf[0x78..0x7C].copy_from_slice(&b.pocket_plane_locations_offset.to_le_bytes());
-    buf[0x7C..0x80].copy_from_slice(&b.pocket_plane_locations_count.to_le_bytes());
+    buf[0x78..0x7C].copy_from_slice(&pocket_plane_locations_offset.to_le_bytes());
+    buf[0x7C..0x80].copy_from_slice(&(b.pocket_plane_locations.len() as u32).to_le_bytes());
     write_bytes_fixed(&mut buf[0x80..0xB4], &b.unknown);
 }
 
-fn write_ee_header(buf: &mut [u8], e: &EeGamData) {
+fn write_ee_header(
+    buf: &mut [u8],
+    e: &EeGamData,
+    familiar_offset: u32,
+    stored_locations_offset: u32,
+    pocket_plane_locations_offset: u32,
+) {
     buf[0x54..0x58].copy_from_slice(&e.reputation.to_le_bytes());
     write_string_fixed(&mut buf[0x58..0x60], &e.master_area);
     buf[0x60..0x64].copy_from_slice(&e.configuration.to_le_bytes());
     buf[0x64..0x68].copy_from_slice(&e.save_version.to_le_bytes());
-    buf[0x68..0x6C].copy_from_slice(&e.familiar_offset.to_le_bytes());
-    buf[0x6C..0x70].copy_from_slice(&e.stored_locations_offset.to_le_bytes());
-    buf[0x70..0x74].copy_from_slice(&e.stored_locations_count.to_le_bytes());
+    buf[0x68..0x6C].copy_from_slice(&familiar_offset.to_le_bytes());
+    buf[0x6C..0x70].copy_from_slice(&stored_locations_offset.to_le_bytes());
+    buf[0x70..0x74].copy_from_slice(&(e.stored_locations.len() as u32).to_le_bytes());
     buf[0x74..0x78].copy_from_slice(&e.real_time.to_le_bytes());
-    buf[0x78..0x7C].copy_from_slice(&e.pocket_plane_locations_offset.to_le_bytes());
-    buf[0x7C..0x80].copy_from_slice(&e.pocket_plane_locations_count.to_le_bytes());
+    buf[0x78..0x7C].copy_from_slice(&pocket_plane_locations_offset.to_le_bytes());
+    buf[0x7C..0x80].copy_from_slice(&(e.pocket_plane_locations.len() as u32).to_le_bytes());
     buf[0x80..0x84].copy_from_slice(&e.zoom_level.to_le_bytes());
     write_string_fixed(&mut buf[0x84..0x8C], &e.random_encounter_area);
     write_string_fixed(&mut buf[0x8C..0x94], &e.worldmap);
@@ -335,99 +430,131 @@ fn write_ee_header(buf: &mut [u8], e: &EeGamData) {
     write_string_fixed(&mut buf[0xA0..0xB4], &e.encounter_entry);
 }
 
-fn write_iwd_header(buf: &mut [u8], i: &IwdGamData) {
+fn write_iwd_header(buf: &mut [u8], i: &IwdGamData, unknown_offset: u32) {
     buf[0x54..0x58].copy_from_slice(&i.reputation.to_le_bytes());
     write_string_fixed(&mut buf[0x58..0x60], &i.master_area);
     buf[0x60..0x64].copy_from_slice(&i.configuration.to_le_bytes());
-    buf[0x64..0x68].copy_from_slice(&i.unknown_count.to_le_bytes());
-    buf[0x68..0x6C].copy_from_slice(&i.unknown_offset.to_le_bytes());
+    buf[0x64..0x68].copy_from_slice(&(i.unknown_section3.len() as u32).to_le_bytes());
+    buf[0x68..0x6C].copy_from_slice(&unknown_offset.to_le_bytes());
     write_bytes_fixed(&mut buf[0x6C..0xB4], &i.unknown);
 }
 
-fn write_iwd2_header(buf: &mut [u8], i: &Iwd2GamData) {
+fn write_iwd2_header(buf: &mut [u8], i: &Iwd2GamData, unknown_offset: u32) {
     buf[0x54..0x58].copy_from_slice(&i.reputation.to_le_bytes());
     write_string_fixed(&mut buf[0x58..0x60], &i.master_area);
     buf[0x60..0x64].copy_from_slice(&i.configuration.to_le_bytes());
-    buf[0x64..0x68].copy_from_slice(&i.unknown_count.to_le_bytes());
-    buf[0x68..0x6C].copy_from_slice(&i.unknown_offset.to_le_bytes());
+    buf[0x64..0x68].copy_from_slice(&(i.unknown_section3.len() as u32).to_le_bytes());
+    buf[0x68..0x6C].copy_from_slice(&unknown_offset.to_le_bytes());
     buf[0x6C..0x70].copy_from_slice(&i.nightmare_mode.to_le_bytes());
     write_bytes_fixed(&mut buf[0x70..0xB4], &i.unknown);
 }
 
-fn write_pst_header(buf: &mut [u8], p: &PstGamData) {
-    buf[0x54..0x58].copy_from_slice(&p.modron_maze_offset.to_le_bytes());
+fn write_pst_header(
+    buf: &mut [u8],
+    p: &PstGamData,
+    modron_maze_offset: u32,
+    kill_variables_offset: u32,
+    bestiary_offset: u32,
+) {
+    buf[0x54..0x58].copy_from_slice(&modron_maze_offset.to_le_bytes());
     buf[0x58..0x5C].copy_from_slice(&p.reputation.to_le_bytes());
     write_string_fixed(&mut buf[0x5C..0x64], &p.master_area);
-    buf[0x64..0x68].copy_from_slice(&p.kill_variables_offset.to_le_bytes());
-    buf[0x68..0x6C].copy_from_slice(&p.kill_variables_count.to_le_bytes());
-    buf[0x6C..0x70].copy_from_slice(&p.bestiary_offset.to_le_bytes());
+    buf[0x64..0x68].copy_from_slice(&kill_variables_offset.to_le_bytes());
+    buf[0x68..0x6C].copy_from_slice(&(p.kill_variables.len() as u32).to_le_bytes());
+    buf[0x6C..0x70].copy_from_slice(&bestiary_offset.to_le_bytes());
     write_string_fixed(&mut buf[0x70..0x78], &p.master_area_2);
     write_bytes_fixed(&mut buf[0x78..0xB8], &p.unknown);
 }
 
-fn write_engine_sections(buf: &mut [u8], data: &GamEngineData) {
-    match data {
-        GamEngineData::Bg(_) => {}
-        GamEngineData::Bg2(b) => {
+fn write_engine_sections(buf: &mut [u8], data: &GamEngineData, layout: &EngineLayout) {
+    match (data, layout) {
+        (GamEngineData::Bg(_), _) => {}
+        (
+            GamEngineData::Bg2(b),
+            EngineLayout::Bg2Ee {
+                familiar_offset,
+                familiar_resources_offset,
+                stored_locations_offset,
+                pocket_plane_locations_offset,
+            },
+        ) => {
             if let Some(fam) = &b.familiar {
-                write_familiar(buf, b.familiar_offset as usize, fam);
+                write_familiar(buf, *familiar_offset as usize, *familiar_resources_offset, fam);
             }
-            write_stored_locations(buf, b.stored_locations_offset as usize, &b.stored_locations);
+            write_stored_locations(buf, *stored_locations_offset as usize, &b.stored_locations);
             write_stored_locations(
                 buf,
-                b.pocket_plane_locations_offset as usize,
+                *pocket_plane_locations_offset as usize,
                 &b.pocket_plane_locations,
             );
         }
-        GamEngineData::Ee(e) => {
+        (
+            GamEngineData::Ee(e),
+            EngineLayout::Bg2Ee {
+                familiar_offset,
+                familiar_resources_offset,
+                stored_locations_offset,
+                pocket_plane_locations_offset,
+            },
+        ) => {
             if let Some(fam) = &e.familiar {
-                write_familiar(buf, e.familiar_offset as usize, fam);
+                write_familiar(buf, *familiar_offset as usize, *familiar_resources_offset, fam);
             }
-            write_stored_locations(buf, e.stored_locations_offset as usize, &e.stored_locations);
+            write_stored_locations(buf, *stored_locations_offset as usize, &e.stored_locations);
             write_stored_locations(
                 buf,
-                e.pocket_plane_locations_offset as usize,
+                *pocket_plane_locations_offset as usize,
                 &e.pocket_plane_locations,
             );
         }
-        GamEngineData::Iwd(i) => {
+        (GamEngineData::Iwd(i), EngineLayout::Iwd { unknown_offset, end_offset }) => {
             write_unknown_section3_block(
                 buf,
-                i.unknown_offset as usize,
+                *unknown_offset as usize,
+                *end_offset,
                 &i.unknown_section3,
                 i.unknown_trailer.as_ref(),
                 None,
             );
         }
-        GamEngineData::Iwd2(i) => {
+        (GamEngineData::Iwd2(i), EngineLayout::Iwd { unknown_offset, end_offset }) => {
             write_unknown_section3_block(
                 buf,
-                i.unknown_offset as usize,
+                *unknown_offset as usize,
+                *end_offset,
                 &i.unknown_section3,
                 i.unknown_trailer.as_ref(),
                 Some(i.trailing_extra),
             );
         }
-        GamEngineData::Pst(p) => {
+        (
+            GamEngineData::Pst(p),
+            EngineLayout::Pst {
+                modron_maze_offset,
+                kill_variables_offset,
+                bestiary_offset,
+            },
+        ) => {
             if let Some(maze) = &p.modron_maze {
-                write_modron_maze(buf, p.modron_maze_offset as usize, maze);
+                write_modron_maze(buf, *modron_maze_offset as usize, maze);
             }
-            write_variables_at(buf, p.kill_variables_offset as usize, &p.kill_variables);
+            write_variables_at(buf, *kill_variables_offset as usize, &p.kill_variables);
             if let Some(bestiary) = &p.bestiary {
-                let off = p.bestiary_offset as usize;
+                let off = *bestiary_offset as usize;
                 let n = bestiary.len().min(BESTIARY_LEN);
                 buf[off..off + n].copy_from_slice(&bestiary[..n]);
             }
         }
+        _ => unreachable!("engine data / layout variant mismatch"),
     }
 }
 
-fn write_familiar(buf: &mut [u8], offset: usize, fam: &Familiar) {
+fn write_familiar(buf: &mut [u8], offset: usize, resources_offset: u32, fam: &Familiar) {
     for (i, cref) in fam.default_cre_per_alignment.iter().enumerate() {
         let off = offset + i * 8;
         write_string_fixed(&mut buf[off..off + 8], cref);
     }
-    buf[offset + 72..offset + 76].copy_from_slice(&fam.resources_offset.to_le_bytes());
+    buf[offset + 72..offset + 76].copy_from_slice(&resources_offset.to_le_bytes());
     let counts_base = offset + 76;
     for (alignment_idx, row) in fam.counts.iter().enumerate() {
         for (level_idx, &v) in row.iter().enumerate() {
@@ -436,7 +563,7 @@ fn write_familiar(buf: &mut [u8], offset: usize, fam: &Familiar) {
         }
     }
     if !fam.extra_resources.is_empty() {
-        let extras_start = fam.resources_offset as usize;
+        let extras_start = resources_offset as usize;
         for (i, r) in fam.extra_resources.iter().enumerate() {
             let off = extras_start + i * 8;
             write_string_fixed(&mut buf[off..off + 8], r);
@@ -456,6 +583,7 @@ fn write_stored_locations(buf: &mut [u8], offset: usize, locs: &[StoredLocation]
 fn write_unknown_section3_block(
     buf: &mut [u8],
     offset: usize,
+    end_offset: u32,
     records: &[UnknownSection3],
     trailer: Option<&IwdUnknownTrailer>,
     iwd2_extra: Option<u32>,
@@ -470,7 +598,9 @@ fn write_unknown_section3_block(
     }
     if let Some(t) = trailer {
         let records_end = offset + records.len() * UNKNOWN_SECTION3_LEN;
-        buf[records_end..records_end + 4].copy_from_slice(&t.end_offset.to_le_bytes());
+        // The EOS pointer is recomputed (records_end + 4 + blob.len()),
+        // not reused from the parsed file.
+        buf[records_end..records_end + 4].copy_from_slice(&end_offset.to_le_bytes());
         let blob_start = records_end + 4;
         let blob_end = blob_start + t.blob.len();
         buf[blob_start..blob_end].copy_from_slice(&t.blob);
@@ -526,10 +656,16 @@ fn write_bytes_fixed(out: &mut [u8], src: &[u8]) {
     out[..n].copy_from_slice(&src[..n]);
 }
 
-fn write_npcs_at(buf: &mut [u8], offset: usize, npcs: &[GamNpc], engine: Engine) {
+fn write_npcs_at(
+    buf: &mut [u8],
+    offset: usize,
+    npcs: &[GamNpc],
+    engine: Engine,
+    cre_offsets: &[u32],
+) {
     let base = char_stats_offset_for_engine(engine);
     let mut off = offset;
-    for npc in npcs {
+    for (npc, &cre_offset) in npcs.iter().zip(cre_offsets) {
         let start = off;
         buf[off..off + npc.raw.len()].copy_from_slice(&npc.raw);
         off += npc.raw.len();
@@ -537,15 +673,16 @@ fn write_npcs_at(buf: &mut [u8], offset: usize, npcs: &[GamNpc], engine: Engine)
         // so edits to `char_stats` persist (the rest of the record is
         // written verbatim from `raw`).
         npc.char_stats.write_into(&mut buf[start..off], base);
-        // The embedded CRE blob lives elsewhere in the file (at the
-        // absolute offset stored inside `npc.raw` at bytes 4..8);
-        // write it back there so the round-tripped GAM keeps the
-        // creature record reachable. Slots without an embedded CRE
-        // (resref-only) carry an empty `cre` and a zero offset.
-        if !npc.cre.is_empty() && npc.cre_offset > 0 {
-            let dest = npc.cre_offset as usize;
-            let end = dest + npc.cre.len();
-            buf[dest..end].copy_from_slice(&npc.cre);
+        // The embedded-CRE offset (raw 0x04) and size (raw 0x08) are
+        // recomputed here, not reused from the imported record: editing
+        // the creature changes the blob length, which would desync a
+        // stale stored offset/size. Slots without an embedded CRE carry
+        // an empty `cre` and get a zero offset/size.
+        buf[start + 0x04..start + 0x08].copy_from_slice(&cre_offset.to_le_bytes());
+        buf[start + 0x08..start + 0x0C].copy_from_slice(&(npc.cre.len() as u32).to_le_bytes());
+        if !npc.cre.is_empty() {
+            let dest = cre_offset as usize;
+            buf[dest..dest + npc.cre.len()].copy_from_slice(&npc.cre);
         }
     }
 }
@@ -657,5 +794,44 @@ mod tests {
         GamExporter.export(&original, &mut produced).unwrap();
         assert_eq!(&produced[0..4], GAM_SIGNATURE);
         assert_eq!(&produced[4..8], original.version.as_bytes());
+    }
+
+    /// Regression for the save-editor bug this refactor fixes: editing
+    /// a party member's embedded CRE changes its blob size, which would
+    /// desync every downstream offset if the exporter reused the stored
+    /// layout. Grow one party NPC's CRE and confirm the whole save
+    /// re-lays-out and round-trips — the grown blob survives and every
+    /// other section is still reachable and intact.
+    #[test]
+    fn growing_an_embedded_cre_relayouts_the_save() {
+        let path = get_assets_path().join("SAV_GAM/bg_ee/save/000000000-Auto-Salvataggio/BALDUR.gam");
+        let engine = engine_for_fixture(&path);
+        let original = GamImporter { name: "grow", engine }
+            .import(&DataSource::new(path.as_path()))
+            .unwrap();
+
+        let mut edited = original.clone();
+        // Pick the first party slot carrying an embedded CRE and append
+        // bytes to it (simulating a keeper edit that enlarges the CRE).
+        let idx = edited
+            .party_npcs
+            .iter()
+            .position(|n| !n.cre.is_empty())
+            .expect("fixture should have an embedded CRE");
+        let original_len = edited.party_npcs[idx].cre.len();
+        edited.party_npcs[idx].cre.extend_from_slice(&[0xAB; 137]);
+
+        let mut produced = Vec::new();
+        GamExporter.export(&edited, &mut produced).unwrap();
+        let re_imported = GamImporter { name: "grow2", engine }
+            .import(&DataSource::new(produced))
+            .unwrap();
+
+        // The grown blob survives at its new size…
+        assert_eq!(re_imported.party_npcs[idx].cre.len(), original_len + 137);
+        assert_eq!(re_imported.party_npcs[idx].cre, edited.party_npcs[idx].cre);
+        // …and the rest of the save is byte-for-byte the edited struct
+        // (every other section relaid out without corruption).
+        assert_eq!(re_imported, edited);
     }
 }

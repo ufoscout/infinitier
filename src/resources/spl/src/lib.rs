@@ -151,27 +151,6 @@ impl SplHeader {
             SplHeader::V2(h) => h.spell_type,
         }
     }
-    /// Offset of the first ability record in the file.
-    pub fn abilities_offset(&self) -> u32 {
-        match self {
-            SplHeader::V1(h) => h.abilities_offset,
-            SplHeader::V2(h) => h.abilities_offset,
-        }
-    }
-    /// Number of ability records.
-    pub fn abilities_count(&self) -> u16 {
-        match self {
-            SplHeader::V1(h) => h.abilities_count,
-            SplHeader::V2(h) => h.abilities_count,
-        }
-    }
-    /// Offset of the first effect record (the "feature block table").
-    pub fn effects_offset(&self) -> u32 {
-        match self {
-            SplHeader::V1(h) => h.effects_offset,
-            SplHeader::V2(h) => h.effects_offset,
-        }
-    }
     /// Index into [`Spl::effects`] of the first "casting"
     /// feature-block (effects emitted *while the caster is reading
     /// the spell*, before the projectile is in the air).
@@ -262,12 +241,8 @@ pub struct SplHeaderV1 {
     pub description_icon: String,
     /// 0x60: enchantment level (unused for spells).
     pub enchantment: u32,
-    /// 0x64: file offset of the first ability record.
-    pub abilities_offset: u32,
-    /// 0x68: number of ability records.
-    pub abilities_count: u16,
-    /// 0x6A: file offset of the first feature-block (effect).
-    pub effects_offset: u32,
+    // 0x64 abilities offset, 0x68 count, 0x6A effects offset are file
+    // layout — recomputed by the exporter, not stored.
     /// 0x6E: index into the effects array of the first "casting"
     /// feature-block.
     pub casting_feature_offset: u16,
@@ -312,9 +287,7 @@ pub struct SplHeaderV2 {
     pub description_identified: u32,
     pub description_icon: String,
     pub enchantment: u32,
-    pub abilities_offset: u32,
-    pub abilities_count: u16,
-    pub effects_offset: u32,
+    // 0x64/0x68/0x6A section table recomputed by the exporter, not stored.
     pub casting_feature_offset: u16,
     pub casting_feature_count: u16,
     /// 0x72 (V2 only): duration modifier — rounds per caster level.

@@ -124,7 +124,6 @@ impl Importer for TlkImporter<'_> {
         Ok(Tlk::new(
             version,
             language_id,
-            strings_offset,
             entries,
             strings,
             source.encoding(),

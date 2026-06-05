@@ -225,32 +225,20 @@ pub struct GamHeader {
     pub active_npc_or_party_count: u16,
     /// Weather bitfield (rain, snow, wind, lightning, …).
     pub weather: u16,
-    /// Byte offset of the party-NPCs section in the file.
-    pub party_npc_offset: u32,
-    /// Number of party-NPC entries (always includes the protagonist
-    /// in the V2.x layout; V1.1 likewise).
-    pub party_npc_count: u32,
-    /// Byte offset of the party-inventory section.
-    pub party_inventory_offset: u32,
-    /// Party-inventory record count.
+    /// Party-inventory record count. Kept (not derivable) because the
+    /// inventory section is an opaque byte blob whose record size is
+    /// version/engine-specific — the count can't be recovered from the
+    /// blob length alone. All section *offsets* and the other section
+    /// *counts* (party / non-party NPC, globals, journal) are layout
+    /// details: they're not stored here, and the exporter recomputes
+    /// them from the actual data so edits can never desync a stale
+    /// offset.
     pub party_inventory_count: u32,
-    /// Byte offset of the non-party-NPCs section.
-    pub non_party_npc_offset: u32,
-    /// Non-party-NPC entry count.
-    pub non_party_npc_count: u32,
-    /// Byte offset of the GLOBAL-variables section.
-    pub globals_offset: u32,
-    /// GLOBAL-variable count.
-    pub globals_count: u32,
     /// 8-byte ASCIIZ "world area" resref..
     pub world_area: String,
     /// 4-byte "current link" u32 at offset 0x48 (NearInfinity's
     /// `GAM_CURRENT_LINK`). Stored verbatim for round-trip work.
     pub current_link: u32,
-    /// Number of journal entries.
-    pub journal_count: u32,
-    /// Byte offset of the journal-entries section.
-    pub journal_offset: u32,
 }
 
 /// One NPC slot — party or non-party.
@@ -267,16 +255,13 @@ pub struct GamNpc {
     pub selection_state: u16,
     /// 0x02: party slot (`0..=5`) or `0xFFFF` for "not in party".
     pub party_order: u16,
-    /// 0x04: **absolute** file offset of the embedded CRE blob. Per
-    /// NearInfinity (`PartyNPC.read` constructs the embedded
-    /// `CreResource` against the GAM file buffer at this exact
-    /// position), the offset is into the GAM file itself — not into
-    /// the NPC's own byte slice. Zero when the slot has no embedded
-    /// CRE (it references an external resource by name via
-    /// [`Self::character_name`] instead).
-    pub cre_offset: u32,
-    /// 0x08: length in bytes of the embedded CRE blob.
-    pub cre_size: u32,
+    // 0x04 (embedded-CRE absolute file offset) and 0x08 (its byte
+    // length) are layout details, not stored here: the offset depends
+    // on where the blob lands in the file and the length is just
+    // `cre.len()`. Both are recomputed by the exporter and patched
+    // into `raw[0x04..0x0C]`, so editing the embedded creature (which
+    // changes the blob size) can never desync a stale offset/size — a
+    // real save-editor bug class this layout avoids.
     /// 0x0C: 8-byte resref-shaped "character name" field (often the
     /// short name; the longer name lives deeper inside the engine-
     /// specific tail). Decoded via WINDOWS-1252 with trailing NULs
@@ -658,18 +643,11 @@ pub struct Bg2GamData {
     pub configuration: u32,
     /// 0x64: save version.
     pub save_version: u32,
-    /// 0x68: offset of the familiar-info struct (0 = absent).
-    pub familiar_offset: u32,
-    /// 0x6C: offset of the stored-locations section.
-    pub stored_locations_offset: u32,
-    /// 0x70: count of stored-location records.
-    pub stored_locations_count: u32,
+    // 0x68 familiar offset, 0x6C/0x70 stored-locations offset/count,
+    // 0x78/0x7C pocket-plane-locations offset/count are layout
+    // details: recomputed on export from the sub-sections below.
     /// 0x74: elapsed real time (ticks).
     pub real_time: u32,
-    /// 0x78: offset of the pocket-plane locations section.
-    pub pocket_plane_locations_offset: u32,
-    /// 0x7C: count of pocket-plane-location records.
-    pub pocket_plane_locations_count: u32,
     /// 0x80..0xB4: 52 bytes of reserved data (zeroed in vanilla
     /// saves), preserved verbatim.
     pub unknown: Vec<u8>,
@@ -695,18 +673,11 @@ pub struct EeGamData {
     pub configuration: u32,
     /// 0x64: save version.
     pub save_version: u32,
-    /// 0x68: offset of the familiar-info struct.
-    pub familiar_offset: u32,
-    /// 0x6C: offset of the stored-locations section.
-    pub stored_locations_offset: u32,
-    /// 0x70: stored-location record count.
-    pub stored_locations_count: u32,
+    // 0x68 familiar offset, 0x6C/0x70 stored-locations offset/count,
+    // 0x78/0x7C pocket-plane-locations offset/count are layout
+    // details: recomputed on export from the sub-sections below.
     /// 0x74: elapsed real time (ticks).
     pub real_time: u32,
-    /// 0x78: offset of the pocket-plane locations section.
-    pub pocket_plane_locations_offset: u32,
-    /// 0x7C: pocket-plane location record count.
-    pub pocket_plane_locations_count: u32,
     /// 0x80: zoom level (EE-only).
     pub zoom_level: u32,
     /// 0x84: 8-byte random-encounter-area resref (EE-only).
@@ -738,10 +709,8 @@ pub struct IwdGamData {
     pub master_area: String,
     /// 0x60: configuration flags.
     pub configuration: u32,
-    /// 0x64: count of opaque "section 3" records (24 bytes each).
-    pub unknown_count: u32,
-    /// 0x68: offset of the "section 3" records.
-    pub unknown_offset: u32,
+    // 0x64 count / 0x68 offset of the opaque "section 3" records are
+    // layout details: recomputed on export from `unknown_section3`.
     /// 0x6C..0xB4: 72 bytes of reserved data, preserved verbatim.
     pub unknown: Vec<u8>,
     /// The "section 3" records (24 bytes each, raw).
@@ -757,11 +726,11 @@ pub struct IwdGamData {
 /// IWD/IWD2 saves when `unknown_count > 0`. Round-tripped verbatim.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IwdUnknownTrailer {
-    /// Absolute byte offset stored verbatim ("end of unknown
-    /// structure" in NearInfinity).
-    pub end_offset: u32,
-    /// Raw bytes from the end of `end_offset`'s 4-byte slot up to
-    /// the offset stored in `end_offset`.
+    /// Raw bytes of the trailing blob that follows the 4-byte
+    /// "end-of-unknown-structure" pointer. That pointer is an absolute
+    /// file offset equal to `records_end + 4 + blob.len()` for every
+    /// well-formed save, so it's a layout detail recomputed by the
+    /// exporter rather than stored here.
     pub blob: Vec<u8>,
 }
 
@@ -774,10 +743,8 @@ pub struct Iwd2GamData {
     pub master_area: String,
     /// 0x60: configuration flags.
     pub configuration: u32,
-    /// 0x64: count of "section 3" records.
-    pub unknown_count: u32,
-    /// 0x68: offset of the "section 3" records.
-    pub unknown_offset: u32,
+    // 0x64 count / 0x68 offset of the "section 3" records are layout
+    // details: recomputed on export from `unknown_section3`.
     /// 0x6C: nightmare-mode (a.k.a. Heart of Fury) flag.
     pub nightmare_mode: u32,
     /// 0x70..0xB4: 68 bytes of reserved data, preserved verbatim.
@@ -794,18 +761,13 @@ pub struct Iwd2GamData {
 /// PST vanilla (V1.1) extension.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PstGamData {
-    /// 0x54: offset of the Modron Maze (1720 bytes when present).
-    pub modron_maze_offset: u32,
+    // 0x54 Modron-Maze offset, 0x64/0x68 kill-variables offset/count,
+    // and 0x6C bestiary offset are layout details: recomputed on
+    // export from the sub-sections below.
     /// 0x58: reputation × 10.
     pub reputation: u32,
     /// 0x5C: 8-byte master area resref.
     pub master_area: String,
-    /// 0x64: offset of the kill-variables section (60-byte records).
-    pub kill_variables_offset: u32,
-    /// 0x68: kill-variables record count.
-    pub kill_variables_count: u32,
-    /// 0x6C: offset of the 260-byte Bestiary blob.
-    pub bestiary_offset: u32,
     /// 0x70: 8-byte "master area 2" resref (still undocumented).
     pub master_area_2: String,
     /// 0x78..0xB8: 64 bytes reserved, preserved verbatim.
@@ -848,10 +810,9 @@ pub struct Familiar {
     /// NG, TN, NE, CG, CN, CE — in that on-disk order). WINDOWS-1252
     /// decoded, trailing NULs stripped.
     pub default_cre_per_alignment: [String; 9],
-    /// 0x48: absolute file offset of the "extra familiar resources"
-    /// list. Stored verbatim — round-trips even when the list is
-    /// empty.
-    pub resources_offset: u32,
+    // 0x48 "extra familiar resources" list offset is a layout detail:
+    // recomputed on export (it sits right after the 400-byte fixed
+    // block when `extra_resources` is non-empty, else zero).
     /// 0x4C..0x190: 9 alignments × 9 character levels of u32 count
     /// fields (NearInfinity exposes these per row).
     pub counts: [[u32; 9]; 9],
