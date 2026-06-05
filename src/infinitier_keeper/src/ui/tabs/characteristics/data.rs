@@ -20,9 +20,9 @@
 //! 64000, chapter 413 / 3090880, game 1813 / 8750681).
 
 use infinitier_core::game::GameData;
+use infinitier_core::resource::Game;
 use infinitier_core::resource::cre::{Cre, CreHeader};
 use infinitier_core::resource::gam::NpcCharStats;
-use infinitier_core::resource::Game;
 
 /// Resolved, display-ready characteristics for one creature.
 #[derive(Debug, Default, Clone)]

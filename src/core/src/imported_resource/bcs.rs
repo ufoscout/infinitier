@@ -45,8 +45,7 @@ impl ImportedBcs {
             if resource.name == "trigger" || resource.name == "action" {
                 continue;
             }
-            if let Ok(ImportedResource::Ids(ids)) =
-                resource.import(game_data).map(Cow::into_owned)
+            if let Ok(ImportedResource::Ids(ids)) = resource.import(game_data).map(Cow::into_owned)
             {
                 ctx = ctx.with_ids(&resource.name, ids);
             }

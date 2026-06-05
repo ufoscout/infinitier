@@ -4,8 +4,8 @@
 //! format's bespoke importer output, so adding a new image format is a
 //! single new constructor here rather than a fresh viewer.
 
-use std::{collections::HashMap, sync::Arc};
 use std::io;
+use std::{collections::HashMap, sync::Arc};
 
 use image::{ImageBuffer, Rgba};
 use infinitier_bmp_resource::{Bmp, BmpCompression};

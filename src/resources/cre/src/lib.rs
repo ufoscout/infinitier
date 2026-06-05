@@ -191,6 +191,16 @@ impl Cre {
         }
     }
 
+    /// Race — an index into `RACE.IDS` (e.g. `1` = `HUMAN` in BG/BG2).
+    pub fn race(&self) -> u8 {
+        match &self.header {
+            CreHeader::V10(h) => h.race_race_ids,
+            CreHeader::V12(h) => h.race_race_ids,
+            CreHeader::V90(h) => h.race_race_ids,
+            CreHeader::V22(h) => h.race_race_ids,
+        }
+    }
+
     // ── Setters ────────────────────────────────────────────────────
     //
     // Same per-variant dispatch as the getters above. Callers are

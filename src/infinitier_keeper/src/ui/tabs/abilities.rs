@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use eframe::egui;
 use egui_components::scroll_area::ScrollArea;
 use egui_components::{Card, Label, LabelTone, Select, Size};
+use infinitier_core::engine_caps::ThiefSkill;
 use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22};
@@ -268,17 +269,50 @@ fn skills_card(
     let lore_base = read_u8(editors, EditableField::Lore, snap.lore);
     let effective_lore =
         (i32::from(lore_base) + state.engine_caps.lore_bonus(intelligence, wisdom)).max(0);
+    // The thief-skill rows show the effective value: stored base byte
+    // plus the racial adjustment (SKILLRAC.2DA, by race) plus the
+    // dexterity adjustment (SKILLDEX.2DA, by DEX) — both applied by the
+    // engine at runtime, neither baked into the stored byte. Read DEX
+    // in-flight so the previews track edits.
+    let dexterity = read_u8(editors, EditableField::Dexterity, snap.dexterity);
 
     Card::new().title("Thief Skills").divider().show(ui, |ui| {
         for &field in EditableField::ALL {
             if field.section() != Section::ThiefSkills || !snap.is_visible(field) {
                 continue;
             }
-            let bonus =
-                (field == EditableField::Lore).then(|| format!("(effective: {effective_lore})"));
+            let bonus = if field == EditableField::Lore {
+                Some(format!("(effective: {effective_lore})"))
+            } else if let Some(skill) = thief_skill_of(field) {
+                let base = read_u8(editors, field, snap.thief_skill_base(field));
+                let effective = (i32::from(base)
+                    + state
+                        .engine_caps
+                        .thief_skill_bonus(skill, dexterity, snap.race))
+                .max(0);
+                Some(format!("(effective: {effective})"))
+            } else {
+                None
+            };
             editable_row(ui, field, snap, state, editors, bonus);
         }
     });
+}
+
+/// Map an editable thief-skill field to its [`ThiefSkill`] for the
+/// SKILLDEX dexterity lookup. `None` for Lore (its bonus comes from
+/// LOREBON, handled separately).
+fn thief_skill_of(field: EditableField) -> Option<ThiefSkill> {
+    Some(match field {
+        EditableField::Lockpicking => ThiefSkill::OpenLocks,
+        EditableField::FindTraps => ThiefSkill::FindTraps,
+        EditableField::SetTraps => ThiefSkill::SetTraps,
+        EditableField::PickPockets => ThiefSkill::PickPockets,
+        EditableField::DetectIllusion => ThiefSkill::DetectIllusion,
+        EditableField::HideInShadows => ThiefSkill::HideInShadows,
+        EditableField::MoveSilently => ThiefSkill::MoveSilently,
+        _ => return None,
+    })
 }
 
 // ── Row primitives ───────────────────────────────────────────────────
@@ -431,6 +465,9 @@ struct CreSnapshot {
     constitution: u8,
     intelligence: u8,
     wisdom: u8,
+    /// Race byte (RACE.IDS index) — drives the SKILLRAC thief-skill
+    /// racial adjustment.
+    race: u8,
     /// Stored base Lore byte (effective Lore adds the INT/WIS bonus).
     lore: u8,
     thac0_or_bab: i8,
@@ -455,6 +492,10 @@ struct CreSnapshot {
     ability_total: u32,
     labels: HashMap<EditableField, &'static str>,
     visible: HashMap<EditableField, bool>,
+    /// Stored base byte for each AD&D thief skill (effective value adds
+    /// the SKILLDEX dexterity adjustment on top). Excludes Lore, whose
+    /// bonus comes from LOREBON.
+    thief_skill_base: HashMap<EditableField, u8>,
     /// IWD2-only read-only block. `None` on AD&D engines.
     iwd2_skills: Option<Vec<(&'static str, String)>>,
     /// IWD2-only "Total levels" + per-class breakdown row.
@@ -472,9 +513,13 @@ impl CreSnapshot {
         };
         let mut labels = HashMap::with_capacity(EditableField::ALL.len());
         let mut visible = HashMap::with_capacity(EditableField::ALL.len());
+        let mut thief_skill_base = HashMap::new();
         for &f in EditableField::ALL {
             labels.insert(f, f.label(cre));
             visible.insert(f, f.is_visible(cre));
+            if f.section() == Section::ThiefSkills && f != EditableField::Lore {
+                thief_skill_base.insert(f, thief_skill_base_value(cre, f));
+            }
         }
         let ability_total = u32::from(cre.strength())
             + u32::from(cre.dexterity())
@@ -507,6 +552,7 @@ impl CreSnapshot {
             constitution: cre.constitution(),
             intelligence: cre.intelligence(),
             wisdom: cre.wisdom(),
+            race: cre.race(),
             lore: cre.lore().unwrap_or(0),
             thac0_or_bab: cre.thac0_or_bab(),
             ac_natural: cre.ac_natural(),
@@ -520,6 +566,7 @@ impl CreSnapshot {
             ability_total,
             labels,
             visible,
+            thief_skill_base,
             iwd2_skills,
             iwd2_levels,
         })
@@ -531,6 +578,26 @@ impl CreSnapshot {
 
     fn is_visible(&self, field: EditableField) -> bool {
         self.visible.get(&field).copied().unwrap_or(false)
+    }
+
+    /// Stored base byte for a thief-skill field (0 if not a tracked
+    /// thief skill).
+    fn thief_skill_base(&self, field: EditableField) -> u8 {
+        self.thief_skill_base.get(&field).copied().unwrap_or(0)
+    }
+}
+
+/// Read the stored base byte for an AD&D thief-skill field from the CRE.
+fn thief_skill_base_value(cre: &Cre, field: EditableField) -> u8 {
+    match field {
+        EditableField::HideInShadows => cre.hide_in_shadows().unwrap_or(0),
+        EditableField::MoveSilently => cre.move_silently(),
+        EditableField::Lockpicking => cre.lockpicking().unwrap_or(0),
+        EditableField::FindTraps => cre.find_traps().unwrap_or(0),
+        EditableField::SetTraps => cre.set_traps().unwrap_or(0),
+        EditableField::PickPockets => cre.pick_pockets().unwrap_or(0),
+        EditableField::DetectIllusion => cre.detect_illusion().unwrap_or(0),
+        _ => 0,
     }
 }
 
@@ -581,7 +648,3 @@ fn iwd2_d20_skills(h: &CreHeaderV22) -> Vec<(&'static str, String)> {
         ("Wilderness Lore", h.wilderness_law.to_string()),
     ]
 }
-
-// `Cre` is needed by the snapshot constructor; suppress the unused-import lint.
-#[allow(dead_code)]
-fn _phantom(_: &Cre) {}

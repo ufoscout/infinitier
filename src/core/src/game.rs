@@ -77,7 +77,10 @@ impl GameData {
             .ok_or_else(|| {
                 io::Error::new(
                     io::ErrorKind::NotFound,
-                    format!("resource '{name}' of type {:?} not found in game data", r#type),
+                    format!(
+                        "resource '{name}' of type {:?} not found in game data",
+                        r#type
+                    ),
                 )
             })?
             .import(self)
@@ -86,7 +89,10 @@ impl GameData {
     /// Return every resource of `r#type`. Lookup is constant-time via
     /// the pre-built type index; iteration is then linear in the number
     /// of matches. Yields nothing when no resource of that type exists.
-    pub fn get_all_resources_by_type(&self, r#type: ResourceType) -> impl Iterator<Item = &GameResource> {
+    pub fn get_all_resources_by_type(
+        &self,
+        r#type: ResourceType,
+    ) -> impl Iterator<Item = &GameResource> {
         self.type_index
             .get(&r#type)
             .into_iter()
@@ -111,7 +117,10 @@ impl GameData {
     }
 
     /// Import an IDS resource by name.
-    pub fn import_ids_by_name(&self, name: &str) -> io::Result<Cow<'_, infinitier_ids_resource::Ids>> {
+    pub fn import_ids_by_name(
+        &self,
+        name: &str,
+    ) -> io::Result<Cow<'_, infinitier_ids_resource::Ids>> {
         match self.import_by_name_and_type(name, ResourceType::Ids)? {
             Cow::Borrowed(ImportedResource::Ids(ids)) => Ok(Cow::Borrowed(ids)),
             Cow::Owned(ImportedResource::Ids(ids)) => Ok(Cow::Owned(ids)),
@@ -142,7 +151,10 @@ impl GameData {
     /// Import a SPL resource by name, returning the parsed
     /// [`Spl`](infinitier_spl_resource::Spl) (borrowed when cached).
     /// `NotFound` if the resource is absent.
-    pub fn import_spl_by_name(&self, name: &str) -> io::Result<Cow<'_, infinitier_spl_resource::Spl>> {
+    pub fn import_spl_by_name(
+        &self,
+        name: &str,
+    ) -> io::Result<Cow<'_, infinitier_spl_resource::Spl>> {
         match self.import_by_name_and_type(name, ResourceType::Spl)? {
             Cow::Borrowed(ImportedResource::Spl(spl)) => Ok(Cow::Borrowed(spl)),
             Cow::Owned(ImportedResource::Spl(spl)) => Ok(Cow::Owned(spl)),
@@ -156,7 +168,10 @@ impl GameData {
     /// Import an ITM resource by name, returning the parsed
     /// [`Itm`](infinitier_itm_resource::Itm) (borrowed when cached).
     /// `NotFound` if the resource is absent.
-    pub fn import_itm_by_name(&self, name: &str) -> io::Result<Cow<'_, infinitier_itm_resource::Itm>> {
+    pub fn import_itm_by_name(
+        &self,
+        name: &str,
+    ) -> io::Result<Cow<'_, infinitier_itm_resource::Itm>> {
         match self.import_by_name_and_type(name, ResourceType::Itm)? {
             Cow::Borrowed(ImportedResource::Itm(itm)) => Ok(Cow::Borrowed(itm)),
             Cow::Owned(ImportedResource::Itm(itm)) => Ok(Cow::Owned(itm)),
@@ -1181,6 +1196,11 @@ mod tests {
         );
 
         // Unknown type → empty.
-        assert_eq!(game_data.get_all_resources_by_type(ResourceType::Tga).count(), 0);
+        assert_eq!(
+            game_data
+                .get_all_resources_by_type(ResourceType::Tga)
+                .count(),
+            0
+        );
     }
 }

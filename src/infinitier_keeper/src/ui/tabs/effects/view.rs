@@ -241,4 +241,3 @@ fn title_case(symbol: &str) -> String {
         .collect::<Vec<_>>()
         .join(" ")
 }
-

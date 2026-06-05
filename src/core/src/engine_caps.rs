@@ -114,6 +114,194 @@ impl BonusTable {
     }
 }
 
+// ── Dexterity → thief-skill adjustment (SKILLDEX.2DA) ────────────────
+
+/// The AD&D thieving skills. The effective value the game shows is the
+/// stored CRE skill byte plus a racial adjustment (`SKILLRAC.2DA`, by
+/// race) plus a dexterity adjustment (`SKILLDEX.2DA`, by DEX score) —
+/// both applied at runtime, neither baked into the stored byte.
+///
+/// IWD2 uses the d20 skill system instead, so it has no SKILLDEX /
+/// SKILLRAC adjustment here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThiefSkill {
+    OpenLocks,
+    FindTraps,
+    SetTraps,
+    PickPockets,
+    DetectIllusion,
+    HideInShadows,
+    MoveSilently,
+}
+
+impl ThiefSkill {
+    pub const ALL: [ThiefSkill; 7] = [
+        ThiefSkill::OpenLocks,
+        ThiefSkill::FindTraps,
+        ThiefSkill::SetTraps,
+        ThiefSkill::PickPockets,
+        ThiefSkill::DetectIllusion,
+        ThiefSkill::HideInShadows,
+        ThiefSkill::MoveSilently,
+    ];
+
+    /// `SKILLDEX.2DA` / `SKILLRAC.2DA` column-name candidates for this
+    /// skill (both 2DAs share the same column layout). Stealth is stored
+    /// split (`MOVE_SILENTLY` / `HIDE_IN_SHADOWS`) in BG/IWD but merged
+    /// into a single `STEALTH` column in Planescape: Torment, so the
+    /// move-silently skill accepts either.
+    fn columns(self) -> &'static [&'static str] {
+        match self {
+            ThiefSkill::OpenLocks => &["OPEN_LOCKS"],
+            ThiefSkill::FindTraps => &["FIND_TRAPS"],
+            ThiefSkill::SetTraps => &["SET_TRAPS"],
+            ThiefSkill::PickPockets => &["PICK_POCKETS"],
+            ThiefSkill::DetectIllusion => &["DETECT_ILLUSION"],
+            ThiefSkill::HideInShadows => &["HIDE_IN_SHADOWS"],
+            ThiefSkill::MoveSilently => &["MOVE_SILENTLY", "STEALTH"],
+        }
+    }
+}
+
+/// Per-skill dexterity adjustment loaded from `SKILLDEX.2DA` — one
+/// single-column [`BonusTable`] per thief skill, keyed by dexterity
+/// score (values are signed: low DEX is a penalty). A missing 2DA or
+/// column (e.g. PST has no `HIDE_IN_SHADOWS`, IWD2 isn't loaded at all)
+/// leaves an empty table whose adjustment is 0.
+#[derive(Debug, Clone, Default)]
+pub struct SkillDexBonuses {
+    pub open_locks: BonusTable,
+    pub find_traps: BonusTable,
+    pub set_traps: BonusTable,
+    pub pick_pockets: BonusTable,
+    pub detect_illusion: BonusTable,
+    pub hide_in_shadows: BonusTable,
+    pub move_silently: BonusTable,
+}
+
+impl SkillDexBonuses {
+    /// Load `SKILLDEX.2DA` and build one [`BonusTable`] per skill
+    /// column. Returns an all-empty set when the resource is absent.
+    fn load(game_data: &GameData) -> Self {
+        let Ok(two_da) = game_data.import_2da_by_name("skilldex") else {
+            return Self::default();
+        };
+        let col = |skill: ThiefSkill| {
+            BonusTable::from_two_da_any(&two_da, skill.columns()).unwrap_or_default()
+        };
+        Self {
+            open_locks: col(ThiefSkill::OpenLocks),
+            find_traps: col(ThiefSkill::FindTraps),
+            set_traps: col(ThiefSkill::SetTraps),
+            pick_pockets: col(ThiefSkill::PickPockets),
+            detect_illusion: col(ThiefSkill::DetectIllusion),
+            hide_in_shadows: col(ThiefSkill::HideInShadows),
+            move_silently: col(ThiefSkill::MoveSilently),
+        }
+    }
+
+    fn table(&self, skill: ThiefSkill) -> &BonusTable {
+        match skill {
+            ThiefSkill::OpenLocks => &self.open_locks,
+            ThiefSkill::FindTraps => &self.find_traps,
+            ThiefSkill::SetTraps => &self.set_traps,
+            ThiefSkill::PickPockets => &self.pick_pockets,
+            ThiefSkill::DetectIllusion => &self.detect_illusion,
+            ThiefSkill::HideInShadows => &self.hide_in_shadows,
+            ThiefSkill::MoveSilently => &self.move_silently,
+        }
+    }
+
+    /// Dexterity adjustment for `skill` at `dexterity`. 0 when the
+    /// column/table is absent.
+    pub fn bonus(&self, skill: ThiefSkill, dexterity: u8) -> i32 {
+        i32::from(self.table(skill).lookup(dexterity))
+    }
+}
+
+/// One `SKILLRAC.2DA` column: race symbol (a `RACE.IDS` name, uppercased)
+/// → signed adjustment.
+#[derive(Debug, Clone, Default)]
+pub struct RaceSkillColumn(HashMap<String, i8>);
+
+impl RaceSkillColumn {
+    fn from_two_da(two_da: &TwoDA, columns: &[&str]) -> Self {
+        let Some(idx) = columns.iter().find_map(|c| {
+            two_da
+                .headers
+                .iter()
+                .position(|h| h.eq_ignore_ascii_case(c))
+        }) else {
+            return Self::default();
+        };
+        let map = two_da
+            .rows
+            .iter()
+            .filter_map(|(race, row)| {
+                let v = row.get(idx)?.trim().parse::<i8>().ok()?;
+                Some((race.to_ascii_uppercase(), v))
+            })
+            .collect();
+        Self(map)
+    }
+
+    fn lookup(&self, race: &str) -> i8 {
+        self.0.get(&race.to_ascii_uppercase()).copied().unwrap_or(0)
+    }
+}
+
+/// Per-skill racial adjustment loaded from `SKILLRAC.2DA` — one column
+/// per thief skill, keyed by race symbol (`RACE.IDS`). Empty (0) when
+/// the 2DA or column is absent.
+#[derive(Debug, Clone, Default)]
+pub struct SkillRaceBonuses {
+    pub open_locks: RaceSkillColumn,
+    pub find_traps: RaceSkillColumn,
+    pub set_traps: RaceSkillColumn,
+    pub pick_pockets: RaceSkillColumn,
+    pub detect_illusion: RaceSkillColumn,
+    pub hide_in_shadows: RaceSkillColumn,
+    pub move_silently: RaceSkillColumn,
+}
+
+impl SkillRaceBonuses {
+    /// Load `SKILLRAC.2DA` and build one column per skill. Returns an
+    /// all-empty set when the resource is absent.
+    fn load(game_data: &GameData) -> Self {
+        let Ok(two_da) = game_data.import_2da_by_name("skillrac") else {
+            return Self::default();
+        };
+        let col = |skill: ThiefSkill| RaceSkillColumn::from_two_da(&two_da, skill.columns());
+        Self {
+            open_locks: col(ThiefSkill::OpenLocks),
+            find_traps: col(ThiefSkill::FindTraps),
+            set_traps: col(ThiefSkill::SetTraps),
+            pick_pockets: col(ThiefSkill::PickPockets),
+            detect_illusion: col(ThiefSkill::DetectIllusion),
+            hide_in_shadows: col(ThiefSkill::HideInShadows),
+            move_silently: col(ThiefSkill::MoveSilently),
+        }
+    }
+
+    fn column(&self, skill: ThiefSkill) -> &RaceSkillColumn {
+        match skill {
+            ThiefSkill::OpenLocks => &self.open_locks,
+            ThiefSkill::FindTraps => &self.find_traps,
+            ThiefSkill::SetTraps => &self.set_traps,
+            ThiefSkill::PickPockets => &self.pick_pockets,
+            ThiefSkill::DetectIllusion => &self.detect_illusion,
+            ThiefSkill::HideInShadows => &self.hide_in_shadows,
+            ThiefSkill::MoveSilently => &self.move_silently,
+        }
+    }
+
+    /// Racial adjustment for `skill` and a `RACE.IDS` symbol. 0 when the
+    /// race/column is absent.
+    pub fn bonus(&self, skill: ThiefSkill, race: &str) -> i32 {
+        i32::from(self.column(skill).lookup(race))
+    }
+}
+
 // ── Per-engine caps + bonuses ───────────────────────────────────────
 
 /// Bundle of per-field caps + per-engine bonus tables. Built once at
@@ -185,6 +373,16 @@ pub struct EngineCaps {
     /// WIS score (e.g. WIS 6 → −20, INT 23 → +30). Applied once for
     /// INT and once for WIS. Empty on IWD2 (Lore is a d20 skill there).
     pub lorebon: BonusTable,
+    /// `SKILLDEX.2DA`: dexterity → per-thief-skill adjustment, added on
+    /// top of the stored CRE skill byte to get the effective skill.
+    /// Empty on IWD2 (d20 skills) or a stripped install.
+    pub skilldex: SkillDexBonuses,
+    /// `SKILLRAC.2DA`: race → per-thief-skill adjustment, also added on
+    /// top of the stored byte. Empty on IWD2 or a stripped install.
+    pub skillrac: SkillRaceBonuses,
+    /// `RACE.IDS`: race value → symbol (e.g. `1` → `HUMAN`), used to key
+    /// [`Self::skillrac`] from a raw CRE race byte.
+    race_symbols: HashMap<i32, String>,
     /// `HPCLASS.2DA`: class / kit / multiclass-component symbol →
     /// its per-level HP table name (`hpwar`, `hpwiz`, …), lowercased.
     /// Empty on IWD2 or a stripped install (callers then fall back).
@@ -367,7 +565,18 @@ impl EngineCaps {
         } else {
             load_class_hp_data(game_data)
         };
+        // SKILLDEX.2DA / SKILLRAC.2DA: dexterity + racial adjustment per
+        // thief skill. IWD2's d20 skills don't use them, so leave empty.
+        let (skilldex, skillrac) = if matches!(engine, Engine::Iwd2) {
+            (SkillDexBonuses::default(), SkillRaceBonuses::default())
+        } else {
+            (
+                SkillDexBonuses::load(game_data),
+                SkillRaceBonuses::load(game_data),
+            )
+        };
         let class_symbols = load_class_symbols(game_data);
+        let race_symbols = load_race_symbols(game_data);
         Ok(Self {
             engine,
             ability_score: ranges.ability_score,
@@ -396,6 +605,9 @@ impl EngineCaps {
             hpconbon_hp,
             hpconbon_hp_warrior,
             lorebon,
+            skilldex,
+            skillrac,
+            race_symbols,
             class_hp_tables,
             hp_table_profiles,
             class_symbols,
@@ -628,6 +840,30 @@ impl EngineCaps {
         i32::from(self.lorebon.lookup(intelligence)) + i32::from(self.lorebon.lookup(wisdom))
     }
 
+    /// Dexterity adjustment for a thief `skill` (`SKILLDEX.2DA`). 0 when
+    /// SKILLDEX or the column is absent.
+    pub fn thief_skill_dex_bonus(&self, skill: ThiefSkill, dexterity: u8) -> i32 {
+        self.skilldex.bonus(skill, dexterity)
+    }
+
+    /// Racial adjustment for a thief `skill` (`SKILLRAC.2DA`), resolved
+    /// from a raw CRE race byte via `RACE.IDS`. 0 when the race, column,
+    /// or 2DA is absent.
+    pub fn thief_skill_racial_bonus(&self, skill: ThiefSkill, race: u8) -> i32 {
+        match self.race_symbols.get(&i32::from(race)) {
+            Some(symbol) => self.skillrac.bonus(skill, symbol),
+            None => 0,
+        }
+    }
+
+    /// Effective adjustment the engine adds to a stored thief-skill byte
+    /// to get the displayed value: racial (`SKILLRAC.2DA`, by `race`) +
+    /// dexterity (`SKILLDEX.2DA`, by `dexterity`). Neither is baked into
+    /// the stored byte.
+    pub fn thief_skill_bonus(&self, skill: ThiefSkill, dexterity: u8, race: u8) -> i32 {
+        self.thief_skill_dex_bonus(skill, dexterity) + self.thief_skill_racial_bonus(skill, race)
+    }
+
     /// Combined bonuses for one set of ability scores under the
     /// engine's rules. The strength percentile only matters when
     /// STR is exactly 18 and the percentile byte is non-zero.
@@ -745,7 +981,25 @@ fn load_class_hp_data(
 /// its conservative default for every class.
 fn load_class_symbols(game_data: &GameData) -> HashMap<i32, String> {
     match game_data.import_ids_by_name("class") {
-        Ok(ids) => ids.entries.iter().map(|e| (e.value, e.name.clone())).collect(),
+        Ok(ids) => ids
+            .entries
+            .iter()
+            .map(|e| (e.value, e.name.clone()))
+            .collect(),
+        Err(_) => HashMap::new(),
+    }
+}
+
+/// Load `RACE.IDS` (value → symbol, e.g. `1` → `HUMAN`) once, used to
+/// key `SKILLRAC.2DA` from a raw CRE race byte. Best-effort: an empty
+/// map just yields a 0 racial adjustment.
+fn load_race_symbols(game_data: &GameData) -> HashMap<i32, String> {
+    match game_data.import_ids_by_name("race") {
+        Ok(ids) => ids
+            .entries
+            .iter()
+            .map(|e| (e.value, e.name.clone()))
+            .collect(),
         Err(_) => HashMap::new(),
     }
 }
@@ -897,6 +1151,9 @@ mod tests {
             hpconbon_hp,
             hpconbon_hp_warrior,
             lorebon,
+            skilldex: SkillDexBonuses::default(),
+            skillrac: SkillRaceBonuses::default(),
+            race_symbols: HashMap::new(),
             class_hp_tables: HashMap::new(),
             hp_table_profiles: HashMap::new(),
             class_symbols: HashMap::new(),
@@ -1403,6 +1660,221 @@ mod tests {
             result.is_ok(),
             "EngineCaps should build from pst_ee fixtures: {:?}",
             result.err()
+        );
+    }
+
+    // ── Thief-skill bonuses (SKILLDEX.2DA + SKILLRAC.2DA) ─────────────
+    //
+    // The effective thief skill the game shows is the stored CRE byte +
+    // racial adjustment (SKILLRAC, by race) + dexterity adjustment
+    // (SKILLDEX, by DEX). The fixtures under `assets/engine_caps/<key>/`
+    // hold SKILLDEX.2DA / SKILLRAC.2DA / RACE.IDS extracted from each
+    // install; these tests pin both the extracted data and the lookup.
+
+    /// `RACE.IDS` value for a race symbol (e.g. `HUMAN`).
+    fn race_byte(game_data: &GameData, symbol: &str) -> u8 {
+        let ids = game_data.import_ids_by_name("race").expect("RACE.IDS");
+        ids.entries
+            .iter()
+            .find(|e| e.name.eq_ignore_ascii_case(symbol))
+            .unwrap_or_else(|| panic!("RACE.IDS has no {symbol}"))
+            .value as u8
+    }
+
+    #[test]
+    fn thief_skill_bonus_bg2_ee() {
+        let gd = fixture_game_data("bg2_ee", infinitier_common::Game::Bg2ee);
+        let caps = EngineCaps::new(&gd).unwrap();
+        let human = race_byte(&gd, "HUMAN");
+
+        // SKILLRAC — human row.
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::OpenLocks, human),
+            10
+        );
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::PickPockets, human),
+            15
+        );
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::FindTraps, human),
+            5
+        );
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::MoveSilently, human),
+            10
+        );
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::HideInShadows, human),
+            5
+        );
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::SetTraps, human),
+            0
+        );
+
+        // SKILLRAC — a non-base race (halfling) carries different values.
+        let halfling = race_byte(&gd, "HALFLING");
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::PickPockets, halfling),
+            20
+        );
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::HideInShadows, halfling),
+            20
+        );
+
+        // SKILLDEX — DEX 13 baseline (0), 18 and 25 positive, 9 penalty.
+        assert_eq!(caps.thief_skill_dex_bonus(ThiefSkill::OpenLocks, 13), 0);
+        assert_eq!(caps.thief_skill_dex_bonus(ThiefSkill::OpenLocks, 18), 15);
+        assert_eq!(caps.thief_skill_dex_bonus(ThiefSkill::OpenLocks, 25), 50);
+        assert_eq!(caps.thief_skill_dex_bonus(ThiefSkill::PickPockets, 18), 10);
+        assert_eq!(caps.thief_skill_dex_bonus(ThiefSkill::MoveSilently, 9), -20);
+
+        // Combined effective = stored + racial + dex, matching the
+        // record screen (Nalia: human, DEX 18, stored Open Locks 90).
+        assert_eq!(
+            90 + caps.thief_skill_bonus(ThiefSkill::OpenLocks, 18, human),
+            115
+        );
+    }
+
+    #[test]
+    fn thief_skill_bonus_pst_ee_merges_stealth() {
+        let gd = fixture_game_data("pst_ee", infinitier_common::Game::Pstee);
+        let caps = EngineCaps::new(&gd).unwrap();
+        let human = race_byte(&gd, "HUMAN");
+
+        // PST humans get no racial adjustment.
+        assert_eq!(
+            caps.thief_skill_racial_bonus(ThiefSkill::OpenLocks, human),
+            0
+        );
+        // Move Silently resolves via PST's merged `STEALTH` column.
+        assert_eq!(caps.thief_skill_dex_bonus(ThiefSkill::MoveSilently, 18), 10);
+        // Skills with no column in PST contribute 0.
+        assert_eq!(caps.thief_skill_dex_bonus(ThiefSkill::HideInShadows, 25), 0);
+        assert_eq!(
+            caps.thief_skill_dex_bonus(ThiefSkill::DetectIllusion, 25),
+            0
+        );
+    }
+
+    #[test]
+    fn thief_skill_bonus_iwd2_is_empty() {
+        // IWD2 uses d20 skills; EngineCaps loads no SKILLDEX/SKILLRAC.
+        let gd = fixture_game_data("iwd2", infinitier_common::Game::Iwd2);
+        let caps = EngineCaps::new(&gd).unwrap();
+        assert_eq!(caps.thief_skill_bonus(ThiefSkill::OpenLocks, 18, 1), 0);
+    }
+
+    /// End-to-end ground truth: the effective thief skills computed for
+    /// the pre-built BG2:EE party in the shipped savegame must equal the
+    /// numbers the game's record screen shows. Party CREs are embedded
+    /// inline in the save's GAM, so no game install is needed.
+    #[test]
+    fn effective_thief_skills_match_bg2_ee_savegame() {
+        use crate::imported_resource::gam::{ImportedGam, NpcCre};
+        use infinitier_common::Game;
+        use infinitier_datasource::{DataSource, Importer};
+        use infinitier_test_utils::get_assets_path;
+
+        let caps = EngineCaps::new(&fixture_game_data("bg2_ee", Game::Bg2ee)).unwrap();
+        let path =
+            get_assets_path().join("SAV_GAM/bg2_ee/save/000000001-Salvataggio Rapido/BALDUR.gam");
+        let gam = infinitier_gam_resource::GamImporter {
+            name: "save",
+            engine: Game::Bg2ee.engine(),
+        }
+        .import(&DataSource::new(path.as_path()))
+        .unwrap();
+        let imported = ImportedGam::load_with_tlk(gam, Game::Bg2ee, None).unwrap();
+
+        let find = |name: &str| {
+            imported
+                .party_npcs
+                .iter()
+                .find_map(|n| match &n.cre {
+                    Some(NpcCre::Cre(c)) if n.character_name.eq_ignore_ascii_case(name) => {
+                        Some(c.clone())
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("party member {name} not found in savegame"))
+        };
+        // effective = max(0, stored + racial(race) + dex(DEX)).
+        let eff = |cre: &infinitier_cre_resource::Cre, skill: ThiefSkill, base: u8| {
+            (i32::from(base) + caps.thief_skill_bonus(skill, cre.dexterity(), cre.race())).max(0)
+        };
+
+        // Nalia — human thief/mage, DEX 18.
+        let nalia = find("*ALIA8");
+        assert_eq!(
+            eff(&nalia, ThiefSkill::OpenLocks, nalia.lockpicking().unwrap()),
+            115
+        );
+        assert_eq!(
+            eff(&nalia, ThiefSkill::FindTraps, nalia.find_traps().unwrap()),
+            100
+        );
+        assert_eq!(
+            eff(
+                &nalia,
+                ThiefSkill::PickPockets,
+                nalia.pick_pockets().unwrap()
+            ),
+            115
+        );
+        assert_eq!(
+            eff(
+                &nalia,
+                ThiefSkill::HideInShadows,
+                nalia.hide_in_shadows().unwrap()
+            ),
+            15
+        );
+        assert_eq!(
+            eff(&nalia, ThiefSkill::MoveSilently, nalia.move_silently()),
+            20
+        );
+        assert_eq!(
+            eff(&nalia, ThiefSkill::SetTraps, nalia.set_traps().unwrap()),
+            5
+        );
+
+        // Imoen — human thief, DEX 18.
+        let imoen = find("*MOEN211");
+        assert_eq!(
+            eff(&imoen, ThiefSkill::OpenLocks, imoen.lockpicking().unwrap()),
+            95
+        );
+        assert_eq!(
+            eff(&imoen, ThiefSkill::FindTraps, imoen.find_traps().unwrap()),
+            95
+        );
+        assert_eq!(
+            eff(
+                &imoen,
+                ThiefSkill::PickPockets,
+                imoen.pick_pockets().unwrap()
+            ),
+            35
+        );
+        assert_eq!(
+            eff(
+                &imoen,
+                ThiefSkill::HideInShadows,
+                imoen.hide_in_shadows().unwrap()
+            ),
+            25
+        );
+        assert_eq!(
+            eff(&imoen, ThiefSkill::MoveSilently, imoen.move_silently()),
+            35
+        );
+        assert_eq!(
+            eff(&imoen, ThiefSkill::SetTraps, imoen.set_traps().unwrap()),
+            5
         );
     }
 }

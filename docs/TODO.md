@@ -22,8 +22,8 @@
 - [ ] iwd2 (TODO)
 - [ ] pst (TODO)
 - [ ] pstee
-    - [ ] Characteristics -> Wrong kits for some classes
-    - [ ] Characteristics -> Original class for some dual-classed characters not reported (ignore it, I think we are right here)
+    - [X] Characteristics -> Wrong kits for some classes
+    - [X] Characteristics -> Original class for some dual-classed characters not reported (ignore it, I think we are right here)
     - [ ] Characteristics -> Miscellaneous issues
     - [X] Inventory -> missing
     - [ ] Proficiency -> wrong list and values
