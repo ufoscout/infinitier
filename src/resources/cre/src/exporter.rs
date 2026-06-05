@@ -94,8 +94,35 @@ fn serialize(cre: &Cre) -> io::Result<Vec<u8>> {
         }
     }
 
+    // The effect list is the one sub-section the editing API can grow or
+    // shrink (e.g. `Cre::set_proficiency` adds an op233 effect). Effects
+    // are the last section in every shipped CRE, so the records are
+    // written and `compute_file_size` already accounts for the new
+    // length — only the header's stale count field needs syncing.
+    patch_effect_count(&mut buf, cre);
+
     debug!("Serialised CRE ({:?}): total={} B", cre.version, buf.len());
     Ok(buf)
+}
+
+/// Overwrite the header's "count of effects" with the actual effect-list
+/// length, so adding/removing effects round-trips without the caller
+/// hand-patching the header.
+fn patch_effect_count(buf: &mut [u8], cre: &Cre) {
+    let count = match &cre.sub_sections {
+        SubSections::V1(s) => s.effects.len(),
+        SubSections::V22(s) => s.effects.len(),
+    } as u32;
+    // Per-version offset of the 4-byte effect-count field.
+    let off = match cre.version {
+        CreVersion::V1_0 => 0x02C8,
+        CreVersion::V1_2 => 0x036C,
+        CreVersion::V9_0 => 0x0330,
+        CreVersion::V2_2 => 0x0622,
+    };
+    if off + 4 <= buf.len() {
+        buf[off..off + 4].copy_from_slice(&count.to_le_bytes());
+    }
 }
 
 /// Dispatch the typed header back to its byte form.

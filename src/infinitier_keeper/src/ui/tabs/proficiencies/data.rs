@@ -106,16 +106,17 @@ mod tests {
 
     #[test]
     fn dual_class_proficiencies_unpack_into_first_and_second() {
-        // Imoen (dual Thief→Mage) stores packed proficiency bytes in
-        // op233 effects: Short Sword 9 (0b001001) = 1/1, Sling 10
-        // (0b001010) = 2/1. Earlier the table showed the raw 9/10 in the
-        // First Class column; they must be unpacked like the header.
+        // Imoen (dual Thief→Mage): EEKeeper swaps the two slots for a
+        // dual-class character's *weapons* (active class low, suspended
+        // original = "First Class" high), so Sling 10 reads 1/2 and
+        // Dagger 1 reads 0/1. Fighting styles (Single-Weapon Style) are
+        // not swapped. (`Cre::proficiency` owns this orientation.)
         let rows = proficiency_rows(&party_cre("*MOEN1"));
-        assert_eq!(fs(&rows, "Dagger"), (1, 0));
-        assert_eq!(fs(&rows, "Short Sword"), (1, 1));
-        assert_eq!(fs(&rows, "Shortbow"), (1, 1));
-        assert_eq!(fs(&rows, "Single-Weapon Style"), (1, 0));
-        assert_eq!(fs(&rows, "Sling"), (2, 1));
+        assert_eq!(fs(&rows, "Dagger"), (0, 1)); // packed 1, swapped
+        assert_eq!(fs(&rows, "Short Sword"), (1, 1)); // packed 9
+        assert_eq!(fs(&rows, "Shortbow"), (1, 1)); // packed 9
+        assert_eq!(fs(&rows, "Single-Weapon Style"), (1, 0)); // style: not swapped
+        assert_eq!(fs(&rows, "Sling"), (1, 2)); // packed 10, swapped
         assert_eq!(fs(&rows, "Axe"), (0, 0));
     }
 

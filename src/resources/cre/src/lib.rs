@@ -1256,53 +1256,97 @@ impl Cre {
     }
 
     /// The CRE header's weapon proficiency for an `IE_PROFICIENCY*` stat,
-    /// unpacked into first/second-class points.
+    /// oriented into first/second-class points (see [`Self::proficiency`]
+    /// for the dual-class orientation).
     ///
     /// Only the V1.0 header carries this packed block (20 bytes covering
     /// stats `89..=108`); other versions model proficiencies differently
     /// (PST / IWD V9.0 use older single-category slots, IWD2 is d20), so
     /// this returns an empty proficiency there.
     pub fn header_proficiency(&self, stat: u8) -> WeaponProficiency {
-        WeaponProficiency::from_packed(self.header_proficiency_byte(stat))
+        self.orient_proficiency(stat, self.header_proficiency_byte(stat))
     }
 
     /// The weapon proficiency an `op233` ("set proficiency") effect sets
-    /// for a stat, unpacked. Save-game party members store their
-    /// proficiencies here (with a zeroed header); empty when no effect
-    /// targets the stat.
+    /// for a stat. Save-game party members store their proficiencies here
+    /// (with a zeroed header); empty when no effect targets the stat.
     pub fn effect_proficiency(&self, stat: u8) -> WeaponProficiency {
-        WeaponProficiency::from_packed(self.effect_proficiency_byte(stat))
+        self.orient_proficiency(stat, self.effect_proficiency_byte(stat))
     }
 
     /// The effective weapon proficiency the engine resolves for a stat:
-    /// the header base with any `op233` effect applied on top. Real saves
-    /// store a proficiency in the header XOR in an effect, so taking the
-    /// larger packed byte matches the engine (op233 is set-if-greater)
-    /// for both layouts.
+    /// the header base with any `op233` effect applied on top (real saves
+    /// store a proficiency in the header XOR in an effect, so the larger
+    /// packed byte matches the engine for both layouts).
+    ///
+    /// The packed byte's two 3-bit slots map to first/second class the
+    /// way EEKeeper shows them: for a **dual-classed** character's weapon
+    /// the slots are swapped (the engine keeps the active class in the
+    /// low slot and the suspended original — EEKeeper's "First Class" —
+    /// in the high slot); single/multi-class characters and fighting
+    /// styles (stats `111..=114`) are not swapped.
     pub fn proficiency(&self, stat: u8) -> WeaponProficiency {
-        let packed = self
+        let byte = self
             .header_proficiency_byte(stat)
             .max(self.effect_proficiency_byte(stat));
-        WeaponProficiency::from_packed(packed)
+        self.orient_proficiency(stat, byte)
     }
 
-    /// Set the weapon proficiency for an `IE_PROFICIENCY*` stat.
-    ///
-    /// Writes **both** the V1.0 header byte and any existing `op233`
-    /// effect targeting the stat, so the change is honoured whether the
-    /// engine reads the header (a standalone CRE) or the effect (a
-    /// save-game party member). Editing only the header is the classic
-    /// "proficiencies vanish on save" bug — the op233 effect overrides
-    /// it. Existing effects are updated in place; none are created (the
-    /// header already covers a stat with no effect).
+    /// Set the weapon proficiency for an `IE_PROFICIENCY*` stat, matching
+    /// EEKeeper: edits go to an `op233` ("set proficiency") effect when
+    /// the creature already stores proficiencies as effects (every
+    /// save-game party member does) — updating the existing effect for
+    /// the stat or **creating** one. Only a standalone CRE that has no
+    /// proficiency effects is edited in its V1.0 header. (Writing the
+    /// header for a party member is the classic "proficiencies vanish on
+    /// save" bug — the effect overrides it.)
     pub fn set_proficiency(&mut self, stat: u8, value: WeaponProficiency) {
-        let packed = value.to_packed();
-        if let CreHeader::V10(h) = &mut self.header
+        let packed = self.pack_proficiency(stat, value);
+        if self.has_proficiency_effects() {
+            self.set_or_add_effect_proficiency(stat, packed);
+        } else if let CreHeader::V10(h) = &mut self.header
             && let Some(byte) = v10_proficiency_byte_mut(h, stat)
         {
             *byte = packed;
         }
-        self.set_effect_proficiency_byte(stat, packed);
+    }
+
+    /// Whether the packed byte's first/second-class slots are swapped for
+    /// `stat`: yes for a dual-classed character's weapons, no for single/
+    /// multi-class characters or fighting styles (`111..=114`).
+    fn proficiency_slots_swapped(&self, stat: u8) -> bool {
+        const FIRST_STYLE: u8 = 111;
+        const LAST_STYLE: u8 = 114;
+        let is_style = (FIRST_STYLE..=LAST_STYLE).contains(&stat);
+        self.is_dual_classed() && !is_style
+    }
+
+    /// Orient a packed byte into first/second-class points for `stat`.
+    fn orient_proficiency(&self, stat: u8, byte: u8) -> WeaponProficiency {
+        let low = byte & 0x07;
+        let high = (byte >> 3) & 0x07;
+        if self.proficiency_slots_swapped(stat) {
+            WeaponProficiency {
+                first_class: high,
+                second_class: low,
+            }
+        } else {
+            WeaponProficiency {
+                first_class: low,
+                second_class: high,
+            }
+        }
+    }
+
+    /// Pack first/second-class points back into the engine's byte for
+    /// `stat`, inverting [`Self::orient_proficiency`].
+    fn pack_proficiency(&self, stat: u8, value: WeaponProficiency) -> u8 {
+        let (low, high) = if self.proficiency_slots_swapped(stat) {
+            (value.second_class, value.first_class)
+        } else {
+            (value.first_class, value.second_class)
+        };
+        (low & 0x07) | ((high & 0x07) << 3)
     }
 
     /// Raw packed proficiency byte from the V1.0 header (0 elsewhere).
@@ -1315,61 +1359,85 @@ impl Cre {
 
     /// Highest packed proficiency byte set by `op233` effects for `stat`.
     fn effect_proficiency_byte(&self, stat: u8) -> u8 {
-        let effects = match &self.sub_sections {
-            SubSections::V1(s) => &s.effects,
-            SubSections::V22(s) => &s.effects,
-        };
         let mut best = 0u8;
         // `param2`'s low word is the stat; the high word is the EE
         // increment flag, which set-mode saves leave at 0.
-        let mut consider = |prof: u32, points: u32| {
+        self.for_each_proficiency_effect(|prof, points| {
             if prof & 0xFFFF == u32::from(stat) {
                 best = best.max((points & 0xFF) as u8);
             }
+        });
+        best
+    }
+
+    /// Whether this creature stores proficiencies as `op233` effects.
+    fn has_proficiency_effects(&self) -> bool {
+        let mut any = false;
+        self.for_each_proficiency_effect(|_, _| any = true);
+        any
+    }
+
+    fn for_each_proficiency_effect(&self, mut f: impl FnMut(u32, u32)) {
+        let effects = match &self.sub_sections {
+            SubSections::V1(s) => &s.effects,
+            SubSections::V22(s) => &s.effects,
         };
         match effects {
             EffectList::V2(list) => {
                 for e in list {
                     if let EffectV2::Proficiency(p) = e {
-                        consider(p.proficiency, p.points);
+                        f(p.proficiency, p.points);
                     }
                 }
             }
             EffectList::V1(list) => {
                 for e in list {
                     if let EffectV1::Proficiency(p) = e {
-                        consider(p.proficiency, p.points);
+                        f(p.proficiency, p.points);
                     }
                 }
             }
         }
-        best
     }
 
-    /// Overwrite the packed `points` of every `op233` effect targeting
-    /// `stat`. Does not create effects.
-    fn set_effect_proficiency_byte(&mut self, stat: u8, packed: u8) {
+    /// Set the packed `points` of the `op233` effect targeting `stat`,
+    /// creating the effect when none exists.
+    fn set_or_add_effect_proficiency(&mut self, stat: u8, packed: u8) {
+        let new = Proficiency {
+            proficiency: u32::from(stat),
+            points: u32::from(packed),
+        };
         let effects = match &mut self.sub_sections {
             SubSections::V1(s) => &mut s.effects,
             SubSections::V22(s) => &mut s.effects,
         };
         match effects {
             EffectList::V2(list) => {
+                let mut found = false;
                 for e in list.iter_mut() {
                     if let EffectV2::Proficiency(p) = e
                         && p.proficiency & 0xFFFF == u32::from(stat)
                     {
                         p.points = u32::from(packed);
+                        found = true;
                     }
+                }
+                if !found {
+                    list.push(EffectV2::Proficiency(new));
                 }
             }
             EffectList::V1(list) => {
+                let mut found = false;
                 for e in list.iter_mut() {
                     if let EffectV1::Proficiency(p) = e
                         && p.proficiency & 0xFFFF == u32::from(stat)
                     {
                         p.points = u32::from(packed);
+                        found = true;
                     }
+                }
+                if !found {
+                    list.push(EffectV1::Proficiency(new));
                 }
             }
         }
@@ -2008,10 +2076,44 @@ mod tests {
     // ── Weapon-proficiency resolution + editing ──────────────────────
 
     // IE_PROFICIENCY stat numbers used below (GemRB `ie_stats.h`).
+    const BASTARD_SWORD: u8 = 89;
     const SHORT_SWORD: u8 = 91;
     const AXE: u8 = 92;
     const DAGGER: u8 = 96;
     const SLING: u8 = 107;
+    const SINGLE_WEAPON_STYLE: u8 = 113;
+    const CLUB: u8 = 115;
+
+    /// The raw packed `points` of the `op233` effect targeting `stat`,
+    /// if any — used to assert byte-for-byte equality with EEKeeper.
+    fn op233_points(cre: &Cre, stat: u8) -> Option<u32> {
+        let effects = match &cre.sub_sections {
+            SubSections::V1(s) => &s.effects,
+            SubSections::V22(s) => &s.effects,
+        };
+        let mut found = None;
+        match effects {
+            EffectList::V2(l) => {
+                for e in l {
+                    if let EffectV2::Proficiency(p) = e
+                        && p.proficiency & 0xFFFF == u32::from(stat)
+                    {
+                        found = Some(p.points);
+                    }
+                }
+            }
+            EffectList::V1(l) => {
+                for e in l {
+                    if let EffectV1::Proficiency(p) = e
+                        && p.proficiency & 0xFFFF == u32::from(stat)
+                    {
+                        found = Some(p.points);
+                    }
+                }
+            }
+        }
+        found
+    }
 
     fn prof(first_class: u8, second_class: u8) -> WeaponProficiency {
         WeaponProficiency {
@@ -2045,46 +2147,84 @@ mod tests {
 
     /// A dual-class save-game member (Imoen, Thief→Mage) carries her
     /// proficiencies as packed `op233` effects with a zeroed header.
-    /// `proficiency` must unpack them, not echo the raw byte.
+    /// For her **weapons** the two slots are swapped vs single-class
+    /// (the engine keeps the active class low, the suspended original —
+    /// EEKeeper's "First Class" — high), so e.g. Sling `10` reads `1/2`,
+    /// not `2/1`. Fighting **styles** (113) are not swapped.
     #[test]
     fn dual_class_proficiency_resolves_from_op233_effects() {
         let cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
-        // Header empty; the values live in the effects.
-        assert_eq!(cre.header_proficiency(SHORT_SWORD), prof(0, 0));
+        assert!(cre.is_dual_classed());
+        assert_eq!(cre.header_proficiency(SHORT_SWORD), prof(0, 0)); // header empty
         assert_eq!(cre.effect_proficiency(SHORT_SWORD), prof(1, 1)); // packed 9
         assert_eq!(cre.proficiency(SHORT_SWORD), prof(1, 1));
-        assert_eq!(cre.proficiency(SLING), prof(2, 1)); // packed 10
-        assert_eq!(cre.proficiency(DAGGER), prof(1, 0)); // packed 1
-        // A weapon she has no proficiency in.
-        assert_eq!(cre.proficiency(AXE), prof(0, 0));
+        assert_eq!(cre.proficiency(SLING), prof(1, 2)); // packed 10 → swapped
+        assert_eq!(cre.proficiency(DAGGER), prof(0, 1)); // packed 1 → swapped
+        assert_eq!(cre.proficiency(SINGLE_WEAPON_STYLE), prof(1, 0)); // style: not swapped
+        assert_eq!(cre.proficiency(AXE), prof(0, 0)); // none
     }
 
-    /// Editing a proficiency that lives in an `op233` effect must update
-    /// the effect (and the header, for good measure) so the change
-    /// survives export/import — and, in-game, doesn't "vanish on save".
+    /// Editing a proficiency stored as an `op233` effect updates that
+    /// effect (EEKeeper's behaviour), survives export/import, and leaves
+    /// the header zero — so it doesn't "vanish on save".
     #[test]
     fn set_proficiency_updates_effect_and_round_trips() {
         let mut cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
         cre.set_proficiency(SHORT_SWORD, prof(3, 2));
-        assert_eq!(cre.header_proficiency(SHORT_SWORD), prof(3, 2));
         assert_eq!(cre.effect_proficiency(SHORT_SWORD), prof(3, 2));
+        assert_eq!(cre.header_proficiency(SHORT_SWORD), prof(0, 0)); // header untouched
 
         let rt = round_trip(&cre);
         assert_eq!(rt.effect_proficiency(SHORT_SWORD), prof(3, 2));
         assert_eq!(rt.proficiency(SHORT_SWORD), prof(3, 2));
     }
 
-    /// Setting a stat that has no existing `op233` effect writes the
-    /// header byte (no effect is created), and round-trips.
+    /// On an effect-based creature, setting a stat with no existing
+    /// effect **creates** one (not a header write), matching EEKeeper.
     #[test]
-    fn set_proficiency_without_effect_writes_header() {
+    fn set_proficiency_creates_effect_when_effect_based() {
         let mut cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
-        cre.set_proficiency(AXE, prof(4, 1)); // packed 12
-        assert_eq!(cre.header_proficiency(AXE), prof(4, 1));
-        assert_eq!(cre.effect_proficiency(AXE), prof(0, 0)); // none created
+        assert_eq!(op233_points(&cre, BASTARD_SWORD), None);
+        cre.set_proficiency(BASTARD_SWORD, prof(1, 1));
+        assert!(op233_points(&cre, BASTARD_SWORD).is_some(), "effect created");
+        assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(0, 0)); // header untouched
+        assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(1, 1));
+    }
 
-        let rt = round_trip(&cre);
-        assert_eq!(rt.proficiency(AXE), prof(4, 1));
+    /// A standalone CRE with no proficiency effects is edited in its
+    /// header (single-class IRONGU: header `89=2`, `92=1`, `95=1`).
+    #[test]
+    fn set_proficiency_writes_header_when_no_effects() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        assert!(!cre.is_dual_classed());
+        assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(2, 0)); // packed 2
+        cre.set_proficiency(BASTARD_SWORD, prof(4, 1)); // packed 12
+        assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(4, 1));
+        assert_eq!(op233_points(&cre, BASTARD_SWORD), None); // no effect created
+        assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(4, 1));
+    }
+
+    /// Reproduces the exact `op233` bytes EEKeeper writes for the four
+    /// reference edits (Xor single-class; Imoen dual-class), proving our
+    /// setter is byte-for-byte equal to EEKeeper.
+    #[test]
+    fn set_proficiency_matches_eekeeper_edits() {
+        // Xor — single-class fighter: +1 Bastard Sword First → op233 1.
+        let mut xor = crate::test_support::import_fixture("v1_0/FIGHTER_HARBASE.cre");
+        assert!(!xor.is_dual_classed());
+        xor.set_proficiency(BASTARD_SWORD, prof(1, 0));
+        assert_eq!(op233_points(&xor, BASTARD_SWORD), Some(1));
+
+        // Imoen — dual-class: +1 Bastard Sword First → op233 8 (high slot).
+        let mut imoen = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
+        imoen.set_proficiency(BASTARD_SWORD, prof(1, 0));
+        assert_eq!(op233_points(&imoen, BASTARD_SWORD), Some(8));
+        // …then +1 Second → op233 9.
+        imoen.set_proficiency(BASTARD_SWORD, prof(1, 1));
+        assert_eq!(op233_points(&imoen, BASTARD_SWORD), Some(9));
+        // +2 Club in both classes → op233 18.
+        imoen.set_proficiency(CLUB, prof(2, 2));
+        assert_eq!(op233_points(&imoen, CLUB), Some(18));
     }
 
     /// Every byte of a V2 record is read and written back by
