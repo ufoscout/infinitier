@@ -402,9 +402,10 @@ fn proficiencies_from_2da(
     two_da: &TwoDA,
     resolve_name: impl Fn(u32) -> Option<String>,
 ) -> Vec<Proficiency> {
-    let (Some(id_col), Some(name_col)) =
-        (two_da_column(two_da, "ID"), two_da_column(two_da, "NAME_REF"))
-    else {
+    let (Some(id_col), Some(name_col)) = (
+        two_da_column(two_da, "ID"),
+        two_da_column(two_da, "NAME_REF"),
+    ) else {
         return Vec::new();
     };
     let mut list: Vec<Proficiency> = two_da
@@ -1853,9 +1854,15 @@ mod tests {
             "legacy BG1 categories should be filtered out",
         );
         for style in [111u8, 112, 113, 114] {
-            assert!(stats.contains(&style), "missing fighting style stat {style}");
+            assert!(
+                stats.contains(&style),
+                "missing fighting style stat {style}"
+            );
         }
-        assert!(!stats.contains(&2), "legacy 'Bow' (stat 2) should be dropped");
+        assert!(
+            !stats.contains(&2),
+            "legacy 'Bow' (stat 2) should be dropped"
+        );
     }
 
     /// A game that ships no `WEAPPROF.2DA` (classic PST) falls back to
