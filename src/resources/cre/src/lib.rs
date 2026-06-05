@@ -314,15 +314,81 @@ impl Cre {
     /// Always `false` for V2.2 (IWD2), whose 3e rules have no
     /// dual-classing and reuse those flag bits.
     pub fn is_dual_classed(&self) -> bool {
-        /// `MC_WAS_FIGHTER | MAGE | CLERIC | THIEF | DRUID | RANGER`.
-        const MC_WAS_ANY: u32 = 0x01F8;
-        let flags = match &self.header {
+        self.dual_class_original_class().is_some()
+    }
+
+    /// For a dual-classed creature, the class it dual-classed *out of*
+    /// — identified by the single `MC_WAS_*` bit set in the creature-
+    /// flags dword. Returns `None` for a true multi-class (no such bit),
+    /// an ambiguous record (more than one set), a single-class creature,
+    /// or any V2.2 (IWD2) file, whose 3e rules have no dual-classing and
+    /// reuse those bits.
+    pub fn dual_class_original_class(&self) -> Option<OriginalClass> {
+        // V2.2 (IWD2) reuses these bits for non-dual-class purposes.
+        if matches!(self.header, CreHeader::V22(_)) {
+            return None;
+        }
+        let flags = self.raw_creature_flags();
+        let mut found = None;
+        for class in OriginalClass::ALL {
+            if flags & class.bit() != 0 {
+                if found.is_some() {
+                    // More than one MC_WAS_* bit ⇒ not a clean dual.
+                    return None;
+                }
+                found = Some(class);
+            }
+        }
+        found
+    }
+
+    /// Whether the creature is a fallen paladin or fallen ranger (has
+    /// lost its class abilities), per the dedicated creature-flags bits.
+    pub fn is_fallen(&self) -> bool {
+        self.creature_flags()
+            .intersects(CreatureFlags::FallenPaladin | CreatureFlags::FallenRanger)
+    }
+
+    /// Raw creature-flags dword (header offset 0x010), all bits, every
+    /// version.
+    fn raw_creature_flags(&self) -> u32 {
+        match &self.header {
             CreHeader::V10(h) => h.creature_flags,
             CreHeader::V12(h) => h.creature_flags,
             CreHeader::V90(h) => h.creature_flags,
-            CreHeader::V22(_) => return false,
-        };
-        (flags & MC_WAS_ANY).count_ones() == 1
+            CreHeader::V22(h) => h.creature_flags,
+        }
+    }
+
+    /// The creature-flags dword (header offset 0x010) decoded into named
+    /// bits. Bits not modelled by [`CreatureFlags`] — including the
+    /// dual-class `MC_WAS_*` markers consumed by [`Self::is_dual_classed`]
+    /// — are preserved in the returned value (via `from_bits_retain`),
+    /// so reading, toggling one flag, and writing back never clobbers
+    /// them.
+    pub fn creature_flags(&self) -> CreatureFlags {
+        CreatureFlags::from_bits_retain(self.raw_creature_flags())
+    }
+
+    /// Overwrite the creature-flags dword (header offset 0x010) on every
+    /// header variant. The full bit pattern — including any unmodelled
+    /// bits carried along in `flags` — is written verbatim. To flip a
+    /// single flag without disturbing the rest, start from
+    /// [`Self::creature_flags`]:
+    ///
+    /// ```ignore
+    /// let mut f = cre.creature_flags();
+    /// f.set(CreatureFlags::Exportable, true);
+    /// cre.set_creature_flags(f);
+    /// ```
+    pub fn set_creature_flags(&mut self, flags: CreatureFlags) {
+        let bits = flags.bits();
+        match &mut self.header {
+            CreHeader::V10(h) => h.creature_flags = bits,
+            CreHeader::V12(h) => h.creature_flags = bits,
+            CreHeader::V90(h) => h.creature_flags = bits,
+            CreHeader::V22(h) => h.creature_flags = bits,
+        }
     }
 
     /// 4-byte `strref` pointing into `dialog.tlk` for the creature's
@@ -521,6 +587,112 @@ pub struct MemorizedSpell {
     /// 0x0A: unknown / padding (NI calls this "Unknown"). Preserved
     /// verbatim for round-trip.
     pub padding: u16,
+}
+
+bitflags::bitflags! {
+    /// The CRE creature-flags dword at header offset 0x010.
+    ///
+    /// Each named bit was confirmed empirically against EEKeeper-edited
+    /// BG:EE saves (toggling exactly one "Miscellaneous" checkbox on the
+    /// protagonist's embedded CRE). The dual-class `MC_WAS_*` original-
+    /// class markers (0x08..=0x100) are deliberately **not** modelled
+    /// here — they're consumed by [`Cre::is_dual_classed`] — and any
+    /// other undefined bit is preserved via
+    /// [`CreatureFlags::from_bits_retain`] so the dword round-trips
+    /// byte-for-byte and a single-flag edit never disturbs the rest.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    pub struct CreatureFlags: u32 {
+        /// bit 0: show the long name in the tooltip ("identified").
+        const Identified = 1 << 0;
+        /// bit 1: leave no corpse when the creature dies.
+        const NoCorpse = 1 << 1;
+        /// bit 2: keep the corpse permanently.
+        const PermanentCorpse = 1 << 2;
+        /// bit 11: the creature can be exported.
+        const Exportable = 1 << 11;
+        /// bit 15: the creature has been in the party.
+        const BeenInParty = 1 << 15;
+        /// bit 31 (Enhanced Edition): damage does not interrupt the
+        /// creature's current action ("uninterruptible").
+        const Uninterruptible = 1 << 31;
+
+        /// bit 9: the creature is a fallen paladin. Not a "miscellaneous"
+        /// checkbox (it's surfaced via [`Cre::is_fallen`]), so it is not
+        /// in [`CreatureFlags::MISC`].
+        const FallenPaladin = 1 << 9;
+        /// bit 10: the creature is a fallen ranger. See
+        /// [`Self::FallenPaladin`].
+        const FallenRanger = 1 << 10;
+    }
+}
+
+impl CreatureFlags {
+    /// The user-facing "Miscellaneous" flags, in display order, each
+    /// paired with a human-readable label. Lets a UI render the
+    /// checkbox list without hardcoding any bit values — the bit
+    /// semantics live here, on the resource type, not in the view.
+    ///
+    /// Deliberately excludes bits that are surfaced through dedicated
+    /// accessors instead of a raw checkbox: the dual-class `MC_WAS_*`
+    /// markers (see [`Cre::dual_class_original_class`]) and the
+    /// fallen-paladin / fallen-ranger bits (see [`Cre::is_fallen`]).
+    pub const MISC: &'static [(&'static str, CreatureFlags)] = &[
+        ("Identified", CreatureFlags::Identified),
+        ("No Corpse", CreatureFlags::NoCorpse),
+        ("Permanent Corpse", CreatureFlags::PermanentCorpse),
+        ("Exportable", CreatureFlags::Exportable),
+        ("Been In Party", CreatureFlags::BeenInParty),
+        ("Uninterruptible", CreatureFlags::Uninterruptible),
+    ];
+}
+
+/// The class a dual-classed creature originally belonged to, recorded
+/// by the single `MC_WAS_*` bit set in its [`CreatureFlags`] dword.
+/// Mirrors GemRB `ie_stats.h`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OriginalClass {
+    Fighter,
+    Mage,
+    Cleric,
+    Thief,
+    Druid,
+    Ranger,
+}
+
+impl OriginalClass {
+    /// The `CLASS.IDS`-style uppercase symbol for this class.
+    pub fn symbol(self) -> &'static str {
+        match self {
+            OriginalClass::Fighter => "FIGHTER",
+            OriginalClass::Mage => "MAGE",
+            OriginalClass::Cleric => "CLERIC",
+            OriginalClass::Thief => "THIEF",
+            OriginalClass::Druid => "DRUID",
+            OriginalClass::Ranger => "RANGER",
+        }
+    }
+
+    /// The `MC_WAS_*` creature-flags bit that marks this original class.
+    fn bit(self) -> u32 {
+        match self {
+            OriginalClass::Fighter => 0x0008,
+            OriginalClass::Mage => 0x0010,
+            OriginalClass::Cleric => 0x0020,
+            OriginalClass::Thief => 0x0040,
+            OriginalClass::Druid => 0x0080,
+            OriginalClass::Ranger => 0x0100,
+        }
+    }
+
+    /// All variants, in `MC_WAS_*` bit order.
+    const ALL: [OriginalClass; 6] = [
+        OriginalClass::Fighter,
+        OriginalClass::Mage,
+        OriginalClass::Cleric,
+        OriginalClass::Thief,
+        OriginalClass::Druid,
+        OriginalClass::Ranger,
+    ];
 }
 
 bitflags::bitflags! {
@@ -2345,6 +2517,79 @@ mod tests {
         assert!(!cre.is_dual_classed());
         with_flags(&mut cre, 0x0001 | 0x0010); // show-longname | MC_WAS_MAGE
         assert!(cre.is_dual_classed());
+    }
+
+    /// The named creature-flag bits, confirmed empirically against
+    /// EEKeeper-edited BG:EE saves (each toggling exactly one flag on
+    /// the protagonist's embedded CRE). Guards against the historical
+    /// mix-up where `Uninterruptible` was mapped to bit 0 — which is
+    /// actually `Identified`.
+    #[test]
+    fn creature_flag_bits_match_reference_saves() {
+        assert_eq!(CreatureFlags::Identified.bits(), 0x0000_0001);
+        assert_eq!(CreatureFlags::NoCorpse.bits(), 0x0000_0002);
+        assert_eq!(CreatureFlags::PermanentCorpse.bits(), 0x0000_0004);
+        assert_eq!(CreatureFlags::Exportable.bits(), 0x0000_0800);
+        assert_eq!(CreatureFlags::BeenInParty.bits(), 0x0000_8000);
+        assert_eq!(CreatureFlags::Uninterruptible.bits(), 0x8000_0000);
+        // The curated "Miscellaneous" list excludes fallen / dual-class
+        // markers and the non-persisted EE flags.
+        let labels: Vec<&str> = CreatureFlags::MISC.iter().map(|(l, _)| *l).collect();
+        assert_eq!(
+            labels,
+            [
+                "Identified",
+                "No Corpse",
+                "Permanent Corpse",
+                "Exportable",
+                "Been In Party",
+                "Uninterruptible",
+            ]
+        );
+        assert!(!labels.iter().any(|l| l.contains("Nightmare") || l.contains("Tooltip")));
+    }
+
+    #[test]
+    fn creature_flags_get_set_round_trips_and_preserves_unmodelled_bits() {
+        let mut cre = crate::test_support::import_fixture("v1_0/THIEF3.cre");
+        // An MC_WAS_* dual marker (0x40 = THIEF) plus a named flag.
+        with_flags(&mut cre, 0x0040 | CreatureFlags::Exportable.bits());
+
+        let mut flags = cre.creature_flags();
+        assert!(flags.contains(CreatureFlags::Exportable));
+        // Toggle a modelled flag without disturbing the unmodelled 0x40.
+        flags.insert(CreatureFlags::BeenInParty);
+        flags.remove(CreatureFlags::Exportable);
+        cre.set_creature_flags(flags);
+
+        assert!(cre.creature_flags().contains(CreatureFlags::BeenInParty));
+        assert!(!cre.creature_flags().contains(CreatureFlags::Exportable));
+        // The MC_WAS_THIEF bit rode along untouched, so dual-class
+        // detection still sees it.
+        assert_eq!(cre.dual_class_original_class(), Some(OriginalClass::Thief));
+    }
+
+    #[test]
+    fn dual_class_original_class_names_the_former_class() {
+        let mut cre = crate::test_support::import_fixture("v1_0/THIEF3.cre");
+        with_flags(&mut cre, 0x0010); // MC_WAS_MAGE
+        assert_eq!(cre.dual_class_original_class(), Some(OriginalClass::Mage));
+        assert_eq!(cre.dual_class_original_class().unwrap().symbol(), "MAGE");
+        with_flags(&mut cre, 0x0000);
+        assert_eq!(cre.dual_class_original_class(), None);
+        with_flags(&mut cre, 0x0008 | 0x0040); // two markers ⇒ ambiguous
+        assert_eq!(cre.dual_class_original_class(), None);
+    }
+
+    #[test]
+    fn is_fallen_reads_paladin_and_ranger_bits() {
+        let mut cre = crate::test_support::import_fixture("v1_0/THIEF3.cre");
+        with_flags(&mut cre, 0x0000);
+        assert!(!cre.is_fallen());
+        with_flags(&mut cre, CreatureFlags::FallenPaladin.bits());
+        assert!(cre.is_fallen());
+        with_flags(&mut cre, CreatureFlags::FallenRanger.bits());
+        assert!(cre.is_fallen());
     }
 
     #[test]

@@ -14,7 +14,9 @@ use egui_components::theme::Theme;
 use egui_components::{Card, Checkbox, Label, LabelTone};
 use infinitier_core::game::GameData;
 
-use super::data::{CharData, MISC_FLAGS, Specialization};
+use infinitier_core::resource::cre::CreatureFlags;
+
+use super::data::{CharData, Specialization};
 
 const FIELD_MIN_W: f32 = 190.0;
 
@@ -117,20 +119,20 @@ fn stat_row(ui: &mut egui::Ui, label: &str, value: &str) {
 
 fn miscellaneous_card(ui: &mut egui::Ui, data: &CharData) {
     Card::new().title("Miscellaneous").divider().show(ui, |ui| {
-        // EEKeeper lays the flags out in two columns: the first
-        // half of MISC_FLAGS down the left, the rest down the
-        // right. A grid (rather than `ui.columns`) lets the left
-        // column take whatever width its longest label needs so
-        // the wide EE labels don't overlap the right column.
-        let mid = MISC_FLAGS.len().div_ceil(2);
+        // Two columns: the first half of the flag list down the left,
+        // the rest down the right. A grid (rather than `ui.columns`)
+        // lets the left column take whatever width its longest label
+        // needs so labels don't overlap the right column.
+        let misc = CreatureFlags::MISC;
+        let mid = misc.len().div_ceil(2);
         egui::Grid::new("characteristics_misc_flags")
             .num_columns(2)
             .spacing([24.0, 4.0])
             .show(ui, |ui| {
-                for (row, (l_label, l_bit)) in MISC_FLAGS.iter().enumerate().take(mid) {
-                    read_only_check(ui, l_label, data.flags & l_bit != 0);
-                    if let Some(&(r_label, r_bit)) = MISC_FLAGS.get(mid + row) {
-                        read_only_check(ui, r_label, data.flags & r_bit != 0);
+                for (row, (l_label, l_bit)) in misc.iter().enumerate().take(mid) {
+                    read_only_check(ui, l_label, data.flags.contains(*l_bit));
+                    if let Some((r_label, r_bit)) = misc.get(mid + row) {
+                        read_only_check(ui, r_label, data.flags.contains(*r_bit));
                     }
                     ui.end_row();
                 }

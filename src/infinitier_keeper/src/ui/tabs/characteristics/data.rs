@@ -8,10 +8,11 @@
 //! display so `LAWFUL_GOOD` reads "Lawful Good" and the multi-class
 //! `MAGE_THIEF` reads "Mage / Thief".
 //!
-//! Dual-class state is derived from the `MC_WAS_*` bits packed into
-//! the CRE creature-flags dword — exactly one of those bits set means
-//! the creature dual-classed *out of* that class (GemRB
-//! `Actor::IsDualClassed`), and the bit names the original class.
+//! Creature-flags-derived state (the "Miscellaneous" checkboxes, the
+//! dual-class original class, and the fallen-paladin/ranger status) is
+//! decoded by the resource layer — see [`Cre::creature_flags`],
+//! [`Cre::dual_class_original_class`], and [`Cre::is_fallen`] — so this
+//! module does no creature-flags bit math of its own.
 //!
 //! The "Kill Stats" block (strongest vanquished, per-chapter and
 //! per-game kill counts/XP) is **not** in the CRE — it lives in the
@@ -21,7 +22,7 @@
 
 use infinitier_core::game::GameData;
 use infinitier_core::resource::Game;
-use infinitier_core::resource::cre::{Cre, CreHeader};
+use infinitier_core::resource::cre::{Cre, CreHeader, CreatureFlags};
 use infinitier_core::resource::gam::NpcCharStats;
 
 /// Resolved, display-ready characteristics for one creature.
@@ -42,9 +43,9 @@ pub struct CharData {
     pub fallen: bool,
     pub dual_class: bool,
     pub kill: KillStats,
-    /// Raw CRE creature-flags dword — decoded into the "Miscellaneous"
-    /// checkboxes via [`MISC_FLAGS`].
-    pub flags: u32,
+    /// CRE creature-flags, decoded by the resource layer. The
+    /// "Miscellaneous" checkboxes render from [`CreatureFlags::MISC`].
+    pub flags: CreatureFlags,
 }
 
 /// How the CRE "kit" dword (offset `0x0244`) is presented in the
@@ -89,7 +90,6 @@ struct RawChar {
     ea: u8,
     racial_enemy: u8,
     kit: u32,
-    creature_flags: u32,
     state_flags: u32,
 }
 
@@ -106,32 +106,29 @@ impl CharData {
             game_kills: char_stats.kills_number_game,
             game_kills_xp: char_stats.kills_xp_game,
         };
+        // Creature-flags-derived fields come straight from the CRE's
+        // typed accessors — the bit math lives on the resource type, not
+        // here — and work on every header version (V2.2 included).
+        let flags = cre.creature_flags();
+        let original_class = cre.dual_class_original_class();
+        let dual_class = original_class.is_some();
+        let fallen = cre.is_fallen();
+        let original_class_label = original_class
+            .map(|c| pretty(c.symbol(), " "))
+            .unwrap_or_default();
+
         let Some(raw) = raw_char(cre) else {
             // Engine variant we don't decode identity for yet (e.g.
-            // IWD2 V2.2). Still surface the kill stats.
+            // IWD2 V2.2). Still surface the kill stats and flags.
             return CharData {
                 kill,
+                flags,
+                dual_class,
+                fallen,
+                original_class: original_class_label,
                 ..Default::default()
             };
         };
-
-        let mc = raw.creature_flags;
-        // MC_WAS_* bits (GemRB `ie_stats.h`): exactly one set ⇒ the
-        // creature dual-classed and the bit names its first class.
-        let was = [
-            (0x0008u32, "FIGHTER"),
-            (0x0010, "MAGE"),
-            (0x0020, "CLERIC"),
-            (0x0040, "THIEF"),
-            (0x0080, "DRUID"),
-            (0x0100, "RANGER"),
-        ];
-        let original: Vec<&str> = was
-            .iter()
-            .filter(|(b, _)| mc & b != 0)
-            .map(|(_, n)| *n)
-            .collect();
-        let dual_class = original.len() == 1;
 
         // PST:EE repurposes the "kit" dword as a Deity (low word) +
         // mage-specialisation (high word) pair — see NearInfinity's
@@ -151,11 +148,7 @@ impl CharData {
             race: ids_pretty(game_data, "race", raw.race as i32, " "),
             alignment: ids_pretty(game_data, "alignmen", raw.alignment as i32, " "),
             class: ids_pretty(game_data, "class", raw.class as i32, " / "),
-            original_class: if dual_class {
-                pretty(original[0], " ")
-            } else {
-                String::new()
-            },
+            original_class: original_class_label,
             specialization,
             racial_enemy: resolve_racial_enemy(game_data, raw.racial_enemy),
             enemy_ally: ids_pretty(game_data, "ea", raw.ea as i32, " "),
@@ -164,10 +157,10 @@ impl CharData {
             // derives movement from the avatar animation. EEKeeper
             // shows 0 here ("Zero is normal speed").
             movement: 0,
-            fallen: mc & 0x0200 != 0 || mc & 0x0400 != 0, // fallen paladin / ranger
+            fallen,
             dual_class,
             kill,
-            flags: mc,
+            flags,
         }
     }
 }
@@ -185,7 +178,6 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             ea: h.enemy_ally_ea_ids,
             racial_enemy: h.racial_enemy_race_ids,
             kit: h.kit_information_none_0x00000000_kit_barbarian,
-            creature_flags: h.creature_flags,
             state_flags: h.permanent_status_flags_state_ids,
         }),
         CreHeader::V12(h) => Some(RawChar {
@@ -196,7 +188,6 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             ea: h.enemy_ally_ea_ids,
             racial_enemy: h.racial_enemy_race_ids,
             kit: h.kit_information_none_0x00000000_abjurer_0x00400000,
-            creature_flags: h.creature_flags,
             state_flags: h.permanent_status_flags_state_ids,
         }),
         CreHeader::V90(h) => Some(RawChar {
@@ -207,7 +198,6 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             ea: h.enemy_ally_ea_ids,
             racial_enemy: h.racial_enemy_race_ids,
             kit: h.kit_information_none_abjurer_0x00400000_conjurer,
-            creature_flags: h.creature_flags,
             state_flags: h.permanent_status_flags_state_ids,
         }),
         CreHeader::V22(_) => None,
@@ -337,31 +327,6 @@ fn pretty(symbol: &str, sep: &str) -> String {
         .collect::<Vec<_>>()
         .join(sep)
 }
-
-/// The eight "Miscellaneous" checkboxes, in EEKeeper's column-major
-/// order (left column top-to-bottom, then right column). Each entry
-/// is `(label, creature-flags bit)`.
-///
-/// Confirmed bits (IESDP / GemRB `ie_stats.h`, cross-checked against
-/// the reference saves): Exportable, Been In Party, No Corpse,
-/// Permanent Corpse, plus the two Enhanced-Edition "disabled" bits —
-/// `MC_NO_NIGHTMARE_MODS` (0x400000) and `MC_NO_TOOLTIPS` (0x800000).
-/// `Uninterruptible` is bit 0 (the EE "damage doesn't interrupt
-/// casting" reinterpretation) and `Identified` is bit 12; both are
-/// best-effort and may render incorrectly for creatures that set
-/// them.
-pub const MISC_FLAGS: &[(&str, u32)] = &[
-    // left column
-    ("Exportable", 0x0000_0800),
-    ("Been In Party", 0x0000_8000),
-    ("Uninterruptible", 0x0000_0001),
-    ("Nightmare Mode Disabled (Enhanced Edition)", 0x0040_0000),
-    // right column
-    ("Identified", 0x0000_1000),
-    ("No Corpse", 0x0000_0002),
-    ("Permanent Corpse", 0x0000_0004),
-    ("Tooltip Disabled (Enhanced Edition)", 0x0080_0000),
-];
 
 #[cfg(test)]
 mod tests {
