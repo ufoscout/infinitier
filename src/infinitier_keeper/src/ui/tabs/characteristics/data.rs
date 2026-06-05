@@ -21,9 +21,9 @@
 
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
-use infinitier_core::resource::ResourceType;
 use infinitier_core::resource::cre::{Cre, CreHeader};
 use infinitier_core::resource::gam::NpcCharStats;
+use infinitier_core::resource::{Game, ResourceType};
 
 /// Resolved, display-ready characteristics for one creature.
 #[derive(Debug, Default, Clone)]
@@ -33,7 +33,9 @@ pub struct CharData {
     pub alignment: String,
     pub class: String,
     pub original_class: String,
-    pub kit: String,
+    /// How the CRE "kit" dword is presented — a kit on most engines, or
+    /// a Deity + mage-specialisation pair on PST:EE.
+    pub specialization: Specialization,
     pub racial_enemy: String,
     pub enemy_ally: String,
     pub state: String,
@@ -44,6 +46,27 @@ pub struct CharData {
     /// Raw CRE creature-flags dword — decoded into the "Miscellaneous"
     /// checkboxes via [`MISC_FLAGS`].
     pub flags: u32,
+}
+
+/// How the CRE "kit" dword (offset `0x0244`) is presented in the
+/// identity column. BG / BG2 / IWD(:EE) store a kit there; PST:EE
+/// repurposes the same dword as a Deity (low word) + mage-specialisation
+/// (high word) pair — see NearInfinity's `Game.PSTEE` branch — so the
+/// identity column shows those two fields instead.
+#[derive(Debug, Clone)]
+pub enum Specialization {
+    /// A kit name — "Base Class" for the true-class sentinel, or empty
+    /// when the value isn't a known `KIT.IDS` kit.
+    Kit(String),
+    /// PST:EE — a deity / mage-specialisation pair, shown in place of the
+    /// kit. Either string is empty when its IDS value doesn't resolve.
+    PstReligion { deity: String, mage_type: String },
+}
+
+impl Default for Specialization {
+    fn default() -> Self {
+        Specialization::Kit(String::new())
+    }
 }
 
 /// GAM-sourced kill statistics for one party slot.
@@ -111,6 +134,19 @@ impl CharData {
             .collect();
         let dual_class = original.len() == 1;
 
+        // PST:EE repurposes the "kit" dword as a Deity (low word) +
+        // mage-specialisation (high word) pair — see NearInfinity's
+        // `Game.PSTEE` branch in `CreResource`. There we show those two
+        // fields instead of a (meaningless) kit.
+        let specialization = if game_data.game() == Game::Pstee {
+            Specialization::PstReligion {
+                deity: resolve_deity(game_data, (raw.kit & 0xFFFF) as i32),
+                mage_type: resolve_mage_type(game_data, (raw.kit >> 16) as i32),
+            }
+        } else {
+            Specialization::Kit(resolve_kit(game_data, raw.kit))
+        };
+
         CharData {
             gender: ids_pretty(game_data, "gender", raw.gender as i32, " "),
             race: ids_pretty(game_data, "race", raw.race as i32, " "),
@@ -121,7 +157,7 @@ impl CharData {
             } else {
                 String::new()
             },
-            kit: resolve_kit(game_data, raw.kit),
+            specialization,
             racial_enemy: resolve_racial_enemy(game_data, raw.racial_enemy),
             enemy_ally: ids_pretty(game_data, "ea", raw.ea as i32, " "),
             state: resolve_state(game_data, raw.state_flags),
@@ -204,6 +240,15 @@ fn ids_symbol(game_data: &GameData, ids_file: &str, value: i32) -> Option<String
 /// header dword (GemRB `GetActorBG`). Swap, then resolve. The
 /// "true class" sentinel (no kit chosen) reads "Base Class" in
 /// EEKeeper; an all-zero field means no kit at all.
+///
+/// A value with no `KIT.IDS` entry is shown blank, matching EEKeeper
+/// (its kit combo simply has no matching row). This is also what makes
+/// PST:EE read sensibly: there the dword isn't a kit at all but a
+/// Deity (low word) + mage-specialisation (high word) pair (see
+/// NearInfinity's `Game.PSTEE` branch), so only the Nameless One —
+/// whose all-zero deity + generalist-mage value happens to swap to the
+/// `TRUECLASS` sentinel — reads "Base Class"; everyone else's
+/// deity/mage bytes don't form a valid kit and stay blank.
 fn resolve_kit(game_data: &GameData, kit: u32) -> String {
     let swapped = ((kit & 0xFFFF) << 16) | (kit >> 16);
     if swapped == 0 {
@@ -212,8 +257,47 @@ fn resolve_kit(game_data: &GameData, kit: u32) -> String {
     match ids_symbol(game_data, "kit", swapped as i32) {
         Some(s) if s == "TRUECLASS" => "Base Class".to_string(),
         Some(s) => pretty(&s, " "),
-        None => format!("0x{swapped:04X}"),
+        None => String::new(),
     }
+}
+
+/// PST:EE deity — the low word of the "kit" dword, resolved against
+/// `DEITY.IDS` (or NearInfinity's `DIETY.IDS` spelling fallback). `0`
+/// and any unmapped value render blank.
+fn resolve_deity(game_data: &GameData, value: i32) -> String {
+    if value == 0 {
+        return String::new();
+    }
+    ids_symbol(game_data, "deity", value)
+        .or_else(|| ids_symbol(game_data, "diety", value))
+        .map(|s| pretty(&s, " "))
+        .unwrap_or_default()
+}
+
+/// PST:EE mage specialisation — the high word of the "kit" dword,
+/// resolved against `MAGESPEC.IDS`, falling back to NearInfinity's
+/// built-in school map when that IDS is absent. `0` (non-mage) is blank.
+fn resolve_mage_type(game_data: &GameData, value: i32) -> String {
+    if value == 0 {
+        return String::new();
+    }
+    if let Some(s) = ids_symbol(game_data, "magespec", value) {
+        return pretty(&s, " ");
+    }
+    // NearInfinity `MAGE_TYPE_MAP` fallback (CreResource).
+    match value {
+        0x0040 => "Abjurer",
+        0x0080 => "Conjurer",
+        0x0100 => "Diviner",
+        0x0200 => "Enchanter",
+        0x0400 => "Illusionist",
+        0x0800 => "Invoker",
+        0x1000 => "Necromancer",
+        0x2000 => "Transmuter",
+        0x4000 => "Generalist",
+        _ => "",
+    }
+    .to_string()
 }
 
 /// `NO_RACE` / 0 means "no racial enemy" — render blank like EEKeeper.

@@ -14,7 +14,7 @@ use egui_components::theme::Theme;
 use egui_components::{Card, Checkbox, Label, LabelTone};
 use infinitier_core::game::GameData;
 
-use super::data::{CharData, MISC_FLAGS};
+use super::data::{CharData, MISC_FLAGS, Specialization};
 
 const FIELD_MIN_W: f32 = 190.0;
 
@@ -59,7 +59,15 @@ fn identity_column(ui: &mut egui::Ui, data: &CharData) {
             });
             ui.end_row();
 
-            simple_row(ui, "Kit", &data.kit);
+            // PST:EE has no kits: the field is a Deity + mage-spec pair,
+            // shown here in place of the Kit row (mirroring NearInfinity).
+            match &data.specialization {
+                Specialization::Kit(kit) => simple_row(ui, "Kit", kit),
+                Specialization::PstReligion { deity, mage_type } => {
+                    simple_row(ui, "Deity", deity);
+                    simple_row(ui, "Mage Type", mage_type);
+                }
+            }
             simple_row(ui, "Racial", &data.racial_enemy);
             simple_row(ui, "Enemy/Ally", &data.enemy_ally);
             simple_row(ui, "State", &data.state);

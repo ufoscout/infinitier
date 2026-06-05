@@ -14,6 +14,7 @@
 - [ ] bg2 (TODO)
 - [ ] bg2ee
     - [ ] Characteristics -> Miscellaneous issues
+    - [ ] Proficiencies -> Check Imoen for a dual class
     - [ ] Proficiencies -> Create a dual classed character and check the values
 - [ ] iwd (TODO)
 - [ ] iwdee
@@ -27,10 +28,10 @@
     - [X] Inventory -> missing
     - [ ] Proficiency -> wrong list and values
     - [X] Resistances -> Ignus -> cold & magic cold are reported as 206 but it should be -50
-    - [ ] Miscellaneous -> Others -> Tracking Target is empty in EEkeeper but has strange values in Keeper
+    - [X] Miscellaneous -> Others -> Tracking Target is empty in EEkeeper but has strange values in Keeper
 
 ## errors:
-- [ ] Resistances -> there 3 `magic` labels, but they should be `magic`, `magic fire`, `magic cold`
+
 
 ## Missing data
 - [ ] effective Thief Skills 
