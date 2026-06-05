@@ -84,9 +84,7 @@ fn serialize(cre: &Cre) -> io::Result<Vec<u8>> {
         (CreVersion::V1_0 | CreVersion::V1_2 | CreVersion::V9_0, SubSections::V1(s)) => {
             serialize_v1(cre.version, &header_bytes, s)
         }
-        (CreVersion::V2_2, SubSections::V22(s)) => {
-            serialize_v22(&header_bytes, s)
-        }
+        (CreVersion::V2_2, SubSections::V22(s)) => serialize_v22(&header_bytes, s),
         (v, _) => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -295,13 +293,22 @@ fn write_v22_section_table(buf: &mut [u8], l: &V22Layout) {
     for c in 0..7 {
         for lvl in 0..9 {
             let idx = c * 9 + lvl;
-            put(V22_CLASS_SPELL_BASE + idx * 4, l.class_spell_offsets[c][lvl]);
-            put(V22_CLASS_SPELL_COUNT_BASE + idx * 4, l.class_spell_counts[c][lvl]);
+            put(
+                V22_CLASS_SPELL_BASE + idx * 4,
+                l.class_spell_offsets[c][lvl],
+            );
+            put(
+                V22_CLASS_SPELL_COUNT_BASE + idx * 4,
+                l.class_spell_counts[c][lvl],
+            );
         }
     }
     for i in 0..9 {
         put(V22_DOMAIN_SPELL_BASE + i * 4, l.domain_spell_offsets[i]);
-        put(V22_DOMAIN_SPELL_COUNT_BASE + i * 4, l.domain_spell_counts[i]);
+        put(
+            V22_DOMAIN_SPELL_COUNT_BASE + i * 4,
+            l.domain_spell_counts[i],
+        );
     }
     put(V22_TAIL_TABLE_BASE, l.abilities_off);
     put(V22_TAIL_TABLE_BASE + 0x04, l.abilities_cnt);

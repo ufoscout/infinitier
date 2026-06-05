@@ -2358,7 +2358,10 @@ mod tests {
         let mut cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
         assert_eq!(op233_points(&cre, BASTARD_SWORD), None);
         cre.set_proficiency(BASTARD_SWORD, prof(1, 1));
-        assert!(op233_points(&cre, BASTARD_SWORD).is_some(), "effect created");
+        assert!(
+            op233_points(&cre, BASTARD_SWORD).is_some(),
+            "effect created"
+        );
         assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(0, 0)); // header untouched
         assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(1, 1));
     }
@@ -2546,7 +2549,11 @@ mod tests {
                 "Uninterruptible",
             ]
         );
-        assert!(!labels.iter().any(|l| l.contains("Nightmare") || l.contains("Tooltip")));
+        assert!(
+            !labels
+                .iter()
+                .any(|l| l.contains("Nightmare") || l.contains("Tooltip"))
+        );
     }
 
     #[test]

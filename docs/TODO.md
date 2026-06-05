@@ -8,12 +8,12 @@
 ## Check Game values
 
 - [ ] bg (TODO)
-- [ ] bgee
-    - [ ] Characteristics -> Miscellaneous issues
+- [X] bgee
+    - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Wrong for dual-classed characters (e.g Imoen)
 - [ ] bg2 (TODO)
-- [ ] bg2ee
-    - [ ] Characteristics -> Miscellaneous issues
+- [X] bg2ee
+    - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Check Imoen for a dual class
     - [X] Proficiencies -> Create a dual classed character and check the values
 - [ ] iwd (TODO)
@@ -24,7 +24,7 @@
 - [ ] pstee
     - [X] Characteristics -> Wrong kits for some classes
     - [X] Characteristics -> Original class for some dual-classed characters not reported (ignore it, I think we are right here)
-    - [ ] Characteristics -> Miscellaneous issues
+    - [X] Characteristics -> Miscellaneous issues
     - [X] Inventory -> missing
     - [ ] Proficiency -> wrong list and values
     - [X] Resistances -> Ignus -> cold & magic cold are reported as 206 but it should be -50

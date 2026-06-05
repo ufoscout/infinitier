@@ -225,12 +225,18 @@ fn compute_engine_layout(data: &GamEngineData, cursor: &mut usize) -> EngineLayo
             e.stored_locations.len(),
             e.pocket_plane_locations.len(),
         ),
-        GamEngineData::Iwd(i) => {
-            compute_iwd_layout(cursor, i.unknown_section3.len(), i.unknown_trailer.as_ref(), false)
-        }
-        GamEngineData::Iwd2(i) => {
-            compute_iwd_layout(cursor, i.unknown_section3.len(), i.unknown_trailer.as_ref(), true)
-        }
+        GamEngineData::Iwd(i) => compute_iwd_layout(
+            cursor,
+            i.unknown_section3.len(),
+            i.unknown_trailer.as_ref(),
+            false,
+        ),
+        GamEngineData::Iwd2(i) => compute_iwd_layout(
+            cursor,
+            i.unknown_section3.len(),
+            i.unknown_trailer.as_ref(),
+            true,
+        ),
         GamEngineData::Pst(p) => {
             let modron_maze_offset = if p.modron_maze.is_some() {
                 let off = *cursor as u32;
@@ -356,11 +362,39 @@ fn write_common_header(out: &mut [u8], h: &GamHeader, layout: &CommonLayout) {
 fn write_engine_header(buf: &mut [u8], data: &GamEngineData, layout: &EngineLayout) {
     match (data, layout) {
         (GamEngineData::Bg(b), EngineLayout::Bg) => write_bg_header(buf, b),
-        (GamEngineData::Bg2(b), EngineLayout::Bg2Ee { familiar_offset, stored_locations_offset, pocket_plane_locations_offset, .. }) => {
-            write_bg2_header(buf, b, *familiar_offset, *stored_locations_offset, *pocket_plane_locations_offset);
+        (
+            GamEngineData::Bg2(b),
+            EngineLayout::Bg2Ee {
+                familiar_offset,
+                stored_locations_offset,
+                pocket_plane_locations_offset,
+                ..
+            },
+        ) => {
+            write_bg2_header(
+                buf,
+                b,
+                *familiar_offset,
+                *stored_locations_offset,
+                *pocket_plane_locations_offset,
+            );
         }
-        (GamEngineData::Ee(e), EngineLayout::Bg2Ee { familiar_offset, stored_locations_offset, pocket_plane_locations_offset, .. }) => {
-            write_ee_header(buf, e, *familiar_offset, *stored_locations_offset, *pocket_plane_locations_offset);
+        (
+            GamEngineData::Ee(e),
+            EngineLayout::Bg2Ee {
+                familiar_offset,
+                stored_locations_offset,
+                pocket_plane_locations_offset,
+                ..
+            },
+        ) => {
+            write_ee_header(
+                buf,
+                e,
+                *familiar_offset,
+                *stored_locations_offset,
+                *pocket_plane_locations_offset,
+            );
         }
         (GamEngineData::Iwd(i), EngineLayout::Iwd { unknown_offset, .. }) => {
             write_iwd_header(buf, i, *unknown_offset);
@@ -368,8 +402,21 @@ fn write_engine_header(buf: &mut [u8], data: &GamEngineData, layout: &EngineLayo
         (GamEngineData::Iwd2(i), EngineLayout::Iwd { unknown_offset, .. }) => {
             write_iwd2_header(buf, i, *unknown_offset);
         }
-        (GamEngineData::Pst(p), EngineLayout::Pst { modron_maze_offset, kill_variables_offset, bestiary_offset }) => {
-            write_pst_header(buf, p, *modron_maze_offset, *kill_variables_offset, *bestiary_offset);
+        (
+            GamEngineData::Pst(p),
+            EngineLayout::Pst {
+                modron_maze_offset,
+                kill_variables_offset,
+                bestiary_offset,
+            },
+        ) => {
+            write_pst_header(
+                buf,
+                p,
+                *modron_maze_offset,
+                *kill_variables_offset,
+                *bestiary_offset,
+            );
         }
         // Engine data and layout variants are produced together by
         // `compute_engine_layout`, so a mismatch is unreachable.
@@ -479,7 +526,12 @@ fn write_engine_sections(buf: &mut [u8], data: &GamEngineData, layout: &EngineLa
             },
         ) => {
             if let Some(fam) = &b.familiar {
-                write_familiar(buf, *familiar_offset as usize, *familiar_resources_offset, fam);
+                write_familiar(
+                    buf,
+                    *familiar_offset as usize,
+                    *familiar_resources_offset,
+                    fam,
+                );
             }
             write_stored_locations(buf, *stored_locations_offset as usize, &b.stored_locations);
             write_stored_locations(
@@ -498,7 +550,12 @@ fn write_engine_sections(buf: &mut [u8], data: &GamEngineData, layout: &EngineLa
             },
         ) => {
             if let Some(fam) = &e.familiar {
-                write_familiar(buf, *familiar_offset as usize, *familiar_resources_offset, fam);
+                write_familiar(
+                    buf,
+                    *familiar_offset as usize,
+                    *familiar_resources_offset,
+                    fam,
+                );
             }
             write_stored_locations(buf, *stored_locations_offset as usize, &e.stored_locations);
             write_stored_locations(
@@ -507,7 +564,13 @@ fn write_engine_sections(buf: &mut [u8], data: &GamEngineData, layout: &EngineLa
                 &e.pocket_plane_locations,
             );
         }
-        (GamEngineData::Iwd(i), EngineLayout::Iwd { unknown_offset, end_offset }) => {
+        (
+            GamEngineData::Iwd(i),
+            EngineLayout::Iwd {
+                unknown_offset,
+                end_offset,
+            },
+        ) => {
             write_unknown_section3_block(
                 buf,
                 *unknown_offset as usize,
@@ -517,7 +580,13 @@ fn write_engine_sections(buf: &mut [u8], data: &GamEngineData, layout: &EngineLa
                 None,
             );
         }
-        (GamEngineData::Iwd2(i), EngineLayout::Iwd { unknown_offset, end_offset }) => {
+        (
+            GamEngineData::Iwd2(i),
+            EngineLayout::Iwd {
+                unknown_offset,
+                end_offset,
+            },
+        ) => {
             write_unknown_section3_block(
                 buf,
                 *unknown_offset as usize,
@@ -804,11 +873,15 @@ mod tests {
     /// other section is still reachable and intact.
     #[test]
     fn growing_an_embedded_cre_relayouts_the_save() {
-        let path = get_assets_path().join("SAV_GAM/bg_ee/save/000000000-Auto-Salvataggio/BALDUR.gam");
+        let path =
+            get_assets_path().join("SAV_GAM/bg_ee/save/000000000-Auto-Salvataggio/BALDUR.gam");
         let engine = engine_for_fixture(&path);
-        let original = GamImporter { name: "grow", engine }
-            .import(&DataSource::new(path.as_path()))
-            .unwrap();
+        let original = GamImporter {
+            name: "grow",
+            engine,
+        }
+        .import(&DataSource::new(path.as_path()))
+        .unwrap();
 
         let mut edited = original.clone();
         // Pick the first party slot carrying an embedded CRE and append
@@ -823,9 +896,12 @@ mod tests {
 
         let mut produced = Vec::new();
         GamExporter.export(&edited, &mut produced).unwrap();
-        let re_imported = GamImporter { name: "grow2", engine }
-            .import(&DataSource::new(produced))
-            .unwrap();
+        let re_imported = GamImporter {
+            name: "grow2",
+            engine,
+        }
+        .import(&DataSource::new(produced))
+        .unwrap();
 
         // The grown blob survives at its new size…
         assert_eq!(re_imported.party_npcs[idx].cre.len(), original_len + 137);
