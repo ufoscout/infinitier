@@ -17,7 +17,7 @@ pub struct InventoryTab;
 
 impl InventoryTab {
     pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, game_data: &GameData) {
-        let rows = data::inventory_rows(cre);
+        let rows = data::inventory_rows(cre, game_data.game());
         view::render(ui, &rows, game_data);
     }
 }
