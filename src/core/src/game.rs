@@ -455,6 +455,7 @@ impl GameDataBuilder {
                 ResourceType::Ids,
                 ResourceType::Spl,
                 ResourceType::Itm,
+                ResourceType::Tlk,
             ],
             key_file: "chitin.key".to_string(),
         })

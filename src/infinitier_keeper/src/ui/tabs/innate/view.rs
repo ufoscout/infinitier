@@ -14,14 +14,23 @@ use eframe::egui;
 use egui_components::Label;
 use egui_components::scroll_area::ScrollArea;
 use infinitier_core::game::GameData;
+use infinitier_core::resource::tlk::Tlk;
 
 use super::data::InnateRow;
 
 pub fn render(ui: &mut egui::Ui, rows: &[InnateRow], game_data: &GameData) {
-    // Resolve names first, then sort by name to match EEKeeper.
+    // Resolve names first (loading dialog.tlk at most once), then sort
+    // by name to match EEKeeper.
+    let names = resolved_names(ui, game_data, rows);
     let mut named: Vec<(String, &InnateRow)> = rows
         .iter()
-        .map(|row| (spell_name(ui, game_data, &row.resource), row))
+        .map(|row| {
+            let name = names
+                .get(&row.resource)
+                .cloned()
+                .unwrap_or_else(|| row.resource.clone());
+            (name, row)
+        })
         .collect();
     named.sort_by_key(|(name, _)| name.to_lowercase());
 
@@ -48,32 +57,50 @@ pub fn render(ui: &mut egui::Ui, rows: &[InnateRow], game_data: &GameData) {
     });
 }
 
-/// Resolve a spell resref to its display name (the SPL's generic-name
-/// strref, looked up in `dialog.tlk`), memoising the result per resref
-/// in the egui frame store. Falls back to the resref itself when the
-/// SPL or string can't be resolved.
-fn spell_name(ui: &mut egui::Ui, game_data: &GameData, resref: &str) -> String {
+/// Build the resref → display-name map for every spell in `rows`,
+/// memoised in the egui frame store (keyed by resref). `dialog.tlk` is
+/// loaded at most once per call, and only when there are resrefs not
+/// already cached — so the expensive TLK parse happens once on first
+/// open, never per spell and never on a fully-cached repaint.
+fn resolved_names(
+    ui: &mut egui::Ui,
+    game_data: &GameData,
+    rows: &[InnateRow],
+) -> HashMap<String, String> {
     let id = egui::Id::new("innate_spell_name_cache");
-    if let Some(hit) = ui
+    let cached = ui
         .ctx()
         .data_mut(|d| d.get_temp::<HashMap<String, String>>(id))
-        .and_then(|m| m.get(resref).cloned())
-    {
-        return hit;
+        .unwrap_or_default();
+
+    let misses: Vec<&str> = rows
+        .iter()
+        .map(|row| row.resource.as_str())
+        .filter(|r| !r.is_empty() && !cached.contains_key(*r))
+        .collect();
+    if misses.is_empty() {
+        return cached;
     }
 
-    let resolved = resolve_spell_name(game_data, resref).unwrap_or_else(|| resref.to_string());
+    // One TLK load for every miss, instead of one per spell.
+    let tlk = game_data.dialog_tlk().ok();
+    let tlk = tlk.as_deref();
     ui.ctx().data_mut(|d| {
-        d.get_temp_mut_or_default::<HashMap<String, String>>(id)
-            .insert(resref.to_string(), resolved.clone());
-    });
-    resolved
+        let map = d.get_temp_mut_or_default::<HashMap<String, String>>(id);
+        for resref in misses {
+            map.entry(resref.to_string()).or_insert_with(|| {
+                resolve_spell_name(game_data, tlk, resref).unwrap_or_else(|| resref.to_string())
+            });
+        }
+        map.clone()
+    })
 }
 
 /// Load the SPL, read its generic-name strref, and resolve it through
-/// `dialog.tlk`. `None` if any step fails or the name is empty.
-fn resolve_spell_name(game_data: &GameData, resref: &str) -> Option<String> {
+/// the supplied `dialog.tlk`. `None` if any step fails or the name is
+/// empty.
+fn resolve_spell_name(game_data: &GameData, tlk: Option<&Tlk>, resref: &str) -> Option<String> {
     let spl = game_data.import_spl_by_name(resref).ok()?;
-    let name = game_data.dialog_tlk().ok()?.get(spl.header.name_strref())?;
+    let name = tlk?.get(spl.header.name_strref())?;
     (!name.is_empty()).then_some(name)
 }
