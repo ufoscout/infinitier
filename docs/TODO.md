@@ -24,9 +24,9 @@
     - [ ] Characteristics -> Wrong kits for some classes
     - [ ] Characteristics -> Original class for some dual-classed characters not reported (ignore it, I think we are right here)
     - [ ] Characteristics -> Miscellaneous issues
-    - [ ] Inventory -> missing
+    - [X] Inventory -> missing
     - [ ] Proficiency -> wrong list and values
-    - [ ] Resistances -> Ignus -> cold & magic cold are reported as 206 but it should be -50
+    - [X] Resistances -> Ignus -> cold & magic cold are reported as 206 but it should be -50
     - [ ] Miscellaneous -> Others -> Tracking Target is empty in EEkeeper but has strange values in Keeper
 
 ## errors:

@@ -45,8 +45,8 @@ fn resistances_card(ui: &mut egui::Ui, r: &Resistances) {
                 value_pair(ui, "Acid", r.acid, "Slashing", Some(r.slashing));
                 value_pair(ui, "Cold", r.cold, "Missile", Some(r.missile));
                 value_pair(ui, "Electricity", r.electricity, "Magic", Some(r.magic));
-                value_pair(ui, "Fire", r.fire, "Magic", Some(r.magic_fire));
-                value_pair(ui, "Crushing", r.crushing, "Magic", Some(r.magic_cold));
+                value_pair(ui, "Fire", r.fire, "Magic Fire", Some(r.magic_fire));
+                value_pair(ui, "Crushing", r.crushing, "Magic Cold", Some(r.magic_cold));
                 value_pair(ui, "Piercing", r.piercing, "", None);
             });
     });
@@ -105,9 +105,9 @@ fn signed_row(ui: &mut egui::Ui, label: &str, value: i16) {
 fn value_pair(
     ui: &mut egui::Ui,
     left_label: &str,
-    left_value: u8,
+    left_value: i8,
     right_label: &str,
-    right_value: Option<u8>,
+    right_value: Option<i8>,
 ) {
     ui.add(Label::new(left_label));
     num_box(ui, &left_value.to_string());

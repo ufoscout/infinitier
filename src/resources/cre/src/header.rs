@@ -226,27 +226,27 @@ pub struct CreHeaderV10 {
     /// 0x0058 (1 B): Save versus spells (0-20)
     pub save_versus_spells: u8,
     /// 0x0059 (1 B): Resist fire (0-100)
-    pub resist_fire: u8,
+    pub resist_fire: i8,
     /// 0x005A (1 B): Resist cold (0-100)
-    pub resist_cold: u8,
+    pub resist_cold: i8,
     /// 0x005B (1 B): Resist electricity (0-100)
-    pub resist_electricity: u8,
+    pub resist_electricity: i8,
     /// 0x005C (1 B): Resist acid (0-100)
-    pub resist_acid: u8,
+    pub resist_acid: i8,
     /// 0x005D (1 B): Resist magic (0-100)
-    pub resist_magic: u8,
+    pub resist_magic: i8,
     /// 0x005E (1 B): Resist magic fire (0-100)
-    pub resist_magic_fire: u8,
+    pub resist_magic_fire: i8,
     /// 0x005F (1 B): Resist magic cold (0-100)
-    pub resist_magic_cold: u8,
+    pub resist_magic_cold: i8,
     /// 0x0060 (1 B): Resist slashing (0-100)
-    pub resist_slashing: u8,
+    pub resist_slashing: i8,
     /// 0x0061 (1 B): Resist crushing (0-100)
-    pub resist_crushing: u8,
+    pub resist_crushing: i8,
     /// 0x0062 (1 B): Resist piercing (0-100)
-    pub resist_piercing: u8,
+    pub resist_piercing: i8,
     /// 0x0063 (1 B): Resist missile (0-100)
-    pub resist_missile: u8,
+    pub resist_missile: i8,
     /// 0x0064 (1 B): Detect illusion (minimum value : 0)
     pub detect_illusion: u8,
     /// 0x0065 (1 B): Set traps
@@ -450,17 +450,17 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
         save_versus_polymorph: read_u8(0x0056),
         save_versus_breath_attacks: read_u8(0x0057),
         save_versus_spells: read_u8(0x0058),
-        resist_fire: read_u8(0x0059),
-        resist_cold: read_u8(0x005A),
-        resist_electricity: read_u8(0x005B),
-        resist_acid: read_u8(0x005C),
-        resist_magic: read_u8(0x005D),
-        resist_magic_fire: read_u8(0x005E),
-        resist_magic_cold: read_u8(0x005F),
-        resist_slashing: read_u8(0x0060),
-        resist_crushing: read_u8(0x0061),
-        resist_piercing: read_u8(0x0062),
-        resist_missile: read_u8(0x0063),
+        resist_fire: read_i8(0x0059),
+        resist_cold: read_i8(0x005A),
+        resist_electricity: read_i8(0x005B),
+        resist_acid: read_i8(0x005C),
+        resist_magic: read_i8(0x005D),
+        resist_magic_fire: read_i8(0x005E),
+        resist_magic_cold: read_i8(0x005F),
+        resist_slashing: read_i8(0x0060),
+        resist_crushing: read_i8(0x0061),
+        resist_piercing: read_i8(0x0062),
+        resist_missile: read_i8(0x0063),
         detect_illusion: read_u8(0x0064),
         set_traps: read_u8(0x0065),
         lore: read_u8(0x0066),
@@ -592,17 +592,17 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x0056] = h.save_versus_polymorph;
     buf[0x0057] = h.save_versus_breath_attacks;
     buf[0x0058] = h.save_versus_spells;
-    buf[0x0059] = h.resist_fire;
-    buf[0x005A] = h.resist_cold;
-    buf[0x005B] = h.resist_electricity;
-    buf[0x005C] = h.resist_acid;
-    buf[0x005D] = h.resist_magic;
-    buf[0x005E] = h.resist_magic_fire;
-    buf[0x005F] = h.resist_magic_cold;
-    buf[0x0060] = h.resist_slashing;
-    buf[0x0061] = h.resist_crushing;
-    buf[0x0062] = h.resist_piercing;
-    buf[0x0063] = h.resist_missile;
+    buf[0x0059] = h.resist_fire as u8;
+    buf[0x005A] = h.resist_cold as u8;
+    buf[0x005B] = h.resist_electricity as u8;
+    buf[0x005C] = h.resist_acid as u8;
+    buf[0x005D] = h.resist_magic as u8;
+    buf[0x005E] = h.resist_magic_fire as u8;
+    buf[0x005F] = h.resist_magic_cold as u8;
+    buf[0x0060] = h.resist_slashing as u8;
+    buf[0x0061] = h.resist_crushing as u8;
+    buf[0x0062] = h.resist_piercing as u8;
+    buf[0x0063] = h.resist_missile as u8;
     buf[0x0064] = h.detect_illusion;
     buf[0x0065] = h.set_traps;
     buf[0x0066] = h.lore;
@@ -779,27 +779,27 @@ pub struct CreHeaderV12 {
     /// 0x0058 (1 B): Save versus spells (0-20)
     pub save_versus_spells: u8,
     /// 0x0059 (1 B): Resist fire (0-100)
-    pub resist_fire: u8,
+    pub resist_fire: i8,
     /// 0x005A (1 B): Resist cold (0-100)
-    pub resist_cold: u8,
+    pub resist_cold: i8,
     /// 0x005B (1 B): Resist electricity (0-100)
-    pub resist_electricity: u8,
+    pub resist_electricity: i8,
     /// 0x005C (1 B): Resist acid (0-100)
-    pub resist_acid: u8,
+    pub resist_acid: i8,
     /// 0x005D (1 B): Resist magic (0-100)
-    pub resist_magic: u8,
+    pub resist_magic: i8,
     /// 0x005E (1 B): Resist magic fire (0-100)
-    pub resist_magic_fire: u8,
+    pub resist_magic_fire: i8,
     /// 0x005F (1 B): Resist magic cold (0-100)
-    pub resist_magic_cold: u8,
+    pub resist_magic_cold: i8,
     /// 0x0060 (1 B): Resist slashing (0-100)
-    pub resist_slashing: u8,
+    pub resist_slashing: i8,
     /// 0x0061 (1 B): Resist crushing (0-100)
-    pub resist_crushing: u8,
+    pub resist_crushing: i8,
     /// 0x0062 (1 B): Resist piercing (0-100)
-    pub resist_piercing: u8,
+    pub resist_piercing: i8,
     /// 0x0063 (1 B): Resist missile (0-100)
-    pub resist_missile: u8,
+    pub resist_missile: i8,
     /// 0x0064 (1 B): Detect illusion (minimum value : 0)
     pub detect_illusion: u8,
     /// 0x0065 (1 B): Set traps
@@ -1090,17 +1090,17 @@ pub(crate) fn parse_header_v1_2(header: &[u8]) -> std::io::Result<CreHeaderV12> 
         save_versus_polymorph: read_u8(0x0056),
         save_versus_breath_attacks: read_u8(0x0057),
         save_versus_spells: read_u8(0x0058),
-        resist_fire: read_u8(0x0059),
-        resist_cold: read_u8(0x005A),
-        resist_electricity: read_u8(0x005B),
-        resist_acid: read_u8(0x005C),
-        resist_magic: read_u8(0x005D),
-        resist_magic_fire: read_u8(0x005E),
-        resist_magic_cold: read_u8(0x005F),
-        resist_slashing: read_u8(0x0060),
-        resist_crushing: read_u8(0x0061),
-        resist_piercing: read_u8(0x0062),
-        resist_missile: read_u8(0x0063),
+        resist_fire: read_i8(0x0059),
+        resist_cold: read_i8(0x005A),
+        resist_electricity: read_i8(0x005B),
+        resist_acid: read_i8(0x005C),
+        resist_magic: read_i8(0x005D),
+        resist_magic_fire: read_i8(0x005E),
+        resist_magic_cold: read_i8(0x005F),
+        resist_slashing: read_i8(0x0060),
+        resist_crushing: read_i8(0x0061),
+        resist_piercing: read_i8(0x0062),
+        resist_missile: read_i8(0x0063),
         detect_illusion: read_u8(0x0064),
         set_traps: read_u8(0x0065),
         lore: read_u8(0x0066),
@@ -1272,17 +1272,17 @@ pub(crate) fn serialize_header_v1_2(h: &CreHeaderV12) -> Vec<u8> {
     buf[0x0056] = h.save_versus_polymorph;
     buf[0x0057] = h.save_versus_breath_attacks;
     buf[0x0058] = h.save_versus_spells;
-    buf[0x0059] = h.resist_fire;
-    buf[0x005A] = h.resist_cold;
-    buf[0x005B] = h.resist_electricity;
-    buf[0x005C] = h.resist_acid;
-    buf[0x005D] = h.resist_magic;
-    buf[0x005E] = h.resist_magic_fire;
-    buf[0x005F] = h.resist_magic_cold;
-    buf[0x0060] = h.resist_slashing;
-    buf[0x0061] = h.resist_crushing;
-    buf[0x0062] = h.resist_piercing;
-    buf[0x0063] = h.resist_missile;
+    buf[0x0059] = h.resist_fire as u8;
+    buf[0x005A] = h.resist_cold as u8;
+    buf[0x005B] = h.resist_electricity as u8;
+    buf[0x005C] = h.resist_acid as u8;
+    buf[0x005D] = h.resist_magic as u8;
+    buf[0x005E] = h.resist_magic_fire as u8;
+    buf[0x005F] = h.resist_magic_cold as u8;
+    buf[0x0060] = h.resist_slashing as u8;
+    buf[0x0061] = h.resist_crushing as u8;
+    buf[0x0062] = h.resist_piercing as u8;
+    buf[0x0063] = h.resist_missile as u8;
     buf[0x0064] = h.detect_illusion;
     buf[0x0065] = h.set_traps;
     buf[0x0066] = h.lore;
@@ -1573,27 +1573,27 @@ pub struct CreHeaderV90 {
     /// 0x0058 (1 B): Save versus spells (0-20)
     pub save_versus_spells: u8,
     /// 0x0059 (1 B): Resist fire (0-100)
-    pub resist_fire: u8,
+    pub resist_fire: i8,
     /// 0x005A (1 B): Resist cold (0-100)
-    pub resist_cold: u8,
+    pub resist_cold: i8,
     /// 0x005B (1 B): Resist electricity (0-100)
-    pub resist_electricity: u8,
+    pub resist_electricity: i8,
     /// 0x005C (1 B): Resist acid (0-100)
-    pub resist_acid: u8,
+    pub resist_acid: i8,
     /// 0x005D (1 B): Resist magic (0-100)
-    pub resist_magic: u8,
+    pub resist_magic: i8,
     /// 0x005E (1 B): Resist magic fire (0-100)
-    pub resist_magic_fire: u8,
+    pub resist_magic_fire: i8,
     /// 0x005F (1 B): Resist magic cold (0-100)
-    pub resist_magic_cold: u8,
+    pub resist_magic_cold: i8,
     /// 0x0060 (1 B): Resist slashing (0-100)
-    pub resist_slashing: u8,
+    pub resist_slashing: i8,
     /// 0x0061 (1 B): Resist crushing (0-100)
-    pub resist_crushing: u8,
+    pub resist_crushing: i8,
     /// 0x0062 (1 B): Resist piercing (0-100)
-    pub resist_piercing: u8,
+    pub resist_piercing: i8,
     /// 0x0063 (1 B): Resist missile (0-100)
-    pub resist_missile: u8,
+    pub resist_missile: i8,
     /// 0x0064 (1 B): Detect illusion (minimum value : 0)
     pub detect_illusion: u8,
     /// 0x0065 (1 B): Set traps
@@ -1821,17 +1821,17 @@ pub(crate) fn parse_header_v9_0(header: &[u8]) -> std::io::Result<CreHeaderV90> 
         save_versus_polymorph: read_u8(0x0056),
         save_versus_breath_attacks: read_u8(0x0057),
         save_versus_spells: read_u8(0x0058),
-        resist_fire: read_u8(0x0059),
-        resist_cold: read_u8(0x005A),
-        resist_electricity: read_u8(0x005B),
-        resist_acid: read_u8(0x005C),
-        resist_magic: read_u8(0x005D),
-        resist_magic_fire: read_u8(0x005E),
-        resist_magic_cold: read_u8(0x005F),
-        resist_slashing: read_u8(0x0060),
-        resist_crushing: read_u8(0x0061),
-        resist_piercing: read_u8(0x0062),
-        resist_missile: read_u8(0x0063),
+        resist_fire: read_i8(0x0059),
+        resist_cold: read_i8(0x005A),
+        resist_electricity: read_i8(0x005B),
+        resist_acid: read_i8(0x005C),
+        resist_magic: read_i8(0x005D),
+        resist_magic_fire: read_i8(0x005E),
+        resist_magic_cold: read_i8(0x005F),
+        resist_slashing: read_i8(0x0060),
+        resist_crushing: read_i8(0x0061),
+        resist_piercing: read_i8(0x0062),
+        resist_missile: read_i8(0x0063),
         detect_illusion: read_u8(0x0064),
         set_traps: read_u8(0x0065),
         lore: read_u8(0x0066),
@@ -1972,17 +1972,17 @@ pub(crate) fn serialize_header_v9_0(h: &CreHeaderV90) -> Vec<u8> {
     buf[0x0056] = h.save_versus_polymorph;
     buf[0x0057] = h.save_versus_breath_attacks;
     buf[0x0058] = h.save_versus_spells;
-    buf[0x0059] = h.resist_fire;
-    buf[0x005A] = h.resist_cold;
-    buf[0x005B] = h.resist_electricity;
-    buf[0x005C] = h.resist_acid;
-    buf[0x005D] = h.resist_magic;
-    buf[0x005E] = h.resist_magic_fire;
-    buf[0x005F] = h.resist_magic_cold;
-    buf[0x0060] = h.resist_slashing;
-    buf[0x0061] = h.resist_crushing;
-    buf[0x0062] = h.resist_piercing;
-    buf[0x0063] = h.resist_missile;
+    buf[0x0059] = h.resist_fire as u8;
+    buf[0x005A] = h.resist_cold as u8;
+    buf[0x005B] = h.resist_electricity as u8;
+    buf[0x005C] = h.resist_acid as u8;
+    buf[0x005D] = h.resist_magic as u8;
+    buf[0x005E] = h.resist_magic_fire as u8;
+    buf[0x005F] = h.resist_magic_cold as u8;
+    buf[0x0060] = h.resist_slashing as u8;
+    buf[0x0061] = h.resist_crushing as u8;
+    buf[0x0062] = h.resist_piercing as u8;
+    buf[0x0063] = h.resist_missile as u8;
     buf[0x0064] = h.detect_illusion;
     buf[0x0065] = h.set_traps;
     buf[0x0066] = h.lore;
@@ -2186,29 +2186,29 @@ pub struct CreHeaderV22 {
     /// 0x0054 (1 B): Save versus Will (0-20)
     pub save_versus_will: u8,
     /// 0x0055 (1 B): Resist fire (0-100)
-    pub resist_fire: u8,
+    pub resist_fire: i8,
     /// 0x0056 (1 B): Resist cold (0-100)
-    pub resist_cold: u8,
+    pub resist_cold: i8,
     /// 0x0057 (1 B): Resist electricity (0-100)
-    pub resist_electricity: u8,
+    pub resist_electricity: i8,
     /// 0x0058 (1 B): Resist acid (0-100)
-    pub resist_acid: u8,
+    pub resist_acid: i8,
     /// 0x0059 (1 B): Resist magic (0-100)
-    pub resist_magic: u8,
+    pub resist_magic: i8,
     /// 0x005A (1 B): Resist magic fire (0-100)
-    pub resist_magic_fire: u8,
+    pub resist_magic_fire: i8,
     /// 0x005B (1 B): Resist magic cold (0-100)
-    pub resist_magic_cold: u8,
+    pub resist_magic_cold: i8,
     /// 0x005C (1 B): Resist slashing (0-100)
-    pub resist_slashing: u8,
+    pub resist_slashing: i8,
     /// 0x005D (1 B): Resist crushing (0-100)
-    pub resist_crushing: u8,
+    pub resist_crushing: i8,
     /// 0x005E (1 B): Resist piercing (0-100)
-    pub resist_piercing: u8,
+    pub resist_piercing: i8,
     /// 0x005F (1 B): Resist missile (0-100)
-    pub resist_missile: u8,
+    pub resist_missile: i8,
     /// 0x0060 (1 B): Resist magic damage (0-100)
-    pub resist_magic_damage: u8,
+    pub resist_magic_damage: i8,
     /// 0x0061 (4 B): Unknown. Further resistances?
     pub unknown_further_resistances: Vec<u8>,
     /// 0x0065 (1 B): Fatigue
@@ -2827,18 +2827,18 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
         save_versus_fortitude: read_u8(0x0052),
         save_versus_reflex: read_u8(0x0053),
         save_versus_will: read_u8(0x0054),
-        resist_fire: read_u8(0x0055),
-        resist_cold: read_u8(0x0056),
-        resist_electricity: read_u8(0x0057),
-        resist_acid: read_u8(0x0058),
-        resist_magic: read_u8(0x0059),
-        resist_magic_fire: read_u8(0x005A),
-        resist_magic_cold: read_u8(0x005B),
-        resist_slashing: read_u8(0x005C),
-        resist_crushing: read_u8(0x005D),
-        resist_piercing: read_u8(0x005E),
-        resist_missile: read_u8(0x005F),
-        resist_magic_damage: read_u8(0x0060),
+        resist_fire: read_i8(0x0055),
+        resist_cold: read_i8(0x0056),
+        resist_electricity: read_i8(0x0057),
+        resist_acid: read_i8(0x0058),
+        resist_magic: read_i8(0x0059),
+        resist_magic_fire: read_i8(0x005A),
+        resist_magic_cold: read_i8(0x005B),
+        resist_slashing: read_i8(0x005C),
+        resist_crushing: read_i8(0x005D),
+        resist_piercing: read_i8(0x005E),
+        resist_missile: read_i8(0x005F),
+        resist_magic_damage: read_i8(0x0060),
         unknown_further_resistances: header[0x0061..0x0065].to_vec(),
         fatigue: read_u8(0x0065),
         intoxication: read_u8(0x0066),
@@ -3177,18 +3177,18 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x0052] = h.save_versus_fortitude;
     buf[0x0053] = h.save_versus_reflex;
     buf[0x0054] = h.save_versus_will;
-    buf[0x0055] = h.resist_fire;
-    buf[0x0056] = h.resist_cold;
-    buf[0x0057] = h.resist_electricity;
-    buf[0x0058] = h.resist_acid;
-    buf[0x0059] = h.resist_magic;
-    buf[0x005A] = h.resist_magic_fire;
-    buf[0x005B] = h.resist_magic_cold;
-    buf[0x005C] = h.resist_slashing;
-    buf[0x005D] = h.resist_crushing;
-    buf[0x005E] = h.resist_piercing;
-    buf[0x005F] = h.resist_missile;
-    buf[0x0060] = h.resist_magic_damage;
+    buf[0x0055] = h.resist_fire as u8;
+    buf[0x0056] = h.resist_cold as u8;
+    buf[0x0057] = h.resist_electricity as u8;
+    buf[0x0058] = h.resist_acid as u8;
+    buf[0x0059] = h.resist_magic as u8;
+    buf[0x005A] = h.resist_magic_fire as u8;
+    buf[0x005B] = h.resist_magic_cold as u8;
+    buf[0x005C] = h.resist_slashing as u8;
+    buf[0x005D] = h.resist_crushing as u8;
+    buf[0x005E] = h.resist_piercing as u8;
+    buf[0x005F] = h.resist_missile as u8;
+    buf[0x0060] = h.resist_magic_damage as u8;
     {
         let src = &h.unknown_further_resistances;
         let n = src.len().min(4);

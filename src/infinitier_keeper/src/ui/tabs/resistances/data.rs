@@ -13,17 +13,17 @@ use infinitier_core::resource::cre::{Cre, CreHeader};
 /// The three EEKeeper "Magic" fields are [`magic`](Self::magic),
 /// [`magic_fire`](Self::magic_fire) and [`magic_cold`](Self::magic_cold).
 pub struct Resistances {
-    pub acid: u8,
-    pub cold: u8,
-    pub electricity: u8,
-    pub fire: u8,
-    pub crushing: u8,
-    pub piercing: u8,
-    pub slashing: u8,
-    pub missile: u8,
-    pub magic: u8,
-    pub magic_fire: u8,
-    pub magic_cold: u8,
+    pub acid: i8,
+    pub cold: i8,
+    pub electricity: i8,
+    pub fire: i8,
+    pub crushing: i8,
+    pub piercing: i8,
+    pub slashing: i8,
+    pub missile: i8,
+    pub magic: i8,
+    pub magic_fire: i8,
+    pub magic_cold: i8,
 }
 
 /// The five AD&D saving throws (lower is better). Absent on IWD2.
