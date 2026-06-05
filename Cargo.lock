@@ -1653,6 +1653,7 @@ version = "0.0.8"
 dependencies = [
  "bitflags 2.11.1",
  "encoding_rs",
+ "infinitier_common",
  "infinitier_datasource",
  "infinitier_test_utils",
  "log",

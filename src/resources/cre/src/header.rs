@@ -2,6 +2,56 @@
 //! field tables.
 
 use encoding_rs::WINDOWS_1252;
+use infinitier_common::Game;
+
+/// The 32-byte CRE field at offset `0x0084`.
+///
+/// In the BG / BG2 / IWD(:EE) V1.0 layout this is a *tracking target*
+/// resref. PST:EE — though it also uses the V1.0 signature — overlays the
+/// very same bytes with unrelated PST-specific fields (per-class XP,
+/// faction / team / species, dialogue & collision radii, …), so there the
+/// region is **not** a tracking target. Reading it as a resref would yield
+/// garbage, which is why the importer records which interpretation applies
+/// and preserves the raw bytes verbatim in the PST case so the overlay
+/// round-trips untouched.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TrackingTarget {
+    /// A tracking-target resref (BG / BG2 / IWD(:EE)). May be empty.
+    Resref(String),
+    /// PST:EE — not a tracking target; the raw 32 bytes are kept as-is.
+    PstOverlay([u8; 32]),
+}
+
+impl TrackingTarget {
+    /// Decode the 32-byte region for `game`: a resref for the BG family,
+    /// or the preserved PST:EE overlay bytes.
+    fn parse(bytes: &[u8], game: Game) -> Self {
+        if game == Game::Pstee {
+            let mut raw = [0u8; 32];
+            raw.copy_from_slice(&bytes[..32]);
+            TrackingTarget::PstOverlay(raw)
+        } else {
+            TrackingTarget::Resref(read_resref(bytes))
+        }
+    }
+
+    /// Write the 32-byte region back into `out`.
+    fn write(&self, out: &mut [u8]) {
+        match self {
+            TrackingTarget::Resref(s) => write_resref(out, s),
+            TrackingTarget::PstOverlay(raw) => out.copy_from_slice(raw),
+        }
+    }
+
+    /// The tracking-target resref, or `None` when this region is the
+    /// PST:EE overlay (and therefore not a tracking target).
+    pub fn resref(&self) -> Option<&str> {
+        match self {
+            TrackingTarget::Resref(s) => Some(s),
+            TrackingTarget::PstOverlay(_) => None,
+        }
+    }
+}
 
 /// Decode a fixed-width resref-shaped byte slice via WINDOWS-1252,
 /// stripping trailing NULs. Shared by every generated parser.
@@ -311,8 +361,9 @@ pub struct CreHeaderV10 {
     pub turn_undead_level: u8,
     /// 0x0083 (1 B): Tracking skill (0-100)
     pub tracking_skill: u8,
-    /// 0x0084 (32 B): Tracking target
-    pub tracking_target: String,
+    /// 0x0084 (32 B): Tracking target (resref) for the BG family; a
+    /// PST:EE-specific overlay otherwise — see [`TrackingTarget`].
+    pub tracking_target: TrackingTarget,
     /// 0x00A4 (400 B): Strrefs pertaining to the character. Most are connected with the sound-set (see SOUNDOF...
     pub strrefs_pertaining_to_the_character_most: Vec<u8>,
     /// 0x0234 (1 B): Level first class Highest attained level in class (0-100). For dual/multi class charact...
@@ -405,7 +456,7 @@ pub struct CreHeaderV10 {
     pub dialog_file: String,
 }
 
-pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> {
+pub(crate) fn parse_header_v1_0(header: &[u8], game: Game) -> std::io::Result<CreHeaderV10> {
     debug_assert_eq!(header.len(), 724);
     let read_u8 = |o: usize| header[o];
     let read_i8 = |o: usize| header[o] as i8;
@@ -493,7 +544,7 @@ pub(crate) fn parse_header_v1_0(header: &[u8]) -> std::io::Result<CreHeaderV10> 
         bg1_7: read_u8(0x0081),
         turn_undead_level: read_u8(0x0082),
         tracking_skill: read_u8(0x0083),
-        tracking_target: read_resref(&header[0x0084..0x00A4]),
+        tracking_target: TrackingTarget::parse(&header[0x0084..0x00A4], game),
         strrefs_pertaining_to_the_character_most: header[0x00A4..0x0234].to_vec(),
         level_first_class_highest_attained_level: read_u8(0x0234),
         level_second_class_highest_attained_level: read_u8(0x0235),
@@ -635,7 +686,7 @@ pub(crate) fn serialize_header_v1_0(h: &CreHeaderV10) -> Vec<u8> {
     buf[0x0081] = h.bg1_7;
     buf[0x0082] = h.turn_undead_level;
     buf[0x0083] = h.tracking_skill;
-    write_resref(&mut buf[0x0084..0x00A4], &h.tracking_target);
+    h.tracking_target.write(&mut buf[0x0084..0x00A4]);
     {
         let src = &h.strrefs_pertaining_to_the_character_most;
         let n = src.len().min(400);
@@ -3560,4 +3611,41 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x0622..0x0626].copy_from_slice(&h.effects_count.to_le_bytes());
     write_resref(&mut buf[0x0626..0x062E], &h.dialog);
     buf
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The BG family decodes the 0x0084 region as a tracking-target
+    /// resref and writes it back zero-padded.
+    #[test]
+    fn tracking_target_bg_is_a_resref() {
+        let mut bytes = [0u8; 32];
+        bytes[..6].copy_from_slice(b"FOEBAT");
+        let tt = TrackingTarget::parse(&bytes, Game::Bgee);
+        assert_eq!(tt, TrackingTarget::Resref("FOEBAT".to_owned()));
+        assert_eq!(tt.resref(), Some("FOEBAT"));
+
+        // The real serializer writes into a zero-initialised buffer.
+        let mut out = [0u8; 32];
+        tt.write(&mut out);
+        assert_eq!(out, bytes, "resref must round-trip zero-padded");
+    }
+
+    /// PST:EE overlays the same region with binary PST fields, so it's
+    /// preserved verbatim and carries no tracking-target resref.
+    #[test]
+    fn tracking_target_pstee_is_preserved_overlay() {
+        // Arbitrary non-resref bytes (per-class XP, faction, …) including
+        // interior NULs that a resref decode/encode would not preserve.
+        let raw: [u8; 32] = std::array::from_fn(|i| (i as u8).wrapping_mul(7).wrapping_add(1));
+        let tt = TrackingTarget::parse(&raw, Game::Pstee);
+        assert_eq!(tt, TrackingTarget::PstOverlay(raw));
+        assert_eq!(tt.resref(), None, "PST:EE overlay is not a tracking target");
+
+        let mut out = [0u8; 32];
+        tt.write(&mut out);
+        assert_eq!(out, raw, "PST:EE overlay must round-trip byte-exact");
+    }
 }

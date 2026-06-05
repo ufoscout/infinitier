@@ -402,6 +402,8 @@ fn write_resref(out: &mut [u8], s: &str) {
 mod tests {
     use infinitier_datasource::{DataSource, Importer};
 
+    use infinitier_common::Game;
+
     use super::*;
     use crate::CreImporter;
     use crate::test_support::all_cre_fixtures;
@@ -417,18 +419,24 @@ mod tests {
         assert!(!fixtures.is_empty(), "no CRE fixtures discovered");
         for path in fixtures {
             let name = path.to_string_lossy().into_owned();
-            let original = CreImporter { name: &name }
-                .import(&DataSource::new(path.as_path()))
-                .unwrap_or_else(|e| panic!("import {name}: {e}"));
+            let original = CreImporter {
+                name: &name,
+                game: Game::Bgee,
+            }
+            .import(&DataSource::new(path.as_path()))
+            .unwrap_or_else(|e| panic!("import {name}: {e}"));
 
             let mut produced: Vec<u8> = Vec::new();
             CreExporter
                 .export(&original, &mut produced)
                 .unwrap_or_else(|e| panic!("export {name}: {e}"));
 
-            let re_imported = CreImporter { name: &name }
-                .import(&DataSource::new(produced))
-                .unwrap_or_else(|e| panic!("re-import {name}: {e}"));
+            let re_imported = CreImporter {
+                name: &name,
+                game: Game::Bgee,
+            }
+            .import(&DataSource::new(produced))
+            .unwrap_or_else(|e| panic!("re-import {name}: {e}"));
 
             assert_eq!(re_imported, original, "Cre struct mismatch for {name}");
         }
@@ -447,14 +455,20 @@ mod tests {
             let path = infinitier_test_utils::get_assets_path()
                 .join("cre")
                 .join(fixture);
-            let original = CreImporter { name: fixture }
-                .import(&DataSource::new(path.as_path()))
-                .unwrap();
+            let original = CreImporter {
+                name: fixture,
+                game: Game::Bgee,
+            }
+            .import(&DataSource::new(path.as_path()))
+            .unwrap();
             let tmp = tempfile::NamedTempFile::new().unwrap();
             CreExporter.export_to_file(&original, tmp.path()).unwrap();
-            let re_imported = CreImporter { name: fixture }
-                .import(&DataSource::new(tmp.path().to_path_buf()))
-                .unwrap();
+            let re_imported = CreImporter {
+                name: fixture,
+                game: Game::Bgee,
+            }
+            .import(&DataSource::new(tmp.path().to_path_buf()))
+            .unwrap();
             assert_eq!(re_imported, original, "round-trip mismatch for {fixture}");
         }
     }
@@ -464,9 +478,12 @@ mod tests {
         // Header bytes are written verbatim — the first 8 bytes must
         // therefore match the canonical signature + version tag.
         let path = infinitier_test_utils::get_assets_path().join("cre/v2_2/52SERSA.cre");
-        let original = CreImporter { name: "sig" }
-            .import(&DataSource::new(path.as_path()))
-            .unwrap();
+        let original = CreImporter {
+            name: "sig",
+            game: Game::Bgee,
+        }
+        .import(&DataSource::new(path.as_path()))
+        .unwrap();
         let mut produced = Vec::new();
         CreExporter.export(&original, &mut produced).unwrap();
         assert_eq!(&produced[0..4], crate::CRE_SIGNATURE);
@@ -480,9 +497,12 @@ mod tests {
         // must surface that as an error rather than emit a
         // self-contradicting file.
         let path = infinitier_test_utils::get_assets_path().join("cre/v1_0/IRONGU.cre");
-        let mut cre = CreImporter { name: "x" }
-            .import(&DataSource::new(path.as_path()))
-            .unwrap();
+        let mut cre = CreImporter {
+            name: "x",
+            game: Game::Bgee,
+        }
+        .import(&DataSource::new(path.as_path()))
+        .unwrap();
         cre.version = CreVersion::V2_2;
         let mut produced = Vec::new();
         let err = CreExporter.export(&cre, &mut produced).unwrap_err();

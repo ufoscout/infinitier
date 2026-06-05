@@ -2,6 +2,7 @@
 
 use std::io::{Cursor, Read, Seek};
 
+use infinitier_common::Game;
 use infinitier_datasource::{DataSource, Importer, ReadExt, Reader, SeekExt};
 use log::{debug, error};
 
@@ -30,6 +31,10 @@ pub struct CreImporter<'a> {
     /// Caller-visible name for error / log messages — typically the
     /// fixture path.
     pub name: &'a str,
+    /// The game this CRE belongs to. Needed to disambiguate the few
+    /// V1.0 header regions whose meaning is engine-specific (notably the
+    /// PST:EE overlay of the BG "tracking target" field).
+    pub game: Game,
 }
 
 type CreReader = Reader<Cursor<Vec<u8>>>;
@@ -99,7 +104,7 @@ impl Importer for CreImporter<'_> {
         // sub-section parsing (so offsets work the same way as in NI);
         // the typed view is what the caller actually wants.
         let header = match version {
-            CreVersion::V1_0 => CreHeader::V10(parse_header_v1_0(&header_bytes)?),
+            CreVersion::V1_0 => CreHeader::V10(parse_header_v1_0(&header_bytes, self.game)?),
             CreVersion::V1_2 => CreHeader::V12(Box::new(parse_header_v1_2(&header_bytes)?)),
             CreVersion::V9_0 => CreHeader::V90(parse_header_v9_0(&header_bytes)?),
             CreVersion::V2_2 => CreHeader::V22(Box::new(parse_header_v2_2(&header_bytes)?)),
@@ -750,17 +755,23 @@ mod tests {
 
     #[test]
     fn test_rejects_wrong_signature() {
-        let err = CreImporter { name: "junk" }
-            .import(&DataSource::new(b"BAD V1.0\x00\x00\x00\x00".as_slice()))
-            .unwrap_err();
+        let err = CreImporter {
+            name: "junk",
+            game: Game::Bgee,
+        }
+        .import(&DataSource::new(b"BAD V1.0\x00\x00\x00\x00".as_slice()))
+        .unwrap_err();
         assert!(err.to_string().contains("Unsupported CRE signature"));
     }
 
     #[test]
     fn test_rejects_unknown_version() {
-        let err = CreImporter { name: "future" }
-            .import(&DataSource::new(b"CRE V9.9\x00\x00\x00\x00".as_slice()))
-            .unwrap_err();
+        let err = CreImporter {
+            name: "future",
+            game: Game::Bgee,
+        }
+        .import(&DataSource::new(b"CRE V9.9\x00\x00\x00\x00".as_slice()))
+        .unwrap_err();
         assert!(err.to_string().contains("Unsupported CRE version"));
     }
 
@@ -768,9 +779,12 @@ mod tests {
     fn test_rejects_truncated_header() {
         let bytes = b"CRE V1.0                      ";
         assert!(bytes.len() < CreVersion::V1_0.header_len());
-        let err = CreImporter { name: "tiny" }
-            .import(&DataSource::new(bytes.as_slice()))
-            .unwrap_err();
+        let err = CreImporter {
+            name: "tiny",
+            game: Game::Bgee,
+        }
+        .import(&DataSource::new(bytes.as_slice()))
+        .unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::UnexpectedEof);
     }
 
@@ -785,6 +799,7 @@ mod tests {
         for path in fixtures {
             let cre = CreImporter {
                 name: path.to_string_lossy().as_ref(),
+                game: Game::Bgee,
             }
             .import(&DataSource::new(path.as_path()))
             .unwrap_or_else(|e| panic!("parse {} failed: {e}", path.display()));

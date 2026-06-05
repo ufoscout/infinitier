@@ -13,6 +13,7 @@ keywords = ["cre", "creature", "infinity-engine", "baldurs-gate"]
 [dependencies]
 bitflags = { workspace = true }
 encoding_rs = { workspace = true }
+infinitier_common = { workspace = true }
 infinitier_datasource = { workspace = true }
 log = { workspace = true }
 

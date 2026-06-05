@@ -245,9 +245,12 @@ impl GameResource {
                 .map(ImportedResource::Image),
             ResourceType::Chr => Ok(ImportedResource::Chr),
             ResourceType::Chu => Ok(ImportedResource::Chu),
-            ResourceType::Cre => CreImporter { name: &self.name }
-                .import(ds)
-                .map(|cre| ImportedResource::Cre(Box::new(cre))),
+            ResourceType::Cre => CreImporter {
+                name: &self.name,
+                game: game_data.game(),
+            }
+            .import(ds)
+            .map(|cre| ImportedResource::Cre(Box::new(cre))),
             ResourceType::Dlg => Ok(ImportedResource::Dlg),
             ResourceType::Eff => Ok(ImportedResource::Eff),
             ResourceType::Fnt => FntImporter { name: &self.name }

@@ -22,7 +22,9 @@ mod header;
 mod importer;
 
 pub use exporter::CreExporter;
-pub use header::{CreHeaderV10, CreHeaderV12, CreHeaderV22, CreHeaderV90, NumberOfAttacks};
+pub use header::{
+    CreHeaderV10, CreHeaderV12, CreHeaderV22, CreHeaderV90, NumberOfAttacks, TrackingTarget,
+};
 pub use importer::CreImporter;
 
 /// 4-byte signature at offset 0 of every CRE file (note the trailing
@@ -1692,6 +1694,7 @@ pub struct Iwd2Table {
 pub(crate) mod test_support {
     use std::path::{Path, PathBuf};
 
+    use infinitier_common::Game;
     use infinitier_datasource::{DataSource, Importer};
     use infinitier_test_utils::get_assets_path;
 
@@ -1724,9 +1727,12 @@ pub(crate) mod test_support {
     /// Imports a fixture path relative to `assets/cre/`.
     pub fn import_fixture(rel_path: &str) -> Cre {
         let path = get_assets_path().join("cre").join(rel_path);
-        CreImporter { name: rel_path }
-            .import(&DataSource::new(path.as_path()))
-            .unwrap_or_else(|e| panic!("import {rel_path}: {e}"))
+        CreImporter {
+            name: rel_path,
+            game: Game::Bgee,
+        }
+        .import(&DataSource::new(path.as_path()))
+        .unwrap_or_else(|e| panic!("import {rel_path}: {e}"))
     }
 }
 

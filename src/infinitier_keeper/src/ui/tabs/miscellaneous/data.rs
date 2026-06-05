@@ -57,7 +57,7 @@ pub fn misc_data(cre: &Cre, gam: &ImportedGam, npc: &ImportedGamNpc) -> MiscData
     if let CreHeader::V10(h) = &cre.header {
         data.turn_undead = h.turn_undead_level;
         data.tracking_skill = h.tracking_skill;
-        data.tracking_target = h.tracking_target.clone();
+        data.tracking_target = h.tracking_target.resref().unwrap_or_default().to_owned();
         data.identifier = u32::from(h.global_actor_enumeration_value)
             | (u32::from(h.local_area_actor_enumeration_value) << 16);
         data.script_name = h.death_variable_set_sprite_is_deadvariable.clone();

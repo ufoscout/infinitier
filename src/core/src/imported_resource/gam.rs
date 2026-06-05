@@ -1,5 +1,6 @@
 use std::io;
 
+use infinitier_common::Game;
 use infinitier_cre_resource::{Cre, CreExporter, CreImporter};
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_gam_resource::{
@@ -111,7 +112,7 @@ impl ImportedGam {
     /// to the GAM / script-name chain.
     pub fn load(gam: Gam, game_data: &GameData) -> io::Result<ImportedGam> {
         let tlk = game_data.dialog_tlk()?;
-        Self::load_with_tlk(gam, Some(&tlk))
+        Self::load_with_tlk(gam, game_data.game(), Some(&tlk))
     }
 
     /// Like [`Self::load`] but with the dialog TLK supplied by the
@@ -123,7 +124,12 @@ impl ImportedGam {
     /// parse — strict mode: a corrupt creature record poisons the
     /// whole GAM import rather than producing a partially-resolved
     /// value.
-    pub fn load_with_tlk(gam: Gam, tlk: Option<&Tlk>) -> io::Result<ImportedGam> {
+    ///
+    /// `game` is needed to parse embedded CREs: a handful of V1.0 header
+    /// regions are engine-specific (e.g. the PST:EE overlay of the BG
+    /// "tracking target" field), and the CRE version tag alone can't tell
+    /// PST:EE apart from the other Enhanced-Edition games.
+    pub fn load_with_tlk(gam: Gam, game: Game, tlk: Option<&Tlk>) -> io::Result<ImportedGam> {
         // Find the original file's total byte size — re-serialising
         // the source GAM with the existing exporter gives us a value
         // that's strictly past every section the writer touches
@@ -151,12 +157,12 @@ impl ImportedGam {
         let party_npcs = party_npcs
             .into_iter()
             .enumerate()
-            .map(|(i, npc)| resolve_npc(i, npc, engine, tlk))
+            .map(|(i, npc)| resolve_npc(i, npc, engine, game, tlk))
             .collect::<io::Result<Vec<_>>>()?;
         let non_party_npcs = non_party_npcs
             .into_iter()
             .enumerate()
-            .map(|(i, npc)| resolve_npc(i, npc, engine, tlk))
+            .map(|(i, npc)| resolve_npc(i, npc, engine, game, tlk))
             .collect::<io::Result<Vec<_>>>()?;
         Ok(ImportedGam {
             version,
@@ -264,6 +270,7 @@ fn resolve_npc(
     index: usize,
     npc: GamNpc,
     engine: infinitier_common::Engine,
+    game: Game,
     tlk: Option<&Tlk>,
 ) -> io::Result<ImportedGamNpc> {
     // Compute the GAM 32-byte localized name slot via the typed
@@ -292,6 +299,7 @@ fn resolve_npc(
         // import (the caller asked for fail-fast).
         let parsed = CreImporter {
             name: &format!("gam_npc[{index}]"),
+            game,
         }
         .import(&DataSource::new(cre_bytes))?;
         Some(NpcCre::Cre(Box::new(parsed)))
@@ -341,7 +349,6 @@ fn resolve_npc(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use infinitier_common::Game;
     use infinitier_fs::CaseInsensitiveFS;
     use infinitier_gam_resource::{GamExporter, GamImporter};
 
@@ -365,7 +372,8 @@ mod tests {
             "bg_ee/save/000000000-Auto-Salvataggio/BALDUR.gam",
             Game::Bgee.engine(),
         );
-        let imported = ImportedGam::load_with_tlk(gam, None).expect("ImportedGam::load_with_tlk");
+        let imported =
+            ImportedGam::load_with_tlk(gam, Game::Bgee, None).expect("ImportedGam::load_with_tlk");
         assert!(
             !imported.party_npcs.is_empty(),
             "BG:EE Auto-Salvataggio fixture must have at least one party slot"
@@ -422,8 +430,8 @@ mod tests {
         let engine = Game::Bgee.engine();
         let rel = "bg_ee/save/000000000-Auto-Salvataggio/BALDUR.gam";
         let original_gam = load_gam(rel, engine);
-        let original =
-            ImportedGam::load_with_tlk(original_gam.clone(), None).expect("load original");
+        let original = ImportedGam::load_with_tlk(original_gam.clone(), Game::Bgee, None)
+            .expect("load original");
 
         // Round-trip: export → serialise → import → load.
         let rebuilt_gam = original.clone().export().expect("export to Gam");
@@ -434,8 +442,8 @@ mod tests {
         let reimported_gam = GamImporter { name: rel, engine }
             .import(&DataSource::new(bytes))
             .expect("re-import bytes");
-        let reimported =
-            ImportedGam::load_with_tlk(reimported_gam, None).expect("re-load ImportedGam");
+        let reimported = ImportedGam::load_with_tlk(reimported_gam, Game::Bgee, None)
+            .expect("re-load ImportedGam");
 
         // Headers / engine data preserved.
         assert_eq!(reimported.version, original.version);
