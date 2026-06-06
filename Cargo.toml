@@ -75,6 +75,8 @@ env_logger = "0.11"
 flate2 = "1"
 hound = "3"
 image = { version = "0.25", default-features = false, features = ["bmp", "png"] }
+# Embeds the gemrb `unhardcoded` resource tree into the binary at compile time.
+include_dir = "0.7"
 itertools = "0.14"
 # Date/time formatting for the save-game picker's "Time Saved" column
 # (local timezone + weekday/month names). Already in the lock graph.

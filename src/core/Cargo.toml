@@ -15,6 +15,7 @@ infinitier_common = { workspace = true }
 infinitier_datasource = { workspace = true }
 infinitier_fs = { workspace = true }
 encoding_rs = { workspace = true }
+include_dir = { workspace = true }
 
 # Codecs
 infinitier_bik_decoder = { workspace = true }

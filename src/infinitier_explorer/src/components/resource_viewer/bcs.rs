@@ -46,6 +46,9 @@ impl ResourceViewerTrait for BcsViewer {
                     DataOrigin::Dir { name, path } => {
                         ui.label(format!("{name}: {}", path.path().display()));
                     }
+                    DataOrigin::Unhardcoded { folder } => {
+                        ui.label(format!("unhardcoded/{folder}"));
+                    }
                     DataOrigin::Missing => {
                         ui.label("Missing");
                     }

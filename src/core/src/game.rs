@@ -206,10 +206,19 @@ impl GameData {
     }
 
     /// Add a resource to the data structure.
-    /// If a resource with the same name and type already exists, it is replaced.
+    ///
+    /// If a resource with the same name and type already exists, it is
+    /// replaced — *unless* the incoming resource is [`DataOrigin::Missing`], in
+    /// which case the existing (loadable) one is kept. A `Missing` entry only
+    /// records that the resource was referenced but couldn't be located, so it
+    /// must never clobber a resource we can actually load (e.g. an embedded
+    /// `unhardcoded` fallback registered earlier).
     fn add_resource(&mut self, resource: GameResource) {
         let key = (resource.name.to_lowercase(), resource.r#type);
         if let Some(&existing_id) = self.name_type_index.get(&key) {
+            if matches!(resource.data_origin, DataOrigin::Missing) {
+                return;
+            }
             // Same (name, type) → replacing in place. The id is already
             // present in `type_index[type]`, no index update needed.
             self.resources[existing_id] = resource;
@@ -270,8 +279,20 @@ fn dialog_tlk_encoding(game: Game) -> &'static encoding_rs::Encoding {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DataOrigin {
-    Bif { name: String },
-    Dir { name: String, path: CiPath },
+    Bif {
+        name: String,
+    },
+    Dir {
+        name: String,
+        path: CiPath,
+    },
+    /// An embedded GemRB `unhardcoded` resource, baked into the binary.
+    /// `folder` is the source subfolder (`"shared"`, `"bg1"`, …). These are
+    /// layered in as low-priority fallbacks, only where the game itself
+    /// doesn't provide the resource. See [`crate::unhardcoded`].
+    Unhardcoded {
+        folder: &'static str,
+    },
     Missing,
 }
 
@@ -554,7 +575,8 @@ impl GameDataBuilder {
             type_index: HashMap::new(),
         };
 
-        // Additional resources are loaded from hardcoded paths (i.e. Scripts, Musics, etc.)
+        // Load unhardcoded resources with low priority.
+        self.add_unhardcoded_fallbacks(&mut game_data);
 
         // preload all bif files
         let mut bif_all = vec![];
@@ -784,6 +806,27 @@ impl GameDataBuilder {
         }
     }
 
+    /// Register the embedded GemRB `unhardcoded` resources for the game's type.
+    ///
+    /// Must run *before* the game's own resources are loaded: these are added
+    /// with [`add_resource`](GameData::add_resource), so anything loaded later
+    /// (BIFs, loose dirs, override) overrides a colliding resource — leaving
+    /// the embedded set as the lowest-priority fallback.
+    fn add_unhardcoded_fallbacks(&self, game: &mut GameData) {
+        let game_type = game.game_type;
+        for res in crate::unhardcoded::unhardcoded_resources(game_type) {
+            game.add_resource(GameResource {
+                game_type,
+                name: res.name.to_string(),
+                r#type: res.r#type,
+                file_size: Some(res.bytes.len() as u64),
+                datasource: Some(res.data_source()),
+                data_origin: DataOrigin::Unhardcoded { folder: res.folder },
+                imported: None,
+            });
+        }
+    }
+
     fn add_resources_from_dir(
         &self,
         game: &mut GameData,
@@ -850,7 +893,26 @@ mod tests {
             ))
             .unwrap();
         assert!(!game_data.is_empty());
-        assert!(game_data.resources.len() <= key.resource_entries.len());
+
+        // Resources sourced from the key (BIF-backed or key-declared but
+        // missing) must not exceed the key's entry count — they're deduped by
+        // (name, type). The embedded `unhardcoded` fallbacks are added on top
+        // and are intentionally not counted here.
+        let from_key = game_data
+            .resources
+            .iter()
+            .filter(|r| matches!(r.data_origin, DataOrigin::Bif { .. } | DataOrigin::Missing))
+            .count();
+        assert!(from_key <= key.resource_entries.len());
+
+        // The unhardcoded fallbacks should have been layered in.
+        assert!(
+            game_data
+                .resources
+                .iter()
+                .any(|r| matches!(r.data_origin, DataOrigin::Unhardcoded { .. })),
+            "expected embedded unhardcoded fallbacks to be present"
+        );
     }
 
     #[test]
@@ -964,7 +1026,15 @@ mod tests {
     #[test]
     fn test_get_by_id_found() {
         let game_data = build_bg2();
-        let resource = game_data.get_by_id(0).unwrap();
+        // Resolve the id by (name, type) rather than assuming a fixed index:
+        // the embedded unhardcoded fallbacks are registered first, so the
+        // override resources no longer sit at id 0.
+        let id = game_data
+            .resources
+            .iter()
+            .position(|r| r.name == "abclasrq" && r.r#type == ResourceType::TwoDA)
+            .expect("abclasrq.2da should be present");
+        let resource = game_data.get_by_id(id).unwrap();
         assert_eq!(resource.name, "abclasrq");
         assert_eq!(resource.r#type, ResourceType::TwoDA);
         assert_eq!(resource.resource_name_with_extension(), "abclasrq.2da");
@@ -1057,6 +1127,87 @@ mod tests {
             by_id.data_origin,
             DataOrigin::Bif {
                 name: "second.bif".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn test_add_resource_missing_does_not_override_existing() {
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
+
+        // A loadable resource (e.g. an embedded unhardcoded fallback).
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Spl,
+            DataOrigin::Unhardcoded { folder: "shared" },
+        ));
+        // A later key entry that couldn't be located must not clobber it.
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Spl,
+            DataOrigin::Missing,
+        ));
+
+        assert_eq!(game_data.len(), 1);
+        let resource = game_data
+            .get_by_name_and_type("TEST", ResourceType::Spl)
+            .unwrap();
+        assert_eq!(
+            resource.data_origin,
+            DataOrigin::Unhardcoded { folder: "shared" },
+            "an incoming Missing resource must not replace an existing loadable one"
+        );
+    }
+
+    #[test]
+    fn test_add_resource_missing_is_added_when_absent() {
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
+
+        // With nothing registered yet, a Missing resource is still recorded,
+        // so the engine knows the resource was referenced.
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            DataOrigin::Missing,
+        ));
+
+        assert_eq!(game_data.len(), 1);
+        let resource = game_data
+            .get_by_name_and_type("TEST", ResourceType::Bam)
+            .unwrap();
+        assert_eq!(resource.data_origin, DataOrigin::Missing);
+    }
+
+    #[test]
+    fn test_add_resource_non_missing_still_overrides_missing() {
+        let mut game_data =
+            GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
+
+        // A previously-missing resource…
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            DataOrigin::Missing,
+        ));
+        // …is replaced once a loadable source for it shows up.
+        game_data.add_resource(make_resource(
+            "TEST",
+            ResourceType::Bam,
+            DataOrigin::Bif {
+                name: "found.bif".to_string(),
+            },
+        ));
+
+        assert_eq!(game_data.len(), 1);
+        let resource = game_data
+            .get_by_name_and_type("TEST", ResourceType::Bam)
+            .unwrap();
+        assert_eq!(
+            resource.data_origin,
+            DataOrigin::Bif {
+                name: "found.bif".to_string()
             }
         );
     }

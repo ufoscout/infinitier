@@ -11,6 +11,6 @@ update-unhardcoded:
   trap 'rm -rf "$tmp"' EXIT
   git clone --depth 1 --filter=blob:none --sparse "{{GEMRB_REPO}}" "$tmp"
   git -C "$tmp" sparse-checkout set gemrb/unhardcoded
-  rm -rf ./unhardcoded
-  cp -r "$tmp/gemrb/unhardcoded" ./unhardcoded
-  echo "Copied unhardcoded into ./unhardcoded"
+  rm -rf ./src/core/unhardcoded
+  cp -r "$tmp/gemrb/unhardcoded" ./src/core/unhardcoded
+  echo "Copied unhardcoded into ./src/core/unhardcoded"
