@@ -1,10 +1,8 @@
 use infinitier_common::{Game, ResourceType};
 use infinitier_core::{
     game::{DataOrigin, GameDataBuilder, GameResource},
-    game_detect::detect_game,
     imported_resource::ImportedResource,
 };
-use infinitier_fs::CaseInsensitiveFS;
 
 /// Returns the list of game directories to test, read from the
 /// `INFINITIER_GAME_DIRS` environment variable as a colon-separated
@@ -48,9 +46,7 @@ fn test_import_all_resources() {
     for dir in &dirs {
         // The env var only carries paths, so the engine is always
         // detected from the directory contents.
-        let game =
-            detect_game(&CaseInsensitiveFS::new(dir).unwrap()).expect("Cannot detect game type");
-        let game_data = match GameDataBuilder::new(dir, game).and_then(|b| b.build()) {
+        let game_data = match GameDataBuilder::new(dir, None).and_then(|b| b.build()) {
             Ok(gd) => gd,
             Err(e) => {
                 all_failures.push(format!("[{}] failed to build GameData: {e}", dir.display()));

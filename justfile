@@ -4,6 +4,7 @@ import "./just/code_check.just"
 import "./just/publish.just"
 import "./just/run.just"
 import "./just/test.just"
+import "./just/unhardcoded.just"
 
 export RUST_BACKTRACE := "full"
 WASM_DIR := env("WASM_DIR", "./target/artifact")

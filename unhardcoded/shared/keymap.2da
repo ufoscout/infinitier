@@ -1,0 +1,76 @@
+2DA V1.0
+*
+                      MODULE           FUNCTION                          GROUP
+Inventory             GUIINV           ToggleInventoryWindow               0
+Character_Record      GUIREC           ToggleRecordsWindow                 0
+Character_Stats       GUIREC           ToggleRecordsWindow                 0
+Return_To_Game        GUICommonWindows CloseTopWindow                      0
+Journal               GUIJRNL          ToggleJournalWindow                 0
+Map                   GUIMA            ToggleMapWindow                     0
+Wizard_Spells         GUIMG            ToggleSpellWindow                   0
+Mage_Spells           GUIMG            ToggleSpellWindow                   0
+Priest_Spells         GUIPR            TogglePriestWindow                  0
+Spellbook             GUISPL           ToggleSpellBookWindow               0
+Options               GUIOPT           ToggleOptionsWindow                 0
+Character_Arbitration GUIMP            * 
+Guard_/_Protect       ActionsWindow    ActionDefendPressed               0
+Turn_Undead           ActionsWindow    ActionTurnPressed                 0
+Battle_Song           ActionsWindow    ActionBardSongPressed             0
+Cast_Spell            ActionsWindow    ActionCastPressed                 0
+Use_Item              ActionsWindow    ActionUseItemPressed              0
+Dialog                ActionsWindow    ActionTalkPressed                 0
+Thieving              ActionsWindow    ActionThievingPressed             0
+Stealth               ActionsWindow    ActionStealthPressed              0
+Trap_Detection        ActionsWindow    ActionSearchPressed               0
+Group_Stop            ActionsWindow    ActionStopPressed                 0
+Group_Attack          ActionsWindow    ActionAttackPressed               0
+Special_Abilities     ActionsWindow    ActionInnatePressed               0
+Equip_Melee_Weapon    ActionsWindow    ActionMeleePressed                0
+Equip_Range_Weapon    ActionsWindow    ActionRangePressed                0
+Quick_Load            GUILOAD          QuickLoadPressed                  0
+Quick_Save            GUISAVE          QuickSavePressed                  0
+Rest                  MenuWindow       RestPress                         0
+Hide_Interface        CommonWindow     ToggleGUIHidden                   0
+Right_Interface       CommonWindow     PortraitPanePress                 0
+Left_Interface        MessageWindow    ToggleMenuWindow                  0
+Toggle_AI             MenuWindow       AIPress                           0
+Hard_Pause            GUICommonWindows HardPausePressed                  0
+Location              GUICommon        LocationPressed                   0
+Chat_Window           GUIMP            *
+Center_Character      MenuWindow       OnLockViewPress                   0
+Spell_Slot_1          ActionsWindow    ActionQSpell1Pressed              0
+Spell_Slot_2          ActionsWindow    ActionQSpell2Pressed              0
+Spell_Slot_3          ActionsWindow    ActionQSpell3Pressed              0
+Weapon_Slot_1         ActionsWindow    ActionQWeapon1Pressed             0
+Weapon_Slot_2         ActionsWindow    ActionQWeapon2Pressed             0
+Weapon_Slot_3         ActionsWindow    ActionQWeapon3Pressed             0
+Weapon_Slot_4         ActionsWindow    ActionQWeapon4Pressed             0
+Item_Slot_1           ActionsWindow    ActionQItem1Pressed               0
+Item_Slot_2           ActionsWindow    ActionQItem2Pressed               0
+Item_Slot_3           ActionsWindow    ActionQItem3Pressed               0
+Item_Slot_4           ActionsWindow    ActionQItem4Pressed               0
+Item_Slot_5           ActionsWindow    ActionQItem5Pressed               0
+# pst has quick weapons and items under different names
+Quick_Weapon_Slot1    ActionsWindow    ActionQWeapon1Pressed             0
+Quick_Weapon_Slot2    ActionsWindow    ActionQWeapon2Pressed             0
+Quick_Weapon_Slot3    ActionsWindow    ActionQWeapon3Pressed             0
+Quick_Weapon_Slot4    ActionsWindow    ActionQWeapon4Pressed             0
+Quick_Item_Slot1      ActionsWindow    ActionQItem1Pressed               0
+Quick_Item_Slot2      ActionsWindow    ActionQItem2Pressed               0
+Quick_Item_Slot3      ActionsWindow    ActionQItem3Pressed               0
+Quick_Item_Slot4      ActionsWindow    ActionQItem4Pressed               0
+Quick_Item_Slot5      ActionsWindow    ActionQItem5Pressed               0
+Action_Menu           FloatMenuWindow  OpenFloatMenuWindow               0
+Action_Menu_-_Previous FloatMenuWindow FloatMenuSelectPreviousPC         0
+Action_Menu_-_Next    FloatMenuWindow  FloatMenuSelectNextPC             0
+Attack                FloatMenuWindow  FloatMenuSelectWeapons            0
+# these are duplicates and require the window to be set up first
+#Use_Item              FloatMenuWindow  FloatMenuSelectItems              0
+#Cast_Spell            FloatMenuWindow  FloatMenuSelectSpells             0
+#Dialog                FloatMenuWindow  FloatMenuSelectDialog             0
+Special_Abilities      FloatMenuWindow  FloatMenuSelectAbilities          0
+Toggle_Always_Run     GUICommonWindows ToggleAlwaysRun                   0
+Default               GUICommon        ResolveKey                        0
+
+# a mapping between keymap.ini key names (here as row names) and our python code
+# GROUP can be used to limit keys to a context, but it requires code changes

@@ -1,0 +1,690 @@
+IF
+  !Faction(Protagonist,ANARCHIST)
+  Global("JOIN_ANARCHISTS","GLOBAL",1)
+THEN
+  RESPONSE #100
+    ChangeFaction(Protagonist,ANARCHIST)
+END
+
+IF
+  !Faction(Protagonist,SENSATE)
+  Global("JOIN_SENSATES","GLOBAL",1)
+  !Global("JOIN_ANARCHISTS","GLOBAL",1)
+THEN
+  RESPONSE #100
+    ChangeFaction(Protagonist,SENSATE)
+END
+
+IF
+  !Faction(Protagonist,DUSTMEN)
+  Global("JOIN_DUSTMEN","GLOBAL",1)
+  !Global("JOIN_ANARCHISTS","GLOBAL",1)
+THEN
+  RESPONSE #100
+    ChangeFaction(Protagonist,DUSTMEN)
+END
+
+IF
+  !Faction(Protagonist,GODSMAN)
+  Global("JOIN_GODSMEN","GLOBAL",6)
+  !Global("JOIN_ANARCHISTS","GLOBAL",1)
+THEN
+  RESPONSE #100
+    ChangeFaction(Protagonist,GODSMAN)
+END
+
+IF
+  !Faction(Protagonist,XAOSITECT)
+  Global("JOIN_CHAOSMEN","GLOBAL",1)
+  !Global("JOIN_ANARCHISTS","GLOBAL",1)
+THEN
+  RESPONSE #100
+    ChangeFaction(Protagonist,XAOSITECT)
+END
+
+IF
+  Global("game_over","GLOBAL",1)
+THEN
+  RESPONSE #100
+    GlobalSet("game_over","GLOBAL",0)
+    QuitGame(0,0,44963)
+END
+
+IF
+  Global("game_over","GLOBAL",2)
+THEN
+  RESPONSE #100
+    GlobalSet("game_over","GLOBAL",0)
+    QuitGame(0,0,48153)
+END
+
+IF
+  Global("game_over","GLOBAL",3)
+THEN
+  RESPONSE #100
+    GlobalSet("game_over","GLOBAL",0)
+    QuitGame(0,0,48154)
+END
+
+IF
+  Global("game_over","GLOBAL",4)
+THEN
+  RESPONSE #100
+    GlobalSet("game_over","GLOBAL",0)
+    QuitGame(0,0,48155)
+END
+
+IF
+  Global("game_over","GLOBAL",5)
+THEN
+  RESPONSE #100
+    GlobalSet("game_over","GLOBAL",0)
+    QuitGame(0,0,41656)
+END
+
+IF
+  Global("game_over","GLOBAL",6)
+THEN
+  RESPONSE #100
+    GlobalSet("game_over","GLOBAL",0)
+    QuitGame(0,0,67295)
+END
+
+IF
+  Global("AR0200_Visited","GLOBAL",1)
+  Global("Played_Shadow_Movie","GLOBAL",0)
+THEN
+  RESPONSE #100
+    GlobalSet("Played_Shadow_Movie","GLOBAL",1)
+    StartMovie("SS_MSLAB")
+END
+
+IF
+  Global("AR0206_Visited","GLOBAL",1)
+  Global("Played_Shadow_Movie","GLOBAL",0)
+THEN
+  RESPONSE #100
+    GlobalSet("Played_Shadow_Movie","GLOBAL",1)
+    StartMovie("SS_MSLAB")
+END
+
+IF
+  Global("AR0200_Visited","GLOBAL",1)
+  Global("Played_Sigil_Movie","GLOBAL",0)
+THEN
+  RESPONSE #100
+    GlobalSet("Played_Sigil_Movie","GLOBAL",1)
+    StartMovie("SIGIL")
+END
+
+IF
+  GlobalGT("lady","GLOBAL",49)
+  Global("ar1900_visited","GLOBAL",0)
+  UsedExit("sigil",Protagonist)
+  !CreatureInArea("ar1900")
+THEN
+  RESPONSE #100
+    ClearAllActions()
+    StartMovie("maze1")
+    ActionOverride(Player6,LeaveParty())
+    ActionOverride(Player5,LeaveParty())
+    ActionOverride(Player4,LeaveParty())
+    ActionOverride(Player3,LeaveParty())
+    ActionOverride(Player2,LeaveParty())
+    //should be the position of mazeentr in ar1900
+    TeleportParty("ar1900",[2559.1895],0)
+END
+
+IF
+  GlobalGT("lady","GLOBAL",49)
+  Global("ar1900_visited","GLOBAL",1)
+  UsedExit("sigil",Protagonist)
+  !CreatureInArea("ar1900")
+THEN
+  RESPONSE #100
+    ClearAllActions()
+    StartMovie("maze2")
+    QuitGame(0,0,0) // movval.ids only has the finale movies
+END
+
+IF
+  CreatureInArea("ar1501")
+  UsedExit("pcmaze",Protagonist)
+THEN
+  RESPONSE #100
+    ClearActions()
+    // force it to this area, as we have no clue from where we teleported to
+    // extend SaveObjectLocation / MoveToSavedLocation or the pp variant if unsatisfied
+    TeleportParty("ar0200",[289.3391],0)
+END
+
+IF
+  Global("sabotage","GLOBAL",5)
+  CreatureInArea("ar0512")
+  UsedExit("foundry",[PC])
+THEN
+  RESPONSE #100
+    ClearAllActions()
+    TeleportParty("ar0513",[1078.892],0)
+END
+
+IF
+  Global("sabotage","GLOBAL",7)
+  CreatureInArea("ar0512")
+  UsedExit("foundry",[PC])
+THEN
+  RESPONSE #100
+    ClearAllActions()
+    TeleportParty("ar0513",[1078.892],0)
+END
+
+// ****************************************************************
+// section for dynamic alignment changes
+// there are only 2 border values, but 24 transitions
+// consider simplifying via masks once we implement tobex' GameScript::Eval (and add XOR)
+
+////// good -> neutral -> evil
+/// good -> neutral
+IF
+  Alignment(Protagonist,LAWFUL_GOOD)
+  GlobalLT("good","GLOBAL",15)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,LAWFUL_NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL_GOOD)
+  GlobalLT("good","GLOBAL",15)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,CHAOTIC_GOOD)
+  GlobalLT("good","GLOBAL",15)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,CHAOTIC_NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+/// neutral -> good
+IF
+  Alignment(Protagonist,LAWFUL_NEUTRAL)
+  GlobalGT("good","GLOBAL",14)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,LAWFUL_GOOD)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL)
+  GlobalGT("good","GLOBAL",14)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL_GOOD)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,CHAOTIC_NEUTRAL)
+  GlobalGT("good","GLOBAL",14)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,CHAOTIC_GOOD)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+/// neutral -> evil
+IF
+  Alignment(Protagonist,LAWFUL_NEUTRAL)
+  GlobalLT("good","GLOBAL",-20)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,LAWFUL_EVIL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL)
+  GlobalLT("good","GLOBAL",-20)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL_EVIL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,CHAOTIC_NEUTRAL)
+  GlobalLT("good","GLOBAL",-20)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,CHAOTIC_EVIL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+/// evil -> neutral
+IF
+  Alignment(Protagonist,LAWFUL_EVIL)
+  GlobalGT("good","GLOBAL",-21)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,LAWFUL_NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL_EVIL)
+  GlobalGT("good","GLOBAL",-21)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,CHAOTIC_EVIL)
+  GlobalGT("good","GLOBAL",-21)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,CHAOTIC_NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+////// lawful -> neutral -> chaotic
+/// lawful -> neutral (true)
+IF
+  Alignment(Protagonist,LAWFUL_EVIL)
+  GlobalLT("law","GLOBAL",15)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL_EVIL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,LAWFUL_NEUTRAL)
+  GlobalLT("law","GLOBAL",15)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,LAWFUL_GOOD)
+  GlobalLT("law","GLOBAL",15)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL_GOOD)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+/// neutral (true) -> lawful
+IF
+  Alignment(Protagonist,NEUTRAL_EVIL)
+  GlobalGT("law","GLOBAL",14)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,LAWFUL_EVIL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL)
+  GlobalGT("law","GLOBAL",14)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,LAWFUL_NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL_GOOD)
+  GlobalGT("law","GLOBAL",14)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,LAWFUL_GOOD)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+/// chaotic -> neutral (true)
+IF
+  Alignment(Protagonist,CHAOTIC_EVIL)
+  GlobalGT("law","GLOBAL",-21)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL_EVIL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,CHAOTIC_NEUTRAL)
+  GlobalGT("law","GLOBAL",-21)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,CHAOTIC_GOOD)
+  GlobalGT("law","GLOBAL",-21)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,NEUTRAL_GOOD)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+/// neutral (true) -> chaotic
+IF
+  Alignment(Protagonist,NEUTRAL_EVIL)
+  GlobalLT("law","GLOBAL",-20)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,CHAOTIC_EVIL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL)
+  GlobalLT("law","GLOBAL",-20)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,CHAOTIC_NEUTRAL)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+IF
+  Alignment(Protagonist,NEUTRAL_GOOD)
+  GlobalLT("law","GLOBAL",-20)
+THEN
+  RESPONSE #100
+    ChangeAlignment(Protagonist,CHAOTIC_GOOD)
+    FloatMessage(Protagonist,29454) // alignment changed
+END
+
+////////// end of alignment system
+// ****************************************************************
+
+// simplified and unhardcoded endgame hacks from LeaveAreaName
+// was triggered upon portaling to the Fortress of Regrets ("Fort_Port" in AR0202)
+
+// there are no appropriate vars much closer to the exit nor can we check the portal state
+// so reuse a var to ensure later blocks, much later in the game, run only once
+// Strong_Arm_Vaxis is only used in a dialog in the first area
+IF
+  Global("Pharod_Quest","GLOBAL",2)
+  GlobalLT("Strong_Arm_Vaxis","GLOBAL",10)
+THEN
+  RESPONSE #100
+    SetGlobal("Strong_Arm_Vaxis","GLOBAL",10)
+    Continue()
+END
+
+// block for TNO
+IF
+  Global("Current_Area","GLOBAL",202)
+  Global("Strong_Arm_Vaxis","GLOBAL",10)
+THEN
+  RESPONSE #100
+    SetGlobal("Fortress_Party_Alive","GLOBAL",1)
+    SetGlobal("Fortress_Party_Roof","GLOBAL",1)
+    SetGlobal("Fortress_Party","GLOBAL", 1)
+    SetGlobal("Fortress_Death_Counter","GLOBAL",1)
+    SetGlobal("Strong_Arm_Vaxis","GLOBAL",11)
+    Continue()
+END
+
+// transfer key items, if any, to TNO
+// and kill the pet limlim :/
+// it checked for each pc, but we can be smarter with pst-only actions
+IF
+  Global("Strong_Arm_Vaxis","GLOBAL",11)
+  Global("Current_Area","GLOBAL",202)
+  PartyHasItem("BSPHERE")
+THEN
+  RESPONSE #100
+    ActionOverride(Player1,TakePartyItem("BSPHERE")) // gives it to the active creature
+    Continue()
+END
+IF
+  Global("Strong_Arm_Vaxis","GLOBAL",11)
+  Global("Current_Area","GLOBAL",202)
+  PartyHasItem("NTOKEN")
+THEN
+  RESPONSE #100
+    ActionOverride(Player1,TakePartyItem("NTOKEN"))
+    Continue()
+END
+IF
+  Global("Strong_Arm_Vaxis","GLOBAL",11)
+  Global("Current_Area","GLOBAL",202)
+  PartyHasItem("BLADEIM")
+THEN
+  RESPONSE #100
+    ActionOverride(Player1,TakePartyItem("BLADEIM"))
+    Continue()
+END
+IF
+  Global("Strong_Arm_Vaxis","GLOBAL",11)
+  Global("Current_Area","GLOBAL",202)
+  PartyHasItem("limlim")
+THEN
+  RESPONSE #100
+    ActionOverride(Player1,TakePartyItem("d_limlim"))
+    Continue()
+END
+IF
+  Global("Strong_Arm_Vaxis","GLOBAL",11)
+  Global("Current_Area","GLOBAL",202)
+THEN
+  RESPONSE #100
+    SetGlobal("Strong_Arm_Vaxis","GLOBAL",12)
+    Continue()
+END
+
+// blocks for party members
+// using Leaves does not work in either source or target area (in this case)
+// Vhailor and Ignus skip the Fortress_Party_Roof increment
+// NOTE: add "0x40c0 OR(I:OrCount*)" to original override/trigger.ids to compile
+
+// blocks for Annah
+IF
+  Global("Fortress_Annah", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Annah")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+  !Dead("Annah")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Alive", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Death_Counter", "GLOBAL", 1)
+    Continue()
+END
+IF
+  Global("Fortress_Annah", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Annah")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Roof", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Party", "GLOBAL", 1)
+    SetGlobal("Fortress_Annah", "GLOBAL", 1)
+    Continue()
+END
+
+// blocks for Morte
+IF
+  Global("Fortress_Morte", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Morte")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+  !Dead("Morte")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Alive", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Death_Counter", "GLOBAL", 1)
+    Continue()
+END
+IF
+  Global("Fortress_Morte", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Morte")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Roof", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Party", "GLOBAL", 1)
+    SetGlobal("Fortress_Morte", "GLOBAL", 1)
+    Continue()
+END
+
+// blocks for Dak'kon
+IF
+  Global("Fortress_Dakkon", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Dakkon")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+  !Dead("Dakkon")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Alive", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Death_Counter", "GLOBAL", 1)
+    Continue()
+END
+IF
+  Global("Fortress_Dakkon", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Dakkon")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Roof", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Party", "GLOBAL", 1)
+    SetGlobal("Fortress_Dakkon", "GLOBAL", 1)
+    Continue()
+END
+
+// blocks for FFG
+IF
+  Global("Fortress_Grace", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Grace")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+  !Dead("Grace")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Alive", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Death_Counter", "GLOBAL", 1)
+    Continue()
+END
+IF
+  Global("Fortress_Grace", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Grace")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Roof", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Party", "GLOBAL", 1)
+    SetGlobal("Fortress_Grace", "GLOBAL", 1)
+    Continue()
+END
+
+// blocks for Nordom
+IF
+  Global("Fortress_Nordom", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Nordom")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+  !Dead("Nordom")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Alive", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Death_Counter", "GLOBAL", 1)
+    Continue()
+END
+IF
+  Global("Fortress_Nordom", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Nordom")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Roof", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Party", "GLOBAL", 1)
+    SetGlobal("Fortress_Nordom", "GLOBAL", 1)
+    Continue()
+END
+
+// blocks for Ignus
+IF
+  Global("Fortress_Ignus", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Ignus")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+  !Dead("Ignus")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Alive", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Death_Counter", "GLOBAL", 1)
+    Continue()
+END
+IF
+  Global("Fortress_Ignus", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Ignus")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party", "GLOBAL", 1)
+    SetGlobal("Fortress_Ignus", "GLOBAL", 1)
+    Continue()
+END
+
+// blocks for Vhailor
+IF
+  Global("Fortress_Vhailor", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Vhailor")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+  !Dead("Vhailor")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party_Alive", "GLOBAL", 1)
+    IncrementGlobal("Fortress_Death_Counter", "GLOBAL", 1)
+    Continue()
+END
+IF
+  Global("Fortress_Vhailor", "GLOBAL", 0)
+  Global("Current_Area","GLOBAL",202)
+  InParty("Vhailor")
+  OR(2)
+    PartyHasItem("SkScrap")
+    PartyHasItem("SkRegret")
+THEN
+  RESPONSE #100
+    IncrementGlobal("Fortress_Party", "GLOBAL", 1)
+    SetGlobal("Fortress_Vhailor", "GLOBAL", 1)
+    Continue()
+END
+
+////////// end of Fortress of Regrets entry foo
+// ****************************************************************

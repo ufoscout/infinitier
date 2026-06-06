@@ -1,0 +1,55 @@
+2DA V1.0
+*
+            RESREF     SOUND
+UNUSED0     *          *
+UNUSED1     *          *
+UNUSED2     *          *
+UNUSED3     *          *
+UNUSED4     *          *
+UNUSED5     *          *
+UNUSED6     *          *
+UNUSED7     *          *
+UNUSED8     *          *
+NECROMANCY  CGNecrom   7
+ALTERATION  CGAltera   8
+ENCHANTMENT CGEnchan   2
+ABJURATION  CGAbjura   5
+ILLUSION    CGIllusi   1
+CONJURATION CGConjur   3
+INVOCATION  CGInvoca   6
+DIVINATION  CGDivina   4
+SPARKBLUE   *46        5
+SPARKBLACK  *51        5
+SPARKBLUE2  *46        5
+SPARKGOLD   *47        5
+SPARKGREEN  *54        5
+SPARKCHROM  *52        5
+SPARKPURP   *48        5
+SPARKRED    *53        5
+SPARKWHITE  *49        5
+SPARKBLUE3  *46        5
+SPARKBLACK2 *51        5
+SPARKBLUE4  *46        5
+SPARKGOLD2  *47        5
+SPARKGREEN2 *54        5
+SPARKCHROM2 *52        5
+SPARKPURP2  *48        5
+SPARKRED2   *53        5
+SPARKWHITE2 *49        5
+PSTABJ35    a001abjn   *
+PSTALT36    a002aalt   *
+PSTCNJ37    a008cnjr   *
+PSTENC38    a004ench   *
+UNKNOWN0    *          *
+PSTILL40    a006illu   *
+PSTINV41    a003intr   *
+PSTNEC42    a009necr   *
+PSTDIV43    a005ldiv   *
+PSTSPI44    a010spin   *
+UNKNOWN1    a009skil   *
+UNKNOWN2    itemspll   *
+
+# visuals and sounds for casting graphics of different spell schools
+# RESREF is the casting glow animation
+# SOUND is the associated sound character (the filename has complicated construction)
+# EFFECT override glow resref for iwd2 SpellCastEffect mode

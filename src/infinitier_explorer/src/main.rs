@@ -5,7 +5,7 @@ mod ui;
 
 use clap::Parser;
 use eframe::egui;
-use infinitier_core::{fs::CaseInsensitiveFS, game::GameDataBuilder, game_detect::detect_game};
+use infinitier_core::game::GameDataBuilder;
 use std::path::PathBuf;
 
 /// Infinitier Explorer — browse resources from Infinity Engine games.
@@ -39,10 +39,7 @@ fn main() {
 
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    let game = detect_game(&CaseInsensitiveFS::new(args.game_path.as_slice()).unwrap())
-        .expect("Cannot detect game type");
-
-    let key = GameDataBuilder::new(args.game_path.as_slice(), game)
+    let game_data = GameDataBuilder::new(args.game_path.as_slice(), None)
         .and_then(|b| b.build())
         .unwrap_or_else(|e| {
             eprintln!(
@@ -52,7 +49,7 @@ fn main() {
             std::process::exit(1);
         });
 
-    let title = format!("Infinitier Explorer - {game:?}");
+    let title = format!("Infinitier Explorer - {:?}", game_data.game());
 
     // Force the wgpu GL backend. On Linux the default would be
     // Vulkan, which has shown rendering glitches during window
@@ -101,7 +98,7 @@ fn main() {
                 }
             }
 
-            Ok(Box::new(app::ExplorerApp::new(key)))
+            Ok(Box::new(app::ExplorerApp::new(game_data)))
         }),
     ) {
         eprintln!("Failed to run explorer: {e}");

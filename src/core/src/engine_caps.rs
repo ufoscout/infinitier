@@ -1765,7 +1765,13 @@ mod tests {
 
     #[test]
     fn engine_caps_builds_from_iwd() {
-        let result = EngineCaps::new(&fixture_game_data("iwd", infinitier_common::Game::Iwd));
+        let result = EngineCaps::new(&fixture_game_data(
+            "iwd",
+            infinitier_common::Game::Iwd {
+                heart_of_winter: false,
+                totl: false,
+            },
+        ));
         assert!(
             result.is_ok(),
             "EngineCaps should build from iwd fixtures: {:?}",

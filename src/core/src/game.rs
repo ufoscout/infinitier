@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::HashMap, io, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    io::{self, Error},
+    sync::Arc,
+};
 
 use infinitier_acm_resource::AcmImporter;
 use infinitier_bif_resource::{BifEmbeddedResource, BifImporter};
@@ -7,9 +12,12 @@ use infinitier_datasource::{DataSource, Importer};
 use infinitier_fs::{CaseInsensitiveFS, CiPath, roots::Roots};
 use infinitier_key_resource::KeyImporter;
 use infinitier_wav_resource::WavImporter;
-use log::{debug, warn};
+use log::{debug, error, warn};
 
-use crate::imported_resource::{ImportedResource, movie, sound::SoundDecoder};
+use crate::{
+    game_detect::detect_game,
+    imported_resource::{ImportedResource, movie, sound::SoundDecoder},
+};
 
 pub type ResourceId = usize;
 
@@ -462,12 +470,13 @@ pub struct GameDataBuilder {
     /// Resource types to preload
     preload: Vec<ResourceType>,
     /// Game Type
-    game_type: Game,
+    game_type: Option<Game>,
 }
 
 impl GameDataBuilder {
-    /// Create a new game data builder
-    pub fn new(game_root: impl Roots, game_type: Game) -> io::Result<GameDataBuilder> {
+    /// Create a new game data builder.
+    /// If the game type is not provided, the game type will be inferred from the game root.
+    pub fn new(game_root: impl Roots, game_type: Option<Game>) -> io::Result<GameDataBuilder> {
         Ok(GameDataBuilder {
             game_type,
             fs: CaseInsensitiveFS::new_with_fallback(
@@ -520,19 +529,30 @@ impl GameDataBuilder {
 
     /// Build the game data
     pub fn build(&self) -> io::Result<GameData> {
-        let mut game_data = GameData {
-            fs: self.fs.clone(),
-            game_type: self.game_type,
-            resources: vec![],
-            name_type_index: HashMap::new(),
-            type_index: HashMap::new(),
-        };
+        debug!("Building game data");
 
         let key_path = self.fs.get_path(&self.key_file)?;
         let key = KeyImporter {
             name: &self.key_file,
         }
         .import(&DataSource::new(key_path.path()))?;
+
+        let game_type = if let Some(game_type) = self.game_type {
+            game_type
+        } else {
+            detect_game(&self.fs, Some(&key)).ok_or_else(|| {
+                error!("Failed to detect game type");
+                Error::other("Failed to detect game type")
+            })?
+        };
+
+        let mut game_data = GameData {
+            fs: self.fs.clone(),
+            game_type,
+            resources: vec![],
+            name_type_index: HashMap::new(),
+            type_index: HashMap::new(),
+        };
 
         // Additional resources are loaded from hardcoded paths (i.e. Scripts, Musics, etc.)
 
@@ -616,7 +636,7 @@ impl GameDataBuilder {
                     };
 
                     game_data.add_resource(GameResource {
-                        game_type: self.game_type,
+                        game_type,
                         name,
                         r#type,
                         file_size: Some(file_size),
@@ -632,7 +652,7 @@ impl GameDataBuilder {
                         name, r#type, bif_ds
                     );
                     game_data.add_resource(GameResource {
-                        game_type: self.game_type,
+                        game_type,
                         name,
                         r#type,
                         file_size: None,
@@ -644,7 +664,7 @@ impl GameDataBuilder {
             } else {
                 warn!("Resource {}.{:?} not found", name, r#type);
                 game_data.add_resource(GameResource {
-                    game_type: self.game_type,
+                    game_type,
                     name,
                     r#type,
                     file_size: None,
@@ -791,7 +811,7 @@ impl GameDataBuilder {
                 },
                 file_size,
                 datasource,
-                game_type: self.game_type,
+                game_type: game.game_type,
                 r#type,
                 name,
                 imported: None,
@@ -812,7 +832,7 @@ mod tests {
 
     fn build_bg2() -> GameData {
         let bg_root = get_assets_path().join("KEY").join(BG2_RESOURCES_DIR.0);
-        GameDataBuilder::new(bg_root, Game::Bg2)
+        GameDataBuilder::new(bg_root, Some(Game::Bg2))
             .unwrap()
             .build()
             .unwrap()
@@ -1082,7 +1102,7 @@ mod tests {
         // A non-matching extension to make sure the filter still works
         std::fs::File::create(root.join("MUSIC/notes.txt")).unwrap();
 
-        let builder = GameDataBuilder::new(root, Game::Bg2).unwrap();
+        let builder = GameDataBuilder::new(root, Some(Game::Bg2)).unwrap();
         let mut game_data =
             GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
 
@@ -1117,7 +1137,7 @@ mod tests {
         std::fs::File::create(root.join("OVERRIDE/Bar.WED")).unwrap();
         std::fs::File::create(root.join("OVERRIDE/Baz.UNKNOWNEXT")).unwrap();
 
-        let builder = GameDataBuilder::new(root, Game::Bg2).unwrap();
+        let builder = GameDataBuilder::new(root, Some(Game::Bg2)).unwrap();
         let mut game_data =
             GameData::new(vec![], Game::Bg2, infinitier_fs::CaseInsensitiveFS::empty());
 
@@ -1279,7 +1299,10 @@ mod tests {
             Game::Bg,
             Game::Bg2,
             Game::Tutu,
-            Game::Iwd,
+            Game::Iwd {
+                heart_of_winter: false,
+                totl: false,
+            },
             Game::Iwd2,
             Game::Pst,
         ] {

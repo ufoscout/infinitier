@@ -33,7 +33,7 @@ pub enum Game {
     /// BG1 Tutu mod (BG1 content running on the BG2 engine).
     Tutu,
     /// Icewind Dale (and HoW / TotL expansions).
-    Iwd,
+    Iwd { heart_of_winter: bool, totl: bool },
     /// Icewind Dale Enhanced Edition.
     Iwdee,
     /// Icewind Dale 2.
@@ -54,7 +54,19 @@ impl std::fmt::Debug for Game {
             Self::Bg2ee => write!(f, "Baldur's Gate II Enhanced Edition"),
             Self::Eet => write!(f, "Enhanced Edition Trilogy"),
             Self::Tutu => write!(f, "Tutu"),
-            Self::Iwd => write!(f, "Icewind"),
+            Self::Iwd {
+                heart_of_winter,
+                totl,
+            } => {
+                write!(f, "Icewind Dale")?;
+                if *heart_of_winter {
+                    write!(f, " + Heart of Winter")
+                } else if *totl {
+                    write!(f, " + Trials of the Luremaster")
+                } else {
+                    Ok(())
+                }
+            }
             Self::Iwdee => write!(f, "Icewind Dale Enhanced Edition"),
             Self::Iwd2 => write!(f, "Icewind Dale 2"),
             Self::Pst => write!(f, "Planescape: Torment"),
@@ -93,7 +105,7 @@ impl Game {
             Game::Bgee | Game::BgeeSod | Game::Bg2ee | Game::Eet | Game::Iwdee | Game::Pstee => {
                 Engine::Ee
             }
-            Game::Iwd => Engine::Iwd,
+            Game::Iwd { .. } => Engine::Iwd,
             Game::Iwd2 => Engine::Iwd2,
             Game::Pst => Engine::Pst,
         }
@@ -115,7 +127,14 @@ mod tests {
         assert_eq!(Game::Eet.engine(), Engine::Ee);
         assert_eq!(Game::Iwdee.engine(), Engine::Ee);
         assert_eq!(Game::Pstee.engine(), Engine::Ee);
-        assert_eq!(Game::Iwd.engine(), Engine::Iwd);
+        assert_eq!(
+            Game::Iwd {
+                heart_of_winter: false,
+                totl: false
+            }
+            .engine(),
+            Engine::Iwd
+        );
         assert_eq!(Game::Iwd2.engine(), Engine::Iwd2);
         assert_eq!(Game::Pst.engine(), Engine::Pst);
     }

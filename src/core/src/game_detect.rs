@@ -12,10 +12,12 @@
 //! use infinitier_core::game_detect::{detect_game, Game};
 //!
 //! let fs = CaseInsensitiveFS::new("/path/to/Baldur's Gate - Enhanced Edition").unwrap();
-//! assert_eq!(detect_game(&fs), Some(Game::Bgee));
+//! assert_eq!(detect_game(&fs, None), Some(Game::Bgee));
 //! ```
 
+use infinitier_common::ResourceType;
 use infinitier_fs::CaseInsensitiveFS;
+use infinitier_key_resource::Key;
 
 pub use infinitier_common::{Engine, Game};
 use log::info;
@@ -23,7 +25,7 @@ use log::info;
 /// Detects which Infinity Engine game lives at the given root.
 ///
 /// Returns `None` when no `chitin.key` is present, or when the game is not recognised.
-pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
+pub fn detect_game(fs: &CaseInsensitiveFS, key: Option<&Key>) -> Option<Game> {
     let game = if !exists(fs, "chitin.key") {
         None
     } else if exists(fs, "movies/howseer.wbm") {
@@ -47,7 +49,15 @@ pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
     } else if exists(fs, "torment.exe") && !exists(fs, "movies/sigil.wbm") {
         Some(Game::Pst)
     } else if exists(fs, "idmain.exe") && !exists(fs, "movies/howseer.wbm") {
-        Some(Game::Iwd)
+        // HoW / TotL install *into* the IWD folder, so they're told apart only
+        // by their BIF resources, which the key enumerates. Without a key we
+        // can't tell, so assume the base game.
+        let totl = key.is_some_and(is_totlm_installed);
+        let heart_of_winter = totl || key.is_some_and(is_how_installed);
+        Some(Game::Iwd {
+            heart_of_winter,
+            totl,
+        })
     } else if (exists(fs, "iwd2.exe") || exists(fs, "iwd2ee.exe")) && exists(fs, "data/Credits.mve")
     {
         Some(Game::Iwd2)
@@ -71,6 +81,40 @@ pub fn detect_game(fs: &CaseInsensitiveFS) -> Option<Game> {
 
 fn exists(fs: &CaseInsensitiveFS, path: &str) -> bool {
     fs.get_path_opt(path).is_some()
+}
+
+/// Returns `true` if the Heart of Winter expansion content is present.
+///
+/// Heart of Winter is not a separate game or executable — it installs *into*
+/// an existing Icewind Dale folder, so [`detect_game`] reports both plain IWD
+/// and IWD+HoW as [`Game::Iwd`]. The two are told apart purely by whether the
+/// expansion's resources were added to the BIFs, which `chitin.key` enumerates.
+///
+/// Mirrors NearInfinity's `Profile.initGame` check: the `HOWDRAG.MVE` movie is
+/// the Heart of Winter marker. (GemRB uses the `expmap.wmp` world map for the
+/// same purpose; either is decisive.)
+///
+/// Only meaningful for a base Icewind Dale install — callers should gate this
+/// behind `detect_game(..) == Some(Game::Iwd)`.
+pub fn is_how_installed(key: &Key) -> bool {
+    has_resource(key, "HOWDRAG", ResourceType::Mve)
+}
+
+/// Returns `true` if the Trials of the Luremaster add-on is present.
+///
+/// Trials of the Luremaster is a free add-on layered on top of Heart of Winter,
+/// so a `true` here implies [`is_how_installed`] is also `true`. Mirrors
+/// NearInfinity's `AR9715.ARE` marker (GemRB uses `ar9700.are`).
+pub fn is_totlm_installed(key: &Key) -> bool {
+    has_resource(key, "AR9715", ResourceType::Are)
+}
+
+/// Whether `chitin.key` lists a resource with the given name (extension-less)
+/// and type. Resource names are matched case-insensitively.
+fn has_resource(key: &Key, name: &str, r#type: ResourceType) -> bool {
+    key.resource_entries
+        .iter()
+        .any(|entry| entry.r#type == r#type && entry.resource_name.eq_ignore_ascii_case(name))
 }
 
 /// Reads `engine_mode` out of a PSTEE/EE-style `engine.lua` if present.
@@ -117,7 +161,7 @@ mod tests {
         let path = get_assets_path().join("detect_game").join(dir);
         let fs = CaseInsensitiveFS::new(&path)
             .unwrap_or_else(|e| panic!("error opening `{}`: {}", path.display(), e));
-        let actual = detect_game(&fs);
+        let actual = detect_game(&fs, None);
         assert_eq!(
             actual,
             Some(expected),
@@ -165,7 +209,13 @@ mod tests {
 
     #[test]
     fn detect_iwd() {
-        assert_detected("iwd", Game::Iwd);
+        assert_detected(
+            "iwd",
+            Game::Iwd {
+                heart_of_winter: false,
+                totl: false,
+            },
+        );
     }
 
     #[test]
@@ -193,6 +243,6 @@ mod tests {
         // Use the workspace root as a stand-in for "obviously not a game".
         let dir = std::env::current_dir().unwrap();
         let fs = CaseInsensitiveFS::new(&dir).unwrap();
-        assert_eq!(detect_game(&fs), None);
+        assert_eq!(detect_game(&fs, None), None);
     }
 }

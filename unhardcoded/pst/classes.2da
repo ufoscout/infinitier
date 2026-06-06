@@ -1,0 +1,18 @@
+2DA V1.0
+*
+                 SAVE        ID         USABILITY  CONBONLVL
+MAGE             SAVEWIZ     1          0x40000    99
+FIGHTER          SAVEWAR     2          0x800      99
+CLERIC           SAVEPRS     3          0x80       99
+THIEF            SAVEROG     4          0x400000   99
+BARD             SAVEROG     5          0          99
+PALADIN          SAVEWAR     6          0          99
+FIGHTER_MAGE     *           7          0x2000     99
+FIGHTER_CLERIC   *           8          0x4000     99
+FIGHTER_THIEF    *           9          0x20000    99
+FIGHTER_MAGE_THIEF  *        10         0          0
+
+// extra data about classes
+// SAVE      - the saving throw table for this class
+// USABILITY - the item usability flag
+// CONBONLVL - up until which level does the class receive a constitution bonus to hp on level up?

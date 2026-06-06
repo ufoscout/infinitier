@@ -1,0 +1,40 @@
+2DA V1.0
+-1
+           ENABLED    PRESSED    SELECTED   DISABLED   TOOLTIP    RESREF
+Stealth    0          1          2          3          41651      SP086
+Thieving   0          1          2          3          41650      SP087
+Cast       *          *          *          *          *          *
+QSpell1    *          *          *          *          41658      *
+QSpell2    *          *          *          *          41658      *
+QSpell3    *          *          *          *          41658      *
+Turn       *          *          *          *          *          *
+Talk       0          1          2          3          41653      AMTLK
+UseItem    *          *          *          *          *          *
+QItem1     *          *          *          *          *          *
+QItem4     *          *          *          *          *          *
+QItem2     *          *          *          *          *          *
+QItem3     *          *          *          *          *          *
+Innate     *          *          *          *          *          *
+Defend     0          1          2          3          31657      AMGUARD
+Attack     0          1          2          3          41654      AMATTCK
+QWeapon1   *          *          *          *          *          *
+QWeapon2   *          *          *          *          *          *
+QWeapon3   *          *          *          *          *          *
+QWeapon4   *          *          *          *          *          *
+BardSong   *          *          *          *          11798      *
+Stop       0          1          2          3          41655      AMALLSTP
+Search     0          1          2          3          41649      SP085
+23         *          *          *          *          *          *
+24         *          *          *          *          *          *
+25         *          *          *          *          *          *
+26         *          *          *          *          *          *
+27         *          *          *          *          *          *
+28         *          *          *          *          *          *
+29         *          *          *          *          *          *
+30         *          *          *          *          *          *
+QItem5     *          *          *          *          *          *
+
+// action button background, icons and associated tooltip.
+// Order matters and the row names are also part of the function name to run when the button is
+// pressed (e.g. "ActionThievingPressed()").
+// Columns 1-4 are the RESREF BAM frame numbers for the four button sprites / states.

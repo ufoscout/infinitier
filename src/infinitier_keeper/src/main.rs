@@ -8,9 +8,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use eframe::egui;
 use infinitier_core::engine_caps::EngineCaps;
-use infinitier_core::fs::{CaseInsensitiveFS, Importer};
+use infinitier_core::fs::Importer;
 use infinitier_core::game::GameDataBuilder;
-use infinitier_core::game_detect::detect_game;
 use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::gam::GamImporter;
 
@@ -53,24 +52,7 @@ fn main() {
     let args = Args::parse();
     env_logger::Builder::new().parse_filters(&args.log).init();
 
-    let game = detect_game(
-        &CaseInsensitiveFS::new(args.game_path.as_slice()).unwrap_or_else(|e| {
-            log::error!(
-                "Failed to open game folder(s) [{}]: {e}",
-                display_paths(&args.game_path),
-            );
-            std::process::exit(1);
-        }),
-    )
-    .unwrap_or_else(|| {
-        log::error!(
-            "Cannot detect game type at [{}]",
-            display_paths(&args.game_path),
-        );
-        std::process::exit(1);
-    });
-
-    let game_data = GameDataBuilder::new(args.game_path.as_slice(), game)
+    let game_data = GameDataBuilder::new(args.game_path.as_slice(), None)
         .and_then(|b| b.build())
         .unwrap_or_else(|e| {
             log::error!(
@@ -115,7 +97,7 @@ fn main() {
     // a corrupt embedded CRE aborts the open with a clear error.
     let gam = GamImporter {
         name: &core_save.name,
-        engine: game.engine(),
+        engine: game_data.game().engine(),
     }
     .import(&core_save.gam)
     .unwrap_or_else(|e| {

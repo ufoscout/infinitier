@@ -1,0 +1,25 @@
+2DA V1.0
+*
+            RESREF    SOUND  EFFECT
+UNUSED0     *         *      *
+UNUSED1     *         *      *
+UNUSED2     *         *      *
+UNUSED3     *         *      *
+UNUSED4     *         *      *
+UNUSED5     *         *      *
+UNUSED6     *         *      *
+UNUSED7     *         *      *
+UNUSED8     *         *      *
+NECROMANCY  NecroCG   13     NECROH
+ALTERATION  AlterCG   15     ALTERH
+ENCHANTMENT EnchaCG   9      ENCHAH
+ABJURATION  AbjurCG   3      ABJURH
+ILLUSION    IllusCG   1      ILLUSH
+CONJURATION ConjuCG   5      CONJUH
+INVOCATION  InvocCG   11     INVOCH
+DIVINATION  DivinCG   7      DIVINH
+
+# visuals and sounds for casting graphics of different spell schools
+# RESREF is the casting glow animation
+# SOUND is the associated sound character (the filename has complicated construction)
+# EFFECT override glow resref for iwd2 SpellCastEffect mode

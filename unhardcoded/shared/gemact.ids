@@ -1,0 +1,35 @@
+IDS
+399 ApplySpellPoint(P:Target*,I:Spell*Spell)
+399 ApplySpellPointRES(P:Target*,S:SpellName*)
+398 ChangeDestination(O:Object*,S:Destination*)
+397 UnmakeGlobal(O:Object*)
+396 SetToken2DA(S:ResRef*)
+395 StartDialogOverride(S:DialogFile*,O:Target*,I:Unused,I:Unused,I:ConverseAsItem)
+394 SetTrackString(I:StrRef, I:Flags, I:Difficulty)
+393 AdvanceTime(I:Seconds*)
+392 TriggerWalkTo(O:Object*)
+186 EndCredits()
+168 Interact(O:Object*)
+148 BashDoor(O:Object)
+112 UseContainer()
+93 LeaveAreaName(O:Target*)
+354 RunAwayFromNoInterruptNoLeaveArea(O:Creature,I:Time)
+113 ForceSpellRES(S:RES*,O:Target)
+113 ForceSpellRES(S:RES*,O:Target,I:CastingLevel)
+114 ForceSpellPointRES(S:RES*,P:Target)
+114 ForceSpellPointRES(S:RES*,P:Target,I:CastingLevel)
+# LoseGame from tobex is just mapped to QuitGame
+#
+# gemrb extensions / gemrb-only actions (assign a non-conflicting id as needed):
+# ChangeStatGlobal
+# CreateVisualEffectObjectSticky
+# EscapeAreaObjectNoSee
+# GetStat
+# RemoveJournalEntry
+# RunAwayFromPoint
+# SetFavouritesTokens
+# SetOriginalClass
+# SetSelection
+# TakeItemList
+# UnloadArea
+# ... plus the ones at the start of the file with ids just below 400
