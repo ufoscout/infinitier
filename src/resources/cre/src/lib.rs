@@ -1615,17 +1615,30 @@ impl Cre {
     }
 }
 
-/// `IE_PROFICIENCYBASTARDSWORD` — first stat in the packed V1.0 block.
+/// `IE_PROFICIENCYBASTARDSWORD` — first modern stat in the packed V1.0
+/// block. Modern stats (`89..`) index the block as `stat - 89`.
 const PROF_STAT_BASE: u8 = 89;
-/// Number of packed proficiency bytes in the V1.0 header (stats 89..=108).
+/// Number of packed proficiency bytes in the V1.0 header block (0x6E..0x81).
 const PROF_STAT_COUNT: u8 = 20;
 
-/// Index into the V1.0 header proficiency block for a stat, if it falls
-/// within the packed range.
+/// Index into the V1.0 header proficiency block for a proficiency id.
+///
+/// The 0x6E byte block is the same physical storage in every CRE V1.0 game;
+/// only its *meaning* differs. The original Baldur's Gate stores the eight
+/// legacy weapon-group proficiencies there keyed by `WEAPPROF.2DA` id
+/// `0..=7` (id → block index directly), while BG2 / IWD / EE store the
+/// modern `IE_PROFICIENCY*` stats keyed as `stat - 89`. Since the two id
+/// ranges don't overlap (`0..=7` vs `89..`), the id alone picks the right
+/// slot, so the same accessor serves every game. Returns `None` for ids
+/// past the block (modern fighting styles `111..=115`, which only live in
+/// `op233` effects).
 fn v10_proficiency_index(stat: u8) -> Option<usize> {
-    stat.checked_sub(PROF_STAT_BASE)
-        .filter(|&i| i < PROF_STAT_COUNT)
-        .map(usize::from)
+    let index = if stat >= PROF_STAT_BASE {
+        stat - PROF_STAT_BASE
+    } else {
+        stat
+    };
+    (index < PROF_STAT_COUNT).then_some(usize::from(index))
 }
 
 /// Read the packed proficiency byte for `stat` from a V1.0 header.
@@ -2414,6 +2427,44 @@ mod tests {
         // Stats that lived only in the stale header now read empty.
         assert_eq!(cre.proficiency(BASTARD_SWORD), prof(0, 0));
         assert_eq!(cre.proficiency(AXE), prof(0, 0));
+    }
+
+    /// The original Baldur's Gate keys its eight legacy weapon-group
+    /// proficiencies by `WEAPPROF.2DA` id `0..=7`, which address the *same*
+    /// 0x6E header block the modern stats use (id `n` ≡ stat `89 + n` in
+    /// storage). A standalone V1.0 CRE has no `op233` effects, so the header
+    /// is authoritative — this is the path BG goes through.
+    #[test]
+    fn legacy_proficiency_ids_read_the_header_block() {
+        let cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        // id n and modern stat 89+n address the same byte.
+        for n in 0u8..8 {
+            assert_eq!(
+                cre.proficiency(n),
+                cre.proficiency(PROF_STAT_BASE + n),
+                "legacy id {n} should read the same byte as stat {}",
+                PROF_STAT_BASE + n,
+            );
+        }
+        // 0x6E (id 0 / stat 89) = 2 and 0x71 (id 3 / stat 92) = 1 here.
+        assert_eq!(cre.proficiency(0), prof(2, 0));
+        assert_eq!(cre.proficiency(3), prof(1, 0));
+    }
+
+    /// Editing a legacy proficiency on a standalone V1.0 creature writes the
+    /// 0x6E header block (no `op233` effect is created), and the value
+    /// survives an export/import round-trip — the BG editing path.
+    #[test]
+    fn set_legacy_proficiency_writes_header_block() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        assert!(!cre.is_dual_classed());
+        cre.set_proficiency(2, prof(3, 0)); // legacy id 2 → 0x70
+        assert_eq!(cre.proficiency(2), prof(3, 0));
+        assert!(
+            op233_points(&cre, 2).is_none(),
+            "a standalone CRE must not gain an op233 effect",
+        );
+        assert_eq!(round_trip(&cre).proficiency(2), prof(3, 0));
     }
 
     /// Reproduces the exact `op233` bytes EEKeeper writes for the four
