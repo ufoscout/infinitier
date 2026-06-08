@@ -16,7 +16,7 @@ use log::{debug, error, warn};
 
 use crate::{
     game_detect::detect_game,
-    imported_resource::{ImportedResource, movie, sound::SoundDecoder},
+    imported_resource::{ImportedResource, cre::ImportedCre, movie, sound::SoundDecoder},
 };
 
 pub type ResourceId = usize;
@@ -383,7 +383,7 @@ impl GameResource {
                 game: game_data.game(),
             }
             .import(ds)
-            .map(|cre| ImportedResource::Cre(Box::new(cre))),
+            .map(|cre| ImportedResource::Cre(ImportedCre::new(cre))),
             ResourceType::Dlg => Ok(ImportedResource::Dlg),
             ResourceType::Eff => Ok(ImportedResource::Eff),
             ResourceType::Fnt => FntImporter { name: &self.name }

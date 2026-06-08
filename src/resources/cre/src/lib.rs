@@ -1845,6 +1845,27 @@ impl Cre {
         }
     }
 
+    /// The raw "kit" dword (CRE offset `0x0244`). `None` for IWD2 (V2.2),
+    /// which doesn't model a kit there.
+    pub fn kit(&self) -> Option<u32> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.kit_information_none_0x00000000_kit_barbarian),
+            CreHeader::V12(h) => Some(h.kit_information_none_0x00000000_abjurer_0x00400000),
+            CreHeader::V90(h) => Some(h.kit_information_none_abjurer_0x00400000_conjurer),
+            CreHeader::V22(_) => None,
+        }
+    }
+
+    /// The ranger "racial enemy" byte (a `RACE.IDS` value). `None` for V2.2.
+    pub fn racial_enemy(&self) -> Option<u8> {
+        match &self.header {
+            CreHeader::V10(h) => Some(h.racial_enemy_race_ids),
+            CreHeader::V12(h) => Some(h.racial_enemy_race_ids),
+            CreHeader::V90(h) => Some(h.racial_enemy_race_ids),
+            CreHeader::V22(_) => None,
+        }
+    }
+
     cre_u8_field!(fatigue, set_fatigue, fatigue);
     cre_u8_field!(intoxication, set_intoxication, intoxication);
     cre_u8_field!(luck, set_luck, luck);

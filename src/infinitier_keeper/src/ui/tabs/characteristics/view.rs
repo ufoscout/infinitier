@@ -16,7 +16,7 @@ use infinitier_core::game::GameData;
 
 use infinitier_core::resource::cre::CreatureFlags;
 
-use super::data::{CharData, Specialization};
+use super::data::{CharData, Specialization, TlkLabel};
 
 const FIELD_MIN_W: f32 = 190.0;
 
@@ -25,7 +25,7 @@ const FIELD_MIN_W: f32 = 190.0;
 pub fn render(ui: &mut egui::Ui, data: &CharData, game_data: &GameData) {
     ScrollArea::vertical().show(ui, |ui| {
         ui.columns(2, |cols| {
-            identity_column(&mut cols[0], data);
+            identity_column(&mut cols[0], data, game_data);
 
             kill_stats_card(&mut cols[1], data, game_data);
             cols[1].add_space(8.0);
@@ -36,7 +36,19 @@ pub fn render(ui: &mut egui::Ui, data: &CharData, game_data: &GameData) {
 
 // ── Left: identity ───────────────────────────────────────────────────
 
-fn identity_column(ui: &mut egui::Ui, data: &CharData) {
+/// Resolve a [`TlkLabel`] to display text: its strref via the memoised
+/// `dialog.tlk` cache, falling back to the label's `fallback` when the
+/// strref is absent or doesn't resolve.
+fn tlk_label(ui: &mut egui::Ui, game_data: &GameData, label: &TlkLabel) -> String {
+    let resolved = resolve_strref(ui, game_data, label.strref);
+    if resolved.is_empty() {
+        label.fallback.clone()
+    } else {
+        resolved
+    }
+}
+
+fn identity_column(ui: &mut egui::Ui, data: &CharData, game_data: &GameData) {
     egui::Grid::new("characteristics_identity")
         .num_columns(2)
         .spacing([10.0, 7.0])
@@ -64,13 +76,17 @@ fn identity_column(ui: &mut egui::Ui, data: &CharData) {
             // PST:EE has no kits: the field is a Deity + mage-spec pair,
             // shown here in place of the Kit row (mirroring NearInfinity).
             match &data.specialization {
-                Specialization::Kit(kit) => simple_row(ui, "Kit", kit),
+                Specialization::Kit(kit) => {
+                    let kit = tlk_label(ui, game_data, kit);
+                    simple_row(ui, "Kit", &kit);
+                }
                 Specialization::PstReligion { deity, mage_type } => {
                     simple_row(ui, "Deity", deity);
                     simple_row(ui, "Mage Type", mage_type);
                 }
             }
-            simple_row(ui, "Racial", &data.racial_enemy);
+            let racial = tlk_label(ui, game_data, &data.racial_enemy);
+            simple_row(ui, "Racial", &racial);
             simple_row(ui, "Enemy/Ally", &data.enemy_ally);
             simple_row(ui, "State", &data.state);
 

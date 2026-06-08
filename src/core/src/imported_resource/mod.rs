@@ -1,4 +1,3 @@
-use infinitier_cre_resource::Cre;
 use infinitier_fnt_resource::Fnt;
 use infinitier_ids_resource::Ids;
 use infinitier_ini_resource::Ini;
@@ -12,6 +11,7 @@ use infinitier_wed_resource::Wed;
 
 use bam::ImportedBam;
 use bcs::ImportedBcs;
+use cre::ImportedCre;
 use gam::ImportedGam;
 use image::ImportedImage;
 use movie::MovieSource;
@@ -20,6 +20,7 @@ use tis::ImportedTis;
 
 pub mod bam;
 pub mod bcs;
+pub mod cre;
 pub mod gam;
 pub mod image;
 pub mod movie;
@@ -35,7 +36,7 @@ pub enum ImportedResource {
     Bio,
     Chr,
     Chu,
-    Cre(Box<Cre>),
+    Cre(ImportedCre),
     Dlg,
     Eff,
     Fnt(Fnt),

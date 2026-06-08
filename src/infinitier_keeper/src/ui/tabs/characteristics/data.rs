@@ -21,6 +21,7 @@
 //! 64000, chapter 413 / 3090880, game 1813 / 8750681).
 
 use infinitier_core::game::GameData;
+use infinitier_core::imported_resource::cre::ImportedCre;
 use infinitier_core::resource::Game;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreatureFlags};
 use infinitier_core::resource::gam::NpcCharStats;
@@ -36,7 +37,7 @@ pub struct CharData {
     /// How the CRE "kit" dword is presented — a kit on most engines, or
     /// a Deity + mage-specialisation pair on PST:EE.
     pub specialization: Specialization,
-    pub racial_enemy: String,
+    pub racial_enemy: TlkLabel,
     pub enemy_ally: String,
     pub state: String,
     pub movement: i64,
@@ -55,9 +56,10 @@ pub struct CharData {
 /// identity column shows those two fields instead.
 #[derive(Debug, Clone)]
 pub enum Specialization {
-    /// A kit name — "Base Class" for the true-class sentinel, or empty
-    /// when the value isn't a known `KIT.IDS` kit.
-    Kit(String),
+    /// A kit — its display name resolved at render time (see [`TlkLabel`]).
+    /// "Base Class" for the true-class sentinel, or empty when the value
+    /// isn't a known kit.
+    Kit(TlkLabel),
     /// PST:EE — a deity / mage-specialisation pair, shown in place of the
     /// kit. Either string is empty when its IDS value doesn't resolve.
     PstReligion { deity: String, mage_type: String },
@@ -65,8 +67,19 @@ pub enum Specialization {
 
 impl Default for Specialization {
     fn default() -> Self {
-        Specialization::Kit(String::new())
+        Specialization::Kit(TlkLabel::default())
     }
+}
+
+/// A display label whose text comes from a `dialog.tlk` strref resolved
+/// **at render time**, so the (memoised) tlk lookup stays in the view layer
+/// rather than re-parsing the tlk on every repaint here. `strref == 0`
+/// means "no strref" — show [`fallback`](Self::fallback) instead; the
+/// fallback is also used when the strref doesn't resolve.
+#[derive(Debug, Default, Clone)]
+pub struct TlkLabel {
+    pub strref: u32,
+    pub fallback: String,
 }
 
 /// GAM-sourced kill statistics for one party slot.
@@ -88,7 +101,6 @@ struct RawChar {
     alignment: u8,
     class: u8,
     ea: u8,
-    racial_enemy: u8,
     kit: u32,
     state_flags: u32,
 }
@@ -130,6 +142,10 @@ impl CharData {
             };
         };
 
+        // Owning view used for the resource-resolved labels (kit / racial
+        // enemy need KITLIST.2DA / HATERACE.2DA via the game data).
+        let imported = ImportedCre::new(cre.clone());
+
         // PST:EE repurposes the "kit" dword as a Deity (low word) +
         // mage-specialisation (high word) pair — see NearInfinity's
         // `Game.PSTEE` branch in `CreResource`. There we show those two
@@ -140,7 +156,7 @@ impl CharData {
                 mage_type: resolve_mage_type(game_data, (raw.kit >> 16) as i32),
             }
         } else {
-            Specialization::Kit(resolve_kit(game_data, raw.kit))
+            Specialization::Kit(resolve_kit(game_data, &imported))
         };
 
         CharData {
@@ -150,7 +166,7 @@ impl CharData {
             class: ids_pretty(game_data, "class", raw.class as i32, " / "),
             original_class: original_class_label,
             specialization,
-            racial_enemy: resolve_racial_enemy(game_data, raw.racial_enemy),
+            racial_enemy: resolve_racial_enemy(game_data, &imported),
             enemy_ally: ids_pretty(game_data, "ea", raw.ea as i32, " "),
             state: resolve_state(game_data, raw.state_flags),
             // No overall-move-rate field in the CRE header; the engine
@@ -176,7 +192,6 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             alignment: h.alignment_alignmen_ids,
             class: h.class_class_ids,
             ea: h.enemy_ally_ea_ids,
-            racial_enemy: h.racial_enemy_race_ids,
             kit: h.kit_information_none_0x00000000_kit_barbarian,
             state_flags: h.permanent_status_flags_state_ids,
         }),
@@ -186,7 +201,6 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             alignment: h.alignment_alignmen_ids,
             class: h.class_class_ids,
             ea: h.enemy_ally_ea_ids,
-            racial_enemy: h.racial_enemy_race_ids,
             kit: h.kit_information_none_0x00000000_abjurer_0x00400000,
             state_flags: h.permanent_status_flags_state_ids,
         }),
@@ -196,7 +210,6 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             alignment: h.alignment_alignmen_ids,
             class: h.class_class_ids,
             ea: h.enemy_ally_ea_ids,
-            racial_enemy: h.racial_enemy_race_ids,
             kit: h.kit_information_none_abjurer_0x00400000_conjurer,
             state_flags: h.permanent_status_flags_state_ids,
         }),
@@ -235,16 +248,31 @@ fn ids_symbol(game_data: &GameData, ids_file: &str, value: i32) -> Option<String
 /// whose all-zero deity + generalist-mage value happens to swap to the
 /// `TRUECLASS` sentinel — reads "Base Class"; everyone else's
 /// deity/mage bytes don't form a valid kit and stay blank.
-fn resolve_kit(game_data: &GameData, kit: u32) -> String {
+fn resolve_kit(game_data: &GameData, imported: &ImportedCre) -> TlkLabel {
+    let Some(kit) = imported.cre().kit() else {
+        return TlkLabel::default();
+    };
     let swapped = ((kit & 0xFFFF) << 16) | (kit >> 16);
     if swapped == 0 {
-        return String::new();
+        return TlkLabel::default();
     }
-    match ids_symbol(game_data, "kit", swapped as i32) {
-        Some(s) if s == "TRUECLASS" => "Base Class".to_string(),
-        Some(s) => pretty(&s, " "),
-        None => String::new(),
+    // True-class sentinel reads "Base Class" (matching EEKeeper).
+    if ids_symbol(game_data, "kit", swapped as i32).as_deref() == Some("TRUECLASS") {
+        return TlkLabel {
+            strref: 0,
+            fallback: "Base Class".to_string(),
+        };
     }
+    // EEKeeper shows the kit's proper display name from KITLIST.2DA, e.g.
+    // "Undead Hunter". The 2DA row-matching lives on [`ImportedCre`]; the view
+    // resolves the returned strref against dialog.tlk (memoised). The
+    // prettified KIT.IDS symbol is the fallback ("UNDEADHUNTER" →
+    // "Undeadhunter") when KITLIST has no matching row.
+    let fallback = ids_symbol(game_data, "kit", swapped as i32)
+        .map(|s| pretty(&s, " "))
+        .unwrap_or_default();
+    let strref = imported.kit_strref(game_data).unwrap_or(0);
+    TlkLabel { strref, fallback }
 }
 
 /// PST:EE deity — the low word of the "kit" dword, resolved against
@@ -287,15 +315,24 @@ fn resolve_mage_type(game_data: &GameData, value: i32) -> String {
 }
 
 /// `NO_RACE` / 0 means "no racial enemy" — render blank like EEKeeper.
-fn resolve_racial_enemy(game_data: &GameData, value: u8) -> String {
+fn resolve_racial_enemy(game_data: &GameData, imported: &ImportedCre) -> TlkLabel {
+    let Some(value) = imported.cre().racial_enemy() else {
+        return TlkLabel::default();
+    };
     if value == 0 {
-        return String::new();
+        return TlkLabel::default();
     }
-    match ids_symbol(game_data, "race", value as i32) {
+    // Fallback: prettified RACE.IDS symbol ("SKELETON" → "Skeleton").
+    let fallback = match ids_symbol(game_data, "race", value as i32) {
         Some(s) if s == "NO_RACE" || s == "ANYTHING" => String::new(),
         Some(s) => pretty(&s, " "),
         None => String::new(),
-    }
+    };
+    // EEKeeper shows the favored-enemy name from HATERACE.2DA. The 2DA
+    // row-matching lives on [`ImportedCre`]; the view resolves the returned
+    // strref against dialog.tlk (memoised) — e.g. "skeletal undead".
+    let strref = imported.racial_enemy_strref(game_data).unwrap_or(0);
+    TlkLabel { strref, fallback }
 }
 
 /// The permanent-status field is a STATE.IDS bitfield; the common
@@ -330,6 +367,9 @@ fn pretty(symbol: &str, sep: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    // KITLIST / HATERACE 2DA name resolution lives on `Cre` (see
+    // `infinitier_cre_resource`); this module only orchestrates the lookup +
+    // the IDS-symbol fallback, and the view does the strref → tlk step.
     use super::pretty;
 
     #[test]
