@@ -47,16 +47,19 @@ impl ImportedCre {
     /// mixed-case `MIXED` column, falling back to `LOWER`. `None` when the
     /// creature has no kit, `KITLIST.2DA` is unavailable, or no row matches.
     ///
-    /// The CRE kit dword is word-swapped to its `KITIDS` value before
-    /// matching, and the match is on `KITIDS` (not the row label) because the
-    /// `KIT.IDS` symbol and the KITLIST `ROWNAME` don't always agree
-    /// (`UNDEADHUNTER` vs `UNDEAD_HUNTER`). Resolving the strref to a string
+    /// A kitted creature stores the kit as `0x4000 | KITLIST_row_index` in
+    /// the high word of the CRE kit dword (so e.g. the Inquisitor at KITLIST
+    /// row 5 reads `0x40050000`; the engine uses `kit >> 16`). We mask off the
+    /// `0x4000` "has kit" marker to recover the row index and look the row up
+    /// by its (numeric) label — which is the index in every game, whereas the
+    /// `KIT.IDS` usability flags and the optional `KITIDS` column are not
+    /// consistent across BG2 vs the EEs. Resolving the strref to a string
     /// against `dialog.tlk` is the caller's job (the UI owns the tlk cache).
     pub fn kit_strref(&self, game_data: &GameData) -> Option<u32> {
         let kit = self.cre.kit()?;
-        let swapped = ((kit & 0xFFFF) << 16) | (kit >> 16);
+        let high_word = kit >> 16;
         let kitlist = game_data.import_2da_by_name("kitlist").ok()?;
-        kit_strref_from_2da(&kitlist, swapped)
+        kit_strref_from_2da(&kitlist, high_word)
     }
 
     /// The `HATERACE.2DA` `STRREF` for this creature's racial enemy, matched
@@ -98,15 +101,23 @@ impl AsRef<Cre> for ImportedCre {
     }
 }
 
-/// The name strref of the `KITLIST.2DA` row whose `KITIDS` column equals
-/// `value` (the word-swapped kit dword): the mixed-case `MIXED` column,
-/// falling back to `LOWER`. `None` when no row matches or it carries no
-/// usable (non-zero) name strref.
-fn kit_strref_from_2da(kitlist: &TwoDA, value: u32) -> Option<u32> {
-    let kitids_col = two_da_col(kitlist, "KITIDS")?;
-    let row = kitlist.rows.values().find(|cells| {
-        cells.get(kitids_col).and_then(|c| parse_2da_int(c)) == Some(i64::from(value))
-    })?;
+/// The name strref of the `KITLIST.2DA` row for a kit, given the high word of
+/// the CRE kit dword: the mixed-case `MIXED` column, falling back to `LOWER`.
+/// `None` when `high_word` isn't a `0x4000`-marked kit index, no row matches,
+/// or the matched row carries no usable (non-zero) name strref.
+///
+/// `high_word` is `0x4000 | row_index` for a kitted creature; the row index
+/// (after masking the marker) is the KITLIST row's numeric label. Row 0
+/// ("RESERVE") is the no-kit placeholder and carries no name.
+fn kit_strref_from_2da(kitlist: &TwoDA, high_word: u32) -> Option<u32> {
+    // Must carry the "has kit" marker and nothing above it (a kitted dword is
+    // `0x40XX0000`, so its high word is `0x40XX`); other forms aren't a kit
+    // index.
+    if high_word & 0xC000 != 0x4000 {
+        return None;
+    }
+    let row_index = high_word & 0x3FFF;
+    let row = kitlist.rows.get(&row_index.to_string())?;
     ["MIXED", "LOWER"]
         .into_iter()
         .find_map(|label| cells_strref(row, two_da_col(kitlist, label)?).filter(|&s| s != 0))
@@ -182,11 +193,12 @@ mod tests {
         assert_eq!(two_da_col(&t, "missing"), None);
     }
 
-    /// KITLIST matches by the `KITIDS` value (the `KIT.IDS` symbol and the
-    /// `ROWNAME` disagree: `UNDEADHUNTER` vs `UNDEAD_HUNTER`) and returns the
-    /// mixed-case name strref, preferring `MIXED` over `LOWER`.
+    /// The kit dword's high word is `0x4000 | row_index`; the row is looked
+    /// up by its numeric label (no `KITIDS` column needed — BG2 lacks one)
+    /// and the mixed-case `MIXED` strref wins over `LOWER`. This mirrors the
+    /// real BG2 KITLIST layout, where row 5 is the Inquisitor.
     #[test]
-    fn kit_strref_prefers_mixed_case_matched_by_kitids() {
+    fn kit_strref_matched_by_row_index_prefers_mixed_case() {
         let t = make_two_da(
             &[
                 "ROWNAME",
@@ -197,7 +209,6 @@ mod tests {
                 "PROFICIENCY",
                 "UNUSABLE",
                 "CLASS",
-                "KITIDS",
             ],
             &[
                 (
@@ -211,7 +222,6 @@ mod tests {
                         "33",
                         "0x10",
                         "6",
-                        "0x00004006",
                     ],
                 ),
                 (
@@ -225,23 +235,29 @@ mod tests {
                         "33",
                         "0x10",
                         "6",
-                        "0x00004005",
                     ],
                 ),
             ],
         );
+        // 0x40060000 >> 16 == 0x4006 → row index 6 (Undead Hunter) → MIXED.
         assert_eq!(kit_strref_from_2da(&t, 0x4006), Some(9001));
+        // Row 5 (Inquisitor) → its MIXED strref.
+        assert_eq!(kit_strref_from_2da(&t, 0x4005), Some(9003));
+        // No `0x4000` marker → not a kit index → None.
         assert_eq!(kit_strref_from_2da(&t, 0x9999), None);
+        // Marked, but no such row.
+        assert_eq!(kit_strref_from_2da(&t, 0x4020), None);
     }
 
     /// Falls back to the lowercase strref when the mixed-case one is 0.
     #[test]
     fn kit_strref_falls_back_to_lower() {
         let t = make_two_da(
-            &["ROWNAME", "LOWER", "MIXED", "KITIDS"],
-            &[("1", &["FOO", "9000", "0", "0x4010"])],
+            &["ROWNAME", "LOWER", "MIXED"],
+            &[("1", &["FOO", "9000", "0"])],
         );
-        assert_eq!(kit_strref_from_2da(&t, 0x4010), Some(9000));
+        // 0x4001 → row index 1; MIXED is 0 so LOWER (9000) is used.
+        assert_eq!(kit_strref_from_2da(&t, 0x4001), Some(9000));
     }
 
     /// HATERACE matches by `IDS` (the RACE.IDS value) and returns the

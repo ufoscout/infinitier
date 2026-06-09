@@ -14,9 +14,9 @@
 - [X] bgee
     - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Wrong for dual-classed characters (e.g Imoen)
-- [ ] bg2
-    - [ ] Characteristics -> Palgorn should have kit "Inquisitor" but has nothing
-    - [ ] Characteristics -> Valygar should have kit "Stalker" but has nothing
+- [X] bg2
+    - [X] Characteristics -> Palgorn should have kit "Inquisitor" but has nothing
+    - [X] Characteristics -> Valygar should have kit "Stalker" but has nothing
 - [X] bg2ee
     - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Check Imoen for a dual class
@@ -45,7 +45,7 @@
 - [ ] Tables are different in different tabs
 - [ ] Table rows are not clickable where there is text
 - [ ] should load a game with a double click
-- [ ] Check why the 16th Inventory slot is called "Magic Weapon"
+- [X] Check why the 16th Inventory slot is called "Magic Weapon"
       - In Sword Keeper it is called "Inventory"
       - In Shadow Keeper it is called "Inventory"
 
