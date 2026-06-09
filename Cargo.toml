@@ -109,7 +109,7 @@ rodio = { version = "0.22", default-features = false, features = ["playback", "s
 
 # WBM (= WebM) decode pipeline. See src/codecs/wbm_decoder.
 matroska-demuxer = "0.7"
-oxideav-vp8 = "0.1"
+oxideav-vp8 = "0.2.3"
 oxideav-core = "0.1"
 
 # egui UI
