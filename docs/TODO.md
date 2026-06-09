@@ -23,11 +23,13 @@
     - [X] Proficiencies -> Create a dual classed character and check the values
 - [ ] iwd
     - [X] Proficiencies -> No values shown
+    - [ ] Apperance -> not implemented
 - [X] iwdee
     - [X] Proficiencies -> Create a dual classed character and check the values
     - [X] Characteristics -> Fix Kit and Racial labels
 - [ ] iwd2 (TODO)
-- [X] pst (TODO)
+- [ ] pst (TODO)
+    - [ ] Apperance -> not implemented
     - [X] Inventory -> missing
     - [X] Proficiencies -> wrong list and values
 - [X] pstee
