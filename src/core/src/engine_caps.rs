@@ -348,24 +348,78 @@ fn uses_modern_proficiencies(engine: Engine) -> bool {
 
 /// Resolve the proficiency list for `game_data` from `WEAPPROF.2DA`.
 ///
-/// Each row carries an `ID` (the proficiency stat / `WEAPPROF.2DA` id) and a
-/// `NAME_REF` (display strref). Rows are kept only for the half of the table
-/// the engine uses (legacy `< 89` vs modern `>= 89`, see
-/// [`uses_modern_proficiencies`]), names resolve against `dialog.tlk` (the
-/// row label is the fallback), and the list is sorted by display name —
-/// matching EEKeeper's alphabetical column. Returns empty when the table is
-/// absent (e.g. IWD2, which doesn't use this system) — there is deliberately
-/// no hardcoded fallback, so a missing/empty table surfaces as an empty tab
-/// rather than a misleading canned list.
+/// Classic Planescape: Torment is built by [`pst_proficiencies_from_2da`] —
+/// its `NAME_REF` strrefs don't resolve correctly against the retail PST
+/// `dialog.tlk`, so it names rows by their (data-driven) row label instead.
+/// Every other engine uses [`proficiencies_from_2da`]: rows are kept for the
+/// half of the table the engine uses (legacy `< 89` vs modern `>= 89`, see
+/// [`uses_modern_proficiencies`]), names resolve against `dialog.tlk`, and the
+/// list is sorted by display name — matching EEKeeper's alphabetical column.
+///
+/// Returns empty when the table is absent (e.g. IWD2, which doesn't use this
+/// system) — there is deliberately no hardcoded fallback, so a missing/empty
+/// table surfaces as an empty tab rather than a misleading canned list.
 fn load_proficiencies(game_data: &GameData) -> Vec<Proficiency> {
-    let modern = uses_modern_proficiencies(game_data.game().engine());
+    let engine = game_data.game().engine();
     let Ok(two_da) = game_data.import_2da_by_name("weapprof") else {
         return Vec::new();
     };
+    if engine == Engine::Pst {
+        return pst_proficiencies_from_2da(&two_da);
+    }
+    let modern = uses_modern_proficiencies(engine);
     let tlk = game_data.dialog_tlk().ok();
     proficiencies_from_2da(&two_da, modern, |strref| {
         tlk.as_ref().and_then(|t| t.get(strref))
     })
+}
+
+/// Classic PST proficiencies, read from its `WEAPPROF.2DA`: every row, in `ID`
+/// order, named from the (title-cased) row label.
+///
+/// PST has six fixed weapon-group categories (Fist, Dagger, Hammer, Axe, Club,
+/// Bow). Its `NAME_REF` strrefs are unusable for a retail-`dialog.tlk` reader —
+/// gemrb resolves them against its own augmented TLK, but on the shipped game
+/// two of them have no string (`*`) and one resolves to an unrelated dialogue
+/// line — so the row label is the dependable, data-driven display source. The
+/// points are read from the CRE V1.2 header by id `0..=5` (see
+/// `Cre::proficiency`).
+fn pst_proficiencies_from_2da(two_da: &TwoDA) -> Vec<Proficiency> {
+    let Some(id_col) = two_da_column(two_da, "ID") else {
+        return Vec::new();
+    };
+    let mut list: Vec<Proficiency> = two_da
+        .rows
+        .iter()
+        .filter_map(|(label, cells)| {
+            let stat: u8 = cells.get(id_col)?.trim().parse().ok()?;
+            Some(Proficiency {
+                stat,
+                name: title_case(label),
+            })
+        })
+        .collect();
+    list.sort_by_key(|p| p.stat);
+    list
+}
+
+/// Title-case an `UPPER_SNAKE` 2DA row label for display: `EDGED_WEAPON` →
+/// "Edged Weapon", `FIST` → "Fist".
+fn title_case(symbol: &str) -> String {
+    symbol
+        .split('_')
+        .filter(|w| !w.is_empty())
+        .map(|w| {
+            let mut chars = w.chars();
+            match chars.next() {
+                Some(first) => {
+                    first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase()
+                }
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Pure builder: keep the `WEAPPROF.2DA` rows for the requested half of the
@@ -1850,14 +1904,66 @@ mod tests {
         );
     }
 
-    /// A game whose fixture ships no `WEAPPROF.2DA` yields an empty list —
-    /// there is no hardcoded fallback (it would hide a real "table missing"
-    /// problem behind a plausible-looking BG2 list).
+    /// A non-PST game whose fixture ships no `WEAPPROF.2DA` yields an empty
+    /// list — there is no hardcoded fallback (it would hide a real "table
+    /// missing" problem behind a plausible-looking BG2 list). IWD2 uses the
+    /// 3E feat system, not weapon proficiencies, so it has no table.
     #[test]
     fn games_without_weapprof_have_no_proficiencies() {
         let caps =
-            EngineCaps::new(&fixture_game_data("pst", infinitier_common::Game::Pst)).unwrap();
+            EngineCaps::new(&fixture_game_data("iwd2", infinitier_common::Game::Iwd2)).unwrap();
         assert!(caps.proficiencies().is_empty());
+    }
+
+    /// Classic PST reads its six weapon-proficiency categories from
+    /// `WEAPPROF.2DA`, in id order, named from the row label (the `NAME_REF`
+    /// strrefs are unreliable against the retail PST TLK). The keeper pairs
+    /// each with the CRE V1.2 header points.
+    #[test]
+    fn pst_classic_proficiencies_read_from_weapprof() {
+        let caps =
+            EngineCaps::new(&fixture_game_data("pst", infinitier_common::Game::Pst)).unwrap();
+        let names: Vec<&str> = caps
+            .proficiencies()
+            .iter()
+            .map(|p| p.name.as_str())
+            .collect();
+        assert_eq!(names, ["Fist", "Dagger", "Hammer", "Axe", "Club", "Bow"]);
+        let stats: Vec<u8> = caps.proficiencies().iter().map(|p| p.stat).collect();
+        assert_eq!(stats, [0, 1, 2, 3, 4, 5]);
+    }
+
+    /// `pst_proficiencies_from_2da` keeps every row in id order and names it
+    /// from the (title-cased) row label, ignoring `NAME_REF` entirely — so a
+    /// `*` (Hammer/Club) or a wrong strref (Axe) can't drop a row or pull in a
+    /// stray string.
+    #[test]
+    fn pst_proficiencies_use_row_label_in_id_order() {
+        let two_da = make_two_da(
+            &["ID", "NAME_REF", "DESC_REF"],
+            &[
+                ("FIST", &["0", "64190", "*"]),
+                ("DAGGER", &["1", "64187", "*"]),
+                ("HAMMER", &["2", "*", "*"]), // no strref → must NOT be dropped
+                ("AXE", &["3", "64623", "*"]), // wrong strref → must NOT leak in
+                ("CLUB", &["4", "*", "*"]),
+                ("BOW", &["5", "64180", "*"]),
+            ],
+        );
+        let list = pst_proficiencies_from_2da(&two_da);
+        assert_eq!(
+            list.iter()
+                .map(|p| (p.stat, p.name.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (0, "Fist"),
+                (1, "Dagger"),
+                (2, "Hammer"),
+                (3, "Axe"),
+                (4, "Club"),
+                (5, "Bow"),
+            ],
+        );
     }
 
     /// The original Baldur's Gate lists its eight legacy weapon-group

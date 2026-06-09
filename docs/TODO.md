@@ -26,8 +26,9 @@
     - [X] Proficiencies -> Create a dual classed character and check the values
     - [X] Characteristics -> Fix Kit and Racial labels
 - [ ] iwd2 (TODO)
-- [ ] pst (TODO)
-    - [ ] Inventory -> missing
+- [X] pst (TODO)
+    - [X] Inventory -> missing
+    - [X] Proficiencies -> wrong list and values
 - [X] pstee
     - [X] Abilities -> Thief skills bonus are slightly different from EEkeeper (We are right here, EEkeeper is wrong)
     - [X] Characteristics -> Wrong kits for some classes

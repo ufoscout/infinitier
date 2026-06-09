@@ -1520,10 +1520,16 @@ impl Cre {
         (low & 0x07) | ((high & 0x07) << 3)
     }
 
-    /// Raw packed proficiency byte from the V1.0 header (0 elsewhere).
+    /// Raw packed proficiency byte from the header.
+    ///
+    /// V1.0 (BG/BG2/IWD) stores 20 packed bytes keyed by `IE_PROFICIENCY*`
+    /// stat (or the legacy BG1 weapon-group id). V1.2 (classic PST) stores
+    /// its six fixed weapon-group bytes (Fist, Edged, Hammer, Axe, Club, Bow)
+    /// keyed by id `0..=5`. Other versions don't carry a header block.
     fn header_proficiency_byte(&self, stat: u8) -> u8 {
         match &self.header {
             CreHeader::V10(h) => v10_proficiency_byte(h, stat),
+            CreHeader::V12(h) => v12_proficiency_byte(h, stat),
             _ => 0,
         }
     }
@@ -1666,6 +1672,21 @@ fn v10_proficiency_byte(h: &CreHeaderV10, stat: u8) -> u8 {
         h.bg1_7,
     ];
     v10_proficiency_index(stat).map_or(0, |i| packed[i])
+}
+
+/// Read the packed proficiency byte for `stat` from a V1.2 (classic PST)
+/// header. PST has six fixed weapon-group proficiencies keyed by id `0..=5`
+/// (Fist, Edged, Hammer, Axe, Club, Bow) at header offsets `0x6E..=0x73`.
+fn v12_proficiency_byte(h: &CreHeaderV12, stat: u8) -> u8 {
+    let packed = [
+        h.fist_proficiency_proficiencies_maybe_be_packed,
+        h.edged_proficiency_proficiencies_maybe_be_packed,
+        h.hammer_proficiency_proficiencies_maybe_be_packed,
+        h.axe_proficiency_proficiencies_maybe_be_packed,
+        h.club_proficiency_proficiencies_maybe_be_packed,
+        h.bow_proficiency_proficiencies_maybe_be_packed,
+    ];
+    packed.get(usize::from(stat)).copied().unwrap_or(0)
 }
 
 /// Mutable reference to the packed proficiency byte for `stat` in a V1.0
