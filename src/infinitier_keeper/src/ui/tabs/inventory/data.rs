@@ -25,7 +25,9 @@ pub struct InventoryRow {
 /// The BG / BG2 / IWD (CRE V1.0 / V9.0) item-slot layout — the ordering
 /// EEKeeper displays. The on-disk array has 40 entries; the trailing two
 /// (the selected-weapon and selected-ability indices) are not real item
-/// slots, so they're omitted here, exactly as EEKeeper does.
+/// slots, so they're omitted here, exactly as EEKeeper does — leaving 38
+/// slots: through the 16 inventory slots and ending at slot 37, the
+/// magically-created weapon ("Magic Weapon").
 const BG_SLOT_LABELS: &[&str] = &[
     "Helmet",
     "Armor",
@@ -48,6 +50,7 @@ const BG_SLOT_LABELS: &[&str] = &[
     "Quick Item",
     "Quick Item",
     "Quick Item",
+    "Inventory",
     "Inventory",
     "Inventory",
     "Inventory",
@@ -170,4 +173,34 @@ fn as_i16(bytes: &[u8]) -> Vec<i16> {
         .chunks_exact(2)
         .map(|c| i16::from_le_bytes([c[0], c[1]]))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The BG family exposes 38 item slots: 16 "Inventory" slots followed
+    /// by the magically-created weapon ("Magic Weapon") at slot 37 — the
+    /// same inventory/magic-weapon tail the PST:EE layout uses.
+    #[test]
+    fn bg_layout_has_16_inventory_then_magic_weapon() {
+        assert_eq!(BG_SLOT_LABELS.len(), 38);
+        assert_eq!(
+            BG_SLOT_LABELS.iter().filter(|&&l| l == "Inventory").count(),
+            16,
+        );
+        // Slots 21..=36 are Inventory; slot 37 is the magic weapon.
+        assert!(BG_SLOT_LABELS[21..=36].iter().all(|&l| l == "Inventory"));
+        assert_eq!(BG_SLOT_LABELS[37], "Magic Weapon");
+    }
+
+    /// The BG labels agree with the PST:EE tail for the inventory + magic
+    /// weapon region (the bug was the BG list dropping one inventory slot
+    /// and so mislabelling slot 36 as "Magic Weapon").
+    #[test]
+    fn bg_and_pstee_agree_on_inventory_tail() {
+        for i in 21..=37 {
+            assert_eq!(BG_SLOT_LABELS[i], pstee_label(i), "slot {i}");
+        }
+    }
 }
