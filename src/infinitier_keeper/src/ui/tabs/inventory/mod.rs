@@ -5,19 +5,18 @@
 //! inventory icon are resolved from its `.itm` file (and `dialog.tlk`),
 //! so this tab takes `GameData`.
 
-mod data;
 mod view;
 
 use eframe::egui;
 
 use infinitier_core::game::GameData;
-use infinitier_core::resource::cre::Cre;
+use infinitier_core::imported_resource::cre::ImportedCre;
 
 pub struct InventoryTab;
 
 impl InventoryTab {
-    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, game_data: &GameData) {
-        let rows = data::inventory_rows(cre, game_data.game());
+    pub fn show(&self, ui: &mut egui::Ui, cre: &ImportedCre, game_data: &GameData) {
+        let rows = cre.inventory(game_data.game());
         view::render(ui, &rows, game_data);
     }
 }

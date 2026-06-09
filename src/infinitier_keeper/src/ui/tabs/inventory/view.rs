@@ -19,10 +19,21 @@ use egui_extras::{Column, TableBuilder};
 use egui_components::Label;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
+use infinitier_core::imported_resource::cre::InventoryRow;
 use infinitier_core::resource::ResourceType;
 use infinitier_core::resource::itm::{Itm, ItmHeader};
 
-use super::data::InventoryRow;
+/// The slot's `.itm` resref, or `""` when the slot is empty.
+fn row_resref(row: &InventoryRow) -> &str {
+    row.item.as_ref().map_or("", |it| it.item.as_str())
+}
+
+/// The slot's charge/quantity triple (`q1/q2/q3`), or `""` when empty.
+fn row_quantity(row: &InventoryRow) -> String {
+    row.item.as_ref().map_or(String::new(), |it| {
+        format!("{}/{}/{}", it.quantity1, it.quantity2, it.quantity3)
+    })
+}
 
 /// egui frame-store key for the resref → display-info cache.
 const ITEM_CACHE: &str = "inventory_item_cache";
@@ -76,7 +87,8 @@ pub fn render(ui: &mut egui::Ui, rows: &[InventoryRow], game_data: &GameData) {
         .body(|body| {
             body.rows(ROW_H, rows.len(), |mut row| {
                 let r = &rows[row.index()];
-                let display = items.get(&r.resref);
+                let resref = row_resref(r);
+                let display = items.get(resref);
 
                 row.col(|ui| {
                     if let Some(tex) = display
@@ -95,14 +107,14 @@ pub fn render(ui: &mut egui::Ui, rows: &[InventoryRow], game_data: &GameData) {
                     ui.add(Label::new(r.position));
                 });
                 row.col(|ui| {
-                    ui.add(Label::new(&r.quantity));
+                    ui.add(Label::new(row_quantity(r)));
                 });
                 row.col(|ui| {
                     let name = display.map(|d| d.name.as_str()).unwrap_or("");
                     ui.add(Label::new(name));
                 });
                 row.col(|ui| {
-                    ui.add(Label::new(&r.resref));
+                    ui.add(Label::new(resref));
                 });
             });
         });
@@ -122,7 +134,7 @@ fn resolve_items(
 
     let misses: HashSet<&str> = rows
         .iter()
-        .map(|r| r.resref.as_str())
+        .map(row_resref)
         .filter(|s| !s.is_empty() && !cache.contains_key(*s))
         .collect();
     if misses.is_empty() {
