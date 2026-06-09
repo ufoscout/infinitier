@@ -45,8 +45,4 @@
 - [ ] Tables are different in different tabs
 - [ ] Table rows are not clickable where there is text
 - [ ] should load a game with a double click
-- [X] Check why the 16th Inventory slot is called "Magic Weapon"
-      - In Sword Keeper it is called "Inventory"
-      - In Shadow Keeper it is called "Inventory"
-
 
