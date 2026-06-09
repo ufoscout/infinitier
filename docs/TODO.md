@@ -21,15 +21,26 @@
     - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Check Imoen for a dual class
     - [X] Proficiencies -> Create a dual classed character and check the values
-- [ ] iwd
+- [X] iwd
     - [X] Proficiencies -> No values shown
-    - [ ] Apperance -> not implemented
+    - [X] Apperance -> not implemented
 - [X] iwdee
     - [X] Proficiencies -> Create a dual classed character and check the values
     - [X] Characteristics -> Fix Kit and Racial labels
 - [ ] iwd2 (TODO)
-- [ ] pst (TODO)
+    - [ ] Characteristics -> empty
     - [ ] Apperance -> not implemented
+    - [ ] Inventory -> not implemented
+    - [ ] Memorization -> empty
+    - [ ] Innate -> empty
+    - [ ] Wizard -> empty
+    - [ ] Cleric -> empty
+    - [ ] Proficiencies -> empty
+    - [ ] Resistances -> all zeros, maybe it is wrong?
+    - [ ] Effects -> empty
+    - [ ] Local Variables -> empty
+- [X] pst
+    - [X] Apperance -> not implemented
     - [X] Inventory -> missing
     - [X] Proficiencies -> wrong list and values
 - [X] pstee

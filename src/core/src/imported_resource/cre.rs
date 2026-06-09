@@ -248,6 +248,71 @@ const BG_SLOT_LABELS: &[&str] = &[
     "Magic Weapon",
 ];
 
+/// The Icewind Dale 2 (CRE V2.2) item-slot layout. The on-disk array has 52
+/// entries; the trailing two (the selected-weapon and selected-weapon-ability
+/// indices) are metadata, not real slots, so they're omitted — leaving 50
+/// displayed slots ending at the magically-created weapon ("Magic Weapon").
+///
+/// IWD2 (3E) differs from the BG/IWD family: it has four weapon *sets*, each a
+/// main-hand weapon followed by its off-hand/shield (interleaved, indices
+/// 9–16), four quivers, then the cloak (index 21, after the quivers), three
+/// quick items, and a 24-slot inventory grid. The ordering follows
+/// NearInfinity's `readIWD2` (the on-disk order) and matches a real IWD2
+/// save — note gemrb's `slottype.2da` SAVEORDER lists the cloak out of
+/// sequence, so it isn't the on-disk index.
+const IWD2_SLOT_LABELS: &[&str] = &[
+    "Helmet",       // 0
+    "Armor",        // 1
+    "Shield",       // 2  (worn shield / paperdoll off-hand)
+    "Gauntlets",    // 3
+    "Ring",         // 4
+    "Ring",         // 5
+    "Amulet",       // 6
+    "Belt",         // 7
+    "Boots",        // 8
+    "Weapon",       // 9   set 1 — main hand
+    "Shield",       // 10  set 1 — off hand
+    "Weapon",       // 11  set 2 — main hand
+    "Shield",       // 12  set 2 — off hand
+    "Weapon",       // 13  set 3 — main hand
+    "Shield",       // 14  set 3 — off hand
+    "Weapon",       // 15  set 4 — main hand
+    "Shield",       // 16  set 4 — off hand
+    "Quiver",       // 17
+    "Quiver",       // 18
+    "Quiver",       // 19
+    "Quiver",       // 20  (GUI-inaccessible)
+    "Cloak",        // 21
+    "Quick Item",   // 22
+    "Quick Item",   // 23
+    "Quick Item",   // 24
+    "Inventory",    // 25
+    "Inventory",    // 26
+    "Inventory",    // 27
+    "Inventory",    // 28
+    "Inventory",    // 29
+    "Inventory",    // 30
+    "Inventory",    // 31
+    "Inventory",    // 32
+    "Inventory",    // 33
+    "Inventory",    // 34
+    "Inventory",    // 35
+    "Inventory",    // 36
+    "Inventory",    // 37
+    "Inventory",    // 38
+    "Inventory",    // 39
+    "Inventory",    // 40
+    "Inventory",    // 41
+    "Inventory",    // 42
+    "Inventory",    // 43
+    "Inventory",    // 44
+    "Inventory",    // 45
+    "Inventory",    // 46
+    "Inventory",    // 47
+    "Inventory",    // 48
+    "Magic Weapon", // 49
+];
+
 /// Read the item-slot table (as signed indices) and the item list out of
 /// whichever sub-section layout this CRE uses.
 fn slots_and_items(cre: &Cre) -> (Vec<i16>, &[Item]) {
@@ -269,13 +334,15 @@ fn as_i16(bytes: &[u8]) -> Vec<i16> {
 ///
 /// Planescape: Torment (both classic and EE) uses its own ordering (earrings,
 /// tattoos, …) built to the creature's actual slot count — classic PST and
-/// PST:EE differ, so each has its own list. Every other supported engine uses
-/// the 40-slot BG / BG2 / IWD family layout; any other size falls back to
-/// nothing so we show no rows rather than mislabel them.
+/// PST:EE differ, so each has its own list. Icewind Dale 2 (CRE V2.2) has its
+/// own 52-entry layout (weapon sets, four quivers, …). Every other supported
+/// engine uses the 40-slot BG / BG2 / IWD family layout; any other size falls
+/// back to nothing so we show no rows rather than mislabel them.
 fn slot_labels(game: Game, slot_count: usize) -> Vec<&'static str> {
     match game {
         Game::Pst => pst_slot_labels(slot_count),
         Game::Pstee => pstee_slot_labels(slot_count),
+        Game::Iwd2 => IWD2_SLOT_LABELS.to_vec(),
         _ if slot_count == 40 => BG_SLOT_LABELS.to_vec(),
         _ => Vec::new(),
     }
@@ -517,5 +584,68 @@ mod tests {
         assert_eq!(labels.iter().filter(|&&l| l == "Inventory").count(), 20);
         assert!(labels[25..=44].iter().all(|&l| l == "Inventory"));
         assert_eq!(labels[45], "Magic Weapon");
+    }
+
+    /// IWD2 (CRE V2.2) exposes 50 slots from its 52-entry table: four
+    /// interleaved weapon/shield sets (indices 9–16), four quivers, the cloak
+    /// *after* the quivers (index 21, unlike the BG family), three quick
+    /// items, a 24-slot inventory grid, ending at the magically-created
+    /// weapon. A 52-entry table is selected purely by size.
+    #[test]
+    fn iwd2_layout_matches_v2_2() {
+        assert_eq!(IWD2_SLOT_LABELS.len(), 50);
+        assert_eq!(slot_labels(Game::Iwd2, 52), IWD2_SLOT_LABELS.to_vec());
+        assert_eq!(IWD2_SLOT_LABELS[0], "Helmet");
+        assert_eq!(IWD2_SLOT_LABELS[1], "Armor");
+        // Weapon sets interleave a main-hand weapon with its off-hand shield.
+        assert!((9..=15).step_by(2).all(|i| IWD2_SLOT_LABELS[i] == "Weapon"));
+        assert!(
+            (10..=16)
+                .step_by(2)
+                .all(|i| IWD2_SLOT_LABELS[i] == "Shield")
+        );
+        assert!(IWD2_SLOT_LABELS[17..=20].iter().all(|&l| l == "Quiver"));
+        assert_eq!(IWD2_SLOT_LABELS[21], "Cloak"); // after the quivers
+        assert!(IWD2_SLOT_LABELS[22..=24].iter().all(|&l| l == "Quick Item"));
+        assert_eq!(
+            IWD2_SLOT_LABELS
+                .iter()
+                .filter(|&&l| l == "Inventory")
+                .count(),
+            24
+        );
+        assert!(IWD2_SLOT_LABELS[25..=48].iter().all(|&l| l == "Inventory"));
+        assert_eq!(IWD2_SLOT_LABELS[49], "Magic Weapon");
+    }
+
+    /// End-to-end: a real IWD2 (V2.2) creature resolves its carried items to
+    /// the right slots — a wielded weapon in weapon-set-1 (index 9) and a
+    /// stowed item in the inventory grid (index 31).
+    #[test]
+    fn iwd2_inventory_resolves_real_v2_2_cre() {
+        use infinitier_cre_resource::CreImporter;
+        use infinitier_datasource::{DataSource, Importer};
+
+        let path = infinitier_test_utils::get_assets_path().join("cre/v2_2/52SERSA.cre");
+        let cre = CreImporter {
+            name: "52SERSA",
+            game: Game::Iwd2,
+        }
+        .import(&DataSource::new(path.as_path()))
+        .expect("import V2.2 CRE fixture");
+        let rows = ImportedCre::new(cre).inventory(Game::Iwd2);
+
+        assert_eq!(rows.len(), 50);
+        let weapon = &rows[9];
+        assert_eq!(weapon.position, "Weapon");
+        assert_eq!(
+            weapon.item.as_ref().expect("wielded weapon").item,
+            "RAMO_MK"
+        );
+        let stowed = &rows[31];
+        assert_eq!(stowed.position, "Inventory");
+        assert_eq!(stowed.item.as_ref().expect("stowed item").item, "RT10_M");
+        // Every other slot is empty for this creature.
+        assert_eq!(rows.iter().filter(|r| r.item.is_some()).count(), 2);
     }
 }

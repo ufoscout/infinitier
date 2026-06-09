@@ -23,7 +23,7 @@
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::cre::ImportedCre;
 use infinitier_core::resource::Game;
-use infinitier_core::resource::cre::{Cre, CreHeader, CreatureFlags};
+use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22, CreatureFlags};
 use infinitier_core::resource::gam::NpcCharStats;
 
 /// Resolved, display-ready characteristics for one creature.
@@ -160,11 +160,26 @@ impl CharData {
             Specialization::Kit(resolve_kit(game_data, imported))
         };
 
+        // IWD2 reconstructs the class from the per-class level fields (the
+        // CLASS.IDS byte is stale on multiclass); every other engine resolves
+        // the single class byte. Fall back to the byte if no levels are set.
+        let class = match &cre.header {
+            CreHeader::V22(h) => {
+                let by_levels = iwd2_class_label(h);
+                if by_levels.is_empty() {
+                    ids_pretty(game_data, "class", raw.class as i32, " / ")
+                } else {
+                    by_levels
+                }
+            }
+            _ => ids_pretty(game_data, "class", raw.class as i32, " / "),
+        };
+
         CharData {
             gender: ids_pretty(game_data, "gender", raw.gender as i32, " "),
             race: ids_pretty(game_data, "race", raw.race as i32, " "),
             alignment: ids_pretty(game_data, "alignmen", raw.alignment as i32, " "),
-            class: ids_pretty(game_data, "class", raw.class as i32, " / "),
+            class,
             original_class: original_class_label,
             specialization,
             racial_enemy: resolve_racial_enemy(game_data, imported),
@@ -184,7 +199,8 @@ impl CharData {
 
 /// Lift the identity bytes out of whichever CRE header version this
 /// is. V10/V12/V90 share the layout (only the gender/kit field names
-/// the generator picked differ); V2.2 (IWD2) is not decoded here.
+/// the generator picked differ); V2.2 (IWD2) keeps its identity bytes
+/// at the end of its larger header.
 fn raw_char(cre: &Cre) -> Option<RawChar> {
     match &cre.header {
         CreHeader::V10(h) => Some(RawChar {
@@ -214,8 +230,55 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
             kit: h.kit_information_none_abjurer_0x00400000_conjurer,
             state_flags: h.permanent_status_flags_state_ids,
         }),
-        CreHeader::V22(_) => None,
+        // IWD2 (3E). The single `class` byte is stale once a character
+        // multiclasses — the real class is reconstructed from the per-class
+        // level fields in `resolve` (see [`iwd2_class_label`]). The kit
+        // bitfield and racial-enemy/dual-class concepts don't apply here, so
+        // `Cre::kit`/`racial_enemy`/`dual_class_original_class` already return
+        // `None` and the corresponding columns render blank.
+        CreHeader::V22(h) => Some(RawChar {
+            gender: h.sex_gender_ids,
+            race: h.race_race_ids,
+            alignment: h.alignment_alignmen_ids,
+            class: h.class_class_ids_not_updated_when,
+            ea: h.enemy_ally_ea_ids,
+            kit: h.kit_bitfield,
+            state_flags: h.permanent_status_flags_state_ids,
+        }),
     }
+}
+
+/// Reconstruct an IWD2 character's class from its per-class level fields.
+/// IWD2 is 3rd-edition: multiclassing stacks independent class levels, and
+/// the header's single CLASS.IDS byte is *not* updated when you multiclass
+/// (so it can't be trusted). The class shown is therefore every base class
+/// with a non-zero level, e.g. a Fighter/Wizard reads "Fighter / Wizard"
+/// (matching EEKeeper's IWD2 class display). Returns the empty string when
+/// no class has levels, letting the caller fall back to the CLASS.IDS byte.
+fn iwd2_class_label(h: &CreHeaderV22) -> String {
+    class_from_levels(&[
+        (h.barbarian_levels, "Barbarian"),
+        (h.bard_levels, "Bard"),
+        (h.cleric_levels, "Cleric"),
+        (h.druid_levels, "Druid"),
+        (h.fighter_levels, "Fighter"),
+        (h.monk, "Monk"),
+        (h.paladin_levels, "Paladin"),
+        (h.ranger_levels, "Ranger"),
+        (h.rogue_levels, "Rogue"),
+        (h.sorcerer_levels, "Sorcerer"),
+        (h.wizard_levels, "Wizard"),
+    ])
+}
+
+/// Join the names of every class with a non-zero level using `" / "`.
+fn class_from_levels(levels: &[(u8, &str)]) -> String {
+    levels
+        .iter()
+        .filter(|(level, _)| *level > 0)
+        .map(|(_, name)| *name)
+        .collect::<Vec<_>>()
+        .join(" / ")
 }
 
 /// Resolve an IDS value to its symbol, then title-case it for
@@ -371,7 +434,12 @@ mod tests {
     // KITLIST / HATERACE 2DA name resolution lives on `Cre` (see
     // `infinitier_cre_resource`); this module only orchestrates the lookup +
     // the IDS-symbol fallback, and the view does the strref → tlk step.
-    use super::pretty;
+    use super::{class_from_levels, pretty, raw_char};
+    use infinitier_core::fs::{DataSource, Importer};
+    use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
+    use infinitier_core::resource::Game;
+    use infinitier_core::resource::cre::CreHeader;
+    use infinitier_core::resource::gam::GamImporter;
 
     #[test]
     fn pretty_single_word() {
@@ -394,5 +462,61 @@ mod tests {
     #[test]
     fn pretty_ea_titlecases() {
         assert_eq!(pretty("PC", " "), "Pc");
+    }
+
+    #[test]
+    fn class_from_levels_single_class() {
+        assert_eq!(
+            class_from_levels(&[(5, "Fighter"), (0, "Wizard")]),
+            "Fighter"
+        );
+    }
+
+    #[test]
+    fn class_from_levels_multiclass_joins_with_slash() {
+        assert_eq!(
+            class_from_levels(&[(0, "Barbarian"), (3, "Fighter"), (2, "Wizard")]),
+            "Fighter / Wizard"
+        );
+    }
+
+    #[test]
+    fn class_from_levels_no_levels_is_empty() {
+        assert_eq!(class_from_levels(&[(0, "Fighter"), (0, "Wizard")]), "");
+    }
+
+    /// IWD2 creatures are CRE V2.2; previously `raw_char` returned `None` for
+    /// them, so the whole Characteristics tab rendered blank. It must now lift
+    /// the identity bytes out of the larger header. Party slot 0 of the IWD2
+    /// quick-save is a level-1 Fighter (ea 2, race 4, sex 1, alignment 18).
+    #[test]
+    fn raw_char_reads_v2_2_iwd2_header() {
+        let path = infinitier_test_utils::get_assets_path()
+            .join("SAV_GAM/iwd2/mpsave/000000002-Quick-Save/ICEWIND2.GAM");
+        let gam = GamImporter {
+            name: "iwd2",
+            engine: Game::Iwd2.engine(),
+        }
+        .import(&DataSource::new(path.as_path()))
+        .expect("import IWD2 GAM fixture");
+        let imported =
+            ImportedGam::load_with_tlk(gam, Game::Iwd2, None).expect("ImportedGam::load_with_tlk");
+        let Some(NpcCre::Cre(cre)) = &imported.party_npcs[0].cre else {
+            panic!("party slot 0 must carry an embedded CRE");
+        };
+
+        let raw = raw_char(cre.cre()).expect("V2.2 identity must be decoded");
+        assert_eq!(raw.ea, 2);
+        assert_eq!(raw.race, 4);
+        assert_eq!(raw.gender, 1);
+        assert_eq!(raw.alignment, 18);
+        assert_eq!(raw.state_flags, 0x0002_0000);
+
+        // The single class byte (5) is stale on multiclass; the displayed
+        // class is reconstructed from the level fields — here a lone Fighter.
+        let CreHeader::V22(h) = &cre.cre().header else {
+            panic!("fixture must be a V2.2 header");
+        };
+        assert_eq!(super::iwd2_class_label(h), "Fighter");
     }
 }

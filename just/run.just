@@ -81,7 +81,7 @@ run_iwdee_keeper:
 # Run Infinitier ExplKeeperorer with local Icewind Dale 2
 [group('run_keeper')]
 run_iwd2_keeper:
-  cargo run -p infinitier_keeper -- --savegame 0 --game-path "{{GAMES_FOLDER}}/Icewind Dale 2"
+  cargo run -p infinitier_keeper -- --savegame 3 --game-path "{{GAMES_FOLDER}}/Icewind Dale 2"
 
 # Run Infinitier Keeper with local Planescape Torment
 [group('run_keeper')]
