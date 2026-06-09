@@ -353,6 +353,45 @@ mod tests {
         }
     }
 
+    /// Every party member of a multi-character classic-PST save must read as
+    /// a fully-parsed, embedded CRE — not an external reference.
+    ///
+    /// Regression for the PST NPC-record-size bug: PST's GAM record is 360
+    /// bytes (not the BG 352), and it has no shared party-inventory section
+    /// to derive that from. With the wrong stride only the first member
+    /// (Nameless) was read; the rest came back as empty/external slots. This
+    /// 5-member "Modron Foyer" save exercises all of them.
+    #[test]
+    fn pst_every_party_member_is_a_readable_embedded_cre() {
+        let gam = load_gam(
+            "pst/save/000000029-Modron-Foyer/TORMENT.GAM",
+            Game::Pst.engine(),
+        );
+        let imported =
+            ImportedGam::load_with_tlk(gam, Game::Pst, None).expect("ImportedGam::load_with_tlk");
+        assert!(
+            imported.party_npcs.len() >= 5,
+            "Modron Foyer save should carry a full party, got {}",
+            imported.party_npcs.len(),
+        );
+        for npc in &imported.party_npcs {
+            match &npc.cre {
+                Some(NpcCre::Cre(cre)) => {
+                    // A real, parsed creature: non-empty name and sane HP.
+                    assert!(
+                        cre.maximum_hit_points() > 0,
+                        "party slot {} has a CRE but zero max HP — likely misread",
+                        npc.index,
+                    );
+                }
+                other => panic!(
+                    "party slot {} is not a readable embedded CRE: {other:?}",
+                    npc.index,
+                ),
+            }
+        }
+    }
+
     #[test]
     fn load_fails_when_dialog_tlk_is_not_reachable() {
         // The bg_ee corpus root doesn't ship a dialog.tlk next to it,
