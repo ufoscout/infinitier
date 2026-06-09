@@ -1522,15 +1522,17 @@ impl Cre {
 
     /// Raw packed proficiency byte from the header.
     ///
-    /// V1.0 (BG/BG2/IWD) stores 20 packed bytes keyed by `IE_PROFICIENCY*`
-    /// stat (or the legacy BG1 weapon-group id). V1.2 (classic PST) stores
+    /// V1.0 (BG/BG2) stores 20 packed bytes keyed by `IE_PROFICIENCY*` stat
+    /// (or the legacy BG1 weapon-group id). V9.0 (classic IWD/HoW) stores its
+    /// 15 weapon-group bytes keyed by `stat - 89`. V1.2 (classic PST) stores
     /// its six fixed weapon-group bytes (Fist, Edged, Hammer, Axe, Club, Bow)
-    /// keyed by id `0..=5`. Other versions don't carry a header block.
+    /// keyed by id `0..=5`. V2.2 (IWD2) doesn't carry a header block.
     fn header_proficiency_byte(&self, stat: u8) -> u8 {
         match &self.header {
             CreHeader::V10(h) => v10_proficiency_byte(h, stat),
             CreHeader::V12(h) => v12_proficiency_byte(h, stat),
-            _ => 0,
+            CreHeader::V90(h) => v90_proficiency_byte(h, stat),
+            CreHeader::V22(_) => 0,
         }
     }
 
@@ -1687,6 +1689,34 @@ fn v12_proficiency_byte(h: &CreHeaderV12, stat: u8) -> u8 {
         h.bow_proficiency_proficiencies_maybe_be_packed,
     ];
     packed.get(usize::from(stat)).copied().unwrap_or(0)
+}
+
+/// Read the packed proficiency byte for `stat` from a V9.0 (classic IWD/HoW)
+/// header. IWD uses the modern `IE_PROFICIENCY*` stats `89..=103`, stored as
+/// 15 weapon-group bytes at `0x6E..=0x7C` keyed by `stat - 89` (Large/Small
+/// swords, Bows, Spears, Axe, Missile, Great swords, Daggers, Halberd, Mace,
+/// Flail, Hammers, Clubs, Quarterstaves, Crossbow).
+fn v90_proficiency_byte(h: &CreHeaderV90, stat: u8) -> u8 {
+    let packed = [
+        h.large_swords_proficiency_proficiencies_maybe_be,
+        h.small_swords_proficiency_proficiencies_maybe_be,
+        h.bows_proficiency_proficiencies_maybe_be_packed,
+        h.spears_proficiency_proficiencies_maybe_be_packed,
+        h.axe_proficiency_proficiencies_maybe_be_packed,
+        h.missile_proficiency_proficiencies_maybe_be_packed,
+        h.great_swords_proficiency_proficiencies_maybe_be,
+        h.daggers_proficiency_proficiencies_maybe_be_packed,
+        h.halberd_proficiency_proficiencies_maybe_be_packed,
+        h.mace_proficiency_proficiencies_maybe_be_packed,
+        h.flail_proficiency_proficiencies_maybe_be_packed,
+        h.hammers_proficiency_proficiencies_maybe_be_packed,
+        h.clubs_proficiency_proficiencies_maybe_be_packed,
+        h.quarterstaves_proficiency_proficiencies_maybe_be_packed,
+        h.crossbow_proficiency_proficiencies_maybe_be_packed,
+    ];
+    v10_proficiency_index(stat)
+        .and_then(|i| packed.get(i).copied())
+        .unwrap_or(0)
 }
 
 /// Mutable reference to the packed proficiency byte for `stat` in a V1.0
@@ -2507,6 +2537,21 @@ mod tests {
             "a standalone CRE must not gain an op233 effect",
         );
         assert_eq!(round_trip(&cre).proficiency(2), prof(3, 0));
+    }
+
+    /// Classic IWD (CRE V9.0) reads its 15 weapon-group proficiencies from
+    /// the 0x6E header block, keyed by `stat - 89` (the modern
+    /// `IE_PROFICIENCY*` stats `89..=103`). Regression: V9.0 previously fell
+    /// through to `0` for every proficiency, so the keeper showed an all-empty
+    /// table for IWD.
+    #[test]
+    fn v90_proficiencies_read_the_header_block() {
+        let cre = crate::test_support::import_fixture("v9_0/BARBWAR2.cre");
+        assert_eq!(cre.proficiency(89), prof(3, 0)); // large swords
+        assert_eq!(cre.proficiency(93), prof(2, 0)); // axes
+        assert_eq!(cre.proficiency(98), prof(2, 0)); // maces
+        assert_eq!(cre.proficiency(90), prof(0, 0)); // small swords (untrained)
+        assert_eq!(cre.proficiency(103), prof(0, 0)); // crossbows (untrained)
     }
 
     /// Reproduces the exact `op233` bytes EEKeeper writes for the four

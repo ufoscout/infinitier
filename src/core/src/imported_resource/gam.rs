@@ -438,6 +438,20 @@ mod tests {
                 ),
             }
         }
+
+        // Proficiency points come from the V9.0 header block (stats
+        // 89..=103). The first party member (Praescott) is trained in large
+        // swords, bows, great swords and crossbow — values that read as 0
+        // before V9.0 header proficiencies were wired up.
+        let Some(NpcCre::Cre(praescott)) = &imported.party_npcs[0].cre else {
+            unreachable!("party slot 0 verified above");
+        };
+        let first = |stat: u8| praescott.proficiency(stat).first_class;
+        assert_eq!(first(89), 2, "large swords"); // IE_PROFICIENCY stat 89
+        assert_eq!(first(91), 2, "bows");
+        assert_eq!(first(95), 2, "great swords");
+        assert_eq!(first(103), 1, "crossbows");
+        assert_eq!(first(93), 0, "axes (untrained)");
     }
 
     #[test]

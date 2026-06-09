@@ -21,7 +21,8 @@
     - [X] Characteristics -> Miscellaneous issues
     - [X] Proficiencies -> Check Imoen for a dual class
     - [X] Proficiencies -> Create a dual classed character and check the values
-- [ ] iwd (TODO)
+- [ ] iwd
+    - [X] Proficiencies -> No values shown
 - [X] iwdee
     - [X] Proficiencies -> Create a dual classed character and check the values
     - [X] Characteristics -> Fix Kit and Racial labels
