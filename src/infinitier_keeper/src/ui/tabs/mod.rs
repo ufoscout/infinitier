@@ -126,10 +126,10 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
     let Some(member) = active.save.party_npcs.get(idx) else {
         return;
     };
-    let Some(NpcCre::Cre(boxed)) = member.cre.as_ref() else {
+    let Some(NpcCre::Cre(imported)) = member.cre.as_ref() else {
         return;
     };
-    let cre: &Cre = boxed.as_ref();
+    let cre: &Cre = imported.cre();
     let gam: &ImportedGam = &active.save;
     let game: Game = state.game_data.game();
     match active.selected_tab {
@@ -138,7 +138,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         // kit / …) and the strongest-kill strref, so it needs
         // `game_data`; the kill statistics live in the GAM party
         // slot's raw struct, so it also takes `member`.
-        CharacterTab::Characteristics => CharacteristicsTab.show(ui, cre, member, &state.game_data),
+        CharacterTab::Characteristics => {
+            CharacteristicsTab.show(ui, imported, member, &state.game_data)
+        }
         // Appearance resolves the animation id via ANIMATE.IDS and the
         // colour-gradient swatches via the palette BMP, so it needs
         // `game_data`.

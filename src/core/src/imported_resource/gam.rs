@@ -1,7 +1,9 @@
 use std::io;
 
 use infinitier_common::Game;
-use infinitier_cre_resource::{Cre, CreExporter, CreImporter};
+use infinitier_cre_resource::{CreExporter, CreImporter};
+
+use super::cre::ImportedCre;
 use infinitier_datasource::{DataSource, Importer};
 use infinitier_gam_resource::{
     Gam, GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, JournalEntry, NpcCharStats,
@@ -82,7 +84,7 @@ pub struct ImportedGamNpc {
 #[derive(Debug, Clone)]
 pub enum NpcCre {
     /// Embedded CRE blob, parsed from `gam_file[cre_offset .. cre_offset + cre_size]`.
-    Cre(Box<Cre>),
+    Cre(ImportedCre),
     /// External CRE referenced by resref. The string is
     /// [`GamNpc::character_name`] trimmed of trailing NUL bytes /
     /// whitespace.
@@ -252,7 +254,7 @@ fn resolve_npc(
             game,
         }
         .import(&DataSource::new(cre_bytes))?;
-        Some(NpcCre::Cre(Box::new(parsed)))
+        Some(NpcCre::Cre(ImportedCre::new(parsed)))
     } else if !resref.is_empty() {
         // No embedded CRE but the slot still carries a name — treat
         // it as an external resref the engine will resolve against

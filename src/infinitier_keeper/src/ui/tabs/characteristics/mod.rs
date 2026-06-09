@@ -10,8 +10,8 @@ mod view;
 
 use eframe::egui;
 use infinitier_core::game::GameData;
+use infinitier_core::imported_resource::cre::ImportedCre;
 use infinitier_core::imported_resource::gam::ImportedGamNpc;
-use infinitier_core::resource::cre::Cre;
 
 use data::CharData;
 
@@ -20,7 +20,13 @@ pub struct CharacteristicsTab;
 impl CharacteristicsTab {
     /// `npc` is the GAM party slot — its typed `char_stats` block
     /// carries the kill statistics, which don't live in the CRE.
-    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, npc: &ImportedGamNpc, game_data: &GameData) {
+    pub fn show(
+        &self,
+        ui: &mut egui::Ui,
+        cre: &ImportedCre,
+        npc: &ImportedGamNpc,
+        game_data: &GameData,
+    ) {
         let data = CharData::resolve(cre, &npc.char_stats, game_data);
         view::render(ui, &data, game_data);
     }

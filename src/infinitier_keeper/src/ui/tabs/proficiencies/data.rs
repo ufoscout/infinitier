@@ -41,6 +41,7 @@ pub fn proficiency_rows(cre: &Cre, proficiencies: &[Proficiency]) -> Vec<ProfRow
 mod tests {
     use super::*;
     use infinitier_core::fs::{DataSource, Importer};
+    use infinitier_core::imported_resource::cre::ImportedCre;
     use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
     use infinitier_core::resource::Game;
     use infinitier_core::resource::gam::GamImporter;
@@ -50,7 +51,7 @@ mod tests {
     /// effects.
     const SAVE: &str = "SAV_GAM/bg_ee/save/000000001-Salvataggio Rapido/BALDUR.gam";
 
-    fn party_cre(name: &str) -> Box<Cre> {
+    fn party_cre(name: &str) -> ImportedCre {
         let path = infinitier_test_utils::get_assets_path().join(SAVE);
         let gam = GamImporter {
             name: "test",

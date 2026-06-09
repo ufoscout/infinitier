@@ -75,6 +75,29 @@ impl From<Cre> for ImportedCre {
     }
 }
 
+// `ImportedCre` is an owning smart pointer over the CRE: deref / `as_ref`
+// give transparent access to the wrapped [`Cre`] (its parser-level fields
+// and methods), while the inherent methods above add the resource-resolved
+// queries. This lets it stand in wherever a `&Cre` was used before.
+impl std::ops::Deref for ImportedCre {
+    type Target = Cre;
+    fn deref(&self) -> &Cre {
+        &self.cre
+    }
+}
+
+impl std::ops::DerefMut for ImportedCre {
+    fn deref_mut(&mut self) -> &mut Cre {
+        &mut self.cre
+    }
+}
+
+impl AsRef<Cre> for ImportedCre {
+    fn as_ref(&self) -> &Cre {
+        &self.cre
+    }
+}
+
 /// The name strref of the `KITLIST.2DA` row whose `KITIDS` column equals
 /// `value` (the word-swapped kit dword): the mixed-case `MIXED` column,
 /// falling back to `LOWER`. `None` when no row matches or it carries no

@@ -109,7 +109,12 @@ impl CharData {
     /// Extract + resolve everything the tab paints. The kill
     /// statistics come from the GAM party slot's typed
     /// [`NpcCharStats`] block (parsed by the gam importer).
-    pub fn resolve(cre: &Cre, char_stats: &NpcCharStats, game_data: &GameData) -> CharData {
+    pub fn resolve(
+        imported: &ImportedCre,
+        char_stats: &NpcCharStats,
+        game_data: &GameData,
+    ) -> CharData {
+        let cre: &Cre = imported.cre();
         let kill = KillStats {
             strongest_name_strref: char_stats.most_powerful_vanquished_name,
             strongest_xp: char_stats.most_powerful_vanquished_xp,
@@ -142,10 +147,6 @@ impl CharData {
             };
         };
 
-        // Owning view used for the resource-resolved labels (kit / racial
-        // enemy need KITLIST.2DA / HATERACE.2DA via the game data).
-        let imported = ImportedCre::new(cre.clone());
-
         // PST:EE repurposes the "kit" dword as a Deity (low word) +
         // mage-specialisation (high word) pair — see NearInfinity's
         // `Game.PSTEE` branch in `CreResource`. There we show those two
@@ -156,7 +157,7 @@ impl CharData {
                 mage_type: resolve_mage_type(game_data, (raw.kit >> 16) as i32),
             }
         } else {
-            Specialization::Kit(resolve_kit(game_data, &imported))
+            Specialization::Kit(resolve_kit(game_data, imported))
         };
 
         CharData {
@@ -166,7 +167,7 @@ impl CharData {
             class: ids_pretty(game_data, "class", raw.class as i32, " / "),
             original_class: original_class_label,
             specialization,
-            racial_enemy: resolve_racial_enemy(game_data, &imported),
+            racial_enemy: resolve_racial_enemy(game_data, imported),
             enemy_ally: ids_pretty(game_data, "ea", raw.ea as i32, " "),
             state: resolve_state(game_data, raw.state_flags),
             // No overall-move-rate field in the CRE header; the engine

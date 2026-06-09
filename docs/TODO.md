@@ -3,6 +3,9 @@
 ## ToDo List
 
 - [ ] EngineCaps should be part of the GameData
+- [ ] Keeper Innate tab should show spell icons
+- [ ] Keeper Wizard tab should show spell icons
+- [ ] Keeper Priest tab should show spell icons
 
 
 ## Check Game values
@@ -36,6 +39,11 @@
     - [X] Morte has 100% poison resistance in the game: this is nowhere in the savegame
 
 
-## errors:
+## Keeper errors:
+- [ ] Tables are different in different tabs
+- [ ] Table rows are not clickable where there is text
+- [ ] should load a game with a double click
+- [ ] Check why the 16th Inventory slot is called "Magic Weapon"
+      - In Sword Keeper is called "Inventory"
 
 
