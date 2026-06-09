@@ -392,6 +392,54 @@ mod tests {
         }
     }
 
+    /// Every party member of a full six-character classic Icewind Dale save
+    /// must read as a fully-parsed, embedded CRE.
+    ///
+    /// Regression for the IWD NPC-record-size bug: IWD's GAM record is 384
+    /// bytes (not the BG 352), and — like PST — it has no shared
+    /// party-inventory section to derive that from. With the wrong stride the
+    /// keeper failed to start (a later slot's CRE pointer landed on a
+    /// zero-filled region → "Unsupported CRE signature: [0,0,0,0]"). This
+    /// 6-member auto-save exercises all of them.
+    #[test]
+    fn iwd_every_party_member_is_a_readable_embedded_cre() {
+        let gam = load_gam(
+            "iwd/mpsave/000000000-Auto-Save/ICEWIND.GAM",
+            Game::Iwd {
+                heart_of_winter: false,
+                totl: false,
+            }
+            .engine(),
+        );
+        let imported = ImportedGam::load_with_tlk(
+            gam,
+            Game::Iwd {
+                heart_of_winter: false,
+                totl: false,
+            },
+            None,
+        )
+        .expect("ImportedGam::load_with_tlk");
+        assert_eq!(
+            imported.party_npcs.len(),
+            6,
+            "IWD auto-save should carry a full six-character party",
+        );
+        for npc in &imported.party_npcs {
+            match &npc.cre {
+                Some(NpcCre::Cre(cre)) => assert!(
+                    cre.maximum_hit_points() > 0,
+                    "party slot {} has a CRE but zero max HP — likely misread",
+                    npc.index,
+                ),
+                other => panic!(
+                    "party slot {} is not a readable embedded CRE: {other:?}",
+                    npc.index,
+                ),
+            }
+        }
+    }
+
     #[test]
     fn load_fails_when_dialog_tlk_is_not_reachable() {
         // The bg_ee corpus root doesn't ship a dialog.tlk next to it,

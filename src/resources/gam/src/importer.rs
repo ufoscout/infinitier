@@ -134,7 +134,7 @@ impl Importer for GamImporter<'_> {
             file_size,
             self.name,
         )?;
-        let npc_size = npc_record_size(&table, version, self.engine);
+        let npc_size = npc_record_size(version, self.engine);
         let party_npcs = parse_npcs(
             &mut reader,
             table.party_npc_offset,
@@ -254,32 +254,26 @@ fn parse_header(reader: &mut GamReader) -> std::io::Result<(GamHeader, SectionTa
 /// Per-NPC record size, in bytes.
 ///
 /// The `V1.1` version string is shared by BG1, IWD and Planescape: Torment,
-/// which do *not* agree on the NPC record size — BG1/IWD use 352 (`0x160`),
-/// PST uses 360 (`0x168`, an 8-byte-larger struct). The version alone can't
-/// tell them apart, so:
-/// - PST is identified by [`Engine::Pst`] and pinned to 360. (Its derivation
-///   below can't work anyway: PST has no shared party-inventory section, so
-///   `party_inventory_offset` is 0 and the span underflows.)
-/// - For BG1/IWD we derive the stride from the gap between the party-NPC and
-///   party-inventory sections when possible, falling back to 352.
+/// which do *not* agree on the NPC record size, and the size can't be derived
+/// from the section table (both IWD and PST leave `party_inventory_offset` at
+/// 0 — they have no shared party-inventory section). So it's keyed on the
+/// engine, matching NearInfinity's `PartyNPC` sizes:
+/// - BG1 / BG2 / EE → 352 (`0x160`)
+/// - PST → 360 (`0x168`)
+/// - IWD → 384 (`0x180`)
+/// - IWD2 → 832 (`0x340`)
 ///
 /// Getting this wrong silently misreads every NPC after the first (their CRE
 /// pointers land mid-record), so they show up as empty/external slots.
-fn npc_record_size(t: &SectionTable, version: GamVersion, engine: Engine) -> u32 {
+fn npc_record_size(version: GamVersion, engine: Engine) -> u32 {
     match version {
         GamVersion::V2_2 => 832,
         GamVersion::V2_0 | GamVersion::V2_1 => 352,
-        GamVersion::V1_1 if engine == Engine::Pst => 360,
-        GamVersion::V1_1 => {
-            if t.party_npc_count > 0 && t.party_inventory_offset > t.party_npc_offset {
-                let span = t.party_inventory_offset - t.party_npc_offset;
-                let derived = span / t.party_npc_count;
-                if derived >= NPC_HEADER_LEN as u32 {
-                    return derived;
-                }
-            }
-            352
-        }
+        GamVersion::V1_1 => match engine {
+            Engine::Pst => 360,
+            Engine::Iwd => 384,
+            _ => 352,
+        },
     }
 }
 
@@ -973,23 +967,13 @@ mod tests {
     }
 
     #[test]
-    fn test_npc_record_size_pst_is_360() {
-        // PST's missing party-inventory section makes the derivation
-        // impossible (`party_inventory_offset == 0`), so it must be pinned
-        // by engine, not derived/fallen-back to the BG 352.
-        let table = SectionTable {
-            party_npc_offset: 0xB8,
-            party_npc_count: 5,
-            party_inventory_offset: 0, // PST has no shared party inventory
-            non_party_npc_offset: 0,
-            non_party_npc_count: 0,
-            globals_offset: 0,
-            globals_count: 0,
-            journal_offset: 0,
-            journal_count: 0,
-        };
-        assert_eq!(npc_record_size(&table, GamVersion::V1_1, Engine::Pst), 360);
-        assert_eq!(npc_record_size(&table, GamVersion::V1_1, Engine::Bg), 352);
+    fn test_npc_record_size_v1_1_is_keyed_on_engine() {
+        // The shared "V1.1" version can't be derived from the section table
+        // (both IWD and PST leave `party_inventory_offset == 0`), so the size
+        // is pinned per engine — matching NearInfinity's PartyNPC sizes.
+        assert_eq!(npc_record_size(GamVersion::V1_1, Engine::Bg), 352);
+        assert_eq!(npc_record_size(GamVersion::V1_1, Engine::Pst), 360);
+        assert_eq!(npc_record_size(GamVersion::V1_1, Engine::Iwd), 384);
     }
 
     #[test]

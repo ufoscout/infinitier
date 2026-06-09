@@ -497,8 +497,8 @@ mod tests {
     /// weapon region.
     #[test]
     fn bg_and_pstee_agree_on_inventory_tail() {
-        for i in 21..=37 {
-            assert_eq!(BG_SLOT_LABELS[i], pstee_label(i), "slot {i}");
+        for (i, item) in BG_SLOT_LABELS.iter().enumerate().take(37 + 1).skip(21) {
+            assert_eq!(*item, pstee_label(i), "slot {i}");
         }
     }
 
