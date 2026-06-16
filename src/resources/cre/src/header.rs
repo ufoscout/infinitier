@@ -2072,8 +2072,11 @@ pub struct CreHeaderV22 {
     pub maximum_hit_points: u16,
     /// 0x0028 (4 B): Animation ID (ANIMATE.IDS) 0x002c
     pub animation_id_animate_ids_0x002c: u32,
-    /// 0x002C (1 B): gap of 1 bytes between documented fields
-    pub _padding_01: Vec<u8>,
+    /// 0x002C (1 B): Metal Colour Index (BG1 animations). The CRE colour
+    /// block is the canonical seven contiguous bytes (Metal, Minor, Major,
+    /// Skin, Leather, Armor, Hair); IESDP leaves this byte undocumented but
+    /// IWD2 editors (Dale Keeper 2) expose it as the Metal colour.
+    pub metal_colour_index_bg1_animations: u8,
     /// 0x002D (1 B): Minor Colour Index (BG1 animations)
     pub minor_colour_index_bg1_animations: u8,
     /// 0x002E (1 B): Major Colour Index (BG1 animations)
@@ -2431,7 +2434,7 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
         current_hit_points: read_u16(0x0024),
         maximum_hit_points: read_u16(0x0026),
         animation_id_animate_ids_0x002c: read_u32(0x0028),
-        _padding_01: header[0x002C..0x002D].to_vec(),
+        metal_colour_index_bg1_animations: read_u8(0x002C),
         minor_colour_index_bg1_animations: read_u8(0x002D),
         major_colour_index_bg1_animations: read_u8(0x002E),
         skin_colour_index_bg1_animations: read_u8(0x002F),
@@ -2623,11 +2626,7 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
     buf[0x0024..0x0026].copy_from_slice(&h.current_hit_points.to_le_bytes());
     buf[0x0026..0x0028].copy_from_slice(&h.maximum_hit_points.to_le_bytes());
     buf[0x0028..0x002C].copy_from_slice(&h.animation_id_animate_ids_0x002c.to_le_bytes());
-    {
-        let src = &h._padding_01;
-        let n = src.len().min(1);
-        buf[0x002C..0x002C + n].copy_from_slice(&src[..n]);
-    }
+    buf[0x002C] = h.metal_colour_index_bg1_animations;
     buf[0x002D] = h.minor_colour_index_bg1_animations;
     buf[0x002E] = h.major_colour_index_bg1_animations;
     buf[0x002F] = h.skin_colour_index_bg1_animations;

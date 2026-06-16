@@ -20,51 +20,22 @@ pub struct AppearanceData {
     pub animation_id: u32,
     /// The seven colours, in EEKeeper's display order (row-major over a
     /// two-column grid): Hair / Skin, Clothing Major / Clothing Minor,
-    /// Armor / Leather, Metal.
-    pub colors: [ColorSlot; 7],
+    /// Armor / Leather, Metal. (A `Vec` rather than `[_; 7]` so the layout can
+    /// flex if a future header version carries a different count.)
+    pub colors: Vec<ColorSlot>,
 }
 
-/// Pull the appearance fields out of the CRE header. V1.0 (BG / BG2 / EE),
-/// V9.0 (classic IWD / HoW) and V1.2 (classic PST) all carry an animation id
-/// plus the seven colour indices; only the generated field names differ. V2.2
-/// (IWD2) isn't decoded here and returns `None`, so the tab shows nothing.
+/// Pull the appearance fields out of the CRE header. Every supported version —
+/// V1.0 (BG / BG2 / EE), V9.0 (classic IWD / HoW), V1.2 (classic PST) and V2.2
+/// (IWD2) — carries an animation id plus the seven colour indices; only the
+/// generated field names differ.
 pub fn appearance_data(cre: &Cre) -> Option<AppearanceData> {
-    // Build the seven colour slots in EEKeeper's display order (row-major
-    // over a two-column grid). The colour-field idents differ per header
-    // version, so the slot fields are passed explicitly.
+    // Build the colour slots in EEKeeper's display order (row-major over a
+    // two-column grid) from `"Label" => field` pairs — both the label set and
+    // the field idents differ per header version.
     macro_rules! colour_slots {
-        ($h:expr, $hair:ident, $skin:ident, $major:ident, $minor:ident,
-         $armor:ident, $leather:ident, $metal:ident) => {
-            [
-                ColorSlot {
-                    label: "Hair",
-                    index: $h.$hair,
-                },
-                ColorSlot {
-                    label: "Skin",
-                    index: $h.$skin,
-                },
-                ColorSlot {
-                    label: "Clothing Major",
-                    index: $h.$major,
-                },
-                ColorSlot {
-                    label: "Clothing Minor",
-                    index: $h.$minor,
-                },
-                ColorSlot {
-                    label: "Armor",
-                    index: $h.$armor,
-                },
-                ColorSlot {
-                    label: "Leather",
-                    index: $h.$leather,
-                },
-                ColorSlot {
-                    label: "Metal",
-                    index: $h.$metal,
-                },
-            ]
+        ($h:expr, $( $label:literal => $field:ident ),+ $(,)?) => {
+            vec![ $( ColorSlot { label: $label, index: $h.$field } ),+ ]
         };
     }
     let (animation_id, colors) = match &cre.header {
@@ -72,42 +43,56 @@ pub fn appearance_data(cre: &Cre) -> Option<AppearanceData> {
             h.animation_id,
             colour_slots!(
                 h,
-                hair_colour_index,
-                skin_colour_index,
-                major_colour_index,
-                minor_colour_index,
-                armor_colour_index,
-                leather_colour_index,
-                metal_colour_index
+                "Hair" => hair_colour_index,
+                "Skin" => skin_colour_index,
+                "Clothing Major" => major_colour_index,
+                "Clothing Minor" => minor_colour_index,
+                "Armor" => armor_colour_index,
+                "Leather" => leather_colour_index,
+                "Metal" => metal_colour_index,
             ),
         ),
         CreHeader::V90(h) => (
             h.animation_id_animate_ids,
             colour_slots!(
                 h,
-                hair_colour_index,
-                skin_colour_index,
-                major_colour_index,
-                minor_colour_index,
-                armor_colour_index,
-                leather_colour_index,
-                metal_colour_index
+                "Hair" => hair_colour_index,
+                "Skin" => skin_colour_index,
+                "Clothing Major" => major_colour_index,
+                "Clothing Minor" => minor_colour_index,
+                "Armor" => armor_colour_index,
+                "Leather" => leather_colour_index,
+                "Metal" => metal_colour_index,
             ),
         ),
         CreHeader::V12(h) => (
             h.animation_id_animate_ids,
             colour_slots!(
                 h,
-                hair_colour_index_bg1_animations,
-                skin_colour_index_bg1_animations,
-                major_colour_index_bg1_animations,
-                minor_colour_index_bg1_animations,
-                armor_colour_index_bg1_animations,
-                leather_colour_index_bg1_animations,
-                metal_colour_index_bg1_animations
+                "Hair" => hair_colour_index_bg1_animations,
+                "Skin" => skin_colour_index_bg1_animations,
+                "Clothing Major" => major_colour_index_bg1_animations,
+                "Clothing Minor" => minor_colour_index_bg1_animations,
+                "Armor" => armor_colour_index_bg1_animations,
+                "Leather" => leather_colour_index_bg1_animations,
+                "Metal" => metal_colour_index_bg1_animations,
             ),
         ),
-        CreHeader::V22(_) => return None,
+        // IWD2: same seven BG1-animation colour fields as V1.2 (Metal lives
+        // at offset 0x2C, between the animation id and the Minor colour).
+        CreHeader::V22(h) => (
+            h.animation_id_animate_ids_0x002c,
+            colour_slots!(
+                h,
+                "Hair" => hair_colour_index_bg1_animations,
+                "Skin" => skin_colour_index_bg1_animations,
+                "Clothing Major" => major_colour_index_bg1_animations,
+                "Clothing Minor" => minor_colour_index_bg1_animations,
+                "Armor" => armor_colour_index_bg1_animations,
+                "Leather" => leather_colour_index_bg1_animations,
+                "Metal" => metal_colour_index_bg1_animations,
+            ),
+        ),
     };
     Some(AppearanceData {
         animation_id,
@@ -158,6 +143,32 @@ mod tests {
         assert_eq!(colour(&appearance, "Clothing Minor"), 37);
         assert_eq!(colour(&appearance, "Armor"), 28);
         assert_eq!(colour(&appearance, "Leather"), 23);
+        assert_eq!(colour(&appearance, "Metal"), 30);
+    }
+
+    /// IWD2 creatures are CRE V2.2: same seven BG1-animation colours as PST
+    /// (V1.2), including Metal — which lives at offset 0x2C (between the
+    /// animation id and the Minor colour), a byte IESDP leaves undocumented.
+    /// Previously V2.2 returned `None` → "Appearance is unavailable".
+    #[test]
+    fn appearance_data_reads_v2_2_iwd2_cre() {
+        let path = infinitier_test_utils::get_assets_path().join("cre/v2_2/52SERSA.cre");
+        let cre = CreImporter {
+            name: "52SERSA",
+            game: Game::Iwd2,
+        }
+        .import(&DataSource::new(path.as_path()))
+        .expect("import V2.2 CRE fixture");
+
+        let appearance = appearance_data(&cre).expect("V2.2 appearance must be readable");
+        assert_eq!(appearance.animation_id, 0x6510);
+        assert_eq!(appearance.colors.len(), 7);
+        assert_eq!(colour(&appearance, "Hair"), 0);
+        assert_eq!(colour(&appearance, "Skin"), 13);
+        assert_eq!(colour(&appearance, "Clothing Major"), 66);
+        assert_eq!(colour(&appearance, "Clothing Minor"), 47);
+        assert_eq!(colour(&appearance, "Armor"), 28);
+        assert_eq!(colour(&appearance, "Leather"), 66);
         assert_eq!(colour(&appearance, "Metal"), 30);
     }
 
