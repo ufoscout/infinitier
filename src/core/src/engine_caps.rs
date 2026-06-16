@@ -1091,7 +1091,7 @@ pub struct AbilityBonuses {
 /// IWD2 (d20) ability modifier: `floor((score - 10) / 2)`. Pure
 /// formula, no 2DA involved. Negative for scores below 10; positive
 /// for 12+.
-pub fn d20_modifier(score: u8) -> i8 {
+fn d20_modifier(score: u8) -> i8 {
     ((score as i16) - 10).div_euclid(2) as i8
 }
 

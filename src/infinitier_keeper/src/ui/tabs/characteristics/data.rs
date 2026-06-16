@@ -25,12 +25,16 @@ use infinitier_core::imported_resource::cre::ImportedCre;
 use infinitier_core::resource::Game;
 use infinitier_core::resource::cre::{Cre, CreHeader, CreHeaderV22, CreatureFlags};
 use infinitier_core::resource::gam::NpcCharStats;
+use infinitier_core::resource::two_da::TwoDA;
 
 /// Resolved, display-ready characteristics for one creature.
 #[derive(Debug, Default, Clone)]
 pub struct CharData {
     pub gender: String,
     pub race: String,
+    /// IWD2-only subrace (e.g. "Elf Drow"); empty on every other engine,
+    /// where the view hides the row.
+    pub sub_race: String,
     pub alignment: String,
     pub class: String,
     pub original_class: String,
@@ -98,6 +102,9 @@ pub struct KillStats {
 struct RawChar {
     gender: u8,
     race: u8,
+    /// IWD2 (V2.2) subrace byte; 0 ("PURERACE") on the AD&D engines, which
+    /// have no subrace field.
+    subrace: u8,
     alignment: u8,
     class: u8,
     ea: u8,
@@ -160,9 +167,14 @@ impl CharData {
             Specialization::Kit(resolve_kit(game_data, imported))
         };
 
-        // IWD2 reconstructs the class from the per-class level fields (the
-        // CLASS.IDS byte is stale on multiclass); every other engine resolves
-        // the single class byte. Fall back to the byte if no levels are set.
+        // IWD2 (V2.2) diverges from the AD&D engines in three identity fields:
+        //  - class is rebuilt from the per-class level array (the CLASS.IDS
+        //    byte is stale once multiclassed);
+        //  - alignment names come from ALIGNS.2DA, not ALIGNMEN.IDS (which
+        //    IWD2 doesn't ship), so the IDS lookup would otherwise show blank;
+        //  - a subrace byte (combined with the base race) resolves a SUBRACE
+        //    name like "Elf Drow". None of these exist on the other engines.
+        let is_iwd2 = matches!(cre.header, CreHeader::V22(_));
         let class = match &cre.header {
             CreHeader::V22(h) => {
                 let by_levels = iwd2_class_label(h);
@@ -174,11 +186,22 @@ impl CharData {
             }
             _ => ids_pretty(game_data, "class", raw.class as i32, " / "),
         };
+        let alignment = if is_iwd2 {
+            iwd2_alignment(game_data, raw.alignment)
+        } else {
+            ids_pretty(game_data, "alignmen", raw.alignment as i32, " ")
+        };
+        let sub_race = if is_iwd2 {
+            iwd2_sub_race(game_data, raw.race, raw.subrace)
+        } else {
+            String::new()
+        };
 
         CharData {
             gender: ids_pretty(game_data, "gender", raw.gender as i32, " "),
             race: ids_pretty(game_data, "race", raw.race as i32, " "),
-            alignment: ids_pretty(game_data, "alignmen", raw.alignment as i32, " "),
+            sub_race,
+            alignment,
             class,
             original_class: original_class_label,
             specialization,
@@ -206,6 +229,7 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
         CreHeader::V10(h) => Some(RawChar {
             gender: h.gender_gender_ids_dictates_the_casting,
             race: h.race_race_ids,
+            subrace: 0,
             alignment: h.alignment_alignmen_ids,
             class: h.class_class_ids,
             ea: h.enemy_ally_ea_ids,
@@ -215,6 +239,7 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
         CreHeader::V12(h) => Some(RawChar {
             gender: h.gender_gender_ids,
             race: h.race_race_ids,
+            subrace: 0,
             alignment: h.alignment_alignmen_ids,
             class: h.class_class_ids,
             ea: h.enemy_ally_ea_ids,
@@ -224,6 +249,7 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
         CreHeader::V90(h) => Some(RawChar {
             gender: h.gender_gender_ids,
             race: h.race_race_ids,
+            subrace: 0,
             alignment: h.alignment_alignmen_ids,
             class: h.class_class_ids,
             ea: h.enemy_ally_ea_ids,
@@ -239,6 +265,7 @@ fn raw_char(cre: &Cre) -> Option<RawChar> {
         CreHeader::V22(h) => Some(RawChar {
             gender: h.sex_gender_ids,
             race: h.race_race_ids,
+            subrace: h.subrace_subrace_ids,
             alignment: h.alignment_alignmen_ids,
             class: h.class_class_ids_not_updated_when,
             ea: h.enemy_ally_ea_ids,
@@ -297,6 +324,72 @@ fn ids_symbol(game_data: &GameData, ids_file: &str, value: i32) -> Option<String
         .iter()
         .find(|e| e.value == value)
         .map(|e| e.name.clone())
+}
+
+/// IWD2 alignment name, from `ALIGNS.2DA` rather than `ALIGNMEN.IDS` (IWD2
+/// doesn't ship the latter). The CRE stores the usual two-axis byte
+/// (`0x11` = lawful-good, `0x21` = neutral-good, …); `ALIGNS.2DA` maps it in
+/// its `VALUE` column, and the matching row's (symbolic) name — `NEUTRAL_GOOD`
+/// — title-cases to "Neutral Good". Blank when the table or value is missing.
+fn iwd2_alignment(game_data: &GameData, value: u8) -> String {
+    let Ok(aligns) = game_data.import_2da_by_name("aligns") else {
+        return String::new();
+    };
+    alignment_from_2da(&aligns, value)
+}
+
+/// The `ALIGNS.2DA` row name whose `VALUE` column equals the alignment byte,
+/// title-cased ("NEUTRAL_GOOD" → "Neutral Good"). Blank when there's no
+/// `VALUE` column or no matching row.
+fn alignment_from_2da(aligns: &TwoDA, value: u8) -> String {
+    let Some(value_col) = aligns
+        .headers
+        .iter()
+        .position(|h| h.eq_ignore_ascii_case("VALUE"))
+    else {
+        return String::new();
+    };
+    aligns
+        .rows
+        .iter()
+        .find(|(_, cells)| {
+            cells.get(value_col).and_then(|c| parse_2da_int(c)) == Some(i64::from(value))
+        })
+        .map(|(name, _)| pretty(name, " "))
+        .unwrap_or_default()
+}
+
+/// IWD2 subrace name (e.g. "Elf Drow"), from `SUBRACE.IDS`.
+///
+/// `SUBRACE.IDS` keys on a 32-bit packed value `(race << 16) | subrace`, but
+/// the CRE stores only the low subrace byte — so the byte alone is ambiguous
+/// (`1` is Aasimar for a human, Drow for an elf, …). We re-pack it with the
+/// creature's `RACE.IDS` value to disambiguate. The all-zero byte is
+/// `PURERACE` (value `0`, no race packed in). Blank when nothing matches.
+fn iwd2_sub_race(game_data: &GameData, race: u8, subrace: u8) -> String {
+    ids_symbol(game_data, "subrace", subrace_packed(race, subrace))
+        .map(|s| pretty(&s, " "))
+        .unwrap_or_default()
+}
+
+/// Re-pack the CRE's low subrace byte with the base `RACE.IDS` value into the
+/// 32-bit key `SUBRACE.IDS` uses: `(race << 16) | subrace`. A zero subrace
+/// byte is the `PURERACE` sentinel (value `0`), with no race packed in.
+fn subrace_packed(race: u8, subrace: u8) -> i32 {
+    if subrace == 0 {
+        0
+    } else {
+        (i32::from(race) << 16) | i32::from(subrace)
+    }
+}
+
+/// Parse a 2DA cell as an integer, accepting hex (`0x…`) or decimal.
+fn parse_2da_int(cell: &str) -> Option<i64> {
+    let cell = cell.trim();
+    match cell.strip_prefix("0x").or_else(|| cell.strip_prefix("0X")) {
+        Some(hex) => i64::from_str_radix(hex, 16).ok(),
+        None => cell.parse().ok(),
+    }
 }
 
 /// `KIT.IDS` stores the kit in a word-swapped form versus the CRE
@@ -434,7 +527,7 @@ mod tests {
     // KITLIST / HATERACE 2DA name resolution lives on `Cre` (see
     // `infinitier_cre_resource`); this module only orchestrates the lookup +
     // the IDS-symbol fallback, and the view does the strref → tlk step.
-    use super::{class_from_levels, pretty, raw_char};
+    use super::{TwoDA, class_from_levels, pretty, raw_char};
     use infinitier_core::fs::{DataSource, Importer};
     use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
     use infinitier_core::resource::Game;
@@ -483,6 +576,44 @@ mod tests {
     #[test]
     fn class_from_levels_no_levels_is_empty() {
         assert_eq!(class_from_levels(&[(0, "Fighter"), (0, "Wizard")]), "");
+    }
+
+    #[test]
+    fn subrace_packed_repacks_race_with_subrace_byte() {
+        // PURERACE: a zero byte is value 0 regardless of race.
+        assert_eq!(super::subrace_packed(1, 0), 0);
+        // Human (RACE.IDS 1) + Aasimar (1) → 0x10001 (SUBRACE.IDS HUMAN_AASIMAR).
+        assert_eq!(super::subrace_packed(1, 1), 0x0001_0001);
+        // Human + Tiefling (2) → 0x10002 (HUMAN_TIEFLING).
+        assert_eq!(super::subrace_packed(1, 2), 0x0001_0002);
+        // Elf (RACE.IDS 2) + 1 → 0x20001 (ELF_DROW) — the byte alone (1) would
+        // be ambiguous with the human's Aasimar without the race in the high
+        // word.
+        assert_eq!(super::subrace_packed(2, 1), 0x0002_0001);
+    }
+
+    /// IWD2 alignment names come from ALIGNS.2DA's `VALUE` column, not
+    /// ALIGNMEN.IDS. The two-axis byte (`0x21` = neutral-good) maps to the
+    /// row name, title-cased.
+    #[test]
+    fn alignment_from_2da_matches_value_column() {
+        let aligns = TwoDA {
+            headers: vec!["NAME_REF".into(), "VALUE".into(), "COLNAME".into()],
+            default: String::new(),
+            rows: [
+                ("LAWFUL_GOOD", vec!["7186", "0x11", "L_G"]),
+                ("NEUTRAL_GOOD", vec!["7183", "0x21", "N_G"]),
+                ("CHAOTIC_GOOD", vec!["7189", "0x31", "C_G"]),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.into_iter().map(str::to_string).collect()))
+            .collect(),
+        };
+        assert_eq!(super::alignment_from_2da(&aligns, 0x11), "Lawful Good");
+        assert_eq!(super::alignment_from_2da(&aligns, 0x21), "Neutral Good");
+        assert_eq!(super::alignment_from_2da(&aligns, 0x31), "Chaotic Good");
+        // No row carries this value.
+        assert_eq!(super::alignment_from_2da(&aligns, 0x99), "");
     }
 
     /// IWD2 creatures are CRE V2.2; previously `raw_char` returned `None` for

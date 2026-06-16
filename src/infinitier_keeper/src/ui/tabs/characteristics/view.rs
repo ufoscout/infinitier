@@ -55,13 +55,17 @@ fn identity_column(ui: &mut egui::Ui, data: &CharData, game_data: &GameData) {
         .show(ui, |ui| {
             simple_row(ui, "Gender", &data.gender);
             simple_row(ui, "Race", &data.race);
+            // IWD2 is the only engine with a subrace; hide the row otherwise.
+            if !data.sub_race.is_empty() {
+                simple_row(ui, "Sub Race", &data.sub_race);
+            }
             simple_row(ui, "Alignment", &data.alignment);
 
             // Class carries an inline "Fallen" (paladin/ranger) flag.
             label_cell(ui, "Class");
             ui.horizontal(|ui| {
-                read_only_check(ui, "Fallen", data.fallen);
                 value_box(ui, &data.class);
+                read_only_check(ui, "Fallen", data.fallen);
             });
             ui.end_row();
 

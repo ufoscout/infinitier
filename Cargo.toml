@@ -114,13 +114,7 @@ oxideav-core = "0.1"
 
 # egui UI
 # `default-features = false` drops eframe's `accesskit` feature which clashes with Xilem.
-eframe = { version = "0.34", default-features = false, features = [
-    "default_fonts",
-    "wayland",
-    "web_screen_reader",
-    "wgpu",
-    "x11",
-] }
+eframe = "0.34"
 egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
 egui_ltreeview = "0.7"
 egui-components = { git = "https://github.com/ufoscout/egui-components", branch = "main" }

@@ -28,9 +28,9 @@
     - [X] Proficiencies -> Create a dual classed character and check the values
     - [X] Characteristics -> Fix Kit and Racial labels
 - [ ] iwd2 (TODO)
-    - [ ] Characteristics -> empty
+    - [X] Characteristics -> empty
     - [ ] Apperance -> not implemented
-    - [ ] Inventory -> not implemented
+    - [X] Inventory -> not implemented
     - [ ] Memorization -> empty
     - [ ] Innate -> empty
     - [ ] Wizard -> empty
