@@ -17,7 +17,5 @@ log = { workspace = true }
 
 eframe = { workspace = true }
 egui-components = { workspace = true }
-egui_extras = { workspace = true }
-egui_ltreeview = { workspace = true }
 rodio = { workspace = true }
 ttf-inter = { workspace = true }

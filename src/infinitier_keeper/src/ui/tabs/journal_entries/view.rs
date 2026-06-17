@@ -13,9 +13,8 @@
 use std::collections::HashMap;
 
 use eframe::egui;
-use egui_extras::{Column, TableBuilder};
 
-use egui_components::Label;
+use egui_components::{Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::resource::gam::GameTicks;
 
@@ -37,7 +36,6 @@ pub fn render(ui: &mut egui::Ui, rows: &[JournalRow], game_data: &GameData) {
 
     let texts = resolve_texts(ui, game_data, rows);
     let calendar = resolve_calendar(ui, game_data);
-    let row_h = egui::TextStyle::Body.resolve(ui.style()).size + 8.0;
 
     let sel_id = egui::Id::new(SELECTED);
     let mut selected = ui
@@ -56,31 +54,24 @@ pub fn render(ui: &mut egui::Ui, rows: &[JournalRow], game_data: &GameData) {
 
     let mut clicked: Option<usize> = None;
     ui.allocate_ui(egui::vec2(ui.available_width(), table_h), |ui| {
-        TableBuilder::new(ui)
-            .striped(true)
-            .sense(egui::Sense::click())
-            .column(Column::initial(130.0).resizable(true))
-            .column(Column::remainder().clip(true))
-            .column(Column::initial(70.0).resizable(true))
-            .column(Column::initial(190.0).clip(true).resizable(true))
-            .header(row_h, |mut header| {
-                header.col(|ui| {
-                    ui.add(Label::new("Journal Type").strong());
-                });
-                header.col(|ui| {
-                    ui.add(Label::new("Journal Entry").strong());
-                });
-                header.col(|ui| {
-                    ui.add(Label::new("Chapter").strong());
-                });
-                header.col(|ui| {
-                    ui.add(Label::new("Time").strong());
-                });
-            })
-            .body(|body| {
-                body.rows(row_h, rows.len(), |mut row| {
-                    let i = row.index();
-                    row.set_selected(i == selected);
+        Table::new("journal_entries")
+            .selectable(true)
+            .column(
+                TableColumn::initial(130.0)
+                    .resizable(true)
+                    .header("Journal Type"),
+            )
+            .column(TableColumn::remainder().clip(true).header("Journal Entry"))
+            .column(TableColumn::initial(70.0).resizable(true).header("Chapter"))
+            .column(
+                TableColumn::initial(190.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Time"),
+            )
+            .show(ui, |body| {
+                body.rows(rows.len(), |i, mut row| {
+                    row.selected(i == selected);
                     let r = &rows[i];
                     let first_line = texts
                         .get(&r.strref)

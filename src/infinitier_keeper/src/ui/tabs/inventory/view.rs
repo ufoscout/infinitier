@@ -14,9 +14,8 @@
 use std::collections::{HashMap, HashSet};
 
 use eframe::egui;
-use egui_extras::{Column, TableBuilder};
 
-use egui_components::Label;
+use egui_components::{Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::imported_resource::cre::InventoryRow;
@@ -62,31 +61,30 @@ pub fn render(ui: &mut egui::Ui, rows: &[InventoryRow], game_data: &GameData) {
     let items = resolve_items(ui, game_data, rows);
     let icons = resolve_icons(ui, game_data, &items);
 
-    TableBuilder::new(ui)
-        .striped(true)
-        .column(Column::exact(ROW_H)) // icon
-        .column(Column::initial(110.0).resizable(true)) // position
-        .column(Column::initial(80.0).resizable(true)) // quantity
-        .column(Column::remainder().clip(true)) // item name
-        .column(Column::initial(110.0).clip(true).resizable(true)) // resource
-        .header(ROW_H, |mut header| {
-            header.col(|_| {});
-            header.col(|ui| {
-                ui.add(Label::new("Position").strong());
-            });
-            header.col(|ui| {
-                ui.add(Label::new("Quantity").strong());
-            });
-            header.col(|ui| {
-                ui.add(Label::new("Item").strong());
-            });
-            header.col(|ui| {
-                ui.add(Label::new("Resource").strong());
-            });
-        })
-        .body(|body| {
-            body.rows(ROW_H, rows.len(), |mut row| {
-                let r = &rows[row.index()];
+    Table::new("inventory")
+        .row_height(ROW_H)
+        .header_height(ROW_H)
+        .column(TableColumn::exact(ROW_H)) // icon
+        .column(
+            TableColumn::initial(110.0)
+                .resizable(true)
+                .header("Position"),
+        )
+        .column(
+            TableColumn::initial(80.0)
+                .resizable(true)
+                .header("Quantity"),
+        )
+        .column(TableColumn::remainder().clip(true).header("Item"))
+        .column(
+            TableColumn::initial(110.0)
+                .clip(true)
+                .resizable(true)
+                .header("Resource"),
+        )
+        .show(ui, |body| {
+            body.rows(rows.len(), |i, mut row| {
+                let r = &rows[i];
                 let resref = row_resref(r);
                 let display = items.get(resref);
 

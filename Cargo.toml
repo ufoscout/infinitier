@@ -115,8 +115,6 @@ oxideav-core = "0.1"
 # egui UI
 # `default-features = false` drops eframe's `accesskit` feature which clashes with Xilem.
 eframe = "0.34"
-egui_extras = "0.34"   # extra widgets: tables, date pickers, image loading
-egui_ltreeview = "0.7"
 egui-components = { git = "https://github.com/ufoscout/egui-components", branch = "main" }
 # Bundles the Inter typeface (OFL-1.1, https://rsms.me/inter) as a
 # `pub const REGULAR: &[u8]`. The active weight is selected via the

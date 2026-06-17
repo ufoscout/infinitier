@@ -12,8 +12,7 @@
 use std::collections::HashMap;
 
 use eframe::egui;
-use egui_components::Label;
-use egui_extras::{Column, TableBuilder};
+use egui_components::{Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::resource::ids::Ids;
 
@@ -24,55 +23,79 @@ use super::opcode_names::effect_name;
 const RESOURCE_CACHE: &str = "effects_resource_cache";
 
 pub fn render(ui: &mut egui::Ui, rows: &[EffectRow], game_data: &GameData) {
-    let row_h = ui.text_style_height(&egui::TextStyle::Body);
-
     // Resolve each distinct, non-empty resref to its display name,
     // memoised per resref in the egui frame store. `SPELL.IDS` is
     // loaded at most once, and only when there are uncached resrefs.
     let resolved = resolve_resources(ui, game_data, rows);
 
-    egui::ScrollArea::both().show(ui, |ui| {
-        TableBuilder::new(ui)
-            .striped(true)
-            .vscroll(false)
+    let max_h = ui.available_height();
+    egui::ScrollArea::horizontal().show(ui, |ui| {
+        Table::new("effects")
+            .resizable(true)
+            .max_height(max_h)
             .column(
-                Column::initial(250.0)
+                TableColumn::initial(250.0)
                     .at_least(120.0)
                     .clip(true)
-                    .resizable(true),
-            ) // Type
-            .column(Column::initial(70.0).clip(true).resizable(true)) // Name
-            .column(Column::initial(78.0).resizable(true)) // Parameter 1
-            .column(Column::initial(78.0).resizable(true)) // Parameter 2
-            .column(Column::initial(160.0).clip(true).resizable(true)) // Resource 0
-            .column(Column::initial(110.0).clip(true).resizable(true)) // Resource 1
-            .column(Column::initial(110.0).clip(true).resizable(true)) // Resource 2
-            .column(Column::initial(160.0).clip(true).resizable(true)) // Resource 3
-            .column(Column::initial(80.0).resizable(true)) // Time
-            .column(Column::initial(150.0).clip(true).resizable(true)) // Flags
-            .column(Column::initial(140.0).clip(true).resizable(true)) // Target
-            .header(row_h, |mut header| {
-                for title in [
-                    "Type",
-                    "Name",
-                    "Parameter 1",
-                    "Parameter 2",
-                    "Resource 0",
-                    "Resource 1",
-                    "Resource 2",
-                    "Resource 3",
-                    "Time",
-                    "Flags",
-                    "Target",
-                ] {
-                    header.col(|ui| {
-                        ui.add(Label::new(title).strong());
-                    });
-                }
-            })
-            .body(|mut body| {
+                    .resizable(true)
+                    .header("Type"),
+            )
+            .column(
+                TableColumn::initial(70.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Name"),
+            )
+            .column(
+                TableColumn::initial(78.0)
+                    .resizable(true)
+                    .header("Parameter 1"),
+            )
+            .column(
+                TableColumn::initial(78.0)
+                    .resizable(true)
+                    .header("Parameter 2"),
+            )
+            .column(
+                TableColumn::initial(160.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Resource 0"),
+            )
+            .column(
+                TableColumn::initial(110.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Resource 1"),
+            )
+            .column(
+                TableColumn::initial(110.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Resource 2"),
+            )
+            .column(
+                TableColumn::initial(160.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Resource 3"),
+            )
+            .column(TableColumn::initial(80.0).resizable(true).header("Time"))
+            .column(
+                TableColumn::initial(150.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Flags"),
+            )
+            .column(
+                TableColumn::initial(140.0)
+                    .clip(true)
+                    .resizable(true)
+                    .header("Target"),
+            )
+            .show(ui, |mut body| {
                 for row in rows {
-                    body.row(row_h, |mut tr| {
+                    body.row(|mut tr| {
                         tr.col(|ui| {
                             ui.add(Label::new(type_text(row.opcode)));
                         });

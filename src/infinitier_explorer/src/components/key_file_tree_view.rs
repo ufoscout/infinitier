@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use eframe::egui;
-use egui_ltreeview::{Action, NodeBuilder, TreeView};
+use egui_components::theme::Theme;
+use egui_components::{Tree, TreeAction, TreeViewState};
 use infinitier_core::game::{DataOrigin, GameData};
 
 use crate::state::AppState;
@@ -37,28 +38,53 @@ impl KeyFileTreeView {
 
     /// Renders the tree and returns the label of the newly selected resource leaf, if any.
     pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState) {
-        let (_, actions) = TreeView::new(ui.id().with("key_file_tree_view"))
-            .allow_drag_and_drop(false)
-            .allow_multi_selection(false)
-            .show(ui, |builder| {
-                for (type_label, entries) in &self.groups {
-                    let dir_label = format!("{} ({})", type_label, entries.len());
-                    let is_open = builder.node(
-                        NodeBuilder::dir(TreeNodeId::TypeGroup(type_label))
-                            .default_open(false)
-                            .label(dir_label),
-                    );
-                    if is_open {
-                        for (leaf_label, idx) in entries {
-                            builder.leaf(TreeNodeId::Resource(*idx), leaf_label.as_str());
+        let tree_id = ui.id().with("key_file_tree_view");
+
+        // Seed initial closed state for type-group dirs not yet toggled by the user.
+        // This replaces the NodeBuilder::dir(...).default_open(false) pattern.
+        let mut tv_state = TreeViewState::<TreeNodeId>::load(ui, tree_id).unwrap_or_default();
+        for type_label in self.groups.keys() {
+            if tv_state
+                .is_open(&TreeNodeId::TypeGroup(type_label))
+                .is_none()
+            {
+                tv_state.set_openness(TreeNodeId::TypeGroup(type_label), false);
+            }
+        }
+        tv_state.store(ui, tree_id);
+
+        // Guard against egui_ltreeview's clip-rect panic when the tree is
+        // scrolled fully out of view (same guard as egui_components::show_themed_tree).
+        if ui.clip_rect().is_negative() {
+            return;
+        }
+
+        let theme = Theme::get(ui.ctx());
+        let (_, actions) = ui
+            .scope(|ui| {
+                // Match selected-row highlight to the theme's secondary background,
+                // consistent with ListItem (same tweak that show_themed_tree applies).
+                ui.visuals_mut().selection.bg_fill = theme.colors.secondary_background;
+                Tree::new(tree_id)
+                    .allow_drag_and_drop(false)
+                    .allow_multi_selection(false)
+                    .show(ui, |builder| {
+                        for (type_label, entries) in &self.groups {
+                            let dir_label = format!("{} ({})", type_label, entries.len());
+                            let is_open = builder.dir(TreeNodeId::TypeGroup(type_label), dir_label);
+                            if is_open {
+                                for (leaf_label, idx) in entries {
+                                    builder.leaf(TreeNodeId::Resource(*idx), leaf_label.as_str());
+                                }
+                            }
+                            builder.close_dir();
                         }
-                    }
-                    builder.close_dir();
-                }
-            });
+                    })
+            })
+            .inner;
 
         for action in actions {
-            if let Action::SetSelected(ids) = action {
+            if let TreeAction::SetSelected(ids) = action {
                 for id in &ids {
                     if let TreeNodeId::Resource(idx) = id {
                         state.selected_resource = Some(*idx);

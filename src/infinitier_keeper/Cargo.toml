@@ -16,7 +16,6 @@ infinitier_core = { workspace = true }
 clap = { workspace = true }
 eframe = { workspace = true }
 egui-components = { workspace = true }
-egui_extras = { workspace = true }
 env_logger = { workspace = true }
 jiff = { workspace = true }
 ttf-inter = { workspace = true }

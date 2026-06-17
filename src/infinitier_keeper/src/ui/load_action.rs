@@ -19,8 +19,9 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use eframe::egui;
-use egui_components::{AlertChoice, AlertDialog, Button, Dialog, Label, LabelTone};
-use egui_extras::{Column, TableBuilder};
+use egui_components::{
+    AlertChoice, AlertDialog, Button, Dialog, Label, LabelTone, Table, TableColumn,
+};
 
 use infinitier_core::fs::{DataSource, Importer};
 use infinitier_core::game::GameData;
@@ -363,30 +364,20 @@ fn save_table(ui: &mut egui::Ui, entries: &[SaveEntry], selected: &mut Option<us
         ui.add(Label::new("No saved games found.").tone(LabelTone::Muted));
         return;
     }
-    let row_h = ui.text_style_height(&egui::TextStyle::Body) + 6.0;
-    TableBuilder::new(ui)
-        .striped(true)
-        .sense(egui::Sense::click())
-        .max_scroll_height(340.0)
+    Table::new("save-list")
+        .selectable(true)
+        .max_height(340.0)
         .column(
-            Column::initial(170.0)
+            TableColumn::initial(170.0)
                 .at_least(120.0)
                 .clip(true)
-                .resizable(true),
+                .resizable(true)
+                .header("Game Name"),
         )
-        .column(Column::remainder().clip(true))
-        .header(row_h, |mut header| {
-            header.col(|ui| {
-                ui.add(Label::new("Game Name").strong());
-            });
-            header.col(|ui| {
-                ui.add(Label::new("Time Saved").strong());
-            });
-        })
-        .body(|body| {
-            body.rows(row_h, entries.len(), |mut row| {
-                let i = row.index();
-                row.set_selected(*selected == Some(i));
+        .column(TableColumn::remainder().clip(true).header("Time Saved"))
+        .show(ui, |body| {
+            body.rows(entries.len(), |i, mut row| {
+                row.selected(*selected == Some(i));
                 let entry = &entries[i];
                 row.col(|ui| {
                     ui.add(Label::new(display_name(&entry.save.name)));

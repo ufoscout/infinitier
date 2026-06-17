@@ -29,7 +29,7 @@
     - [X] Characteristics -> Fix Kit and Racial labels
 - [ ] iwd2 (TODO)
     - [X] Characteristics -> empty
-    - [ ] Apperance -> not implemented
+    - [X] Apperance -> not implemented
     - [X] Inventory -> not implemented
     - [ ] Memorization -> empty
     - [ ] Innate -> empty
