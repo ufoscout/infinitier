@@ -25,8 +25,8 @@ use infinitier_common::Engine;
 
 use crate::{
     Bg2GamData, BgGamData, COMMON_HEADER_LEN, EeGamData, Familiar, GAM_SIGNATURE, Gam,
-    GamEngineData, GamHeader, GamNpc, GamVariable, Iwd2GamData, IwdGamData, IwdUnknownTrailer,
-    JournalEntry, ModronMaze, PstGamData, StoredLocation, UnknownSection3,
+    GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, Iwd2GamData, IwdGamData,
+    IwdUnknownTrailer, JournalEntry, ModronMaze, PstGamData, StoredLocation, UnknownSection3,
     char_stats_offset_for_engine,
 };
 
@@ -109,24 +109,56 @@ fn serialize(gam: &Gam) -> io::Result<Vec<u8>> {
     let non_party_npc_bytes: usize = gam.non_party_npcs.iter().map(|n| n.raw.len()).sum();
 
     let party_npc_offset = engine_header_end(&gam.engine_data);
-    // The party-inventory section must immediately follow the party
-    // NPCs: V1.1 re-derives the NPC record size from
-    // (party_inventory_offset - party_npc_offset) / party_npc_count,
-    // and the importer bounds the inventory blob by the next section
-    // offset. Keeping inventory adjacent satisfies both.
-    let party_inventory_offset = party_npc_offset + party_npc_bytes;
-    let non_party_npc_offset = party_inventory_offset + gam.party_inventory.len();
-    let globals_offset = non_party_npc_offset + non_party_npc_bytes;
-    let journal_offset = globals_offset + gam.variables.len() * VARIABLE_LEN;
-    let mut cursor = journal_offset + gam.journal.len() * JOURNAL_ENTRY_LEN;
 
-    let engine_layout = compute_engine_layout(&gam.engine_data, &mut cursor);
+    // IWD2 (V2.2) stores embedded CRE blobs inline — immediately after
+    // the party NPC records and before the non-party NPCs and globals.
+    // Every other engine places them at the end of the file. IWD2's
+    // loader appears to derive CRE positions from the file layout rather
+    // than trusting the per-NPC cre_offset pointer; placing blobs at EOF
+    // causes the engine to fail loading the save.
+    //
+    // IWD2 also has no party inventory, so party_inventory_offset is 0
+    // (matching the original files; the count is also 0 so the game
+    // ignores the field either way).
+    let party_inventory_offset;
+    let party_cre_offsets;
+    let non_party_npc_offset;
+    let non_party_cre_offsets;
+    let globals_offset;
+    let journal_offset;
+    let engine_layout;
+    let file_size;
 
-    // Embedded CRE blobs are placed last, one per slot that carries
-    // one; record each absolute offset to patch into the NPC record.
-    let party_cre_offsets = assign_cre_offsets(&gam.party_npcs, &mut cursor);
-    let non_party_cre_offsets = assign_cre_offsets(&gam.non_party_npcs, &mut cursor);
-    let file_size = cursor;
+    if gam.version == GamVersion::V2_2 {
+        // No party inventory in IWD2; CRE blobs go inline right here.
+        party_inventory_offset = 0usize;
+        let mut cursor = party_npc_offset + party_npc_bytes;
+        party_cre_offsets = assign_cre_offsets(&gam.party_npcs, &mut cursor);
+        non_party_npc_offset = cursor;
+        cursor += non_party_npc_bytes;
+        non_party_cre_offsets = assign_cre_offsets(&gam.non_party_npcs, &mut cursor);
+        globals_offset = cursor;
+        journal_offset = globals_offset + gam.variables.len() * VARIABLE_LEN;
+        cursor = journal_offset + gam.journal.len() * JOURNAL_ENTRY_LEN;
+        engine_layout = compute_engine_layout(&gam.engine_data, &mut cursor);
+        file_size = cursor;
+    } else {
+        // The party-inventory section must immediately follow the party
+        // NPCs: V1.1 re-derives the NPC record size from
+        // (party_inventory_offset - party_npc_offset) / party_npc_count,
+        // and the importer bounds the inventory blob by the next section
+        // offset. Keeping inventory adjacent satisfies both.
+        party_inventory_offset = party_npc_offset + party_npc_bytes;
+        non_party_npc_offset = party_inventory_offset + gam.party_inventory.len();
+        globals_offset = non_party_npc_offset + non_party_npc_bytes;
+        journal_offset = globals_offset + gam.variables.len() * VARIABLE_LEN;
+        let mut cursor = journal_offset + gam.journal.len() * JOURNAL_ENTRY_LEN;
+        engine_layout = compute_engine_layout(&gam.engine_data, &mut cursor);
+        // CRE blobs go at end for non-IWD2 engines.
+        party_cre_offsets = assign_cre_offsets(&gam.party_npcs, &mut cursor);
+        non_party_cre_offsets = assign_cre_offsets(&gam.non_party_npcs, &mut cursor);
+        file_size = cursor;
+    };
 
     let common = CommonLayout {
         party_npc_offset: party_npc_offset as u32,

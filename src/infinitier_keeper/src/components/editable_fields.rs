@@ -39,6 +39,7 @@ pub enum Section {
     ExperienceLevels,
     Morale,
     ThiefSkills,
+    Iwd2ClassLevels,
 }
 
 /// Every editable row the keeper knows about.
@@ -78,6 +79,18 @@ pub enum EditableField {
     PickPockets,
     DetectIllusion,
     Lore,
+    // IWD2 (V2.2) per-class levels
+    BarbarianLevel,
+    BardLevel,
+    ClericLevel,
+    DruidLevel,
+    FighterLevel,
+    MonkLevel,
+    PaladinLevel,
+    RangerLevel,
+    RogueLevel,
+    SorcererLevel,
+    WizardLevel,
 }
 
 impl EditableField {
@@ -116,6 +129,17 @@ impl EditableField {
         EditableField::PickPockets,
         EditableField::DetectIllusion,
         EditableField::Lore,
+        EditableField::BarbarianLevel,
+        EditableField::BardLevel,
+        EditableField::ClericLevel,
+        EditableField::DruidLevel,
+        EditableField::FighterLevel,
+        EditableField::MonkLevel,
+        EditableField::PaladinLevel,
+        EditableField::RangerLevel,
+        EditableField::RogueLevel,
+        EditableField::SorcererLevel,
+        EditableField::WizardLevel,
     ];
 
     pub fn section(self) -> Section {
@@ -150,6 +174,17 @@ impl EditableField {
             | Self::PickPockets
             | Self::DetectIllusion
             | Self::Lore => Section::ThiefSkills,
+            Self::BarbarianLevel
+            | Self::BardLevel
+            | Self::ClericLevel
+            | Self::DruidLevel
+            | Self::FighterLevel
+            | Self::MonkLevel
+            | Self::PaladinLevel
+            | Self::RangerLevel
+            | Self::RogueLevel
+            | Self::SorcererLevel
+            | Self::WizardLevel => Section::Iwd2ClassLevels,
         }
     }
 
@@ -195,6 +230,17 @@ impl EditableField {
             Self::PickPockets => "Pick Pockets",
             Self::DetectIllusion => "Detect Illusions",
             Self::Lore => "Lore",
+            Self::BarbarianLevel => "Barbarian",
+            Self::BardLevel => "Bard",
+            Self::ClericLevel => "Cleric",
+            Self::DruidLevel => "Druid",
+            Self::FighterLevel => "Fighter",
+            Self::MonkLevel => "Monk",
+            Self::PaladinLevel => "Paladin",
+            Self::RangerLevel => "Ranger",
+            Self::RogueLevel => "Rogue",
+            Self::SorcererLevel => "Sorcerer",
+            Self::WizardLevel => "Wizard",
         }
     }
 
@@ -215,6 +261,17 @@ impl EditableField {
             Self::PickPockets => cre.pick_pockets().is_some(),
             Self::DetectIllusion => cre.detect_illusion().is_some(),
             Self::Lore => cre.lore().is_some(),
+            Self::BarbarianLevel
+            | Self::BardLevel
+            | Self::ClericLevel
+            | Self::DruidLevel
+            | Self::FighterLevel
+            | Self::MonkLevel
+            | Self::PaladinLevel
+            | Self::RangerLevel
+            | Self::RogueLevel
+            | Self::SorcererLevel
+            | Self::WizardLevel => cre.barbarian_level().is_some(),
             _ => true,
         }
     }
@@ -285,6 +342,17 @@ impl EditableField {
                 .map(|v| v.to_string())
                 .unwrap_or_default(),
             Self::Lore => cre.lore().map(|v| v.to_string()).unwrap_or_default(),
+            Self::BarbarianLevel => cre.barbarian_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::BardLevel => cre.bard_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::ClericLevel => cre.cleric_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::DruidLevel => cre.druid_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::FighterLevel => cre.fighter_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::MonkLevel => cre.monk_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::PaladinLevel => cre.paladin_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::RangerLevel => cre.ranger_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::RogueLevel => cre.rogue_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::SorcererLevel => cre.sorcerer_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::WizardLevel => cre.wizard_level().map(|v| v.to_string()).unwrap_or_default(),
         }
     }
 
@@ -412,6 +480,17 @@ impl EditableField {
             Self::XpForKill => write_u32(raw, caps.xp_for_kill, cre.xp_for_kill(), |v| {
                 cre.set_xp_for_kill(v)
             }),
+            Self::BarbarianLevel => write_u8(raw, caps.class_level, cre.barbarian_level().unwrap_or(0), |v| cre.set_barbarian_level(v)),
+            Self::BardLevel => write_u8(raw, caps.class_level, cre.bard_level().unwrap_or(0), |v| cre.set_bard_level(v)),
+            Self::ClericLevel => write_u8(raw, caps.class_level, cre.cleric_level().unwrap_or(0), |v| cre.set_cleric_level(v)),
+            Self::DruidLevel => write_u8(raw, caps.class_level, cre.druid_level().unwrap_or(0), |v| cre.set_druid_level(v)),
+            Self::FighterLevel => write_u8(raw, caps.class_level, cre.fighter_level().unwrap_or(0), |v| cre.set_fighter_level(v)),
+            Self::MonkLevel => write_u8(raw, caps.class_level, cre.monk_level().unwrap_or(0), |v| cre.set_monk_level(v)),
+            Self::PaladinLevel => write_u8(raw, caps.class_level, cre.paladin_level().unwrap_or(0), |v| cre.set_paladin_level(v)),
+            Self::RangerLevel => write_u8(raw, caps.class_level, cre.ranger_level().unwrap_or(0), |v| cre.set_ranger_level(v)),
+            Self::RogueLevel => write_u8(raw, caps.class_level, cre.rogue_level().unwrap_or(0), |v| cre.set_rogue_level(v)),
+            Self::SorcererLevel => write_u8(raw, caps.class_level, cre.sorcerer_level().unwrap_or(0), |v| cre.set_sorcerer_level(v)),
+            Self::WizardLevel => write_u8(raw, caps.class_level, cre.wizard_level().unwrap_or(0), |v| cre.set_wizard_level(v)),
             // GAM-side fields are routed through `write_clamped_gam`.
             Self::Reputation | Self::PartyGold => {
                 debug_assert!(false, "{self:?} is a GAM-side field");

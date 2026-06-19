@@ -39,13 +39,20 @@ impl CharacterPanel {
 
             // Tab strip — segmented variant gives a single bordered
             // bar with each tab as a button-style cell.
-            let mut selected_idx = CharacterTab::ALL
+            // Filter to game-specific tabs (e.g. Levels only for IWD2).
+            let game = state.game_data.game();
+            let visible_tabs: Vec<CharacterTab> = CharacterTab::ALL
+                .iter()
+                .copied()
+                .filter(|t| t.is_visible_for_game(game))
+                .collect();
+            let mut selected_idx = visible_tabs
                 .iter()
                 .position(|t| *t == active.selected_tab)
                 .unwrap_or(0);
-            let labels: Vec<&'static str> = CharacterTab::ALL.iter().map(|t| t.label()).collect();
+            let labels: Vec<&'static str> = visible_tabs.iter().map(|t| t.label()).collect();
             ui.add(Tabs::new(&mut selected_idx).tabs(labels).segmented());
-            state.active_mut().selected_tab = CharacterTab::ALL[selected_idx];
+            state.active_mut().selected_tab = visible_tabs[selected_idx];
             ui.add_space(8.0);
 
             match header.cre_kind {

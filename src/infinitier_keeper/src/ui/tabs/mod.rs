@@ -9,12 +9,14 @@
 use eframe::egui;
 use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
 use infinitier_core::resource::{Game, cre::Cre};
+use infinitier_core::resource::Engine;
 
 use crate::components::editable_fields::KeeperEditors;
 use crate::state::AppState;
 
 mod abilities;
 mod appearance;
+mod levels;
 mod characteristics;
 mod cleric;
 mod effects;
@@ -31,6 +33,7 @@ mod wizard;
 
 use abilities::AbilitiesTab;
 use appearance::AppearanceTab;
+use levels::LevelsTab;
 use characteristics::CharacteristicsTab;
 use cleric::ClericTab;
 use effects::EffectsTab;
@@ -50,6 +53,7 @@ use wizard::WizardTab;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharacterTab {
     Abilities,
+    Levels,
     Characteristics,
     Appearance,
     Inventory,
@@ -70,6 +74,7 @@ impl CharacterTab {
     /// Tabs in EEKeeper display order.
     pub const ALL: &'static [CharacterTab] = &[
         CharacterTab::Abilities,
+        CharacterTab::Levels,
         CharacterTab::Characteristics,
         CharacterTab::Appearance,
         CharacterTab::Inventory,
@@ -87,9 +92,19 @@ impl CharacterTab {
     ];
 
     /// The human-readable label rendered on the tab strip.
+    /// True when this tab should appear for the given game. Most tabs are
+    /// universal; `Levels` is IWD2-only (CRE V2.2 per-class level editor).
+    pub fn is_visible_for_game(&self, game: Game) -> bool {
+        match self {
+            CharacterTab::Levels => game.engine() == Engine::Iwd2,
+            _ => true,
+        }
+    }
+
     pub fn label(&self) -> &'static str {
         match self {
             CharacterTab::Abilities => "Abilities",
+            CharacterTab::Levels => "Levels",
             CharacterTab::Characteristics => "Characteristics",
             CharacterTab::Appearance => "Appearance",
             CharacterTab::Inventory => "Inventory",
@@ -120,6 +135,10 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         AbilitiesTab.show(ui, state, editors);
         return;
     }
+    if active.selected_tab == CharacterTab::Levels {
+        LevelsTab.show(ui, state, editors);
+        return;
+    }
     let Some(idx) = active.selected_party_index else {
         return;
     };
@@ -133,7 +152,7 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
     let gam: &ImportedGam = &active.save;
     let game: Game = state.game_data.game();
     match active.selected_tab {
-        CharacterTab::Abilities => unreachable!(),
+        CharacterTab::Abilities | CharacterTab::Levels => unreachable!(),
         // Characteristics resolves IDS-backed names (class / race /
         // kit / …) and the strongest-kill strref, so it needs
         // `game_data`; the kill statistics live in the GAM party

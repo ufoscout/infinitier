@@ -208,11 +208,15 @@ struct V22Layout {
     file_size: usize,
 }
 
-/// Place one IWD2 spell/tail table if it carries data, advancing `pos`.
-/// Returns its `(offset, record_count)`; a default (empty) table gets
-/// `(0, 0)` — no bytes, read back as absent.
+/// Place one IWD2 spell/tail table if it was present in the source file,
+/// advancing `pos`. Returns `(offset, record_count)`.
+///
+/// A table is "present" when it was stored at a non-zero offset in the
+/// original CRE — even when it carries zero entries (IWD2 always emits
+/// 8-byte trailers for all 63 class-spell and 9 domain-spell slots).
+/// Absent tables (`present == false`) get `(0, 0)` — no bytes written.
 fn place_iwd2_table(pos: &mut u32, t: &Iwd2Table) -> (u32, u32) {
-    if *t == Iwd2Table::default() {
+    if !t.present {
         return (0, 0);
     }
     let off = *pos;

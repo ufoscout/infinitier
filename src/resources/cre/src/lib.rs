@@ -2031,6 +2031,79 @@ impl Cre {
         }
     }
 
+    // ── IWD2 (V2.2) per-class levels ────────────────────────────────────
+    //
+    // Each getter returns `Some` only for CRE V2.2; `None` on all other
+    // versions. Each setter recomputes `total_levels` as the sum of all
+    // class levels so the engine-visible total stays consistent.
+
+    pub fn barbarian_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.barbarian_levels), _ => None }
+    }
+    pub fn set_barbarian_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.barbarian_levels = v; recompute_v22_total(h); }
+    }
+    pub fn bard_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.bard_levels), _ => None }
+    }
+    pub fn set_bard_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.bard_levels = v; recompute_v22_total(h); }
+    }
+    pub fn cleric_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.cleric_levels), _ => None }
+    }
+    pub fn set_cleric_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.cleric_levels = v; recompute_v22_total(h); }
+    }
+    pub fn druid_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.druid_levels), _ => None }
+    }
+    pub fn set_druid_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.druid_levels = v; recompute_v22_total(h); }
+    }
+    pub fn fighter_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.fighter_levels), _ => None }
+    }
+    pub fn set_fighter_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.fighter_levels = v; recompute_v22_total(h); }
+    }
+    pub fn monk_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.monk), _ => None }
+    }
+    pub fn set_monk_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.monk = v; recompute_v22_total(h); }
+    }
+    pub fn paladin_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.paladin_levels), _ => None }
+    }
+    pub fn set_paladin_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.paladin_levels = v; recompute_v22_total(h); }
+    }
+    pub fn ranger_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.ranger_levels), _ => None }
+    }
+    pub fn set_ranger_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.ranger_levels = v; recompute_v22_total(h); }
+    }
+    pub fn rogue_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.rogue_levels), _ => None }
+    }
+    pub fn set_rogue_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.rogue_levels = v; recompute_v22_total(h); }
+    }
+    pub fn sorcerer_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.sorcerer_levels), _ => None }
+    }
+    pub fn set_sorcerer_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.sorcerer_levels = v; recompute_v22_total(h); }
+    }
+    pub fn wizard_level(&self) -> Option<u8> {
+        match &self.header { CreHeader::V22(h) => Some(h.wizard_levels), _ => None }
+    }
+    pub fn set_wizard_level(&mut self, v: u8) {
+        if let CreHeader::V22(h) = &mut self.header { h.wizard_levels = v; recompute_v22_total(h); }
+    }
+
     /// Highest level among the character's classes — used for
     /// level-scaled derived values. IWD2 (V2.2) reports the engine's
     /// summed `total_levels`.
@@ -2196,6 +2269,13 @@ pub struct Iwd2Table {
     pub num_memorizable: u32,
     /// Trailer u32 — free uses remaining for this slot.
     pub num_remaining: u32,
+    /// True when this table was stored at a non-zero offset in the source
+    /// CRE. IWD2 always writes all 63 class-spell slots and 9 domain-spell
+    /// slots (plus abilities/songs/shapes when present), even when they
+    /// carry zero entries. We must re-emit those 8-byte trailers on export
+    /// or the game's load fails. An absent table (offset 0 in the original)
+    /// stays `false` and is skipped on export.
+    pub present: bool,
 }
 
 #[cfg(test)]
@@ -2242,6 +2322,20 @@ pub(crate) mod test_support {
         .import(&DataSource::new(path.as_path()))
         .unwrap_or_else(|e| panic!("import {rel_path}: {e}"))
     }
+}
+
+fn recompute_v22_total(h: &mut header::CreHeaderV22) {
+    h.total_levels = h.barbarian_levels
+        .saturating_add(h.bard_levels)
+        .saturating_add(h.cleric_levels)
+        .saturating_add(h.druid_levels)
+        .saturating_add(h.fighter_levels)
+        .saturating_add(h.monk)
+        .saturating_add(h.paladin_levels)
+        .saturating_add(h.ranger_levels)
+        .saturating_add(h.rogue_levels)
+        .saturating_add(h.sorcerer_levels)
+        .saturating_add(h.wizard_levels);
 }
 
 #[cfg(test)]

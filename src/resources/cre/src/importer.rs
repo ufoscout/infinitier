@@ -661,6 +661,7 @@ fn parse_iwd2_table_at(
         entries,
         num_memorizable,
         num_remaining,
+        present: true,
     })
 }
 
