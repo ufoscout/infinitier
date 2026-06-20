@@ -13,18 +13,21 @@ publish gap="5":
     set -euo pipefail
     crates=(
         infinitier_datasource
+        infinitier_common
+        infinitier_fs
         infinitier_acm_decoder
+        infinitier_bik_decoder
+        infinitier_mve_decoder
+        infinitier_wbm_decoder
+        infinitier_mve_encoder
         infinitier_acm_encoder
         infinitier_wav_resource
         infinitier_acm_resource
-        infinitier_fs
         infinitier_pvrz_resource
         infinitier_bam_resource
-        infinitier_common
         infinitier_ids_resource
         infinitier_bcs_resource
         infinitier_bif_resource
-        infinitier_bik_decoder
         infinitier_bmp_resource
         infinitier_cre_resource
         infinitier_fnt_resource
@@ -33,7 +36,6 @@ publish gap="5":
         infinitier_itm_resource
         infinitier_key_resource
         infinitier_mos_resource
-        infinitier_mve_decoder
         infinitier_png_resource
         infinitier_sav_resource
         infinitier_spl_resource
@@ -41,10 +43,8 @@ publish gap="5":
         infinitier_tlk_resource
         infinitier_ttf_resource
         infinitier_two_da_resource
-        infinitier_wbm_decoder
         infinitier_wed_resource
         infinitier_core
-        infinitier_mve_encoder
     )
     count=${#crates[@]}
     for i in "${!crates[@]}"; do
