@@ -115,6 +115,7 @@ impl CharacterTab {
             // anyway — IWD2 uses the V2.2 per-class spell blocks).
             CharacterTab::Memorization
             | CharacterTab::Innate
+            | CharacterTab::Proficiencies
             | CharacterTab::Wizard
             | CharacterTab::Cleric => !is_iwd2,
             _ => true,
