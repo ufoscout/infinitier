@@ -58,7 +58,7 @@ impl eframe::App for KeeperApp {
             self.save_action.open(&self.state);
         }
         if header_action.load_clicked {
-            self.load_action.open(&self.state);
+            self.load_action.open(&mut self.state);
         }
         // ── Update phase — everything that can mutate `state` runs
         // first, so the view below reads a settled state in the same

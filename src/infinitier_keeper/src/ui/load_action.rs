@@ -71,11 +71,11 @@ impl LoadAction {
     }
 
     /// Open the picker, scanning the save directory fresh.
-    pub fn open(&mut self, state: &AppState) {
+    pub fn open(&mut self, state: &mut AppState) {
         self.error = None;
         self.confirm_delete = false;
         self.pending_delete = None;
-        self.rescan(&state.game_data);
+        self.rescan(&mut state.game_data);
         self.selected = (!self.entries.is_empty()).then_some(0);
         self.preview_for = None;
         self.screenshot = None;
@@ -270,7 +270,7 @@ impl LoadAction {
         }
         info!("[load] deleted save folder {}", folder.display());
         let prev = self.selected.unwrap_or(0);
-        self.rescan(&state.game_data);
+        self.rescan(&mut state.game_data);
         self.selected = if self.entries.is_empty() {
             None
         } else {
@@ -280,10 +280,18 @@ impl LoadAction {
     }
 
     /// Rescan the save directory and rebuild [`Self::entries`], sorted
-    /// by write time descending.
-    fn rescan(&mut self, game_data: &GameData) {
-        let mut entries: Vec<SaveEntry> = game_data
-            .save_games()
+    /// by write time descending. Refreshes the save folders on the
+    /// underlying FS first, so saves written or deleted since the game
+    /// data was built are reflected.
+    fn rescan(&mut self, game_data: &mut GameData) {
+        let save_games = match game_data.refresh_save_games() {
+            Ok(save_games) => save_games,
+            Err(e) => {
+                self.error = Some(format!("Couldn't read saves: {e}"));
+                return;
+            }
+        };
+        let mut entries: Vec<SaveEntry> = save_games
             .saves()
             .iter()
             .map(|save| {
