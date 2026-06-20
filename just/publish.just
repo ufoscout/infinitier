@@ -8,4 +8,4 @@ publish-dry-run:
 publish:
     # cargo publish --workspace
     # use cargo-release because it automatically handles crates.io [too many crates] errors
-    cargo release --workspace --execute
+    PUBLISH_GRACE_SLEEP=10 cargo release --workspace --execute
