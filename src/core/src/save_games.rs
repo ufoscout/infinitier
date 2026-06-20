@@ -118,11 +118,20 @@ impl SaveGames {
     }
 }
 
+/// Re-walk every [`SAVE_DIRS`] subtree on `fs` so a subsequent
+/// [`scan_save_games`] sees the current on-disk state.
+pub(crate) fn refresh_save_dirs(fs: &mut CaseInsensitiveFS) -> std::io::Result<()> {
+    for save_dir in SAVE_DIRS {
+        fs.refresh(Some(save_dir))?;
+    }
+    Ok(())
+}
+
 /// Scan `fs` for save games. Looks for every `.SAV` file recursively
 /// under each [`SAVE_DIRS`] entry; for every match, gathers the
 /// sibling GAM / portraits / screenshot / worldmap via direct (non-
 /// recursive) sibling listing on the same FS.
-pub fn scan_save_games(fs: &CaseInsensitiveFS) -> SaveGames {
+pub(crate) fn scan_save_games(fs: &CaseInsensitiveFS) -> SaveGames {
     let mut saves: Vec<SaveGame> = Vec::new();
     for save_dir in SAVE_DIRS {
         for sav in fs.list_files(save_dir, ResourceType::Sav.get_extension(), true) {

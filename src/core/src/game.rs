@@ -107,6 +107,12 @@ impl GameData {
             .flat_map(move |ids| ids.iter().filter_map(move |&id| self.resources.get(id)))
     }
 
+    /// Refresh and return the the save games list.
+    pub fn refresh_save_games(&mut self) -> std::io::Result<crate::save_games::SaveGames> {
+        crate::save_games::refresh_save_dirs(&mut self.fs)?;
+        Ok(self.save_games())
+    }
+
     /// Discover the save games visible on `fs`.
     pub fn save_games(&self) -> crate::save_games::SaveGames {
         crate::save_games::scan_save_games(&self.fs)
@@ -879,6 +885,81 @@ mod tests {
             .unwrap()
             .build()
             .unwrap()
+    }
+
+    /// Recursively copy `src` into `dst` (creating `dst`), preserving the
+    /// directory layout. Used to stage a writable copy of the read-only
+    /// save-game fixtures in a temp dir.
+    fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) {
+        std::fs::create_dir_all(dst).unwrap();
+        for entry in std::fs::read_dir(src).unwrap() {
+            let entry = entry.unwrap();
+            let from = entry.path();
+            let to = dst.join(entry.file_name());
+            if entry.file_type().unwrap().is_dir() {
+                copy_dir_all(&from, &to);
+            } else {
+                std::fs::copy(&from, &to).unwrap();
+            }
+        }
+    }
+
+    /// Stage a writable copy of the `SAV_GAM/bg` fixtures in a temp dir and
+    /// build a `GameData` rooted there (no chitin.key needed — only the
+    /// save discovery is exercised).
+    fn game_data_with_saves_fixture() -> (tempfile::TempDir, GameData) {
+        let temp = tempfile::tempdir().unwrap();
+        copy_dir_all(&get_assets_path().join("SAV_GAM").join("bg"), temp.path());
+        let fs = CaseInsensitiveFS::new(temp.path().to_path_buf()).unwrap();
+        let game_data = GameData::new(vec![], Game::Bg, fs);
+        (temp, game_data)
+    }
+
+    #[test]
+    fn refresh_save_games_reflects_added_and_removed_saves() {
+        let (temp, mut game_data) = game_data_with_saves_fixture();
+
+        // Given the fixture folder: 4 saves under Save/ + 1 under MPSave/.
+        let saves = game_data.refresh_save_games().unwrap();
+        let names: Vec<&str> = saves.saves().iter().map(|s| s.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec![
+                "000000001-Quick-Save",
+                "888888888-Mission-Pack-Save", // Save/
+                "888888888-Mission-Pack-Save", // MPSave/
+                "888888889-Alone in the dark",
+                "888888890-Alone with Imoen",
+            ],
+        );
+
+        // Add a new save on disk by copying an existing folder. The
+        // already-built `game_data` knows nothing about it until refreshed.
+        let new_save = temp.path().join("Save").join("999999999-Brand-New-Save");
+        copy_dir_all(
+            &temp.path().join("Save").join("000000001-Quick-Save"),
+            &new_save,
+        );
+        let saves = game_data.refresh_save_games().unwrap();
+        assert_eq!(saves.len(), 6);
+        let added = saves
+            .by_name("999999999-Brand-New-Save")
+            .expect("the freshly-added save must be discovered after refresh");
+        assert_eq!(added.name, "999999999-Brand-New-Save");
+        assert!(added.screenshot.is_some());
+        assert!(added.worldmap.is_some());
+
+        // Delete a save on disk; the refresh must drop it from the list.
+        std::fs::remove_dir_all(temp.path().join("Save").join("888888890-Alone with Imoen"))
+            .unwrap();
+        let saves = game_data.refresh_save_games().unwrap();
+        assert_eq!(saves.len(), 5);
+        assert!(
+            saves.by_name("888888890-Alone with Imoen").is_none(),
+            "deleted save must be gone after refresh"
+        );
+        // The earlier addition is still present.
+        assert!(saves.by_name("999999999-Brand-New-Save").is_some());
     }
 
     #[test]

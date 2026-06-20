@@ -65,7 +65,7 @@ impl CaseInsensitiveFS {
         fallbacks: Vec<String>,
     ) -> io::Result<CaseInsensitiveFS> {
         let roots = roots.pathbufs();
-        let paths = index_roots(&roots)?;
+        let paths = index_subpath(&roots, "")?;
         Ok(CaseInsensitiveFS {
             roots,
             fallbacks,
@@ -83,12 +83,12 @@ impl CaseInsensitiveFS {
     ///
     /// - `refresh(None)` rebuilds the full index from scratch by
     ///   re-walking every [`get_roots`](Self::get_roots) entry.
-    /// - `refresh(Some(subpath))` only re-walks `subpath` under each
-    ///   root; entries whose key is `subpath` or sits underneath it
-    ///   (`subpath/…`) are dropped first, then replaced with whatever
-    ///   the rescan finds. Untouched siblings keep their existing
-    ///   entries — so a per-save-folder refresh after a write doesn't
-    ///   force a full re-walk of the multi-thousand-file game folder.
+    /// - `refresh(Some(subpath))` only re-walks `subpath`; entries whose
+    ///   key is `subpath` or sits underneath it (`subpath/…`) are dropped
+    ///   first, then replaced with whatever the rescan finds. Untouched
+    ///   siblings keep their existing entries — so a per-save-folder
+    ///   refresh after a write doesn't force a full re-walk of the
+    ///   multi-thousand-file game folder.
     ///
     /// `subpath` is normalised the same way as
     /// [`get_path_opt`](Self::get_path_opt) — case-insensitive,
@@ -96,14 +96,11 @@ impl CaseInsensitiveFS {
     /// all-slash `subpath` is treated as `None` (full refresh).
     pub fn refresh(&mut self, subpath: Option<&str>) -> io::Result<()> {
         let normalized = subpath.map(CiPath::normalize).filter(|s| !s.is_empty());
-
-        let fresh = match &normalized {
-            None => index_roots(&self.roots)?,
-            Some(sub) => self.rescan_subpath(sub)?,
-        };
+        let fresh = index_subpath(&self.roots, normalized.as_deref().unwrap_or(""))?;
 
         self.paths = Arc::new(match normalized {
-            // Full refresh — the rescan already covers every root.
+            // Full refresh — the rescan already covers every root, so the
+            // freshly-built index replaces the old one wholesale.
             None => fresh,
             Some(sub) => {
                 // Drop stale entries under the refreshed subtree, then
@@ -117,35 +114,6 @@ impl CaseInsensitiveFS {
             }
         });
         Ok(())
-    }
-
-    /// Internal helper: re-walk `normalized_sub` under every root.
-    /// Roots where the subpath doesn't exist contribute no entries;
-    /// that's the mechanism for picking up on-disk deletions inside
-    /// the subtree.
-    fn rescan_subpath(&self, normalized_sub: &str) -> io::Result<BTreeMap<String, PathBuf>> {
-        let mut paths = BTreeMap::new();
-        for root in &self.roots {
-            let target = root.join(normalized_sub);
-            if target.is_dir() {
-                let canonical_root = root.canonicalize()?;
-                let canonical_target = target.canonicalize()?;
-                recurse(&canonical_root, &canonical_target, &mut paths)?;
-            } else if target.is_file() {
-                let canonical_root = root.canonicalize()?;
-                let canonical_target = target.canonicalize()?;
-                if let Ok(rel) = canonical_target.strip_prefix(&canonical_root)
-                    && let Some(s) = rel.to_str()
-                {
-                    paths.insert(s.to_lowercase(), canonical_target);
-                }
-            }
-            // Doesn't exist on this root: leave it. The caller's
-            // retain() step has already dropped any stale entries —
-            // an on-disk deletion inside the subtree is correctly
-            // reflected as the entry going away.
-        }
-        Ok(paths)
     }
 
     /// Returns a `CiPath` for the file or directory at the given path relative to root.
@@ -303,24 +271,66 @@ impl CiPath {
     }
 }
 
-/// Walk every root in input order and merge their recursive listings
-/// into a single path index. Shared by [`CaseInsensitiveFS::new_with_fallback`]
-/// (initial build) and [`CaseInsensitiveFS::refresh`] (full rebuild).
-fn index_roots(roots: &[PathBuf]) -> io::Result<BTreeMap<String, PathBuf>> {
+/// Walk every root in input order, applying `subpath` as successive
+/// case-insensitive directory-name filters, and merge the results into a
+/// single path index. An empty `subpath` selects each root's whole tree,
+/// so this is the single scan primitive behind both the initial index
+/// build ([`CaseInsensitiveFS::new_with_fallback`]) and every
+/// [`CaseInsensitiveFS::refresh`] (full or scoped). On key conflicts the
+/// last root wins.
+fn index_subpath(roots: &[PathBuf], subpath: &str) -> io::Result<BTreeMap<String, PathBuf>> {
+    let filters: Vec<&str> = subpath.split('/').filter(|s| !s.is_empty()).collect();
     let mut paths = BTreeMap::new();
     for root in roots {
-        paths.append(&mut list_real_entries_recursive(root)?);
+        // Canonicalize so the keys `rescan_filtered`/`recurse` derive are
+        // relative to the resolved root and symlinks line up.
+        let canonical_root = root.canonicalize()?;
+        rescan_filtered(&canonical_root, &canonical_root, &filters, &mut paths)?;
     }
     Ok(paths)
 }
 
-/// Reads a directory and returns a map of all the files in it
-/// recursively and their absolute path lowercased
-fn list_real_entries_recursive(path: &Path) -> io::Result<BTreeMap<String, PathBuf>> {
-    let path = path.canonicalize()?;
-    let mut results = BTreeMap::new();
-    recurse(&path, &path, &mut results)?;
-    Ok(results)
+/// Walk `current`'s subtree applying `filters` as successive
+/// case-insensitive directory-name filters.
+fn rescan_filtered(
+    root: &Path,
+    current: &Path,
+    filters: &[&str],
+    results: &mut BTreeMap<String, PathBuf>,
+) -> io::Result<()> {
+    let Some((first, rest)) = filters.split_first() else {
+        // All filter levels consumed: re-index the reached folder's
+        // content recursively (a file has no content to walk), then its
+        // own entry so the index stays consistent with a full walk.
+        if current.is_dir() {
+            recurse(root, current, results)?;
+        }
+        if let Ok(rel) = current.strip_prefix(root)
+            && let Some(s) = rel.to_str()
+            && !s.is_empty()
+        {
+            results.insert(s.to_lowercase(), current.to_path_buf());
+        }
+        return Ok(());
+    };
+
+    for entry in fs::read_dir(current)? {
+        let entry = entry?;
+        // Case-insensitive match against the current filter level.
+        if entry.file_name().to_string_lossy().to_lowercase().as_str() != *first {
+            continue;
+        }
+        // Canonicalize to resolve symlinks; skip broken ones gracefully.
+        let Ok(entry_path) = entry.path().canonicalize() else {
+            continue;
+        };
+        // More filters to apply: we can only descend into directories.
+        if !rest.is_empty() && !entry_path.is_dir() {
+            continue;
+        }
+        rescan_filtered(root, &entry_path, rest, results)?;
+    }
+    Ok(())
 }
 
 fn recurse(root: &Path, path: &Path, results: &mut BTreeMap<String, PathBuf>) -> io::Result<()> {
@@ -364,9 +374,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_list_real_entries_recursive() {
+    fn test_index_subpath_full_walk() {
         let current_path = std::env::current_dir().unwrap();
-        let results = list_real_entries_recursive(&current_path).unwrap();
+        // Empty subpath → full recursive walk of the root.
+        let results = index_subpath(std::slice::from_ref(&current_path), "").unwrap();
         assert!(!results.is_empty());
     }
 
@@ -792,6 +803,50 @@ mod tests {
         File::create(root.join("save/new.txt")).unwrap();
         fs.refresh(Some("Save")).unwrap(); // case-insensitive
         assert!(fs.get_path_opt("save/new.txt").is_some());
+    }
+
+    #[test]
+    fn refresh_subpath_resolves_real_on_disk_casing() {
+        // The on-disk directory is `Save` (capitalised) but the refresh
+        // key is the normalized, lowercased `save`. On a case-sensitive
+        // filesystem, joining the lowercased key to the root would miss
+        // the directory entirely and wrongly drop every entry under it.
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir(root.join("Save")).unwrap();
+        File::create(root.join("Save/old.txt")).unwrap();
+        let mut fs = CaseInsensitiveFS::new(root).unwrap();
+        assert!(fs.get_path_opt("save/old.txt").is_some());
+
+        File::create(root.join("Save/added.txt")).unwrap();
+        fs.refresh(Some("save")).unwrap();
+
+        // The pre-existing entry survives and the new one is picked up —
+        // the subtree was found despite the case difference.
+        assert!(fs.get_path_opt("save/old.txt").is_some());
+        assert!(fs.get_path_opt("save/added.txt").is_some());
+    }
+
+    #[test]
+    fn refresh_subpath_indexes_brand_new_subpath_folder() {
+        // The subpath filter walks the live filesystem, so a folder that
+        // was created *after* the FS was indexed — i.e. one the FS has
+        // never seen — is still picked up by a targeted subpath refresh.
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        File::create(root.join("seed.txt")).unwrap();
+        let mut fs = CaseInsensitiveFS::new(root).unwrap();
+        assert!(fs.get_path_opt("save/000000001-quick/baldur.sav").is_none());
+
+        // Brand-new nested folder, unknown to the FS index.
+        std::fs::create_dir_all(root.join("Save/000000001-Quick")).unwrap();
+        File::create(root.join("Save/000000001-Quick/Baldur.sav")).unwrap();
+
+        fs.refresh(Some("Save/000000001-Quick")).unwrap();
+        assert!(
+            fs.get_path_opt("save/000000001-quick/baldur.sav").is_some(),
+            "a brand-new subpath folder must be discovered by a subpath refresh"
+        );
     }
 
     #[test]

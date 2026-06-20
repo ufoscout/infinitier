@@ -8,15 +8,14 @@
 
 use eframe::egui;
 use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
-use infinitier_core::resource::{Game, cre::Cre};
 use infinitier_core::resource::Engine;
+use infinitier_core::resource::{Game, cre::Cre};
 
 use crate::components::editable_fields::KeeperEditors;
 use crate::state::AppState;
 
 mod abilities;
 mod appearance;
-mod levels;
 mod characteristics;
 mod cleric;
 mod effects;
@@ -24,6 +23,7 @@ mod global_variables;
 mod innate;
 mod inventory;
 mod journal_entries;
+mod levels;
 mod local_variables;
 mod memorization;
 mod miscellaneous;
@@ -33,7 +33,6 @@ mod wizard;
 
 use abilities::AbilitiesTab;
 use appearance::AppearanceTab;
-use levels::LevelsTab;
 use characteristics::CharacteristicsTab;
 use cleric::ClericTab;
 use effects::EffectsTab;
@@ -41,6 +40,7 @@ use global_variables::GlobalVariablesTab;
 use innate::InnateTab;
 use inventory::InventoryTab;
 use journal_entries::JournalEntriesTab;
+use levels::LevelsTab;
 use local_variables::LocalVariablesTab;
 use memorization::MemorizationTab;
 use miscellaneous::MiscellaneousTab;

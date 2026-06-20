@@ -342,17 +342,38 @@ impl EditableField {
                 .map(|v| v.to_string())
                 .unwrap_or_default(),
             Self::Lore => cre.lore().map(|v| v.to_string()).unwrap_or_default(),
-            Self::BarbarianLevel => cre.barbarian_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::BarbarianLevel => cre
+                .barbarian_level()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::BardLevel => cre.bard_level().map(|v| v.to_string()).unwrap_or_default(),
-            Self::ClericLevel => cre.cleric_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::ClericLevel => cre
+                .cleric_level()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::DruidLevel => cre.druid_level().map(|v| v.to_string()).unwrap_or_default(),
-            Self::FighterLevel => cre.fighter_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::FighterLevel => cre
+                .fighter_level()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::MonkLevel => cre.monk_level().map(|v| v.to_string()).unwrap_or_default(),
-            Self::PaladinLevel => cre.paladin_level().map(|v| v.to_string()).unwrap_or_default(),
-            Self::RangerLevel => cre.ranger_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::PaladinLevel => cre
+                .paladin_level()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::RangerLevel => cre
+                .ranger_level()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::RogueLevel => cre.rogue_level().map(|v| v.to_string()).unwrap_or_default(),
-            Self::SorcererLevel => cre.sorcerer_level().map(|v| v.to_string()).unwrap_or_default(),
-            Self::WizardLevel => cre.wizard_level().map(|v| v.to_string()).unwrap_or_default(),
+            Self::SorcererLevel => cre
+                .sorcerer_level()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::WizardLevel => cre
+                .wizard_level()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
         }
     }
 
@@ -480,17 +501,68 @@ impl EditableField {
             Self::XpForKill => write_u32(raw, caps.xp_for_kill, cre.xp_for_kill(), |v| {
                 cre.set_xp_for_kill(v)
             }),
-            Self::BarbarianLevel => write_u8(raw, caps.class_level, cre.barbarian_level().unwrap_or(0), |v| cre.set_barbarian_level(v)),
-            Self::BardLevel => write_u8(raw, caps.class_level, cre.bard_level().unwrap_or(0), |v| cre.set_bard_level(v)),
-            Self::ClericLevel => write_u8(raw, caps.class_level, cre.cleric_level().unwrap_or(0), |v| cre.set_cleric_level(v)),
-            Self::DruidLevel => write_u8(raw, caps.class_level, cre.druid_level().unwrap_or(0), |v| cre.set_druid_level(v)),
-            Self::FighterLevel => write_u8(raw, caps.class_level, cre.fighter_level().unwrap_or(0), |v| cre.set_fighter_level(v)),
-            Self::MonkLevel => write_u8(raw, caps.class_level, cre.monk_level().unwrap_or(0), |v| cre.set_monk_level(v)),
-            Self::PaladinLevel => write_u8(raw, caps.class_level, cre.paladin_level().unwrap_or(0), |v| cre.set_paladin_level(v)),
-            Self::RangerLevel => write_u8(raw, caps.class_level, cre.ranger_level().unwrap_or(0), |v| cre.set_ranger_level(v)),
-            Self::RogueLevel => write_u8(raw, caps.class_level, cre.rogue_level().unwrap_or(0), |v| cre.set_rogue_level(v)),
-            Self::SorcererLevel => write_u8(raw, caps.class_level, cre.sorcerer_level().unwrap_or(0), |v| cre.set_sorcerer_level(v)),
-            Self::WizardLevel => write_u8(raw, caps.class_level, cre.wizard_level().unwrap_or(0), |v| cre.set_wizard_level(v)),
+            Self::BarbarianLevel => write_u8(
+                raw,
+                caps.class_level,
+                cre.barbarian_level().unwrap_or(0),
+                |v| cre.set_barbarian_level(v),
+            ),
+            Self::BardLevel => {
+                write_u8(raw, caps.class_level, cre.bard_level().unwrap_or(0), |v| {
+                    cre.set_bard_level(v)
+                })
+            }
+            Self::ClericLevel => write_u8(
+                raw,
+                caps.class_level,
+                cre.cleric_level().unwrap_or(0),
+                |v| cre.set_cleric_level(v),
+            ),
+            Self::DruidLevel => {
+                write_u8(raw, caps.class_level, cre.druid_level().unwrap_or(0), |v| {
+                    cre.set_druid_level(v)
+                })
+            }
+            Self::FighterLevel => write_u8(
+                raw,
+                caps.class_level,
+                cre.fighter_level().unwrap_or(0),
+                |v| cre.set_fighter_level(v),
+            ),
+            Self::MonkLevel => {
+                write_u8(raw, caps.class_level, cre.monk_level().unwrap_or(0), |v| {
+                    cre.set_monk_level(v)
+                })
+            }
+            Self::PaladinLevel => write_u8(
+                raw,
+                caps.class_level,
+                cre.paladin_level().unwrap_or(0),
+                |v| cre.set_paladin_level(v),
+            ),
+            Self::RangerLevel => write_u8(
+                raw,
+                caps.class_level,
+                cre.ranger_level().unwrap_or(0),
+                |v| cre.set_ranger_level(v),
+            ),
+            Self::RogueLevel => {
+                write_u8(raw, caps.class_level, cre.rogue_level().unwrap_or(0), |v| {
+                    cre.set_rogue_level(v)
+                })
+            }
+            Self::SorcererLevel => write_u8(
+                raw,
+                caps.class_level,
+                cre.sorcerer_level().unwrap_or(0),
+                |v| cre.set_sorcerer_level(v),
+            ),
+            Self::WizardLevel => write_u8(
+                raw,
+                caps.class_level,
+                cre.wizard_level().unwrap_or(0),
+                |v| cre.set_wizard_level(v),
+            ),
             // GAM-side fields are routed through `write_clamped_gam`.
             Self::Reputation | Self::PartyGold => {
                 debug_assert!(false, "{self:?} is a GAM-side field");

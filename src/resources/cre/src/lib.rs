@@ -2038,70 +2038,136 @@ impl Cre {
     // class levels so the engine-visible total stays consistent.
 
     pub fn barbarian_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.barbarian_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.barbarian_levels),
+            _ => None,
+        }
     }
     pub fn set_barbarian_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.barbarian_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.barbarian_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn bard_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.bard_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.bard_levels),
+            _ => None,
+        }
     }
     pub fn set_bard_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.bard_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.bard_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn cleric_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.cleric_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.cleric_levels),
+            _ => None,
+        }
     }
     pub fn set_cleric_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.cleric_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.cleric_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn druid_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.druid_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.druid_levels),
+            _ => None,
+        }
     }
     pub fn set_druid_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.druid_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.druid_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn fighter_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.fighter_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.fighter_levels),
+            _ => None,
+        }
     }
     pub fn set_fighter_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.fighter_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.fighter_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn monk_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.monk), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.monk),
+            _ => None,
+        }
     }
     pub fn set_monk_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.monk = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.monk = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn paladin_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.paladin_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.paladin_levels),
+            _ => None,
+        }
     }
     pub fn set_paladin_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.paladin_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.paladin_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn ranger_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.ranger_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.ranger_levels),
+            _ => None,
+        }
     }
     pub fn set_ranger_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.ranger_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.ranger_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn rogue_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.rogue_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.rogue_levels),
+            _ => None,
+        }
     }
     pub fn set_rogue_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.rogue_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.rogue_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn sorcerer_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.sorcerer_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.sorcerer_levels),
+            _ => None,
+        }
     }
     pub fn set_sorcerer_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.sorcerer_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.sorcerer_levels = v;
+            recompute_v22_total(h);
+        }
     }
     pub fn wizard_level(&self) -> Option<u8> {
-        match &self.header { CreHeader::V22(h) => Some(h.wizard_levels), _ => None }
+        match &self.header {
+            CreHeader::V22(h) => Some(h.wizard_levels),
+            _ => None,
+        }
     }
     pub fn set_wizard_level(&mut self, v: u8) {
-        if let CreHeader::V22(h) = &mut self.header { h.wizard_levels = v; recompute_v22_total(h); }
+        if let CreHeader::V22(h) = &mut self.header {
+            h.wizard_levels = v;
+            recompute_v22_total(h);
+        }
     }
 
     /// Highest level among the character's classes — used for
@@ -2325,7 +2391,8 @@ pub(crate) mod test_support {
 }
 
 fn recompute_v22_total(h: &mut header::CreHeaderV22) {
-    h.total_levels = h.barbarian_levels
+    h.total_levels = h
+        .barbarian_levels
         .saturating_add(h.bard_levels)
         .saturating_add(h.cleric_levels)
         .saturating_add(h.druid_levels)
