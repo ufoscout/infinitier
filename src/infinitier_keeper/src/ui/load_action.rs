@@ -60,6 +60,7 @@ pub struct LoadAction {
     portraits: Vec<egui::TextureHandle>,
     /// Whether the delete-confirmation alert is showing.
     confirm_delete: bool,
+    pending_delete: Option<std::path::PathBuf>,
     /// Last error (failed load / delete), surfaced inline.
     error: Option<String>,
 }
@@ -73,6 +74,7 @@ impl LoadAction {
     pub fn open(&mut self, state: &AppState) {
         self.error = None;
         self.confirm_delete = false;
+        self.pending_delete = None;
         self.rescan(&state.game_data);
         self.selected = (!self.entries.is_empty()).then_some(0);
         self.preview_for = None;
@@ -120,6 +122,10 @@ impl LoadAction {
             Some(DialogAction::Load) => self.do_load(state),
             Some(DialogAction::Delete) if self.selected.is_some() => {
                 self.error = None;
+                self.pending_delete = self
+                    .selected
+                    .and_then(|i| self.entries.get(i))
+                    .map(|e| e.save.folder_path.clone());
                 self.confirm_delete = true;
             }
             Some(DialogAction::Delete) => {}
@@ -244,19 +250,18 @@ impl LoadAction {
                 self.confirm_delete = false;
                 self.do_delete(state);
             }
-            Some(AlertChoice::Cancel) => self.confirm_delete = false,
+            Some(AlertChoice::Cancel) => {
+                self.confirm_delete = false;
+                self.pending_delete = None;
+            }
             None => {}
         }
     }
 
-    /// Delete the selected save folder, then rescan and re-anchor the
-    /// selection.
+    /// Delete the save folder captured in [`Self::pending_delete`], then
+    /// rescan and re-anchor the selection.
     fn do_delete(&mut self, state: &mut AppState) {
-        let Some(folder) = self
-            .selected
-            .and_then(|i| self.entries.get(i))
-            .map(|e| e.save.folder_path.clone())
-        else {
+        let Some(folder) = self.pending_delete.take() else {
             return;
         };
         if let Err(e) = std::fs::remove_dir_all(&folder) {
