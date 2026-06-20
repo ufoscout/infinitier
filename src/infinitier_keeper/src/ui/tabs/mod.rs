@@ -104,7 +104,7 @@ impl CharacterTab {
     pub fn label(&self) -> &'static str {
         match self {
             CharacterTab::Abilities => "Abilities",
-            CharacterTab::Levels => "Levels",
+            CharacterTab::Levels => "Levels & Kits",
             CharacterTab::Characteristics => "Characteristics",
             CharacterTab::Appearance => "Appearance",
             CharacterTab::Inventory => "Inventory",

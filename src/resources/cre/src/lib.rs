@@ -646,6 +646,76 @@ impl CreatureFlags {
     ];
 }
 
+bitflags::bitflags! {
+    /// The IWD2 (CRE V2.2) kit bitfield at header offset 0x0270 — each
+    /// set bit is one kit. Bit positions follow the IESDP IWD2 kit
+    /// layout, verified against a save (Paladin of Helm `0x2`, Mage
+    /// Necromancer `0x1000`, Cleric of Lathander `0x10000`). Any
+    /// unmodelled bit is preserved via
+    /// [`Iwd2Kits::from_bits_retain`] so the dword round-trips and
+    /// toggling one kit never disturbs the rest.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    pub struct Iwd2Kits: u32 {
+        const PaladinMystra = 1 << 0;
+        const PaladinHelm = 1 << 1;
+        const PaladinIlmater = 1 << 2;
+        const MonkOldOrder = 1 << 3;
+        const MonkBrokenOnes = 1 << 4;
+        const MonkDarkMoon = 1 << 5;
+        const MageAbjurer = 1 << 6;
+        const MageConjurer = 1 << 7;
+        const MageDiviner = 1 << 8;
+        const MageEnchanter = 1 << 9;
+        const MageEvoker = 1 << 10;
+        const MageIllusionist = 1 << 11;
+        const MageNecromancer = 1 << 12;
+        const MageTransmuter = 1 << 13;
+        const MageGeneralist = 1 << 14;
+        const ClericIlmater = 1 << 15;
+        const ClericLathander = 1 << 16;
+        const ClericSelune = 1 << 17;
+        const ClericHelm = 1 << 18;
+        const ClericOghma = 1 << 19;
+        const ClericTempus = 1 << 20;
+        const ClericBane = 1 << 21;
+        const ClericMask = 1 << 22;
+        const ClericTalos = 1 << 23;
+    }
+}
+
+impl Iwd2Kits {
+    /// Every IWD2 kit in display order, each paired with a
+    /// human-readable label. Lets a UI render the kit checkboxes without
+    /// hardcoding any bit values — the bit semantics live here, on the
+    /// resource type, not in the view (mirrors [`CreatureFlags::MISC`]).
+    pub const ALL: &'static [(&'static str, Iwd2Kits)] = &[
+        ("Cleric Talos", Iwd2Kits::ClericTalos),
+        ("Cleric Mask", Iwd2Kits::ClericMask),
+        ("Cleric Bane", Iwd2Kits::ClericBane),
+        ("Cleric Tempus", Iwd2Kits::ClericTempus),
+        ("Cleric Oghma", Iwd2Kits::ClericOghma),
+        ("Cleric Helm", Iwd2Kits::ClericHelm),
+        ("Cleric Selune", Iwd2Kits::ClericSelune),
+        ("Cleric Lathander", Iwd2Kits::ClericLathander),
+        ("Cleric Ilmater", Iwd2Kits::ClericIlmater),
+        ("Mage Generalist", Iwd2Kits::MageGeneralist),
+        ("Mage Transmuter", Iwd2Kits::MageTransmuter),
+        ("Mage Necromancer", Iwd2Kits::MageNecromancer),
+        ("Mage Illusionist", Iwd2Kits::MageIllusionist),
+        ("Mage Evoker", Iwd2Kits::MageEvoker),
+        ("Mage Enchanter", Iwd2Kits::MageEnchanter),
+        ("Mage Diviner", Iwd2Kits::MageDiviner),
+        ("Mage Conjurer", Iwd2Kits::MageConjurer),
+        ("Mage Abjurer", Iwd2Kits::MageAbjurer),
+        ("Monk Dark Moon", Iwd2Kits::MonkDarkMoon),
+        ("Monk Broken Ones", Iwd2Kits::MonkBrokenOnes),
+        ("Monk Old Order", Iwd2Kits::MonkOldOrder),
+        ("Paladin Mystra", Iwd2Kits::PaladinMystra),
+        ("Paladin Helm", Iwd2Kits::PaladinHelm),
+        ("Paladin Ilmater", Iwd2Kits::PaladinIlmater),
+    ];
+}
+
 /// The class a dual-classed creature originally belonged to, recorded
 /// by the single `MC_WAS_*` bit set in its [`CreatureFlags`] dword.
 /// Mirrors GemRB `ie_stats.h`.
@@ -2170,6 +2240,33 @@ impl Cre {
         }
     }
 
+    /// The IWD2 (CRE V2.2) kit bitfield (offset `0x0270`) decoded into
+    /// named bits ([`Iwd2Kits`]). `None` on every other version (those
+    /// carry the legacy kit dword read via [`Self::kit`] instead).
+    /// Unmodelled bits are preserved (via `from_bits_retain`), so
+    /// reading, toggling one kit, and writing back never clobbers them.
+    pub fn iwd2_kits(&self) -> Option<Iwd2Kits> {
+        match &self.header {
+            CreHeader::V22(h) => Some(Iwd2Kits::from_bits_retain(h.kit_bitfield)),
+            _ => None,
+        }
+    }
+
+    /// Overwrite the IWD2 (V2.2) kit bitfield. No-op on other versions.
+    /// To flip a single kit without disturbing the rest, start from
+    /// [`Self::iwd2_kits`]:
+    ///
+    /// ```ignore
+    /// let mut kits = cre.iwd2_kits().unwrap_or_default();
+    /// kits.set(Iwd2Kits::ClericLathander, true);
+    /// cre.set_iwd2_kits(kits);
+    /// ```
+    pub fn set_iwd2_kits(&mut self, kits: Iwd2Kits) {
+        if let CreHeader::V22(h) = &mut self.header {
+            h.kit_bitfield = kits.bits();
+        }
+    }
+
     /// Highest level among the character's classes — used for
     /// level-scaled derived values. IWD2 (V2.2) reports the engine's
     /// summed `total_levels`.
@@ -3044,6 +3141,27 @@ mod tests {
         // V9.0 also labels the stealth row "Stealth".
         let iwd = crate::test_support::import_fixture("v9_0/BARBWAR2.cre");
         assert_eq!(iwd.move_silently_label(), "Stealth");
+    }
+
+    #[test]
+    fn iwd2_kits_round_trip() {
+        // Bit positions match the IESDP layout.
+        assert_eq!(Iwd2Kits::PaladinHelm.bits(), 0x0000_0002);
+        assert_eq!(Iwd2Kits::MageNecromancer.bits(), 0x0000_1000);
+        assert_eq!(Iwd2Kits::ClericLathander.bits(), 0x0001_0000);
+
+        let mut iwd2 = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        let kits = Iwd2Kits::ClericLathander | Iwd2Kits::PaladinHelm;
+        iwd2.set_iwd2_kits(kits);
+        assert_eq!(iwd2.iwd2_kits(), Some(kits));
+        // Survives a serialize → re-import cycle (offset 0x0270).
+        assert_eq!(round_trip(&iwd2).iwd2_kits(), Some(kits));
+
+        // Non-V2.2 creatures have no IWD2 kit bitfield; the setter is a no-op.
+        let mut bg = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
+        assert_eq!(bg.iwd2_kits(), None);
+        bg.set_iwd2_kits(Iwd2Kits::ClericTalos);
+        assert_eq!(bg.iwd2_kits(), None);
     }
 
     #[test]
