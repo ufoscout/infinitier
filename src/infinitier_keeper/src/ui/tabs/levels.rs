@@ -1,8 +1,10 @@
 //! Levels tab — IWD2 (CRE V2.2) per-class level editor.
 //!
-//! Mirrors EEKeeper's layout: two columns of class/level pairs, six on
-//! the left (Barbarian … Monk) and five on the right (Paladin … Wizard),
-//! each with an editable numeric input and a read-only "Total" footer.
+//! A single column of the eleven class/level pairs sorted by name
+//! (Barbarian … Wizard), each with an editable numeric input, and a
+//! read-only "Total" footer. The eleven levels are kept summing to at
+//! most 255 (the width of the engine's `total_levels` byte): editing a
+//! class clamps that value against the headroom the other ten leave.
 
 use eframe::egui;
 use egui_components::{Card, Label};
@@ -13,6 +15,9 @@ use crate::components::editable_fields::{EditableField, KeeperEditors};
 use crate::state::AppState;
 
 const INPUT_WIDTH: f32 = 110.0;
+/// Cap the single column so the label/input rows don't stretch across
+/// the whole window on wide displays.
+const CARD_MAX_WIDTH: f32 = 360.0;
 
 pub struct LevelsTab;
 
@@ -43,37 +48,30 @@ impl LevelsTab {
         };
 
         egui_components::scroll_area::ScrollArea::vertical().show(ui, |ui| {
-            ui.columns(2, |cols| {
-                levels_card(
-                    &mut cols[0],
-                    "Classes (left)",
-                    &[
-                        (EditableField::BarbarianLevel, "Barbarian"),
-                        (EditableField::BardLevel, "Bard"),
-                        (EditableField::ClericLevel, "Cleric"),
-                        (EditableField::DruidLevel, "Druid"),
-                        (EditableField::FighterLevel, "Fighter"),
-                        (EditableField::MonkLevel, "Monk"),
-                    ],
-                    state,
-                    editors,
-                    Some(total),
-                );
-                levels_card(
-                    &mut cols[1],
-                    "Classes (right)",
-                    &[
-                        (EditableField::PaladinLevel, "Paladin"),
-                        (EditableField::RangerLevel, "Ranger"),
-                        (EditableField::RogueLevel, "Rogue"),
-                        (EditableField::SorcererLevel, "Sorcerer"),
-                        (EditableField::WizardLevel, "Wizard"),
-                    ],
-                    state,
-                    editors,
-                    None,
-                );
-            });
+            // Keep the single column to a readable width instead of
+            // spanning the whole tab.
+            ui.set_max_width(CARD_MAX_WIDTH);
+            // All eleven classes in a single column, sorted by name.
+            levels_card(
+                ui,
+                "Class Levels",
+                &[
+                    (EditableField::BarbarianLevel, "Barbarian"),
+                    (EditableField::BardLevel, "Bard"),
+                    (EditableField::ClericLevel, "Cleric"),
+                    (EditableField::DruidLevel, "Druid"),
+                    (EditableField::FighterLevel, "Fighter"),
+                    (EditableField::MonkLevel, "Monk"),
+                    (EditableField::PaladinLevel, "Paladin"),
+                    (EditableField::RangerLevel, "Ranger"),
+                    (EditableField::RogueLevel, "Rogue"),
+                    (EditableField::SorcererLevel, "Sorcerer"),
+                    (EditableField::WizardLevel, "Wizard"),
+                ],
+                state,
+                editors,
+                Some(total),
+            );
         });
     }
 }

@@ -501,68 +501,39 @@ impl EditableField {
             Self::XpForKill => write_u32(raw, caps.xp_for_kill, cre.xp_for_kill(), |v| {
                 cre.set_xp_for_kill(v)
             }),
-            Self::BarbarianLevel => write_u8(
-                raw,
-                caps.class_level,
-                cre.barbarian_level().unwrap_or(0),
-                |v| cre.set_barbarian_level(v),
-            ),
+            Self::BarbarianLevel => {
+                write_class_level(cre, raw, caps, Cre::barbarian_level, Cre::set_barbarian_level)
+            }
             Self::BardLevel => {
-                write_u8(raw, caps.class_level, cre.bard_level().unwrap_or(0), |v| {
-                    cre.set_bard_level(v)
-                })
+                write_class_level(cre, raw, caps, Cre::bard_level, Cre::set_bard_level)
             }
-            Self::ClericLevel => write_u8(
-                raw,
-                caps.class_level,
-                cre.cleric_level().unwrap_or(0),
-                |v| cre.set_cleric_level(v),
-            ),
+            Self::ClericLevel => {
+                write_class_level(cre, raw, caps, Cre::cleric_level, Cre::set_cleric_level)
+            }
             Self::DruidLevel => {
-                write_u8(raw, caps.class_level, cre.druid_level().unwrap_or(0), |v| {
-                    cre.set_druid_level(v)
-                })
+                write_class_level(cre, raw, caps, Cre::druid_level, Cre::set_druid_level)
             }
-            Self::FighterLevel => write_u8(
-                raw,
-                caps.class_level,
-                cre.fighter_level().unwrap_or(0),
-                |v| cre.set_fighter_level(v),
-            ),
+            Self::FighterLevel => {
+                write_class_level(cre, raw, caps, Cre::fighter_level, Cre::set_fighter_level)
+            }
             Self::MonkLevel => {
-                write_u8(raw, caps.class_level, cre.monk_level().unwrap_or(0), |v| {
-                    cre.set_monk_level(v)
-                })
+                write_class_level(cre, raw, caps, Cre::monk_level, Cre::set_monk_level)
             }
-            Self::PaladinLevel => write_u8(
-                raw,
-                caps.class_level,
-                cre.paladin_level().unwrap_or(0),
-                |v| cre.set_paladin_level(v),
-            ),
-            Self::RangerLevel => write_u8(
-                raw,
-                caps.class_level,
-                cre.ranger_level().unwrap_or(0),
-                |v| cre.set_ranger_level(v),
-            ),
+            Self::PaladinLevel => {
+                write_class_level(cre, raw, caps, Cre::paladin_level, Cre::set_paladin_level)
+            }
+            Self::RangerLevel => {
+                write_class_level(cre, raw, caps, Cre::ranger_level, Cre::set_ranger_level)
+            }
             Self::RogueLevel => {
-                write_u8(raw, caps.class_level, cre.rogue_level().unwrap_or(0), |v| {
-                    cre.set_rogue_level(v)
-                })
+                write_class_level(cre, raw, caps, Cre::rogue_level, Cre::set_rogue_level)
             }
-            Self::SorcererLevel => write_u8(
-                raw,
-                caps.class_level,
-                cre.sorcerer_level().unwrap_or(0),
-                |v| cre.set_sorcerer_level(v),
-            ),
-            Self::WizardLevel => write_u8(
-                raw,
-                caps.class_level,
-                cre.wizard_level().unwrap_or(0),
-                |v| cre.set_wizard_level(v),
-            ),
+            Self::SorcererLevel => {
+                write_class_level(cre, raw, caps, Cre::sorcerer_level, Cre::set_sorcerer_level)
+            }
+            Self::WizardLevel => {
+                write_class_level(cre, raw, caps, Cre::wizard_level, Cre::set_wizard_level)
+            }
             // GAM-side fields are routed through `write_clamped_gam`.
             Self::Reputation | Self::PartyGold => {
                 debug_assert!(false, "{self:?} is a GAM-side field");
@@ -587,6 +558,57 @@ impl EditableField {
 }
 
 // ── Type-specific parse/clamp/write helpers ──────────────────────────
+
+/// The IWD2 (CRE V2.2) engine stores the party-visible `total_levels` as
+/// a single `u8` (sum of all eleven per-class levels), so the eleven
+/// levels must sum to at most 255.
+const IWD2_TOTAL_LEVELS_MAX: u16 = u8::MAX as u16;
+
+/// Sum of every IWD2 (V2.2) per-class level, as `u16` to avoid the
+/// saturating overflow `total_levels` hits past 255. Zero on non-V2.2
+/// CREs (every per-class getter returns `None`).
+fn iwd2_class_levels_total(cre: &Cre) -> u16 {
+    [
+        cre.barbarian_level(),
+        cre.bard_level(),
+        cre.cleric_level(),
+        cre.druid_level(),
+        cre.fighter_level(),
+        cre.monk_level(),
+        cre.paladin_level(),
+        cre.ranger_level(),
+        cre.rogue_level(),
+        cre.sorcerer_level(),
+        cre.wizard_level(),
+    ]
+    .into_iter()
+    .flatten()
+    .map(u16::from)
+    .sum()
+}
+
+/// Parse + clamp + write one IWD2 per-class level. On top of the normal
+/// per-field `class_level` clamp, the value is capped so the eleven
+/// classes can't sum past 255 — the edited class takes at most
+/// `255 - (sum of the other ten)`, clamping the just-edited value.
+fn write_class_level(
+    cre: &mut Cre,
+    raw: &str,
+    caps: &EngineCaps,
+    get: fn(&Cre) -> Option<u8>,
+    set: fn(&mut Cre, u8),
+) {
+    let current = get(cre).unwrap_or(0);
+    let parsed: u8 = match raw.trim().parse::<u32>() {
+        Ok(n) => n.min(u8::MAX as u32) as u8,
+        Err(_) => current,
+    };
+    let clamped = caps.class_level.clamp(parsed);
+    // Headroom left for this class once the other ten are accounted for.
+    let others = iwd2_class_levels_total(cre).saturating_sub(u16::from(current));
+    let max_for_field = IWD2_TOTAL_LEVELS_MAX.saturating_sub(others) as u8;
+    set(cre, clamped.min(max_for_field));
+}
 
 fn write_u8<F: FnOnce(u8)>(raw: &str, range: AbilityRange<u8>, current: u8, write: F) {
     let parsed: u8 = match raw.trim().parse::<u32>() {
