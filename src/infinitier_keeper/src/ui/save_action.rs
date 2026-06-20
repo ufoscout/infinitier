@@ -50,11 +50,11 @@ impl SaveAction {
         self.error = None;
         let active = state.active();
         let parent = active
-            .save_folder_path
+            .save_game.folder_path
             .parent()
             .map(Path::to_path_buf)
             .unwrap_or_default();
-        self.folder_name = suggest_save_name(&active.save_name, &parent);
+        self.folder_name = suggest_save_name(&active.save_game.folder_name(), &parent);
         self.open = true;
     }
 
@@ -138,23 +138,19 @@ fn attempt_export(
         return;
     }
     let active = state.active();
-    let Some(parent) = active.save_folder_path.parent() else {
+    let Some(parent) = active.save_game.folder_path.parent() else {
         *error = Some("Save folder has no parent directory.".into());
         return;
     };
     // `parent` borrows `active.save_folder_path` — clone it so we can
     // re-borrow `state` mutably below to swap the active save.
     let parent = parent.to_path_buf();
-    match perform_save_export(name, &active.save_folder_path, &parent, &active.save) {
+    match perform_save_export(name, &active.save_game.folder_path, &parent, &active.save) {
         Ok(dest) => {
             info!("[save] wrote {}", dest.display());
             let active = state.active_mut();
-            active.save_name = name.to_string();
-            active.save_folder_path = dest;
-            // Tab title in the header strip reflects `save_name`, so
-            // the next frame already shows the new label. The window
-            // title doesn't carry the save name anymore, so there's
-            // no viewport title push to do here.
+            active.save_game.set_folder_name(name.to_string());
+            active.save_game.folder_path = dest;
             *open = false;
             *error = None;
         }

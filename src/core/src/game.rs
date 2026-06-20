@@ -921,7 +921,7 @@ mod tests {
 
         // Given the fixture folder: 4 saves under Save/ + 1 under MPSave/.
         let saves = game_data.refresh_save_games().unwrap();
-        let names: Vec<&str> = saves.saves().iter().map(|s| s.name.as_str()).collect();
+        let names: Vec<&str> = saves.saves().iter().map(|s| s.folder_name()).collect();
         assert_eq!(
             names,
             vec![
@@ -945,7 +945,7 @@ mod tests {
         let added = saves
             .by_name("999999999-Brand-New-Save")
             .expect("the freshly-added save must be discovered after refresh");
-        assert_eq!(added.name, "999999999-Brand-New-Save");
+        assert_eq!(added.folder_name(), "999999999-Brand-New-Save");
         assert!(added.screenshot.is_some());
         assert!(added.worldmap.is_some());
 

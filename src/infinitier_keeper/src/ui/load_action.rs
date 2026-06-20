@@ -146,7 +146,7 @@ impl LoadAction {
         self.screenshot = None;
         self.portraits.clear();
         if let Some(entry) = self.selected.and_then(|i| self.entries.get(i)) {
-            let tag = entry.save.name.as_str();
+            let tag = entry.save.folder_name();
             self.screenshot = entry
                 .save
                 .screenshot
@@ -170,8 +170,7 @@ impl LoadAction {
     fn do_load(&mut self, state: &mut AppState) {
         let Some(save) = self
             .selected
-            .and_then(|i| self.entries.get(i))
-            .map(|e| &e.save)
+            .map(|i| self.entries.swap_remove(i).save)
         else {
             return;
         };
@@ -180,7 +179,7 @@ impl LoadAction {
         if let Some(idx) = state
             .tabs
             .iter()
-            .position(|t| t.save_folder_path == save.folder_path)
+            .position(|t| t.save_game.folder_path == save.folder_path)
         {
             state.active_tab = idx;
             self.open = false;
@@ -189,7 +188,7 @@ impl LoadAction {
 
         let engine = state.game_data.game().engine();
         let gam = match (GamImporter {
-            name: &save.name,
+            name: &save.folder_name(),
             engine,
         })
         .import(&save.gam)
@@ -198,7 +197,7 @@ impl LoadAction {
             Err(e) => {
                 self.error = Some(format!(
                     "Couldn't read \"{}\": {e}",
-                    display_name(&save.name)
+                    save.folder_name()
                 ));
                 return;
             }
@@ -208,18 +207,17 @@ impl LoadAction {
             Err(e) => {
                 self.error = Some(format!(
                     "Couldn't load \"{}\": {e}",
-                    display_name(&save.name)
+                    save.folder_name()
                 ));
                 return;
             }
         };
 
+        info!("[load] opened save {}", save.folder_path.display());
         let tab = SaveTab::new(
-            save.name.clone(),
-            save.folder_path.clone(),
+            save,
             Box::new(imported),
         );
-        info!("[load] opened save {}", save.folder_path.display());
         state.tabs.push(tab);
         state.active_tab = state.tabs.len() - 1;
         self.open = false;
@@ -231,7 +229,7 @@ impl LoadAction {
         let Some(name) = self
             .selected
             .and_then(|i| self.entries.get(i))
-            .map(|e| display_name(&e.save.name).to_string())
+            .map(|e| e.save.display_name())
         else {
             self.confirm_delete = false;
             return;
@@ -393,7 +391,7 @@ fn save_table(ui: &mut egui::Ui, entries: &[SaveEntry], selected: &mut Option<us
                 row.selected(*selected == Some(i));
                 let entry = &entries[i];
                 row.col(|ui| {
-                    ui.add(Label::new(display_name(&entry.save.name)));
+                    ui.add(Label::new(entry.save.display_name()));
                 });
                 row.col(|ui| {
                     ui.add(Label::new(&entry.time_label));
@@ -452,19 +450,6 @@ fn load_bmp_texture(
     let size = [buffer.width() as usize, buffer.height() as usize];
     let color = egui::ColorImage::from_rgba_unmultiplied(size, buffer.as_raw());
     Some(ctx.load_texture(name, color, egui::TextureOptions::LINEAR))
-}
-
-/// The name EEKeeper shows in the "Game Name" column: the save folder
-/// name with its leading `NNNNNNNNN-` numeric prefix stripped.
-fn display_name(folder_name: &str) -> &str {
-    match folder_name.split_once('-') {
-        Some((prefix, rest))
-            if !prefix.is_empty() && prefix.bytes().all(|b| b.is_ascii_digit()) =>
-        {
-            rest
-        }
-        _ => folder_name,
-    }
 }
 
 /// Most recent file mtime within a save folder (the actual save time),

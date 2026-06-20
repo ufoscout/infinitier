@@ -50,7 +50,13 @@ pub struct SaveGame {
     /// On-disk name of the save folder (e.g. `000000001-Quick-Save`,
     /// `888888890-Alone with Imoen`). Used as the `by_name` key on
     /// [`SaveGames`].
-    pub name: String,
+    folder_name: String,
+
+    /// The name the keeper shows in the "Game Name" column: the save
+    /// folder name with its leading `NNNNNNNNN-` numeric prefix
+    /// stripped.
+    display_name: String,
+
     /// Absolute path of the save folder on disk. Resolved through
     /// the [`CaseInsensitiveFS`] used to discover the save (so
     /// callers don't need to re-canonicalise it). Used by tooling
@@ -74,6 +80,27 @@ pub struct SaveGame {
     pub portraits: Vec<DataSource>,
     /// `WORLDMAP.WMP`. `None` when absent.
     pub worldmap: Option<DataSource>,
+}
+
+impl SaveGame {
+
+    /// sets the folder name
+    pub fn set_folder_name(&mut self, folder_name: String) {
+        self.display_name = display_name(&folder_name).to_owned();
+        self.folder_name = folder_name;
+    }
+
+    /// On-disk name of the save folder (e.g. `000000001-Quick-Save`,
+    /// `888888890-Alone with Imoen`).
+    pub fn folder_name(&self) -> &str {
+        &self.folder_name
+    }
+
+    /// The folder name with its leading `NNNNNNNNN-` numeric prefix
+    /// stripped.
+    pub fn display_name(&self) -> &str {
+        &self.display_name
+    }
 }
 
 /// A collection of [`SaveGame`]s discovered in a [`CaseInsensitiveFS`]
@@ -145,19 +172,21 @@ pub(crate) fn scan_save_games(fs: &CaseInsensitiveFS) -> SaveGames {
     // order (the `Save` folder is scanned before `MPSave`, so a
     // `Save/X` save lands before an `MPSave/X` one in the by_name
     // map).
-    saves.sort_by(|a, b| a.name.cmp(&b.name));
+    saves.sort_by(|a, b| a.folder_name.cmp(&b.folder_name));
     let mut by_name = HashMap::with_capacity(saves.len());
     for (i, save) in saves.iter().enumerate() {
-        by_name.entry(save.name.clone()).or_insert(i);
+        by_name.entry(save.folder_name.clone()).or_insert(i);
     }
     debug!("Discovered {} save game(s)", saves.len());
     SaveGames { saves, by_name }
 }
 
 fn build_save_game(fs: &CaseInsensitiveFS, sav: &CiPath) -> Option<SaveGame> {
+    // Path to the Sav file
     let sav_path: &Path = sav.path();
-    let parent_path = sav_path.parent()?;
-    let name = parent_path.file_name()?.to_string_lossy().into_owned();
+    // Path to the folder where the SAV file is
+    let savegame_folder_path = sav_path.parent()?;
+    let name = savegame_folder_path.file_name()?.to_string_lossy().into_owned();
 
     // CaseInsensitiveFS keys are forward-slash, lower-case and
     // relative to the FS root. Trim the SAV's own filename off the
@@ -195,10 +224,12 @@ fn build_save_game(fs: &CaseInsensitiveFS, sav: &CiPath) -> Option<SaveGame> {
     // path so PORTRT0 < PORTRT1 < PORTRT2 regardless of how the OS
     // returned them.
     portraits.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    let display_name = display_name(&name).to_string();
 
     Some(SaveGame {
-        name,
-        folder_path: parent_path.to_path_buf(),
+        folder_name: name,
+        display_name,
+        folder_path: savegame_folder_path.to_path_buf(),
         sav: DataSource::new(sav.path().to_path_buf()),
         gam,
         screenshot: screenshot.map(|p| DataSource::new(p.path().to_path_buf())),
@@ -208,6 +239,19 @@ fn build_save_game(fs: &CaseInsensitiveFS, sav: &CiPath) -> Option<SaveGame> {
             .collect(),
         worldmap,
     })
+}
+
+/// The game shows the save folder
+/// name with its leading `NNNNNNNNN-` numeric prefix stripped.
+fn display_name(folder_name: &str) -> &str {
+    match folder_name.split_once('-') {
+        Some((prefix, rest))
+            if !prefix.is_empty() && prefix.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            rest
+        }
+        _ => folder_name,
+    }
 }
 
 #[cfg(test)]
@@ -234,7 +278,7 @@ mod tests {
         let saves = scan_save_games(&fs);
         assert_eq!(saves.len(), 5);
         // Alphabetical order.
-        let names: Vec<&str> = saves.saves().iter().map(|s| s.name.as_str()).collect();
+        let names: Vec<&str> = saves.saves().iter().map(|s| s.folder_name.as_str()).collect();
         assert_eq!(
             names,
             vec![
@@ -253,11 +297,11 @@ mod tests {
         let saves = scan_save_games(&fs);
         // by_index follows the alphabetical sort.
         assert_eq!(
-            saves.by_index(0).map(|s| s.name.as_str()),
+            saves.by_index(0).map(|s| s.folder_name.as_str()),
             Some("000000001-Quick-Save"),
         );
         assert_eq!(
-            saves.by_index(saves.len() - 1).map(|s| s.name.as_str()),
+            saves.by_index(saves.len() - 1).map(|s| s.folder_name.as_str()),
             Some("888888890-Alone with Imoen"),
         );
         assert!(saves.by_index(saves.len()).is_none());
@@ -270,7 +314,8 @@ mod tests {
         let found = saves
             .by_name("888888890-Alone with Imoen")
             .expect("save 'Alone with Imoen' must be present");
-        assert_eq!(found.name, "888888890-Alone with Imoen");
+        assert_eq!(found.display_name, "Alone with Imoen");
+        assert_eq!(found.folder_name, "888888890-Alone with Imoen");
         // No match on a non-existent name.
         assert!(saves.by_name("does-not-exist").is_none());
     }
@@ -363,7 +408,7 @@ mod tests {
             saves
                 .saves()
                 .iter()
-                .map(|s| s.name.as_str())
+                .map(|s| s.folder_name.as_str())
                 .collect::<Vec<_>>(),
         );
         // Each `sod_only_names` entry whose name doesn't appear
@@ -385,4 +430,13 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_display_name() {
+        assert_eq!("", display_name(""));
+        assert_eq!("default", display_name("default"));
+        assert_eq!("OK3 (Edited 0001)", display_name("000000007-OK3 (Edited 0001)"));
+        assert_eq!("OK3-(Edited-0001)", display_name("000000007-OK3-(Edited-0001)"));
+    }
+
 }

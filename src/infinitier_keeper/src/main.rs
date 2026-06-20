@@ -14,7 +14,7 @@ use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::gam::GamImporter;
 
 use crate::app::KeeperApp;
-use crate::state::AppState;
+use crate::state::{AppState, SaveTab};
 
 /// Infinitier Keeper — cross-engine Infinity Engine save-game editor.
 #[derive(Parser)]
@@ -83,7 +83,7 @@ fn main() {
                     save_games
                         .saves()
                         .iter()
-                        .map(|s| s.name.as_str())
+                        .map(|s| s.folder_name())
                         .collect::<Vec<_>>()
                         .join(", "),
                 );
@@ -96,16 +96,16 @@ fn main() {
     // is pre-parsed and every NPC name is TLK-resolved. Strict mode:
     // a corrupt embedded CRE aborts the open with a clear error.
     let gam = GamImporter {
-        name: &core_save.name,
+        name: &core_save.folder_name(),
         engine: game_data.game().engine(),
     }
     .import(&core_save.gam)
     .unwrap_or_else(|e| {
-        eprintln!("Failed to import GAM for '{}': {e}", core_save.name);
+        eprintln!("Failed to import GAM for '{}': {e}", core_save.folder_name());
         std::process::exit(1);
     });
     let imported_gam = ImportedGam::load(gam, &game_data).unwrap_or_else(|e| {
-        eprintln!("Failed to resolve save '{}': {e}", core_save.name,);
+        eprintln!("Failed to resolve save '{}': {e}", core_save.folder_name());
         std::process::exit(1);
     });
 
@@ -116,13 +116,11 @@ fn main() {
         );
         std::process::exit(1);
     });
-    let state = AppState::new(
+    let mut state = AppState::new(
         game_data,
-        core_save.name,
-        core_save.folder_path,
-        Box::new(imported_gam),
         engine_caps,
     );
+    state.tabs.push(SaveTab::new(core_save, Box::new(imported_gam)));
     let title = state.window_title();
 
     // Force the wgpu GL backend. On Linux the default would be

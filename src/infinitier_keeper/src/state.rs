@@ -16,11 +16,10 @@
 //! can open additional saves into new tabs without restarting the
 //! keeper.
 
-use std::path::PathBuf;
-
 use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::gam::ImportedGam;
+use infinitier_core::save_games::SaveGame;
 
 use crate::ui::CharacterTab;
 
@@ -49,15 +48,8 @@ pub struct AppState {
 
 /// Per-save state for one open save game.
 pub struct SaveTab {
-    /// On-disk name of the save folder (the
-    /// [`infinitier_core::save_games::SaveGame::name`] the user
-    /// picked at startup). Kept on the side because [`ImportedGam`]
-    /// has no notion of "where on disk did this come from".
-    pub save_name: String,
-    /// Absolute path of the open save folder. Used by the Save
-    /// action to compute the destination folder (sibling of this
-    /// one) and to enumerate the files to copy.
-    pub save_folder_path: PathBuf,
+    /// Reference to the save game on disk.
+    pub save_game: SaveGame,
     /// Loaded save state, with every embedded CRE parsed and every
     /// NPC name resolved through `dialog.tlk` when one was
     /// reachable.
@@ -80,16 +72,12 @@ impl AppState {
 
     pub fn new(
         game_data: GameData,
-        save_name: String,
-        save_folder_path: PathBuf,
-        save: Box<ImportedGam>,
         engine_caps: EngineCaps,
     ) -> Self {
-        let tab = SaveTab::new(save_name, save_folder_path, save);
         Self {
             game_data,
             engine_caps,
-            tabs: vec![tab],
+            tabs: vec![],
             active_tab: 0,
         }
     }
@@ -110,15 +98,14 @@ impl AppState {
 }
 
 impl SaveTab {
-    pub fn new(save_name: String, save_folder_path: PathBuf, save: Box<ImportedGam>) -> Self {
+    pub fn new(save_game: SaveGame, save: Box<ImportedGam>) -> Self {
         let selected_party_index = if save.party_npcs.is_empty() {
             None
         } else {
             Some(0)
         };
         Self {
-            save_name,
-            save_folder_path,
+            save_game,
             save,
             selected_party_index,
             selected_tab: CharacterTab::Abilities,
