@@ -4,7 +4,7 @@
 
 - [ ] EngineCaps should be part of the GameData
 - [ ] Spell tabs should show icons
-- [ ] should load a game with a double click
+- [X] should load a game with a double click
 
 
 ## Check own game values are read

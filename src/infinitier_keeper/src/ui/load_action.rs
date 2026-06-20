@@ -316,7 +316,10 @@ fn render_body(
     ui.horizontal_top(|ui| {
         ui.vertical(|ui| {
             ui.set_width(456.0);
-            save_table(ui, entries, selected);
+            // Double-clicking a row selects and loads it immediately.
+            if save_table(ui, entries, selected) {
+                action = Some(DialogAction::Load);
+            }
         });
         ui.add_space(10.0);
         ui.vertical(|ui| {
@@ -357,12 +360,15 @@ fn render_body(
     action
 }
 
-/// The two-column selectable list (Game Name / Time Saved).
-fn save_table(ui: &mut egui::Ui, entries: &[SaveEntry], selected: &mut Option<usize>) {
+/// The two-column selectable list (Game Name / Time Saved). Returns
+/// `true` when a row was double-clicked (caller should load the now-
+/// selected save).
+fn save_table(ui: &mut egui::Ui, entries: &[SaveEntry], selected: &mut Option<usize>) -> bool {
     if entries.is_empty() {
         ui.add(Label::new("No saved games found.").tone(LabelTone::Muted));
-        return;
+        return false;
     }
+    let mut load = false;
     Table::new("save-list")
         .selectable(true)
         .max_height(340.0)
@@ -384,11 +390,17 @@ fn save_table(ui: &mut egui::Ui, entries: &[SaveEntry], selected: &mut Option<us
                 row.col(|ui| {
                     ui.add(Label::new(&entry.time_label));
                 });
-                if row.response().clicked() {
+                let resp = row.response();
+                if resp.clicked() {
                     *selected = Some(i);
+                }
+                if resp.double_clicked() {
+                    *selected = Some(i);
+                    load = true;
                 }
             });
         });
+    load
 }
 
 /// The selected save's screenshot over a row of party portrait thumbs.
