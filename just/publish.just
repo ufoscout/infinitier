@@ -5,7 +5,7 @@ publish-dry-run:
     cargo publish --workspace --dry-run
 
 # Publish every publishable crate to crates.io, one at a time.
-publish gap="5":
+publish gap="30":
     #!/usr/bin/env bash
 
     # We can't use `cargo publish` because it hits 429 (too many crates) error
