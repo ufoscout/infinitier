@@ -7,7 +7,10 @@
 //! will flesh out in follow-up work.
 
 use eframe::egui;
-use infinitier_core::imported_resource::gam::{ImportedGam, NpcCre};
+use infinitier_core::engine_caps::EngineCaps;
+use infinitier_core::game::GameData;
+use infinitier_core::imported_resource::cre::ImportedCre;
+use infinitier_core::imported_resource::gam::{ImportedGam, ImportedGamNpc, NpcCre};
 use infinitier_core::resource::Engine;
 use infinitier_core::resource::{Game, cre::Cre};
 
@@ -142,27 +145,35 @@ impl CharacterTab {
     }
 }
 
-/// Render the content area of the active tab. The Abilities tab
-/// needs mutable access to commit edits, so it's dispatched
-/// directly with `&mut AppState + &mut KeeperEditors`. Every other
-/// tab is still read-only — we pull the immutable triple
-/// `(cre, gam, game)` out of `state` once and forward it to the
-/// stub.
-pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEditors) {
+/// The immutable references a read-only tab can need, gathered once by
+/// [`with_cre`] for the selected party creature. Tabs take whichever
+/// subset they use.
+struct CreCtx<'a> {
+    /// The parsed embedded CRE wrapper (Characteristics / Inventory).
+    imported: &'a ImportedCre,
+    /// The wrapped CRE — what most read-only tabs read from.
+    cre: &'a Cre,
+    /// The save's GAM (party-wide tabs, variables, journal, …).
+    gam: &'a ImportedGam,
+    /// The selected party slot's GAM record (kill stats, name, …).
+    member: &'a ImportedGamNpc,
+    /// The game variant.
+    game: Game,
+    /// Resource access for tabs that resolve names / 2DAs / TLK.
+    game_data: &'a GameData,
+    /// Engine ability/skill ranges (Proficiencies).
+    engine_caps: &'a EngineCaps,
+    /// `(save-tab, party-slot)` key for the Spells tab's per-character
+    /// dropdown memory.
+    char_key: u64,
+}
+
+/// Resolve the selected party creature and run `f` with its immutable
+/// [`CreCtx`]. No-op (the tab simply renders nothing) when the slot is
+/// empty or doesn't hold an embedded CRE — this is the single guard
+/// every read-only tab shares.
+fn with_cre(state: &AppState, f: impl FnOnce(CreCtx)) {
     let active = state.active();
-    if active.selected_tab == CharacterTab::Abilities {
-        AbilitiesTab.show(ui, state, editors);
-        return;
-    }
-    if active.selected_tab == CharacterTab::Levels {
-        LevelsTab.show(ui, state, editors);
-        return;
-    }
-    // Feats edits the CRE in place, so it needs `&mut AppState`.
-    if active.selected_tab == CharacterTab::Feats {
-        FeatsTab.show(ui, state);
-        return;
-    }
     let Some(idx) = active.selected_party_index else {
         return;
     };
@@ -172,47 +183,63 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
     let Some(NpcCre::Cre(imported)) = member.cre.as_ref() else {
         return;
     };
-    let cre: &Cre = imported.cre();
-    let gam: &ImportedGam = &active.save;
-    let game: Game = state.game_data.game();
-    match active.selected_tab {
-        CharacterTab::Abilities | CharacterTab::Levels | CharacterTab::Feats => unreachable!(),
-        // Characteristics resolves IDS-backed names (class / race /
-        // kit / …) and the strongest-kill strref, so it needs
-        // `game_data`; the kill statistics live in the GAM party
-        // slot's raw struct, so it also takes `member`.
+    f(CreCtx {
+        imported,
+        cre: imported.cre(),
+        gam: &active.save,
+        member,
+        game: state.game_data.game(),
+        game_data: &state.game_data,
+        engine_caps: &state.engine_caps,
+        char_key: ((state.active_tab as u64) << 32) | idx as u64,
+    });
+}
+
+/// Render the content area of the active tab. One arm per tab: the
+/// editable tabs (Abilities / Levels / Feats) take `&mut AppState`
+/// directly; every read-only tab borrows the creature immutably through
+/// [`with_cre`], which carries the shared "no creature selected" guard.
+pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEditors) {
+    // Read the tab out as an owned (Copy) value so no borrow of `state`
+    // is held across the match — editable arms need `&mut state`.
+    match state.active().selected_tab {
+        CharacterTab::Abilities => AbilitiesTab.show(ui, state, editors),
+        CharacterTab::Levels => LevelsTab.show(ui, state, editors),
+        CharacterTab::Feats => FeatsTab.show(ui, state),
         CharacterTab::Characteristics => {
-            CharacteristicsTab.show(ui, imported, member, &state.game_data)
+            with_cre(state, |c| CharacteristicsTab.show(ui, c.imported, c.member, c.game_data))
         }
-        // Appearance resolves the animation id via ANIMATE.IDS and the
-        // colour-gradient swatches via the palette BMP, so it needs
-        // `game_data`.
-        CharacterTab::Appearance => AppearanceTab.show(ui, cre, &state.game_data),
-        // Inventory resolves each item slot's ITM (for the name + icon
-        // BAM) and `dialog.tlk`, so it needs `game_data`.
-        CharacterTab::Inventory => InventoryTab.show(ui, imported, &state.game_data),
-        // IWD2-only single spell list with a category dropdown; resolves
-        // spell names via their SPL files and `dialog.tlk`. The
-        // (save-tab, party-slot) pair keys the per-character dropdown
-        // memory so switching creatures re-defaults the selection.
+        CharacterTab::Appearance => with_cre(state, |c| AppearanceTab.show(ui, c.cre, c.game_data)),
+        CharacterTab::Inventory => {
+            with_cre(state, |c| InventoryTab.show(ui, c.imported, c.game_data))
+        }
         CharacterTab::Spells => {
-            let char_key = ((state.active_tab as u64) << 32) | idx as u64;
-            SpellsTab.show(ui, cre, char_key, &state.game_data)
+            with_cre(state, |c| SpellsTab.show(ui, c.cre, c.char_key, c.game_data))
         }
-        CharacterTab::Memorization => MemorizationTab.show(ui, cre, gam, game),
-        CharacterTab::Innate => InnateTab.show(ui, cre, &state.game_data),
-        CharacterTab::Wizard => WizardTab.show(ui, cre, &state.game_data),
-        CharacterTab::Cleric => ClericTab.show(ui, cre, &state.game_data),
-        CharacterTab::Proficiencies => ProficienciesTab.show(ui, cre, &state.engine_caps),
-        CharacterTab::Resistances => ResistancesTab.show(ui, cre, gam, game),
-        // Effects resolves resource resrefs to spell names via their
-        // SPL files and `dialog.tlk`, so it needs `game_data`.
-        CharacterTab::Effects => EffectsTab.show(ui, cre, &state.game_data),
-        CharacterTab::LocalVariables => LocalVariablesTab.show(ui, cre, gam, game),
-        CharacterTab::GlobalVariables => GlobalVariablesTab.show(ui, cre, gam, game),
-        // The journal belongs to the savegame, not a character, and
-        // resolves each entry's text via `dialog.tlk`.
-        CharacterTab::JournalEntries => JournalEntriesTab.show(ui, gam, &state.game_data),
-        CharacterTab::Miscellaneous => MiscellaneousTab.show(ui, cre, gam, member),
+        CharacterTab::Memorization => {
+            with_cre(state, |c| MemorizationTab.show(ui, c.cre, c.gam, c.game))
+        }
+        CharacterTab::Innate => with_cre(state, |c| InnateTab.show(ui, c.cre, c.game_data)),
+        CharacterTab::Wizard => with_cre(state, |c| WizardTab.show(ui, c.cre, c.game_data)),
+        CharacterTab::Cleric => with_cre(state, |c| ClericTab.show(ui, c.cre, c.game_data)),
+        CharacterTab::Proficiencies => {
+            with_cre(state, |c| ProficienciesTab.show(ui, c.cre, c.engine_caps))
+        }
+        CharacterTab::Resistances => {
+            with_cre(state, |c| ResistancesTab.show(ui, c.cre, c.gam, c.game))
+        }
+        CharacterTab::Effects => with_cre(state, |c| EffectsTab.show(ui, c.cre, c.game_data)),
+        CharacterTab::LocalVariables => {
+            with_cre(state, |c| LocalVariablesTab.show(ui, c.cre, c.gam, c.game))
+        }
+        CharacterTab::GlobalVariables => {
+            with_cre(state, |c| GlobalVariablesTab.show(ui, c.cre, c.gam, c.game))
+        }
+        CharacterTab::JournalEntries => {
+            with_cre(state, |c| JournalEntriesTab.show(ui, c.gam, c.game_data))
+        }
+        CharacterTab::Miscellaneous => {
+            with_cre(state, |c| MiscellaneousTab.show(ui, c.cre, c.gam, c.member))
+        }
     }
 }
