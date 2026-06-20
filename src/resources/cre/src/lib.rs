@@ -2412,13 +2412,18 @@ impl Cre {
 /// the bytes are identical.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Iwd2Slot {
-    /// 0x00: 8-byte ASCIIZ SPL resref.
-    pub spell: String,
-    /// 0x08: memorised flag (NI: "memorized" Bitmap).
+    /// 0x00: row index into the category's IWD2 spell-list 2DA
+    /// (`listspll` for the seven class books, `listdomn` for domains,
+    /// `listinnt` / `listsong` / `listshap` for innates / songs /
+    /// shapes). That row's resref column names the actual SPL — IWD2
+    /// stores spells by list index, not by resref like the AD&D games.
+    pub index: u32,
+    /// 0x04: number of memorised instances ("xMem").
     pub memorized: u32,
-    /// 0x0C: free uses remaining / "unknown" (NI). Mirrors the
-    /// table-level trailer in some entries.
-    pub remaining: u32,
+    /// 0x08: number of memorisable instances.
+    pub memorizable: u32,
+    /// 0x0C: unknown / flags. Preserved verbatim for round-trip.
+    pub flags: u32,
 }
 
 /// A complete IWD2 sub-section on disk: `entries` × 16 B, followed

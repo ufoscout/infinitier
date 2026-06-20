@@ -501,9 +501,13 @@ impl EditableField {
             Self::XpForKill => write_u32(raw, caps.xp_for_kill, cre.xp_for_kill(), |v| {
                 cre.set_xp_for_kill(v)
             }),
-            Self::BarbarianLevel => {
-                write_class_level(cre, raw, caps, Cre::barbarian_level, Cre::set_barbarian_level)
-            }
+            Self::BarbarianLevel => write_class_level(
+                cre,
+                raw,
+                caps,
+                Cre::barbarian_level,
+                Cre::set_barbarian_level,
+            ),
             Self::BardLevel => {
                 write_class_level(cre, raw, caps, Cre::bard_level, Cre::set_bard_level)
             }

@@ -480,9 +480,10 @@ fn write_iwd2_table(buf: &mut [u8], offset: u32, table: &Iwd2Table) {
     let base = offset as usize;
     for (i, slot) in table.entries.iter().enumerate() {
         let off = base + i * IWD2_RECORD_LEN;
-        write_resref(&mut buf[off..off + 8], &slot.spell);
-        buf[off + 8..off + 12].copy_from_slice(&slot.memorized.to_le_bytes());
-        buf[off + 12..off + 16].copy_from_slice(&slot.remaining.to_le_bytes());
+        buf[off..off + 4].copy_from_slice(&slot.index.to_le_bytes());
+        buf[off + 4..off + 8].copy_from_slice(&slot.memorized.to_le_bytes());
+        buf[off + 8..off + 12].copy_from_slice(&slot.memorizable.to_le_bytes());
+        buf[off + 12..off + 16].copy_from_slice(&slot.flags.to_le_bytes());
     }
     let trailer_off = base + table.entries.len() * IWD2_RECORD_LEN;
     buf[trailer_off..trailer_off + 4].copy_from_slice(&table.num_memorizable.to_le_bytes());

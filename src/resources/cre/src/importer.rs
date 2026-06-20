@@ -649,9 +649,10 @@ fn parse_iwd2_table_at(
     for i in 0..count as u64 {
         reader.set_position(start + i * IWD2_RECORD_LEN)?;
         entries.push(Iwd2Slot {
-            spell: reader.read_string(8)?,
+            index: reader.read_u32()?,
             memorized: reader.read_u32()?,
-            remaining: reader.read_u32()?,
+            memorizable: reader.read_u32()?,
+            flags: reader.read_u32()?,
         });
     }
     reader.set_position(trailer_off)?;

@@ -29,6 +29,7 @@ mod memorization;
 mod miscellaneous;
 mod proficiencies;
 mod resistances;
+mod spells;
 mod wizard;
 
 use abilities::AbilitiesTab;
@@ -46,6 +47,7 @@ use memorization::MemorizationTab;
 use miscellaneous::MiscellaneousTab;
 use proficiencies::ProficienciesTab;
 use resistances::ResistancesTab;
+use spells::SpellsTab;
 use wizard::WizardTab;
 
 /// Identifier for the active per-character tab. Order matches the
@@ -57,6 +59,7 @@ pub enum CharacterTab {
     Characteristics,
     Appearance,
     Inventory,
+    Spells,
     Memorization,
     Innate,
     Wizard,
@@ -78,6 +81,7 @@ impl CharacterTab {
         CharacterTab::Characteristics,
         CharacterTab::Appearance,
         CharacterTab::Inventory,
+        CharacterTab::Spells,
         CharacterTab::Memorization,
         CharacterTab::Innate,
         CharacterTab::Wizard,
@@ -95,8 +99,17 @@ impl CharacterTab {
     /// True when this tab should appear for the given game. Most tabs are
     /// universal; `Levels` is IWD2-only (CRE V2.2 per-class level editor).
     pub fn is_visible_for_game(&self, game: Game) -> bool {
+        let is_iwd2 = game.engine() == Engine::Iwd2;
         match self {
-            CharacterTab::Levels => game.engine() == Engine::Iwd2,
+            // IWD2-only: per-class levels/kits and the unified spell list.
+            CharacterTab::Levels | CharacterTab::Spells => is_iwd2,
+            // IWD2 folds these into the single Spells tab, so hide the
+            // AD&D-style per-spellbook tabs there (they'd be empty
+            // anyway — IWD2 uses the V2.2 per-class spell blocks).
+            CharacterTab::Memorization
+            | CharacterTab::Innate
+            | CharacterTab::Wizard
+            | CharacterTab::Cleric => !is_iwd2,
             _ => true,
         }
     }
@@ -108,6 +121,7 @@ impl CharacterTab {
             CharacterTab::Characteristics => "Characteristics",
             CharacterTab::Appearance => "Appearance",
             CharacterTab::Inventory => "Inventory",
+            CharacterTab::Spells => "Spells",
             CharacterTab::Memorization => "Memorization",
             CharacterTab::Innate => "Innate",
             CharacterTab::Wizard => "Wizard",
@@ -167,6 +181,14 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         // Inventory resolves each item slot's ITM (for the name + icon
         // BAM) and `dialog.tlk`, so it needs `game_data`.
         CharacterTab::Inventory => InventoryTab.show(ui, imported, &state.game_data),
+        // IWD2-only single spell list with a category dropdown; resolves
+        // spell names via their SPL files and `dialog.tlk`. The
+        // (save-tab, party-slot) pair keys the per-character dropdown
+        // memory so switching creatures re-defaults the selection.
+        CharacterTab::Spells => {
+            let char_key = ((state.active_tab as u64) << 32) | idx as u64;
+            SpellsTab.show(ui, cre, char_key, &state.game_data)
+        }
         CharacterTab::Memorization => MemorizationTab.show(ui, cre, gam, game),
         CharacterTab::Innate => InnateTab.show(ui, cre, &state.game_data),
         CharacterTab::Wizard => WizardTab.show(ui, cre, &state.game_data),
