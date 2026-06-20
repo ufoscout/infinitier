@@ -6,4 +6,6 @@ publish-dry-run:
 
 # Publish every publishable crate to crates.io.
 publish:
-    cargo publish --workspace
+    # cargo publish --workspace
+    # use cargo-release because it automatically handles crates.io [too many crates] errors
+    cargo release --workspace --execute
