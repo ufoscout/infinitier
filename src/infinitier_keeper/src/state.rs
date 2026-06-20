@@ -70,10 +70,7 @@ impl AppState {
         format!("Infinitier Keeper - {:?}", self.game_data.game())
     }
 
-    pub fn new(
-        game_data: GameData,
-        engine_caps: EngineCaps,
-    ) -> Self {
+    pub fn new(game_data: GameData, engine_caps: EngineCaps) -> Self {
         Self {
             game_data,
             engine_caps,

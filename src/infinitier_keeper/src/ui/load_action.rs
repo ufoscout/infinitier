@@ -168,10 +168,7 @@ impl LoadAction {
     /// Open the selected save into a tab (switching to it if already
     /// open), mirroring `main.rs`'s startup load.
     fn do_load(&mut self, state: &mut AppState) {
-        let Some(save) = self
-            .selected
-            .map(|i| self.entries.swap_remove(i).save)
-        else {
+        let Some(save) = self.selected.map(|i| self.entries.swap_remove(i).save) else {
             return;
         };
 
@@ -188,36 +185,27 @@ impl LoadAction {
 
         let engine = state.game_data.game().engine();
         let gam = match (GamImporter {
-            name: &save.folder_name(),
+            name: save.folder_name(),
             engine,
         })
         .import(&save.gam)
         {
             Ok(gam) => gam,
             Err(e) => {
-                self.error = Some(format!(
-                    "Couldn't read \"{}\": {e}",
-                    save.folder_name()
-                ));
+                self.error = Some(format!("Couldn't read \"{}\": {e}", save.folder_name()));
                 return;
             }
         };
         let imported = match ImportedGam::load(gam, &state.game_data) {
             Ok(imported) => imported,
             Err(e) => {
-                self.error = Some(format!(
-                    "Couldn't load \"{}\": {e}",
-                    save.folder_name()
-                ));
+                self.error = Some(format!("Couldn't load \"{}\": {e}", save.folder_name()));
                 return;
             }
         };
 
         info!("[load] opened save {}", save.folder_path.display());
-        let tab = SaveTab::new(
-            save,
-            Box::new(imported),
-        );
+        let tab = SaveTab::new(save, Box::new(imported));
         state.tabs.push(tab);
         state.active_tab = state.tabs.len() - 1;
         self.open = false;

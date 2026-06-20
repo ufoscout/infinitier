@@ -87,9 +87,11 @@ fn render_tabs(
             } else {
                 c.muted_foreground
             };
-            let name = ui
-                .painter()
-                .layout_no_wrap(tab.save_game.display_name().to_string(), font.clone(), text_color);
+            let name = ui.painter().layout_no_wrap(
+                tab.save_game.display_name().to_string(),
+                font.clone(),
+                text_color,
+            );
             let close = ui.painter().layout_no_wrap(
                 "\u{00D7}".to_owned(),
                 font.clone(),

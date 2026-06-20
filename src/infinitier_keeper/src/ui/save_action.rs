@@ -50,11 +50,12 @@ impl SaveAction {
         self.error = None;
         let active = state.active();
         let parent = active
-            .save_game.folder_path
+            .save_game
+            .folder_path
             .parent()
             .map(Path::to_path_buf)
             .unwrap_or_default();
-        self.folder_name = suggest_save_name(&active.save_game.folder_name(), &parent);
+        self.folder_name = suggest_save_name(active.save_game.folder_name(), &parent);
         self.open = true;
     }
 

@@ -96,12 +96,15 @@ fn main() {
     // is pre-parsed and every NPC name is TLK-resolved. Strict mode:
     // a corrupt embedded CRE aborts the open with a clear error.
     let gam = GamImporter {
-        name: &core_save.folder_name(),
+        name: core_save.folder_name(),
         engine: game_data.game().engine(),
     }
     .import(&core_save.gam)
     .unwrap_or_else(|e| {
-        eprintln!("Failed to import GAM for '{}': {e}", core_save.folder_name());
+        eprintln!(
+            "Failed to import GAM for '{}': {e}",
+            core_save.folder_name()
+        );
         std::process::exit(1);
     });
     let imported_gam = ImportedGam::load(gam, &game_data).unwrap_or_else(|e| {
@@ -116,11 +119,10 @@ fn main() {
         );
         std::process::exit(1);
     });
-    let mut state = AppState::new(
-        game_data,
-        engine_caps,
-    );
-    state.tabs.push(SaveTab::new(core_save, Box::new(imported_gam)));
+    let mut state = AppState::new(game_data, engine_caps);
+    state
+        .tabs
+        .push(SaveTab::new(core_save, Box::new(imported_gam)));
     let title = state.window_title();
 
     // Force the wgpu GL backend. On Linux the default would be

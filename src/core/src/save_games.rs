@@ -83,7 +83,6 @@ pub struct SaveGame {
 }
 
 impl SaveGame {
-
     /// sets the folder name
     pub fn set_folder_name(&mut self, folder_name: String) {
         self.display_name = display_name(&folder_name).to_owned();
@@ -186,7 +185,10 @@ fn build_save_game(fs: &CaseInsensitiveFS, sav: &CiPath) -> Option<SaveGame> {
     let sav_path: &Path = sav.path();
     // Path to the folder where the SAV file is
     let savegame_folder_path = sav_path.parent()?;
-    let name = savegame_folder_path.file_name()?.to_string_lossy().into_owned();
+    let name = savegame_folder_path
+        .file_name()?
+        .to_string_lossy()
+        .into_owned();
 
     // CaseInsensitiveFS keys are forward-slash, lower-case and
     // relative to the FS root. Trim the SAV's own filename off the
@@ -278,7 +280,11 @@ mod tests {
         let saves = scan_save_games(&fs);
         assert_eq!(saves.len(), 5);
         // Alphabetical order.
-        let names: Vec<&str> = saves.saves().iter().map(|s| s.folder_name.as_str()).collect();
+        let names: Vec<&str> = saves
+            .saves()
+            .iter()
+            .map(|s| s.folder_name.as_str())
+            .collect();
         assert_eq!(
             names,
             vec![
@@ -301,7 +307,9 @@ mod tests {
             Some("000000001-Quick-Save"),
         );
         assert_eq!(
-            saves.by_index(saves.len() - 1).map(|s| s.folder_name.as_str()),
+            saves
+                .by_index(saves.len() - 1)
+                .map(|s| s.folder_name.as_str()),
             Some("888888890-Alone with Imoen"),
         );
         assert!(saves.by_index(saves.len()).is_none());
@@ -435,8 +443,13 @@ mod tests {
     fn test_display_name() {
         assert_eq!("", display_name(""));
         assert_eq!("default", display_name("default"));
-        assert_eq!("OK3 (Edited 0001)", display_name("000000007-OK3 (Edited 0001)"));
-        assert_eq!("OK3-(Edited-0001)", display_name("000000007-OK3-(Edited-0001)"));
+        assert_eq!(
+            "OK3 (Edited 0001)",
+            display_name("000000007-OK3 (Edited 0001)")
+        );
+        assert_eq!(
+            "OK3-(Edited-0001)",
+            display_name("000000007-OK3-(Edited-0001)")
+        );
     }
-
 }
