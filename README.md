@@ -46,16 +46,16 @@ just check_code  # rustfmt + clippy
 | BMP | Bitmap image | Done | Not needed |
 | CHR | Character record | | |
 | CHU | UI window and control definitions | | |
-| CRE | Creature | | |
+| CRE | Creature | Done | Done |
 | DLG | Dialogue tree | | |
 | EFF | Effect | | |
-| FNT | Font | Partially done (not clear what the data after the header is for. Both NearInfinity and GemRB seem to ignore it) | Not needed |
-| GAM | Game save state | | |
+| FNT | Font | Done | Not needed |
+| GAM | Game save state | Done | Done |
 | GLSL | GLSL shader | | |
 | GUI | GUI definition | | |
 | IDS | Identifier / enumeration reference | Done | Done |
 | INI | Configuration | Done | Done |
-| ITM | Item | | |
+| ITM | Item | Done | Done |
 | KEY | Resource index | Done | Done |
 | LUA | Lua script | | |
 | MAZE | Maze data (IWD2) | | |
@@ -67,13 +67,13 @@ just check_code  # rustfmt + clippy
 | PNG | PNG image | Done | Not needed |
 | PRO | Projectile | | |
 | PVRZ | PVR compressed texture | Done | Done |
-| SAV | Save game archive | | |
+| SAV | Save game archive | Done | Done |
 | SQL | SQLite database | | |
-| SPL | Spell | | |
+| SPL | Spell | Done | Done |
 | SRC | Script source | | |
 | STO | Store / shop | | |
 | TIS | Tileset | Done | Done |
-| TLK | String table | | |
+| TLK | String table | Done | Done |
 | TOH | String override header (EE) | | |
 | TOT | String override table (EE) | | |
 | TTF | TrueType font | Done | Not needed |
