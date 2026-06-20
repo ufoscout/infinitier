@@ -31,6 +31,7 @@
     - [X] Characteristics -> empty
     - [X] Apperance -> not implemented
     - [X] Inventory -> not implemented
+    - [X] Levels & Kits -> not implemented
     - [ ] Memorization -> empty
     - [ ] Innate -> empty
     - [ ] Wizard -> empty
