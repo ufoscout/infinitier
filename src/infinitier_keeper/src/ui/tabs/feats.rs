@@ -196,12 +196,7 @@ fn resolve_name(
     nameref_col: Option<usize>,
     tlk: Option<&infinitier_core::resource::tlk::Tlk>,
 ) -> Option<String> {
-    let strref: u32 = two_da?
-        .rows
-        .get(symbol)?
-        .get(nameref_col?)?
-        .parse()
-        .ok()?;
+    let strref: u32 = two_da?.rows.get(symbol)?.get(nameref_col?)?.parse().ok()?;
     tlk?.get(strref).filter(|s| !s.is_empty())
 }
 
@@ -213,7 +208,9 @@ fn prettify(symbol: &str) -> String {
         .map(|w| {
             let mut chars = w.chars();
             match chars.next() {
-                Some(first) => first.to_ascii_uppercase().to_string() + &chars.as_str().to_lowercase(),
+                Some(first) => {
+                    first.to_ascii_uppercase().to_string() + &chars.as_str().to_lowercase()
+                }
                 None => String::new(),
             }
         })

@@ -116,7 +116,13 @@ fn iwd2_resistances_card(ui: &mut egui::Ui, r: &Resistances, magic_damage: i8) {
                 value_pair(ui, "Acid", r.acid, "Magic Damage", Some(magic_damage));
                 value_pair(ui, "Cold", r.cold, "Magic Fire", Some(r.magic_fire));
                 value_pair(ui, "Crushing", r.crushing, "Missile", Some(r.missile));
-                value_pair(ui, "Electricity", r.electricity, "Piercing", Some(r.piercing));
+                value_pair(
+                    ui,
+                    "Electricity",
+                    r.electricity,
+                    "Piercing",
+                    Some(r.piercing),
+                );
                 value_pair(ui, "Fire", r.fire, "Slashing", Some(r.slashing));
                 value_pair(ui, "Magic Cold", r.magic_cold, "Spells", Some(r.magic));
             });

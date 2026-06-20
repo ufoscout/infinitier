@@ -207,16 +207,16 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Abilities => AbilitiesTab.show(ui, state, editors),
         CharacterTab::Levels => LevelsTab.show(ui, state, editors),
         CharacterTab::Feats => FeatsTab.show(ui, state),
-        CharacterTab::Characteristics => {
-            with_cre(state, |c| CharacteristicsTab.show(ui, c.imported, c.member, c.game_data))
-        }
+        CharacterTab::Characteristics => with_cre(state, |c| {
+            CharacteristicsTab.show(ui, c.imported, c.member, c.game_data)
+        }),
         CharacterTab::Appearance => with_cre(state, |c| AppearanceTab.show(ui, c.cre, c.game_data)),
         CharacterTab::Inventory => {
             with_cre(state, |c| InventoryTab.show(ui, c.imported, c.game_data))
         }
-        CharacterTab::Spells => {
-            with_cre(state, |c| SpellsTab.show(ui, c.cre, c.char_key, c.game_data))
-        }
+        CharacterTab::Spells => with_cre(state, |c| {
+            SpellsTab.show(ui, c.cre, c.char_key, c.game_data)
+        }),
         CharacterTab::Memorization => {
             with_cre(state, |c| MemorizationTab.show(ui, c.cre, c.gam, c.game))
         }
