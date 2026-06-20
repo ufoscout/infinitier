@@ -1,9 +1,11 @@
 //! Read-only rendering for the Resistances tab.
 //!
-//! Mirrors EEKeeper's layout: a "Resistances" box and a "Saving
+//! AD&D creatures mirror EEKeeper: a "Resistances" box and a "Saving
 //! Throws" box side by side, with an "Armor Class Modifiers" box below
-//! the resistances. Values are shown in subtle non-editable framed
-//! boxes, matching the other read-only tabs.
+//! the resistances. IWD2 mirrors DaleKeeper2's "Resistances/Saves" tab:
+//! the twelve combat resistances (including Magic Damage and Spells)
+//! laid out alphabetically in two columns, with the three d20 saves
+//! below. Values sit in subtle non-editable framed boxes.
 
 use eframe::egui;
 use egui_components::Card;
@@ -11,33 +13,50 @@ use egui_components::scroll_area::ScrollArea;
 use egui_components::theme::Theme;
 use egui_components::{Label, LabelTone};
 
-use super::data::{AcModifiers, ResistData, Resistances, SavingThrows};
+use super::data::{AcModifiers, Iwd2Saves, ResistData, Resistances, SavingThrows};
 
 /// Width of a numeric value box — narrow, since every value is at most
 /// a few characters (a percent, a save, or a signed AC modifier).
 const NUM_BOX_W: f32 = 48.0;
+/// Cap the IWD2 two-column layout so it doesn't stretch the whole tab.
+const IWD2_MAX_WIDTH: f32 = 460.0;
 
 pub fn render(ui: &mut egui::Ui, data: &ResistData) {
-    ScrollArea::vertical().show(ui, |ui| {
-        ui.columns(2, |cols| {
-            resistances_card(&mut cols[0], &data.resistances);
-            cols[0].add_space(8.0);
-            ac_modifiers_card(&mut cols[0], &data.ac_modifiers);
+    ScrollArea::vertical().show(ui, |ui| match data {
+        ResistData::Adnd {
+            resistances,
+            saving_throws,
+            ac_modifiers,
+        } => {
+            ui.columns(2, |cols| {
+                adnd_resistances_card(&mut cols[0], resistances);
+                cols[0].add_space(8.0);
+                ac_modifiers_card(&mut cols[0], ac_modifiers);
 
-            if let Some(saves) = &data.saving_throws {
-                saving_throws_card(&mut cols[1], saves);
-            }
-        });
+                saving_throws_card(&mut cols[1], saving_throws);
+            });
+        }
+        ResistData::Iwd2 {
+            resistances,
+            magic_damage,
+            saves,
+        } => {
+            ui.set_max_width(IWD2_MAX_WIDTH);
+            iwd2_resistances_card(ui, resistances, *magic_damage);
+            ui.add_space(8.0);
+            iwd2_saves_card(ui, saves);
+        }
     });
 }
 
-fn resistances_card(ui: &mut egui::Ui, r: &Resistances) {
+// ── AD&D ─────────────────────────────────────────────────────────────
+
+fn adnd_resistances_card(ui: &mut egui::Ui, r: &Resistances) {
     Card::new().title("Resistances").divider().show(ui, |ui| {
         // Two label/value pairs per row, matching EEKeeper's two
-        // columns. The right column runs one row short, so its last
-        // cell (opposite "Piercing") is left empty. The three
-        // right-column "Magic" rows are Magic / Magic Fire / Magic
-        // Cold respectively.
+        // columns. The right column's last cell (opposite "Piercing")
+        // is empty; the three right-column "Magic" rows are Magic /
+        // Magic Fire / Magic Cold.
         egui::Grid::new("resistances_grid")
             .num_columns(4)
             .spacing([12.0, 6.0])
@@ -82,6 +101,39 @@ fn ac_modifiers_card(ui: &mut egui::Ui, ac: &AcModifiers) {
                     signed_row(ui, "Piercing", ac.piercing);
                 });
         });
+}
+
+// ── IWD2 ─────────────────────────────────────────────────────────────
+
+fn iwd2_resistances_card(ui: &mut egui::Ui, r: &Resistances, magic_damage: i8) {
+    Card::new().title("Resistances").divider().show(ui, |ui| {
+        // Twelve resistances in two alphabetical columns (DaleKeeper2);
+        // `magic` is spell resistance ("Spells") on IWD2.
+        egui::Grid::new("iwd2_resistances_grid")
+            .num_columns(4)
+            .spacing([12.0, 6.0])
+            .show(ui, |ui| {
+                value_pair(ui, "Acid", r.acid, "Magic Damage", Some(magic_damage));
+                value_pair(ui, "Cold", r.cold, "Magic Fire", Some(r.magic_fire));
+                value_pair(ui, "Crushing", r.crushing, "Missile", Some(r.missile));
+                value_pair(ui, "Electricity", r.electricity, "Piercing", Some(r.piercing));
+                value_pair(ui, "Fire", r.fire, "Slashing", Some(r.slashing));
+                value_pair(ui, "Magic Cold", r.magic_cold, "Spells", Some(r.magic));
+            });
+    });
+}
+
+fn iwd2_saves_card(ui: &mut egui::Ui, s: &Iwd2Saves) {
+    Card::new().title("Saving Throws").divider().show(ui, |ui| {
+        egui::Grid::new("iwd2_saves_grid")
+            .num_columns(2)
+            .spacing([12.0, 6.0])
+            .show(ui, |ui| {
+                save_row(ui, "Fortitude", s.fortitude);
+                save_row(ui, "Reflex", s.reflex);
+                save_row(ui, "Will", s.will);
+            });
+    });
 }
 
 // ── Shared widgets ───────────────────────────────────────────────────

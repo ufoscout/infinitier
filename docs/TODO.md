@@ -4,9 +4,10 @@
 
 - [ ] EngineCaps should be part of the GameData
 - [ ] Spell tabs should show icons
+- [ ] should load a game with a double click
 
 
-## Check Game values
+## Check own game values are read
 
 - [X] bg
 - [X] bgee
@@ -25,7 +26,7 @@
 - [X] iwdee
     - [X] Proficiencies -> Create a dual classed character and check the values
     - [X] Characteristics -> Fix Kit and Racial labels
-- [ ] iwd2 (TODO)
+- [X] iwd2
     - [X] Characteristics -> empty
     - [X] Apperance -> not implemented
     - [X] Inventory -> not implemented
@@ -33,7 +34,7 @@
     - [X] Spells -> missing
     - [X] Skills -> missing
     - [X] Feats -> missing
-    - [ ] Resistances -> wrong values
+    - [X] Resistances -> wrong values
 - [X] pst
     - [X] Apperance -> not implemented
     - [X] Inventory -> missing
@@ -50,9 +51,4 @@
     - [X] Different number of attacks with the game -> due to the race and some hard-coded values (e.g. Morte has 3 attacks)
     - [X] Morte has 100% poison resistance in the game: this is nowhere in the savegame
 
-
-## Keeper errors:
-- [ ] Tables are different in different tabs
-- [ ] Table rows are not clickable where there is text
-- [ ] should load a game with a double click
 
