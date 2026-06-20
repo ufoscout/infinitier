@@ -2267,6 +2267,128 @@ impl Cre {
         }
     }
 
+    /// IWD2 (V2.2) — whether feat `feat` (a `FEATS.IDS` index, `0..=95`)
+    /// is known. The 96-bit "known feats" set lives in the `feats_1/2/3`
+    /// dwords (header offset `0x01C0`). `None` on non-V2.2 creatures.
+    pub fn iwd2_feat_known(&self, feat: u8) -> Option<bool> {
+        let CreHeader::V22(h) = &self.header else {
+            return None;
+        };
+        let bit = feat as u32;
+        let word = match bit / 32 {
+            0 => h.feats_1,
+            1 => h.feats_2,
+            2 => h.feats_3,
+            _ => return Some(false),
+        };
+        Some(word & (1 << (bit % 32)) != 0)
+    }
+
+    /// Set/clear the known bit for IWD2 feat `feat`. No-op on other versions.
+    pub fn set_iwd2_feat_known(&mut self, feat: u8, known: bool) {
+        let CreHeader::V22(h) = &mut self.header else {
+            return;
+        };
+        let bit = feat as u32;
+        let mask = 1u32 << (bit % 32);
+        let word = match bit / 32 {
+            0 => &mut h.feats_1,
+            1 => &mut h.feats_2,
+            2 => &mut h.feats_3,
+            _ => return,
+        };
+        if known {
+            *word |= mask;
+        } else {
+            *word &= !mask;
+        }
+    }
+
+    /// IWD2 (V2.2) — the per-feat "level" (number of times taken) for the
+    /// 26 stackable feats that carry a count byte (header `0x01D8..=0x01F1`,
+    /// in the order listed below). `slot` indexes that block:
+    ///
+    /// 0 MW:Bow, 1 SW:Crossbow, 2 SW:Missile, 3 MW:Axe, 4 SW:Mace,
+    /// 5 MW:Flail, 6 MW:Polearm, 7 MW:Hammer, 8 SW:Quarterstaff,
+    /// 9 MW:GreatSword, 10 MW:LargeSword, 11 SW:SmallBlade, 12 Toughness,
+    /// 13 ArmoredArcana, 14 Cleave, 15 ArmorProficiency, 16 SF:Enchantment,
+    /// 17 SF:Evocation, 18 SF:Necromancy, 19 SF:Transmutation,
+    /// 20 SpellPenetration, 21 ExtraRage, 22 ExtraWildShape, 23 ExtraSmiting,
+    /// 24 ExtraTurning, 25 EW:BastardSword.
+    ///
+    /// `None` on non-V2.2 creatures or an out-of-range `slot`.
+    pub fn iwd2_feat_count(&self, slot: u8) -> Option<u8> {
+        let CreHeader::V22(h) = &self.header else {
+            return None;
+        };
+        Some(match slot {
+            0 => h.mw_bow,
+            1 => h.sw_crossbow.first().copied().unwrap_or(0),
+            2 => h.sw_missile,
+            3 => h.mw_axe,
+            4 => h.sw_mace,
+            5 => h.mw_flail,
+            6 => h.mw_polearm,
+            7 => h.mw_hammer,
+            8 => h.sw_quarterstaff,
+            9 => h.mw_great_sword,
+            10 => h.mw_large_sword,
+            11 => h.sw_small_blade,
+            12 => h.toughness,
+            13 => h.armored_arcana,
+            14 => h.cleave,
+            15 => h.armor_proficiency,
+            16 => h.sf_enchantment,
+            17 => h.sf_evocation,
+            18 => h.sf_necromancy,
+            19 => h.sf_transmutation,
+            20 => h.spell_penetration,
+            21 => h.extra_rage,
+            22 => h.extra_wild_shape,
+            23 => h.extra_smiting,
+            24 => h.extra_turning,
+            25 => h.ew_bastard_sword,
+            _ => return None,
+        })
+    }
+
+    /// Set the per-feat count for stackable-feat `slot` (see
+    /// [`Self::iwd2_feat_count`]). No-op on other versions / bad slot.
+    pub fn set_iwd2_feat_count(&mut self, slot: u8, value: u8) {
+        let CreHeader::V22(h) = &mut self.header else {
+            return;
+        };
+        match slot {
+            0 => h.mw_bow = value,
+            1 => h.sw_crossbow = vec![value],
+            2 => h.sw_missile = value,
+            3 => h.mw_axe = value,
+            4 => h.sw_mace = value,
+            5 => h.mw_flail = value,
+            6 => h.mw_polearm = value,
+            7 => h.mw_hammer = value,
+            8 => h.sw_quarterstaff = value,
+            9 => h.mw_great_sword = value,
+            10 => h.mw_large_sword = value,
+            11 => h.sw_small_blade = value,
+            12 => h.toughness = value,
+            13 => h.armored_arcana = value,
+            14 => h.cleave = value,
+            15 => h.armor_proficiency = value,
+            16 => h.sf_enchantment = value,
+            17 => h.sf_evocation = value,
+            18 => h.sf_necromancy = value,
+            19 => h.sf_transmutation = value,
+            20 => h.spell_penetration = value,
+            21 => h.extra_rage = value,
+            22 => h.extra_wild_shape = value,
+            23 => h.extra_smiting = value,
+            24 => h.extra_turning = value,
+            25 => h.ew_bastard_sword = value,
+            _ => {}
+        }
+    }
+
     /// Highest level among the character's classes — used for
     /// level-scaled derived values. IWD2 (V2.2) reports the engine's
     /// summed `total_levels`.

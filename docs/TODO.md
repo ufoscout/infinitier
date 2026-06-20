@@ -3,9 +3,7 @@
 ## ToDo List
 
 - [ ] EngineCaps should be part of the GameData
-- [ ] Keeper Innate tab should show spell icons
-- [ ] Keeper Wizard tab should show spell icons
-- [ ] Keeper Priest tab should show spell icons
+- [ ] Spell tabs should show icons
 
 
 ## Check Game values
@@ -32,14 +30,10 @@
     - [X] Apperance -> not implemented
     - [X] Inventory -> not implemented
     - [X] Levels & Kits -> not implemented
-    - [ ] Memorization -> empty
-    - [ ] Innate -> empty
-    - [ ] Wizard -> empty
-    - [ ] Cleric -> empty
-    - [ ] Proficiencies -> empty
-    - [ ] Resistances -> all zeros, maybe it is wrong?
-    - [ ] Effects -> empty
-    - [ ] Local Variables -> empty
+    - [X] Spells -> missing
+    - [X] Skills -> missing
+    - [X] Feats -> missing
+    - [ ] Resistances -> wrong values
 - [X] pst
     - [X] Apperance -> not implemented
     - [X] Inventory -> missing

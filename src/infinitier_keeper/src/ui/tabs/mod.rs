@@ -19,6 +19,7 @@ mod appearance;
 mod characteristics;
 mod cleric;
 mod effects;
+mod feats;
 mod global_variables;
 mod innate;
 mod inventory;
@@ -37,6 +38,7 @@ use appearance::AppearanceTab;
 use characteristics::CharacteristicsTab;
 use cleric::ClericTab;
 use effects::EffectsTab;
+use feats::FeatsTab;
 use global_variables::GlobalVariablesTab;
 use innate::InnateTab;
 use inventory::InventoryTab;
@@ -60,6 +62,7 @@ pub enum CharacterTab {
     Appearance,
     Inventory,
     Spells,
+    Feats,
     Memorization,
     Innate,
     Wizard,
@@ -82,6 +85,7 @@ impl CharacterTab {
         CharacterTab::Appearance,
         CharacterTab::Inventory,
         CharacterTab::Spells,
+        CharacterTab::Feats,
         CharacterTab::Memorization,
         CharacterTab::Innate,
         CharacterTab::Wizard,
@@ -102,7 +106,7 @@ impl CharacterTab {
         let is_iwd2 = game.engine() == Engine::Iwd2;
         match self {
             // IWD2-only: per-class levels/kits and the unified spell list.
-            CharacterTab::Levels | CharacterTab::Spells => is_iwd2,
+            CharacterTab::Levels | CharacterTab::Spells | CharacterTab::Feats => is_iwd2,
             // IWD2 folds these into the single Spells tab, so hide the
             // AD&D-style per-spellbook tabs there (they'd be empty
             // anyway — IWD2 uses the V2.2 per-class spell blocks).
@@ -122,6 +126,7 @@ impl CharacterTab {
             CharacterTab::Appearance => "Appearance",
             CharacterTab::Inventory => "Inventory",
             CharacterTab::Spells => "Spells",
+            CharacterTab::Feats => "Feats",
             CharacterTab::Memorization => "Memorization",
             CharacterTab::Innate => "Innate",
             CharacterTab::Wizard => "Wizard",
@@ -153,6 +158,11 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         LevelsTab.show(ui, state, editors);
         return;
     }
+    // Feats edits the CRE in place, so it needs `&mut AppState`.
+    if active.selected_tab == CharacterTab::Feats {
+        FeatsTab.show(ui, state);
+        return;
+    }
     let Some(idx) = active.selected_party_index else {
         return;
     };
@@ -166,7 +176,7 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
     let gam: &ImportedGam = &active.save;
     let game: Game = state.game_data.game();
     match active.selected_tab {
-        CharacterTab::Abilities | CharacterTab::Levels => unreachable!(),
+        CharacterTab::Abilities | CharacterTab::Levels | CharacterTab::Feats => unreachable!(),
         // Characteristics resolves IDS-backed names (class / race /
         // kit / …) and the strongest-kill strref, so it needs
         // `game_data`; the kill statistics live in the GAM party
