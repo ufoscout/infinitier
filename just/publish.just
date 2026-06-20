@@ -5,7 +5,7 @@ publish-dry-run:
     cargo publish --workspace --dry-run
 
 # Publish every publishable crate to crates.io, one at a time.
-publish gap="30":
+publish gap="90":
     #!/usr/bin/env bash
 
     # We can't use `cargo publish` because it hits 429 (too many crates) error
@@ -17,14 +17,14 @@ publish gap="30":
     # Regenerate with the topo sort over `cargo metadata` deps of every
     # kind (normal/build/dev) across publishable members.
     crates=(
-        infinitier_datasource
-        infinitier_common
-        infinitier_fs
-        infinitier_acm_decoder
-        infinitier_wav_resource
-        infinitier_acm_encoder
-        infinitier_acm_resource
-        infinitier_pvrz_resource
+        # infinitier_datasource
+        # infinitier_common
+        # infinitier_fs
+        # infinitier_acm_decoder
+        # infinitier_wav_resource
+        # infinitier_acm_encoder
+        # infinitier_acm_resource
+        # infinitier_pvrz_resource
         infinitier_bam_resource
         infinitier_ids_resource
         infinitier_bcs_resource
