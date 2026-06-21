@@ -17,14 +17,14 @@ publish gap="90":
     # Regenerate with the topo sort over `cargo metadata` deps of every
     # kind (normal/build/dev) across publishable members.
     crates=(
-        # infinitier_datasource
-        # infinitier_common
-        # infinitier_fs
-        # infinitier_acm_decoder
-        # infinitier_wav_resource
-        # infinitier_acm_encoder
-        # infinitier_acm_resource
-        # infinitier_pvrz_resource
+        infinitier_datasource
+        infinitier_common
+        infinitier_fs
+        infinitier_acm_decoder
+        infinitier_wav_resource
+        infinitier_acm_encoder
+        infinitier_acm_resource
+        infinitier_pvrz_resource
         infinitier_bam_resource
         infinitier_ids_resource
         infinitier_bcs_resource
