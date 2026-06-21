@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 description = "Reader and writer for the MOS / MOSC tiled image format used in Infinity Engine games"
 readme = "readme.md"
-keywords = ["mos", "mosc", "tile", "image", "infinity-engine", "baldurs-gate"]
+keywords = ["mos", "mosc", "tile", "infinity-engine", "baldurs-gate"]
 
 [dependencies]
 color_quant = { workspace = true }
