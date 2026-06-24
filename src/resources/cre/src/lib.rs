@@ -1085,9 +1085,11 @@ impl LocalVariable {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    /// Parse an `op187` record into its name / value. The caller must
-    /// have verified the opcode is [`EffectV2::LOCAL_VARIABLE_OPCODE`];
-    /// `record` must be at least 264 bytes.
+    /// Parse an `op187` record into its name / value. Imported `op187`
+    /// effects are kept as fully-typed [`Effect`]s (see
+    /// [`Cre::local_variables`]); this minimal parse is retained for
+    /// tests of the [`Self::to_record`] template only.
+    #[cfg(test)]
     pub(crate) fn from_record(record: &[u8]) -> Self {
         let name_bytes = &record[Self::NAME_OFFSET..Self::NAME_OFFSET + Self::NAME_LEN];
         let (decoded, _, _) = encoding_rs::WINDOWS_1252.decode(name_bytes);
@@ -1190,9 +1192,10 @@ impl Proficiency {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     ];
 
-    /// Parse an `op233` record into its proficiency / points. The
-    /// caller must have verified the opcode is
-    /// [`EffectV2::PROFICIENCY_OPCODE`]; `record` must be ≥ 264 bytes.
+    /// Parse an `op233` record into its proficiency / points. Imported
+    /// `op233` effects are kept as fully-typed [`Effect`]s (read by
+    /// opcode); this minimal parse is retained for tests only.
+    #[cfg(test)]
     pub(crate) fn from_record(record: &[u8]) -> Self {
         Proficiency {
             points: rd_u32(record, Self::POINTS_OFFSET),
@@ -1217,8 +1220,9 @@ impl Proficiency {
     const V1_PROFICIENCY_OFFSET: usize = 0x08;
 
     /// Parse a classic (V1) `op233` record into its proficiency /
-    /// points. Caller must have verified the opcode is
-    /// [`EffectV1::PROFICIENCY_OPCODE`]; `record` must be ≥ 48 bytes.
+    /// points. Imported `op233` effects are kept as fully-typed
+    /// [`EffectV1Body`]s (read by opcode); test-only.
+    #[cfg(test)]
     pub(crate) fn from_v1_record(record: &[u8]) -> Self {
         Proficiency {
             points: rd_u32(record, Self::V1_POINTS_OFFSET),
@@ -1482,7 +1486,7 @@ impl Cre {
     /// whose effects are the classic 48-byte (V1) records — those are
     /// too small to carry the variable-name field, so pre-EE games
     /// don't persist creature locals this way.
-    pub fn local_variables(&self) -> impl Iterator<Item = &LocalVariable> {
+    pub fn local_variables(&self) -> impl Iterator<Item = LocalVariable> + '_ {
         let effects = match &self.sub_sections {
             SubSections::V1(s) => &s.effects,
             SubSections::V22(s) => &s.effects,
@@ -1491,8 +1495,17 @@ impl Cre {
             EffectList::V2(list) => list,
             EffectList::V1(_) => &[],
         };
+        // `op187` records are fully-typed `Effect`s (name at 0xA0, value in
+        // `param1`); the minimal `LocalVariable` variant only exists for
+        // records added in memory.
         list.iter().filter_map(|e| match e {
-            EffectV2::LocalVariable(lv) => Some(lv),
+            EffectV2::LocalVariable(lv) => Some(lv.clone()),
+            EffectV2::Effect(b) if b.opcode == EffectV2::LOCAL_VARIABLE_OPCODE => {
+                Some(LocalVariable {
+                    name: b.variable.clone(),
+                    value: b.param1 as i32,
+                })
+            }
             _ => None,
         })
     }
@@ -1631,18 +1644,32 @@ impl Cre {
             SubSections::V1(s) => &s.effects,
             SubSections::V22(s) => &s.effects,
         };
+        // Proficiencies are read by opcode: imported `op233` records are
+        // fully-typed `Effect`s (`param1` = points, `param2` = stat); the
+        // minimal `Proficiency` variant only exists for records added in
+        // memory before a re-export.
         match effects {
             EffectList::V2(list) => {
                 for e in list {
-                    if let EffectV2::Proficiency(p) = e {
-                        f(p.proficiency, p.points);
+                    match e {
+                        EffectV2::Proficiency(p) => f(p.proficiency, p.points),
+                        EffectV2::Effect(b) if b.opcode == EffectV2::PROFICIENCY_OPCODE => {
+                            f(b.param2, b.param1)
+                        }
+                        _ => {}
                     }
                 }
             }
             EffectList::V1(list) => {
                 for e in list {
-                    if let EffectV1::Proficiency(p) = e {
-                        f(p.proficiency, p.points);
+                    match e {
+                        EffectV1::Proficiency(p) => f(p.proficiency, p.points),
+                        EffectV1::Effect(b)
+                            if u32::from(b.opcode) == EffectV1::PROFICIENCY_OPCODE =>
+                        {
+                            f(b.param2, b.param1)
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -1660,15 +1687,26 @@ impl Cre {
             SubSections::V1(s) => &mut s.effects,
             SubSections::V22(s) => &mut s.effects,
         };
+        // Update an existing `op233` effect in place (imported as a typed
+        // `Effect`/`EffectV1Body`, or a previously-added minimal variant);
+        // otherwise append a fresh minimal record.
         match effects {
             EffectList::V2(list) => {
                 let mut found = false;
                 for e in list.iter_mut() {
-                    if let EffectV2::Proficiency(p) = e
-                        && p.proficiency & 0xFFFF == u32::from(stat)
-                    {
-                        p.points = u32::from(packed);
-                        found = true;
+                    match e {
+                        EffectV2::Proficiency(p) if p.proficiency & 0xFFFF == u32::from(stat) => {
+                            p.points = u32::from(packed);
+                            found = true;
+                        }
+                        EffectV2::Effect(b)
+                            if b.opcode == EffectV2::PROFICIENCY_OPCODE
+                                && b.param2 & 0xFFFF == u32::from(stat) =>
+                        {
+                            b.param1 = u32::from(packed);
+                            found = true;
+                        }
+                        _ => {}
                     }
                 }
                 if !found {
@@ -1678,11 +1716,19 @@ impl Cre {
             EffectList::V1(list) => {
                 let mut found = false;
                 for e in list.iter_mut() {
-                    if let EffectV1::Proficiency(p) = e
-                        && p.proficiency & 0xFFFF == u32::from(stat)
-                    {
-                        p.points = u32::from(packed);
-                        found = true;
+                    match e {
+                        EffectV1::Proficiency(p) if p.proficiency & 0xFFFF == u32::from(stat) => {
+                            p.points = u32::from(packed);
+                            found = true;
+                        }
+                        EffectV1::Effect(b)
+                            if u32::from(b.opcode) == EffectV1::PROFICIENCY_OPCODE
+                                && b.param2 & 0xFFFF == u32::from(stat) =>
+                        {
+                            b.param1 = u32::from(packed);
+                            found = true;
+                        }
+                        _ => {}
                     }
                 }
                 if !found {
@@ -1838,6 +1884,52 @@ macro_rules! cre_u8_field {
             }
         }
         pub fn $set(&mut self, value: u8) {
+            match &mut self.header {
+                CreHeader::V10(h) => h.$field = value,
+                CreHeader::V12(h) => h.$field = value,
+                CreHeader::V90(h) => h.$field = value,
+                CreHeader::V22(h) => h.$field = value,
+            }
+        }
+    };
+}
+
+/// Getter + setter for a header `i8` field present on every version
+/// (e.g. the combat resistances).
+macro_rules! cre_i8_field {
+    ($get:ident, $set:ident, $field:ident) => {
+        pub fn $get(&self) -> i8 {
+            match &self.header {
+                CreHeader::V10(h) => h.$field,
+                CreHeader::V12(h) => h.$field,
+                CreHeader::V90(h) => h.$field,
+                CreHeader::V22(h) => h.$field,
+            }
+        }
+        pub fn $set(&mut self, value: i8) {
+            match &mut self.header {
+                CreHeader::V10(h) => h.$field = value,
+                CreHeader::V12(h) => h.$field = value,
+                CreHeader::V90(h) => h.$field = value,
+                CreHeader::V22(h) => h.$field = value,
+            }
+        }
+    };
+}
+
+/// Getter + setter for a header `i16` field present on every version
+/// (e.g. the per-damage-type armor-class modifiers).
+macro_rules! cre_i16_field {
+    ($get:ident, $set:ident, $field:ident) => {
+        pub fn $get(&self) -> i16 {
+            match &self.header {
+                CreHeader::V10(h) => h.$field,
+                CreHeader::V12(h) => h.$field,
+                CreHeader::V90(h) => h.$field,
+                CreHeader::V22(h) => h.$field,
+            }
+        }
+        pub fn $set(&mut self, value: i16) {
             match &mut self.header {
                 CreHeader::V10(h) => h.$field = value,
                 CreHeader::V12(h) => h.$field = value,
@@ -2526,6 +2618,48 @@ impl Cre {
     cre_adnd_skill!(pick_pockets, set_pick_pockets, pick_pockets);
     cre_adnd_skill!(detect_illusion, set_detect_illusion, detect_illusion);
     cre_adnd_skill!(lore, set_lore, lore);
+
+    // ── Combat resistances (percent; signed byte, every version) ──────
+    cre_i8_field!(resist_acid, set_resist_acid, resist_acid);
+    cre_i8_field!(resist_cold, set_resist_cold, resist_cold);
+    cre_i8_field!(resist_electricity, set_resist_electricity, resist_electricity);
+    cre_i8_field!(resist_fire, set_resist_fire, resist_fire);
+    cre_i8_field!(resist_crushing, set_resist_crushing, resist_crushing);
+    cre_i8_field!(resist_piercing, set_resist_piercing, resist_piercing);
+    cre_i8_field!(resist_slashing, set_resist_slashing, resist_slashing);
+    cre_i8_field!(resist_missile, set_resist_missile, resist_missile);
+    cre_i8_field!(resist_magic, set_resist_magic, resist_magic);
+    cre_i8_field!(resist_magic_fire, set_resist_magic_fire, resist_magic_fire);
+    cre_i8_field!(resist_magic_cold, set_resist_magic_cold, resist_magic_cold);
+
+    // ── Per-damage-type armor-class modifiers (signed word) ───────────
+    cre_i16_field!(
+        ac_slashing_modifier,
+        set_ac_slashing_modifier,
+        armor_class_slashing_attacks_modifier
+    );
+    cre_i16_field!(
+        ac_missile_modifier,
+        set_ac_missile_modifier,
+        armor_class_missile_attacks_modifier
+    );
+    cre_i16_field!(
+        ac_crushing_modifier,
+        set_ac_crushing_modifier,
+        armor_class_crushing_attacks_modifier
+    );
+    cre_i16_field!(
+        ac_piercing_modifier,
+        set_ac_piercing_modifier,
+        armor_class_piercing_attacks_modifier
+    );
+
+    // ── AD&D saving throws (V1.0 / V1.2 / V9.0; absent on IWD2) ────────
+    cre_adnd_skill!(save_vs_death, set_save_vs_death, save_versus_death);
+    cre_adnd_skill!(save_vs_wands, set_save_vs_wands, save_versus_wands);
+    cre_adnd_skill!(save_vs_polymorph, set_save_vs_polymorph, save_versus_polymorph);
+    cre_adnd_skill!(save_vs_breath, set_save_vs_breath, save_versus_breath_attacks);
+    cre_adnd_skill!(save_vs_spells, set_save_vs_spells, save_versus_spells);
 }
 
 /// One 16-byte IWD2 sub-section slot. The on-disk layout is the
@@ -2774,6 +2908,33 @@ mod tests {
         }
         .import(&DataSource::new(bytes))
         .unwrap()
+    }
+
+    #[test]
+    fn resistances_saves_ac_modifiers_set_and_round_trip() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
+        cre.set_resist_fire(40);
+        cre.set_resist_magic(-5); // signed byte (vulnerability)
+        cre.set_resist_magic_cold(12);
+        cre.set_save_vs_death(7);
+        cre.set_save_vs_spells(3);
+        cre.set_ac_slashing_modifier(-4);
+        cre.set_ac_piercing_modifier(2);
+
+        let rt = round_trip(&cre);
+        assert_eq!(rt.resist_fire(), 40);
+        assert_eq!(rt.resist_magic(), -5);
+        assert_eq!(rt.resist_magic_cold(), 12);
+        assert_eq!(rt.save_vs_death(), Some(7));
+        assert_eq!(rt.save_vs_spells(), Some(3));
+        assert_eq!(rt.ac_slashing_modifier(), -4);
+        assert_eq!(rt.ac_piercing_modifier(), 2);
+
+        // AD&D saves don't exist on IWD2 (V2.2): getter None, setter no-op.
+        let mut iwd2 = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        assert_eq!(iwd2.save_vs_death(), None);
+        iwd2.set_save_vs_death(9);
+        assert_eq!(iwd2.save_vs_death(), None);
     }
 
     #[test]

@@ -8,8 +8,8 @@ use log::{debug, error};
 
 use crate::{
     CRE_SIGNATURE, Cre, CreHeader, CreVersion, Effect, EffectList, EffectV1, EffectV1Body,
-    EffectV2, Item, ItemFlags, Iwd2Slot, Iwd2Table, KnownSpell, LocalVariable, MemorizedSpell,
-    Proficiency, SpellMemorizationInfo, SpellType, SubSections, V1SubSections, V22SubSections,
+    EffectV2, Item, ItemFlags, Iwd2Slot, Iwd2Table, KnownSpell, MemorizedSpell,
+    SpellMemorizationInfo, SpellType, SubSections, V1SubSections, V22SubSections,
     header::{parse_header_v1_0, parse_header_v1_2, parse_header_v2_2, parse_header_v9_0},
 };
 
@@ -590,15 +590,11 @@ fn parse_effects(
                 reader.set_position(start + i * EFFECT_V1_LEN)?;
                 let mut buf = [0u8; 48];
                 reader.read_exact(&mut buf)?;
-                // Opcode (word at 0x00) selects the typed variant:
-                // `op233` → proficiency, any other opcode → a
-                // fully-parsed `EffectV1Body`.
-                let opcode = u32::from(u16::from_le_bytes([buf[0], buf[1]]));
-                out.push(if opcode == EffectV1::PROFICIENCY_OPCODE {
-                    EffectV1::Proficiency(Proficiency::from_v1_record(&buf))
-                } else {
-                    EffectV1::Effect(EffectV1Body::from_record(&buf))
-                });
+                // Every record is parsed into the fully-typed
+                // `EffectV1Body`, which round-trips byte-for-byte. (The
+                // `op233` proficiency view is derived by opcode on read,
+                // not stored as a lossy variant.)
+                out.push(EffectV1::Effect(EffectV1Body::from_record(&buf)));
             }
             Ok(EffectList::V1(out))
         }
@@ -614,19 +610,11 @@ fn parse_effects(
                 reader.set_position(start + i * EFFECT_V2_LEN)?;
                 let mut buf = vec![0u8; 264];
                 reader.read_exact(&mut buf)?;
-                // Opcode (dword at 0x08) selects the typed variant:
-                // `op187` → local variable, `op233` → proficiency, any
-                // other opcode → a fully-parsed `Effect`.
-                let opcode = u32::from_le_bytes([buf[0x08], buf[0x09], buf[0x0A], buf[0x0B]]);
-                out.push(match opcode {
-                    EffectV2::LOCAL_VARIABLE_OPCODE => {
-                        EffectV2::LocalVariable(LocalVariable::from_record(&buf))
-                    }
-                    EffectV2::PROFICIENCY_OPCODE => {
-                        EffectV2::Proficiency(Proficiency::from_record(&buf))
-                    }
-                    _ => EffectV2::Effect(Box::new(Effect::from_record(&buf))),
-                });
+                // Every record is parsed into the fully-typed `Effect`,
+                // which round-trips byte-for-byte. The `op187` local-
+                // variable and `op233` proficiency views are derived by
+                // opcode on read, not stored as lossy template variants.
+                out.push(EffectV2::Effect(Box::new(Effect::from_record(&buf))));
             }
             Ok(EffectList::V2(out))
         }

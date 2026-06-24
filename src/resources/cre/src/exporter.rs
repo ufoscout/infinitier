@@ -125,7 +125,13 @@ struct V1Layout {
 /// out as `item_slots.len()`.
 fn compute_v1_layout(version: CreVersion, s: &V1SubSections) -> V1Layout {
     let mut pos = version.header_len() as u32;
+    // An empty section stores offset 0 (the engine/NI convention), not the
+    // current write position — matching it is required for a byte-faithful
+    // round-trip. A present section advances `pos` past its bytes.
     let mut place = |len: usize| -> u32 {
+        if len == 0 {
+            return 0;
+        }
         let off = pos;
         pos += len as u32;
         off
@@ -254,11 +260,13 @@ fn compute_v22_layout(s: &V22SubSections) -> V22Layout {
     let (abilities_off, abilities_cnt) = place_iwd2_table(&mut pos, &s.abilities);
     let (song_off, song_cnt) = place_iwd2_table(&mut pos, &s.songs);
     let (shapes_off, shapes_cnt) = place_iwd2_table(&mut pos, &s.shapes);
-    let item_slots_off = pos;
+    // Empty sections store offset 0 (engine/NI convention), not the write
+    // position — needed for a byte-faithful round-trip.
+    let item_slots_off = if s.item_slots.is_empty() { 0 } else { pos };
     pos += s.item_slots.len() as u32;
-    let items_off = pos;
+    let items_off = if s.items.is_empty() { 0 } else { pos };
     pos += (s.items.len() * ITEM_LEN) as u32;
-    let effects_off = pos;
+    let effects_off = if s.effects.is_empty() { 0 } else { pos };
     pos += (s.effects.len() * s.effects.record_size()) as u32;
     V22Layout {
         class_spell_offsets,

@@ -226,9 +226,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Proficiencies => {
             with_cre(state, |c| ProficienciesTab.show(ui, c.cre, c.engine_caps))
         }
-        CharacterTab::Resistances => {
-            with_cre(state, |c| ResistancesTab.show(ui, c.cre, c.gam, c.game))
-        }
+        // Resistances edits the CRE in place (AD&D), so it takes `&mut
+        // AppState` directly.
+        CharacterTab::Resistances => ResistancesTab.show(ui, state),
         CharacterTab::Effects => with_cre(state, |c| EffectsTab.show(ui, c.cre, c.game_data)),
         CharacterTab::LocalVariables => {
             with_cre(state, |c| LocalVariablesTab.show(ui, c.cre, c.gam, c.game))

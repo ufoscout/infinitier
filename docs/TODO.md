@@ -2,7 +2,6 @@
 
 ## ToDo List
 
-- [ ] EngineCaps should be part of the GameData
 - [ ] Spell tabs should show icons
 - [X] should load a game with a double click
 
