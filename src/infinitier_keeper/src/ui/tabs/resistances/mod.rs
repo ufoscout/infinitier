@@ -2,9 +2,9 @@
 //! and per-damage-type armor-class modifiers.
 //!
 //! [`data`] pulls the values out of the CRE header; [`view`] paints
-//! the group boxes. On AD&D creatures (V1.0 / V1.2 / V9.0 — including
-//! the Enhanced Editions) the fields are **editable**; IWD2 (V2.2) is
-//! shown read-only.
+//! the group boxes. The fields are **editable** on every engine — AD&D
+//! creatures (V1.0 / V1.2 / V9.0, including the Enhanced Editions) and
+//! IWD2 (V2.2) alike.
 
 mod data;
 mod view;

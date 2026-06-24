@@ -1963,6 +1963,25 @@ macro_rules! cre_adnd_skill {
     };
 }
 
+/// Getter + setter for a V2.2 (IWD2)-only `$ty` header field — the
+/// magic-damage resistance and the three d20 saves, which AD&D headers
+/// lack. `None` (read) / no-op (write) on every AD&D version.
+macro_rules! cre_v22_field {
+    ($get:ident, $set:ident, $field:ident, $ty:ty) => {
+        pub fn $get(&self) -> Option<$ty> {
+            match &self.header {
+                CreHeader::V22(h) => Some(h.$field),
+                _ => None,
+            }
+        }
+        pub fn $set(&mut self, value: $ty) {
+            if let CreHeader::V22(h) = &mut self.header {
+                h.$field = value;
+            }
+        }
+    };
+}
+
 impl Cre {
     /// Set current hit points (getter: [`Self::current_hit_points`]).
     pub fn set_current_hit_points(&mut self, value: u16) {
@@ -2672,6 +2691,22 @@ impl Cre {
         save_versus_breath_attacks
     );
     cre_adnd_skill!(save_vs_spells, set_save_vs_spells, save_versus_spells);
+
+    // ── IWD2 (V2.2) magic-damage resistance + d20 saving throws ───────
+    cre_v22_field!(
+        resist_magic_damage,
+        set_resist_magic_damage,
+        resist_magic_damage,
+        i8
+    );
+    cre_v22_field!(
+        save_vs_fortitude,
+        set_save_vs_fortitude,
+        save_versus_fortitude,
+        u8
+    );
+    cre_v22_field!(save_vs_reflex, set_save_vs_reflex, save_versus_reflex, u8);
+    cre_v22_field!(save_vs_will, set_save_vs_will, save_versus_will, u8);
 }
 
 /// One 16-byte IWD2 sub-section slot. The on-disk layout is the

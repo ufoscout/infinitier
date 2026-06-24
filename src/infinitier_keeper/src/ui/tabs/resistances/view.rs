@@ -4,15 +4,14 @@
 //! are **editable**: a "Resistances" box and a "Saving Throws" box side
 //! by side, with an "Armor Class Modifiers" box below the resistances.
 //! Each field is a numeric input bound to its storage type, so values
-//! clamp to the byte/word range automatically. IWD2 (V2.2) mirrors
-//! DaleKeeper2's "Resistances/Saves" layout, read-only, in subtle
-//! framed boxes.
+//! clamp to the byte/word range automatically. IWD2 (V2.2) is also
+//! **editable**, in DaleKeeper2's "Resistances/Saves" layout (twelve
+//! combat resistances plus Magic Damage, and the three d20 saves).
 
 use eframe::egui;
 use egui_components::Card;
+use egui_components::Label;
 use egui_components::scroll_area::ScrollArea;
-use egui_components::theme::Theme;
-use egui_components::{Label, LabelTone};
 use infinitier_core::resource::cre::Cre;
 
 use super::data::{AcModifiers, Iwd2Saves, ResistData, Resistances, SavingThrows};
@@ -46,9 +45,9 @@ pub fn render(ui: &mut egui::Ui, data: &ResistData, state: &mut AppState) {
             saves,
         } => {
             ui.set_max_width(IWD2_MAX_WIDTH);
-            iwd2_resistances_card(ui, resistances, *magic_damage);
+            iwd2_resistances_card(ui, resistances, *magic_damage, state);
             ui.add_space(8.0);
-            iwd2_saves_card(ui, saves);
+            iwd2_saves_card(ui, saves, state);
         }
     });
 }
@@ -195,41 +194,41 @@ fn ac_modifiers_card(ui: &mut egui::Ui, ac: &AcModifiers, state: &mut AppState) 
         });
 }
 
-// ── IWD2 (read-only) ─────────────────────────────────────────────────
+// ── IWD2 (editable) ──────────────────────────────────────────────────
 
-fn iwd2_resistances_card(ui: &mut egui::Ui, r: &Resistances, magic_damage: i8) {
+fn iwd2_resistances_card(
+    ui: &mut egui::Ui,
+    r: &Resistances,
+    magic_damage: i8,
+    state: &mut AppState,
+) {
     Card::new().title("Resistances").divider().show(ui, |ui| {
         // Twelve resistances in two alphabetical columns (DaleKeeper2);
-        // `magic` is spell resistance ("Spells") on IWD2.
+        // `magic` is spell resistance ("Spells") on IWD2, and "Magic
+        // Damage" is the V2.2-only `resist_magic_damage` field.
         egui::Grid::new("iwd2_resistances_grid")
             .num_columns(4)
             .spacing([12.0, 6.0])
             .show(ui, |ui| {
-                value_pair(ui, "Acid", r.acid, "Magic Damage", Some(magic_damage));
-                value_pair(ui, "Cold", r.cold, "Magic Fire", Some(r.magic_fire));
-                value_pair(ui, "Crushing", r.crushing, "Missile", Some(r.missile));
-                value_pair(
-                    ui,
-                    "Electricity",
-                    r.electricity,
-                    "Piercing",
-                    Some(r.piercing),
-                );
-                value_pair(ui, "Fire", r.fire, "Slashing", Some(r.slashing));
-                value_pair(ui, "Magic Cold", r.magic_cold, "Spells", Some(r.magic));
+                resist_pair(ui, state, "Acid", r.acid, Cre::set_resist_acid, Some(("Magic Damage", magic_damage, Cre::set_resist_magic_damage)));
+                resist_pair(ui, state, "Cold", r.cold, Cre::set_resist_cold, Some(("Magic Fire", r.magic_fire, Cre::set_resist_magic_fire)));
+                resist_pair(ui, state, "Crushing", r.crushing, Cre::set_resist_crushing, Some(("Missile", r.missile, Cre::set_resist_missile)));
+                resist_pair(ui, state, "Electricity", r.electricity, Cre::set_resist_electricity, Some(("Piercing", r.piercing, Cre::set_resist_piercing)));
+                resist_pair(ui, state, "Fire", r.fire, Cre::set_resist_fire, Some(("Slashing", r.slashing, Cre::set_resist_slashing)));
+                resist_pair(ui, state, "Magic Cold", r.magic_cold, Cre::set_resist_magic_cold, Some(("Spells", r.magic, Cre::set_resist_magic)));
             });
     });
 }
 
-fn iwd2_saves_card(ui: &mut egui::Ui, s: &Iwd2Saves) {
+fn iwd2_saves_card(ui: &mut egui::Ui, s: &Iwd2Saves, state: &mut AppState) {
     Card::new().title("Saving Throws").divider().show(ui, |ui| {
         egui::Grid::new("iwd2_saves_grid")
             .num_columns(2)
             .spacing([12.0, 6.0])
             .show(ui, |ui| {
-                save_row(ui, "Fortitude", s.fortitude);
-                save_row(ui, "Reflex", s.reflex);
-                save_row(ui, "Will", s.will);
+                save_edit_row(ui, state, "Fortitude", s.fortitude, Cre::set_save_vs_fortitude);
+                save_edit_row(ui, state, "Reflex", s.reflex, Cre::set_save_vs_reflex);
+                save_edit_row(ui, state, "Will", s.will, Cre::set_save_vs_will);
             });
     });
 }
@@ -308,49 +307,4 @@ fn edit_i8(ui: &mut egui::Ui, state: &mut AppState, value: i8, set: fn(&mut Cre,
 fn numeric_input<T: egui::emath::Numeric>(ui: &mut egui::Ui, value: &mut T) -> egui::Response {
     let h = ui.spacing().interact_size.y;
     ui.add_sized([NUM_BOX_W, h], egui::DragValue::new(value))
-}
-
-// ── Read-only widgets (IWD2) ─────────────────────────────────────────
-
-/// One grid row of `label : value` (unsigned).
-fn save_row(ui: &mut egui::Ui, label: &str, value: u8) {
-    ui.add(Label::new(label));
-    num_box(ui, &value.to_string());
-    ui.end_row();
-}
-
-/// A `label : value [ label : value ]` grid row. The right pair is
-/// omitted (blank cells) when `right_value` is `None`.
-fn value_pair(
-    ui: &mut egui::Ui,
-    left_label: &str,
-    left_value: i8,
-    right_label: &str,
-    right_value: Option<i8>,
-) {
-    ui.add(Label::new(left_label));
-    num_box(ui, &left_value.to_string());
-    match right_value {
-        Some(v) => {
-            ui.add(Label::new(right_label));
-            num_box(ui, &v.to_string());
-        }
-        None => {
-            ui.label("");
-            ui.label("");
-        }
-    }
-    ui.end_row();
-}
-
-/// Render a value inside a subtle, non-editable framed box.
-fn num_box(ui: &mut egui::Ui, text: &str) {
-    let theme = Theme::get(ui.ctx());
-    egui::Frame::new()
-        .fill(theme.colors.muted_background)
-        .inner_margin(egui::Margin::symmetric(7, 3))
-        .show(ui, |ui| {
-            ui.set_min_width(NUM_BOX_W);
-            ui.add(Label::new(text).tone(LabelTone::Default));
-        });
 }
