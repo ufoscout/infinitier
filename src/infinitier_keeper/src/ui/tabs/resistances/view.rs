@@ -63,12 +63,54 @@ fn adnd_resistances_card(ui: &mut egui::Ui, r: &Resistances, state: &mut AppStat
             .num_columns(4)
             .spacing([12.0, 6.0])
             .show(ui, |ui| {
-                resist_pair(ui, state, "Acid", r.acid, Cre::set_resist_acid, Some(("Slashing", r.slashing, Cre::set_resist_slashing)));
-                resist_pair(ui, state, "Cold", r.cold, Cre::set_resist_cold, Some(("Missile", r.missile, Cre::set_resist_missile)));
-                resist_pair(ui, state, "Electricity", r.electricity, Cre::set_resist_electricity, Some(("Magic", r.magic, Cre::set_resist_magic)));
-                resist_pair(ui, state, "Fire", r.fire, Cre::set_resist_fire, Some(("Magic Fire", r.magic_fire, Cre::set_resist_magic_fire)));
-                resist_pair(ui, state, "Crushing", r.crushing, Cre::set_resist_crushing, Some(("Magic Cold", r.magic_cold, Cre::set_resist_magic_cold)));
-                resist_pair(ui, state, "Piercing", r.piercing, Cre::set_resist_piercing, None);
+                resist_pair(
+                    ui,
+                    state,
+                    "Acid",
+                    r.acid,
+                    Cre::set_resist_acid,
+                    Some(("Slashing", r.slashing, Cre::set_resist_slashing)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Cold",
+                    r.cold,
+                    Cre::set_resist_cold,
+                    Some(("Missile", r.missile, Cre::set_resist_missile)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Electricity",
+                    r.electricity,
+                    Cre::set_resist_electricity,
+                    Some(("Magic", r.magic, Cre::set_resist_magic)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Fire",
+                    r.fire,
+                    Cre::set_resist_fire,
+                    Some(("Magic Fire", r.magic_fire, Cre::set_resist_magic_fire)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Crushing",
+                    r.crushing,
+                    Cre::set_resist_crushing,
+                    Some(("Magic Cold", r.magic_cold, Cre::set_resist_magic_cold)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Piercing",
+                    r.piercing,
+                    Cre::set_resist_piercing,
+                    None,
+                );
             });
     });
 }
@@ -79,10 +121,34 @@ fn saving_throws_card(ui: &mut egui::Ui, s: &SavingThrows, state: &mut AppState)
             .num_columns(2)
             .spacing([12.0, 6.0])
             .show(ui, |ui| {
-                save_edit_row(ui, state, "Paralyzation, Poison, Death", s.paralyze_poison_death, Cre::set_save_vs_death);
-                save_edit_row(ui, state, "Rod, Staff, Wand", s.rod_staff_wand, Cre::set_save_vs_wands);
-                save_edit_row(ui, state, "Petrification, Polymorph", s.petrify_polymorph, Cre::set_save_vs_polymorph);
-                save_edit_row(ui, state, "Breath Weapons", s.breath, Cre::set_save_vs_breath);
+                save_edit_row(
+                    ui,
+                    state,
+                    "Paralyzation, Poison, Death",
+                    s.paralyze_poison_death,
+                    Cre::set_save_vs_death,
+                );
+                save_edit_row(
+                    ui,
+                    state,
+                    "Rod, Staff, Wand",
+                    s.rod_staff_wand,
+                    Cre::set_save_vs_wands,
+                );
+                save_edit_row(
+                    ui,
+                    state,
+                    "Petrification, Polymorph",
+                    s.petrify_polymorph,
+                    Cre::set_save_vs_polymorph,
+                );
+                save_edit_row(
+                    ui,
+                    state,
+                    "Breath Weapons",
+                    s.breath,
+                    Cre::set_save_vs_breath,
+                );
                 save_edit_row(ui, state, "Spells", s.spells, Cre::set_save_vs_spells);
             });
     });
@@ -97,10 +163,34 @@ fn ac_modifiers_card(ui: &mut egui::Ui, ac: &AcModifiers, state: &mut AppState) 
                 .num_columns(2)
                 .spacing([12.0, 6.0])
                 .show(ui, |ui| {
-                    ac_edit_row(ui, state, "Slashing", ac.slashing, Cre::set_ac_slashing_modifier);
-                    ac_edit_row(ui, state, "Missile", ac.missile, Cre::set_ac_missile_modifier);
-                    ac_edit_row(ui, state, "Crushing", ac.crushing, Cre::set_ac_crushing_modifier);
-                    ac_edit_row(ui, state, "Piercing", ac.piercing, Cre::set_ac_piercing_modifier);
+                    ac_edit_row(
+                        ui,
+                        state,
+                        "Slashing",
+                        ac.slashing,
+                        Cre::set_ac_slashing_modifier,
+                    );
+                    ac_edit_row(
+                        ui,
+                        state,
+                        "Missile",
+                        ac.missile,
+                        Cre::set_ac_missile_modifier,
+                    );
+                    ac_edit_row(
+                        ui,
+                        state,
+                        "Crushing",
+                        ac.crushing,
+                        Cre::set_ac_crushing_modifier,
+                    );
+                    ac_edit_row(
+                        ui,
+                        state,
+                        "Piercing",
+                        ac.piercing,
+                        Cre::set_ac_piercing_modifier,
+                    );
                 });
         });
 }
@@ -118,7 +208,13 @@ fn iwd2_resistances_card(ui: &mut egui::Ui, r: &Resistances, magic_damage: i8) {
                 value_pair(ui, "Acid", r.acid, "Magic Damage", Some(magic_damage));
                 value_pair(ui, "Cold", r.cold, "Magic Fire", Some(r.magic_fire));
                 value_pair(ui, "Crushing", r.crushing, "Missile", Some(r.missile));
-                value_pair(ui, "Electricity", r.electricity, "Piercing", Some(r.piercing));
+                value_pair(
+                    ui,
+                    "Electricity",
+                    r.electricity,
+                    "Piercing",
+                    Some(r.piercing),
+                );
                 value_pair(ui, "Fire", r.fire, "Slashing", Some(r.slashing));
                 value_pair(ui, "Magic Cold", r.magic_cold, "Spells", Some(r.magic));
             });

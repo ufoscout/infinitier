@@ -25,8 +25,8 @@ use infinitier_common::Engine;
 
 use crate::{
     Bg2GamData, BgGamData, COMMON_HEADER_LEN, EeGamData, Familiar, GAM_SIGNATURE, Gam,
-    GamEngineData, GamHeader, GamNpc, GamVariable, GamVersion, Iwd2GamData, IwdGamData,
-    IwdUnknownTrailer, JournalEntry, ModronMaze, PstGamData, StoredLocation, UnknownSection3,
+    GamEngineData, GamHeader, GamNpc, GamVariable, Iwd2GamData, IwdGamData, IwdUnknownTrailer,
+    JournalEntry, ModronMaze, PstGamData, StoredLocation, UnknownSection3,
     char_stats_offset_for_engine,
 };
 
@@ -110,55 +110,71 @@ fn serialize(gam: &Gam) -> io::Result<Vec<u8>> {
 
     let party_npc_offset = engine_header_end(&gam.engine_data);
 
-    // IWD2 (V2.2) stores embedded CRE blobs inline — immediately after
-    // the party NPC records and before the non-party NPCs and globals.
-    // Every other engine places them at the end of the file. IWD2's
-    // loader appears to derive CRE positions from the file layout rather
-    // than trusting the per-NPC cre_offset pointer; placing blobs at EOF
-    // causes the engine to fail loading the save.
+    // The on-disk layout is uniform across every engine (verified against
+    // the original saves): each NPC section's struct array is immediately
+    // followed by that section's embedded CRE blobs, in NPC order —
     //
-    // IWD2 also has no party inventory, so party_inventory_offset is 0
-    // (matching the original files; the count is also 0 so the game
-    // ignores the field either way).
-    let party_inventory_offset;
-    let party_cre_offsets;
-    let non_party_npc_offset;
-    let non_party_cre_offsets;
-    let globals_offset;
-    let journal_offset;
-    let engine_layout;
-    let file_size;
-
-    if gam.version == GamVersion::V2_2 {
-        // No party inventory in IWD2; CRE blobs go inline right here.
-        party_inventory_offset = 0usize;
-        let mut cursor = party_npc_offset + party_npc_bytes;
-        party_cre_offsets = assign_cre_offsets(&gam.party_npcs, &mut cursor);
-        non_party_npc_offset = cursor;
-        cursor += non_party_npc_bytes;
-        non_party_cre_offsets = assign_cre_offsets(&gam.non_party_npcs, &mut cursor);
-        globals_offset = cursor;
-        journal_offset = globals_offset + gam.variables.len() * VARIABLE_LEN;
-        cursor = journal_offset + gam.journal.len() * JOURNAL_ENTRY_LEN;
-        engine_layout = compute_engine_layout(&gam.engine_data, &mut cursor);
-        file_size = cursor;
+    //   party structs · [party inventory] · party CRE blobs ·
+    //   non-party structs · non-party CRE blobs · globals · journal ·
+    //   engine-specific sections
+    //
+    // so re-laying it the same way reproduces the file byte-for-byte. The
+    // per-NPC `cre_offset` (patched into `raw[0x04..0x0C]` on write) lands
+    // on these inline positions.
+    let mut cursor = party_npc_offset + party_npc_bytes;
+    // Party inventory: an empty section stores offset 0 (the convention in
+    // every observed save — these games don't use the GAM party-inventory
+    // block); a present one sits right after the party structs.
+    let party_inventory_offset = if gam.party_inventory.is_empty() {
+        0
     } else {
-        // The party-inventory section must immediately follow the party
-        // NPCs: V1.1 re-derives the NPC record size from
-        // (party_inventory_offset - party_npc_offset) / party_npc_count,
-        // and the importer bounds the inventory blob by the next section
-        // offset. Keeping inventory adjacent satisfies both.
-        party_inventory_offset = party_npc_offset + party_npc_bytes;
-        non_party_npc_offset = party_inventory_offset + gam.party_inventory.len();
-        globals_offset = non_party_npc_offset + non_party_npc_bytes;
-        journal_offset = globals_offset + gam.variables.len() * VARIABLE_LEN;
-        let mut cursor = journal_offset + gam.journal.len() * JOURNAL_ENTRY_LEN;
-        engine_layout = compute_engine_layout(&gam.engine_data, &mut cursor);
-        // CRE blobs go at end for non-IWD2 engines.
-        party_cre_offsets = assign_cre_offsets(&gam.party_npcs, &mut cursor);
-        non_party_cre_offsets = assign_cre_offsets(&gam.non_party_npcs, &mut cursor);
-        file_size = cursor;
+        let off = cursor;
+        cursor += gam.party_inventory.len();
+        off
     };
+    let party_cre_offsets = assign_cre_offsets(&gam.party_npcs, &mut cursor);
+    let non_party_npc_offset = cursor;
+    cursor += non_party_npc_bytes;
+    let non_party_cre_offsets = assign_cre_offsets(&gam.non_party_npcs, &mut cursor);
+
+    // Globals / journal keep their cursor position even when empty (the
+    // observed convention — only party inventory collapses to 0). PST
+    // interleaves its engine sections through this region in a different
+    // order than every other engine, so it is laid out separately.
+    let (globals_offset, journal_offset, engine_layout) = match &gam.engine_data {
+        GamEngineData::Pst(p) => {
+            // PST order: modron maze · globals · kill variables · journal
+            // · bestiary. The modron-maze and bestiary blocks collapse to
+            // offset 0 when absent; everything else is its write position.
+            let modron_maze_offset =
+                place_optional(&mut cursor, p.modron_maze.is_some(), MODRON_MAZE_LEN);
+            let globals_offset = cursor;
+            cursor += gam.variables.len() * VARIABLE_LEN;
+            let kill_variables_offset = cursor as u32;
+            cursor += p.kill_variables.len() * VARIABLE_LEN;
+            let journal_offset = cursor;
+            cursor += gam.journal.len() * JOURNAL_ENTRY_LEN;
+            let bestiary_offset = place_optional(&mut cursor, p.bestiary.is_some(), BESTIARY_LEN);
+            (
+                globals_offset,
+                journal_offset,
+                EngineLayout::Pst {
+                    modron_maze_offset,
+                    kill_variables_offset,
+                    bestiary_offset,
+                },
+            )
+        }
+        _ => {
+            let globals_offset = cursor;
+            cursor += gam.variables.len() * VARIABLE_LEN;
+            let journal_offset = cursor;
+            cursor += gam.journal.len() * JOURNAL_ENTRY_LEN;
+            let engine_layout = compute_engine_layout(&gam.engine_data, &mut cursor);
+            (globals_offset, journal_offset, engine_layout)
+        }
+    };
+    let file_size = cursor;
 
     let common = CommonLayout {
         party_npc_offset: party_npc_offset as u32,
@@ -269,34 +285,22 @@ fn compute_engine_layout(data: &GamEngineData, cursor: &mut usize) -> EngineLayo
             i.unknown_trailer.as_ref(),
             true,
         ),
-        GamEngineData::Pst(p) => {
-            let modron_maze_offset = if p.modron_maze.is_some() {
-                let off = *cursor as u32;
-                *cursor += MODRON_MAZE_LEN;
-                off
-            } else {
-                0
-            };
-            let kill_variables_offset = if p.kill_variables.is_empty() {
-                0
-            } else {
-                let off = *cursor as u32;
-                *cursor += p.kill_variables.len() * VARIABLE_LEN;
-                off
-            };
-            let bestiary_offset = if p.bestiary.is_some() {
-                let off = *cursor as u32;
-                *cursor += BESTIARY_LEN;
-                off
-            } else {
-                0
-            };
-            EngineLayout::Pst {
-                modron_maze_offset,
-                kill_variables_offset,
-                bestiary_offset,
-            }
-        }
+        // PST is laid out directly in `serialize` (its section order
+        // differs from every other engine), so it never reaches here.
+        GamEngineData::Pst(_) => unreachable!("PST layout is computed in serialize"),
+    }
+}
+
+/// Place an optional fixed-size block: when `present`, returns its write
+/// position and advances `cursor`; otherwise returns 0 and leaves the
+/// cursor untouched.
+fn place_optional(cursor: &mut usize, present: bool, len: usize) -> u32 {
+    if present {
+        let off = *cursor as u32;
+        *cursor += len;
+        off
+    } else {
+        0
     }
 }
 
@@ -306,30 +310,25 @@ fn compute_bg2_ee_layout(
     stored_locations: usize,
     pocket_plane_locations: usize,
 ) -> EngineLayout {
+    // Every section offset is just its write position, even when the
+    // section is empty (the convention in the original saves: empty
+    // trailing sections point at end-of-file because that's where their
+    // zero bytes would start). The familiar block is always written.
     let mut familiar_offset = 0;
     let mut familiar_resources_offset = 0;
     if let Some(fam) = familiar {
         familiar_offset = *cursor as u32;
         *cursor += FAMILIAR_FIXED_LEN;
-        if !fam.extra_resources.is_empty() {
-            familiar_resources_offset = *cursor as u32;
-            *cursor += fam.extra_resources.len() * 8;
-        }
+        // The resources pointer is the write position of the (possibly
+        // empty) extra-resources list — cursor position even when empty,
+        // never 0.
+        familiar_resources_offset = *cursor as u32;
+        *cursor += fam.extra_resources.len() * 8;
     }
-    let stored_locations_offset = if stored_locations == 0 {
-        0
-    } else {
-        let off = *cursor as u32;
-        *cursor += stored_locations * STORED_LOCATION_LEN;
-        off
-    };
-    let pocket_plane_locations_offset = if pocket_plane_locations == 0 {
-        0
-    } else {
-        let off = *cursor as u32;
-        *cursor += pocket_plane_locations * STORED_LOCATION_LEN;
-        off
-    };
+    let stored_locations_offset = *cursor as u32;
+    *cursor += stored_locations * STORED_LOCATION_LEN;
+    let pocket_plane_locations_offset = *cursor as u32;
+    *cursor += pocket_plane_locations * STORED_LOCATION_LEN;
     EngineLayout::Bg2Ee {
         familiar_offset,
         familiar_resources_offset,

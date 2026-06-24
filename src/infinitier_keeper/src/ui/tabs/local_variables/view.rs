@@ -6,7 +6,7 @@ use egui_components::Label;
 use egui_components::scroll_area::ScrollArea;
 use infinitier_core::resource::cre::LocalVariable;
 
-pub fn render(ui: &mut egui::Ui, vars: &[&LocalVariable]) {
+pub fn render(ui: &mut egui::Ui, vars: &[LocalVariable]) {
     ScrollArea::vertical().show(ui, |ui| {
         egui::Grid::new("local_variables_table")
             .num_columns(2)

@@ -2622,7 +2622,11 @@ impl Cre {
     // ── Combat resistances (percent; signed byte, every version) ──────
     cre_i8_field!(resist_acid, set_resist_acid, resist_acid);
     cre_i8_field!(resist_cold, set_resist_cold, resist_cold);
-    cre_i8_field!(resist_electricity, set_resist_electricity, resist_electricity);
+    cre_i8_field!(
+        resist_electricity,
+        set_resist_electricity,
+        resist_electricity
+    );
     cre_i8_field!(resist_fire, set_resist_fire, resist_fire);
     cre_i8_field!(resist_crushing, set_resist_crushing, resist_crushing);
     cre_i8_field!(resist_piercing, set_resist_piercing, resist_piercing);
@@ -2657,8 +2661,16 @@ impl Cre {
     // ── AD&D saving throws (V1.0 / V1.2 / V9.0; absent on IWD2) ────────
     cre_adnd_skill!(save_vs_death, set_save_vs_death, save_versus_death);
     cre_adnd_skill!(save_vs_wands, set_save_vs_wands, save_versus_wands);
-    cre_adnd_skill!(save_vs_polymorph, set_save_vs_polymorph, save_versus_polymorph);
-    cre_adnd_skill!(save_vs_breath, set_save_vs_breath, save_versus_breath_attacks);
+    cre_adnd_skill!(
+        save_vs_polymorph,
+        set_save_vs_polymorph,
+        save_versus_polymorph
+    );
+    cre_adnd_skill!(
+        save_vs_breath,
+        set_save_vs_breath,
+        save_versus_breath_attacks
+    );
     cre_adnd_skill!(save_vs_spells, set_save_vs_spells, save_versus_spells);
 }
 
