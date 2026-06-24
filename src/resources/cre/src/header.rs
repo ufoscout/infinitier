@@ -2255,38 +2255,40 @@ pub struct CreHeaderV22 {
     pub ew_bastard_sword: u8,
     /// 0x01F2 (38 B): Unknown
     pub unknown_5: Vec<u8>,
+    // IWD2 d20 skills are signed bytes (−128..=127): the engine allows
+    // skill penalties, so the stored value can be negative.
     /// 0x0218 (1 B): Alchemy
-    pub alchemy: u8,
+    pub alchemy: i8,
     /// 0x0219 (1 B): Animal Empathy
-    pub animal_empathy: u8,
+    pub animal_empathy: i8,
     /// 0x021A (1 B): Bluff
-    pub bluff: u8,
+    pub bluff: i8,
     /// 0x021B (1 B): Concentration
-    pub concentration: u8,
+    pub concentration: i8,
     /// 0x021C (1 B): Diplomacy
-    pub diplomacy: u8,
+    pub diplomacy: i8,
     /// 0x021D (1 B): Disable Device
-    pub disable_device: u8,
+    pub disable_device: i8,
     /// 0x021E (1 B): Hide
-    pub hide: u8,
+    pub hide: i8,
     /// 0x021F (1 B): Intimidate
-    pub intimidate: u8,
+    pub intimidate: i8,
     /// 0x0220 (1 B): Knowledge (Arcana)
-    pub knowledge_arcana: u8,
+    pub knowledge_arcana: i8,
     /// 0x0221 (1 B): Move Silently
-    pub move_silently: u8,
+    pub move_silently: i8,
     /// 0x0222 (1 B): Open Lock
-    pub open_lock: u8,
+    pub open_lock: i8,
     /// 0x0223 (1 B): Pick Pocket
-    pub pick_pocket: u8,
+    pub pick_pocket: i8,
     /// 0x0224 (1 B): Search
-    pub search: u8,
+    pub search: i8,
     /// 0x0225 (1 B): Spellcraft
-    pub spellcraft: u8,
+    pub spellcraft: i8,
     /// 0x0226 (1 B): Use Magic Device
-    pub use_magic_device: u8,
+    pub use_magic_device: i8,
     /// 0x0227 (1 B): Wilderness Law
-    pub wilderness_law: u8,
+    pub wilderness_law: i8,
     /// 0x0228 (50 B): Unknown
     pub unknown_6: Vec<u8>,
     /// 0x025A (1 B): XP category (values from moncrate.2da)
@@ -2523,22 +2525,22 @@ pub(crate) fn parse_header_v2_2(header: &[u8]) -> std::io::Result<CreHeaderV22> 
         extra_turning: read_u8(0x01F0),
         ew_bastard_sword: read_u8(0x01F1),
         unknown_5: header[0x01F2..0x0218].to_vec(),
-        alchemy: read_u8(0x0218),
-        animal_empathy: read_u8(0x0219),
-        bluff: read_u8(0x021A),
-        concentration: read_u8(0x021B),
-        diplomacy: read_u8(0x021C),
-        disable_device: read_u8(0x021D),
-        hide: read_u8(0x021E),
-        intimidate: read_u8(0x021F),
-        knowledge_arcana: read_u8(0x0220),
-        move_silently: read_u8(0x0221),
-        open_lock: read_u8(0x0222),
-        pick_pocket: read_u8(0x0223),
-        search: read_u8(0x0224),
-        spellcraft: read_u8(0x0225),
-        use_magic_device: read_u8(0x0226),
-        wilderness_law: read_u8(0x0227),
+        alchemy: read_i8(0x0218),
+        animal_empathy: read_i8(0x0219),
+        bluff: read_i8(0x021A),
+        concentration: read_i8(0x021B),
+        diplomacy: read_i8(0x021C),
+        disable_device: read_i8(0x021D),
+        hide: read_i8(0x021E),
+        intimidate: read_i8(0x021F),
+        knowledge_arcana: read_i8(0x0220),
+        move_silently: read_i8(0x0221),
+        open_lock: read_i8(0x0222),
+        pick_pocket: read_i8(0x0223),
+        search: read_i8(0x0224),
+        spellcraft: read_i8(0x0225),
+        use_magic_device: read_i8(0x0226),
+        wilderness_law: read_i8(0x0227),
         unknown_6: header[0x0228..0x025A].to_vec(),
         xp_category_values_from_moncrate_2da: read_u8(0x025A),
         favoured_enemy_1: read_u8(0x025B),
@@ -2747,22 +2749,22 @@ pub(crate) fn serialize_header_v2_2(h: &CreHeaderV22) -> Vec<u8> {
         let n = src.len().min(38);
         buf[0x01F2..0x01F2 + n].copy_from_slice(&src[..n]);
     }
-    buf[0x0218] = h.alchemy;
-    buf[0x0219] = h.animal_empathy;
-    buf[0x021A] = h.bluff;
-    buf[0x021B] = h.concentration;
-    buf[0x021C] = h.diplomacy;
-    buf[0x021D] = h.disable_device;
-    buf[0x021E] = h.hide;
-    buf[0x021F] = h.intimidate;
-    buf[0x0220] = h.knowledge_arcana;
-    buf[0x0221] = h.move_silently;
-    buf[0x0222] = h.open_lock;
-    buf[0x0223] = h.pick_pocket;
-    buf[0x0224] = h.search;
-    buf[0x0225] = h.spellcraft;
-    buf[0x0226] = h.use_magic_device;
-    buf[0x0227] = h.wilderness_law;
+    buf[0x0218] = h.alchemy as u8;
+    buf[0x0219] = h.animal_empathy as u8;
+    buf[0x021A] = h.bluff as u8;
+    buf[0x021B] = h.concentration as u8;
+    buf[0x021C] = h.diplomacy as u8;
+    buf[0x021D] = h.disable_device as u8;
+    buf[0x021E] = h.hide as u8;
+    buf[0x021F] = h.intimidate as u8;
+    buf[0x0220] = h.knowledge_arcana as u8;
+    buf[0x0221] = h.move_silently as u8;
+    buf[0x0222] = h.open_lock as u8;
+    buf[0x0223] = h.pick_pocket as u8;
+    buf[0x0224] = h.search as u8;
+    buf[0x0225] = h.spellcraft as u8;
+    buf[0x0226] = h.use_magic_device as u8;
+    buf[0x0227] = h.wilderness_law as u8;
     {
         let src = &h.unknown_6;
         let n = src.len().min(50);

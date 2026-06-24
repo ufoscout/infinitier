@@ -210,12 +210,54 @@ fn iwd2_resistances_card(
             .num_columns(4)
             .spacing([12.0, 6.0])
             .show(ui, |ui| {
-                resist_pair(ui, state, "Acid", r.acid, Cre::set_resist_acid, Some(("Magic Damage", magic_damage, Cre::set_resist_magic_damage)));
-                resist_pair(ui, state, "Cold", r.cold, Cre::set_resist_cold, Some(("Magic Fire", r.magic_fire, Cre::set_resist_magic_fire)));
-                resist_pair(ui, state, "Crushing", r.crushing, Cre::set_resist_crushing, Some(("Missile", r.missile, Cre::set_resist_missile)));
-                resist_pair(ui, state, "Electricity", r.electricity, Cre::set_resist_electricity, Some(("Piercing", r.piercing, Cre::set_resist_piercing)));
-                resist_pair(ui, state, "Fire", r.fire, Cre::set_resist_fire, Some(("Slashing", r.slashing, Cre::set_resist_slashing)));
-                resist_pair(ui, state, "Magic Cold", r.magic_cold, Cre::set_resist_magic_cold, Some(("Spells", r.magic, Cre::set_resist_magic)));
+                resist_pair(
+                    ui,
+                    state,
+                    "Acid",
+                    r.acid,
+                    Cre::set_resist_acid,
+                    Some(("Magic Damage", magic_damage, Cre::set_resist_magic_damage)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Cold",
+                    r.cold,
+                    Cre::set_resist_cold,
+                    Some(("Magic Fire", r.magic_fire, Cre::set_resist_magic_fire)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Crushing",
+                    r.crushing,
+                    Cre::set_resist_crushing,
+                    Some(("Missile", r.missile, Cre::set_resist_missile)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Electricity",
+                    r.electricity,
+                    Cre::set_resist_electricity,
+                    Some(("Piercing", r.piercing, Cre::set_resist_piercing)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Fire",
+                    r.fire,
+                    Cre::set_resist_fire,
+                    Some(("Slashing", r.slashing, Cre::set_resist_slashing)),
+                );
+                resist_pair(
+                    ui,
+                    state,
+                    "Magic Cold",
+                    r.magic_cold,
+                    Cre::set_resist_magic_cold,
+                    Some(("Spells", r.magic, Cre::set_resist_magic)),
+                );
             });
     });
 }
@@ -226,7 +268,13 @@ fn iwd2_saves_card(ui: &mut egui::Ui, s: &Iwd2Saves, state: &mut AppState) {
             .num_columns(2)
             .spacing([12.0, 6.0])
             .show(ui, |ui| {
-                save_edit_row(ui, state, "Fortitude", s.fortitude, Cre::set_save_vs_fortitude);
+                save_edit_row(
+                    ui,
+                    state,
+                    "Fortitude",
+                    s.fortitude,
+                    Cre::set_save_vs_fortitude,
+                );
                 save_edit_row(ui, state, "Reflex", s.reflex, Cre::set_save_vs_reflex);
                 save_edit_row(ui, state, "Will", s.will, Cre::set_save_vs_will);
             });

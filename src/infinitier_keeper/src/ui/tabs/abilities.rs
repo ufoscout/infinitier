@@ -252,10 +252,16 @@ fn skills_card(
     state: &mut AppState,
     editors: &mut KeeperEditors,
 ) {
-    if let Some(rows) = &snap.iwd2_skills {
-        Card::new().title("d20 Skills").divider().show(ui, |ui| {
-            for (label, value) in rows {
-                read_only_row(ui, label, value);
+    // IWD2 (V2.2): the d20 skills replace the AD&D thief skills. They are
+    // plain stored bytes (no racial / dexterity bonus overlay), so each
+    // row is a bare editable input.
+    if snap.is_visible(EditableField::Alchemy) {
+        Card::new().title("Skills").divider().show(ui, |ui| {
+            for &field in EditableField::ALL {
+                if field.section() != Section::D20Skills || !snap.is_visible(field) {
+                    continue;
+                }
+                editable_row(ui, field, snap, state, editors, None);
             }
         });
         return;
@@ -496,8 +502,6 @@ struct CreSnapshot {
     /// the SKILLDEX dexterity adjustment on top). Excludes Lore, whose
     /// bonus comes from LOREBON.
     thief_skill_base: HashMap<EditableField, u8>,
-    /// IWD2-only read-only block. `None` on AD&D engines.
-    iwd2_skills: Option<Vec<(&'static str, String)>>,
     /// IWD2-only "Total levels" + per-class breakdown row.
     iwd2_levels: Option<(u8, String)>,
 }
@@ -527,12 +531,9 @@ impl CreSnapshot {
             + u32::from(cre.intelligence())
             + u32::from(cre.wisdom())
             + u32::from(cre.charisma());
-        let (iwd2_skills, iwd2_levels) = match &cre.header {
-            CreHeader::V22(h) => (
-                Some(iwd2_d20_skills(h)),
-                Some((h.total_levels, format_iwd2_class_levels(h))),
-            ),
-            _ => (None, None),
+        let iwd2_levels = match &cre.header {
+            CreHeader::V22(h) => Some((h.total_levels, format_iwd2_class_levels(h))),
+            _ => None,
         };
         // Warrior flag + CON HP-roll cap from the raw class byte —
         // EngineCaps owns the IWD2 / EE-data / classic-heuristic
@@ -567,7 +568,6 @@ impl CreSnapshot {
             labels,
             visible,
             thief_skill_base,
-            iwd2_skills,
             iwd2_levels,
         })
     }
@@ -627,24 +627,4 @@ fn format_iwd2_class_levels(h: &CreHeaderV22) -> String {
     } else {
         parts.join(", ")
     }
-}
-
-fn iwd2_d20_skills(h: &CreHeaderV22) -> Vec<(&'static str, String)> {
-    vec![
-        ("Alchemy", h.alchemy.to_string()),
-        ("Animal Empathy", h.animal_empathy.to_string()),
-        ("Bluff", h.bluff.to_string()),
-        ("Concentration", h.concentration.to_string()),
-        ("Diplomacy", h.diplomacy.to_string()),
-        ("Disable Device", h.disable_device.to_string()),
-        ("Hide", h.hide.to_string()),
-        ("Intimidate", h.intimidate.to_string()),
-        ("Knowledge (Arcana)", h.knowledge_arcana.to_string()),
-        ("Move Silently", h.move_silently.to_string()),
-        ("Pick Pocket", h.pick_pocket.to_string()),
-        ("Search", h.search.to_string()),
-        ("Spellcraft", h.spellcraft.to_string()),
-        ("Use Magic Device", h.use_magic_device.to_string()),
-        ("Wilderness Lore", h.wilderness_law.to_string()),
-    ]
 }

@@ -39,6 +39,8 @@ pub enum Section {
     ExperienceLevels,
     Morale,
     ThiefSkills,
+    /// IWD2 (V2.2) d20 skills — replaces the AD&D thief skills.
+    D20Skills,
     Iwd2ClassLevels,
 }
 
@@ -79,6 +81,23 @@ pub enum EditableField {
     PickPockets,
     DetectIllusion,
     Lore,
+    // IWD2 (V2.2) d20 skills
+    Alchemy,
+    AnimalEmpathy,
+    Bluff,
+    Concentration,
+    Diplomacy,
+    DisableDevice,
+    Hide,
+    Intimidate,
+    KnowledgeArcana,
+    D20MoveSilently,
+    OpenLock,
+    PickPocket,
+    Search,
+    Spellcraft,
+    UseMagicDevice,
+    WildernessLore,
     // IWD2 (V2.2) per-class levels
     BarbarianLevel,
     BardLevel,
@@ -129,6 +148,22 @@ impl EditableField {
         EditableField::PickPockets,
         EditableField::DetectIllusion,
         EditableField::Lore,
+        EditableField::Alchemy,
+        EditableField::AnimalEmpathy,
+        EditableField::Bluff,
+        EditableField::Concentration,
+        EditableField::Diplomacy,
+        EditableField::DisableDevice,
+        EditableField::Hide,
+        EditableField::Intimidate,
+        EditableField::KnowledgeArcana,
+        EditableField::D20MoveSilently,
+        EditableField::OpenLock,
+        EditableField::PickPocket,
+        EditableField::Search,
+        EditableField::Spellcraft,
+        EditableField::UseMagicDevice,
+        EditableField::WildernessLore,
         EditableField::BarbarianLevel,
         EditableField::BardLevel,
         EditableField::ClericLevel,
@@ -174,6 +209,22 @@ impl EditableField {
             | Self::PickPockets
             | Self::DetectIllusion
             | Self::Lore => Section::ThiefSkills,
+            Self::Alchemy
+            | Self::AnimalEmpathy
+            | Self::Bluff
+            | Self::Concentration
+            | Self::Diplomacy
+            | Self::DisableDevice
+            | Self::Hide
+            | Self::Intimidate
+            | Self::KnowledgeArcana
+            | Self::D20MoveSilently
+            | Self::OpenLock
+            | Self::PickPocket
+            | Self::Search
+            | Self::Spellcraft
+            | Self::UseMagicDevice
+            | Self::WildernessLore => Section::D20Skills,
             Self::BarbarianLevel
             | Self::BardLevel
             | Self::ClericLevel
@@ -230,6 +281,22 @@ impl EditableField {
             Self::PickPockets => "Pick Pockets",
             Self::DetectIllusion => "Detect Illusions",
             Self::Lore => "Lore",
+            Self::Alchemy => "Alchemy",
+            Self::AnimalEmpathy => "Animal Empathy",
+            Self::Bluff => "Bluff",
+            Self::Concentration => "Concentration",
+            Self::Diplomacy => "Diplomacy",
+            Self::DisableDevice => "Disable Device",
+            Self::Hide => "Hide",
+            Self::Intimidate => "Intimidate",
+            Self::KnowledgeArcana => "Knowledge (Arcana)",
+            Self::D20MoveSilently => "Move Silently",
+            Self::OpenLock => "Open Lock",
+            Self::PickPocket => "Pick Pocket",
+            Self::Search => "Search",
+            Self::Spellcraft => "Spellcraft",
+            Self::UseMagicDevice => "Use Magic Device",
+            Self::WildernessLore => "Wilderness Lore",
             Self::BarbarianLevel => "Barbarian",
             Self::BardLevel => "Bard",
             Self::ClericLevel => "Cleric",
@@ -261,6 +328,22 @@ impl EditableField {
             Self::PickPockets => cre.pick_pockets().is_some(),
             Self::DetectIllusion => cre.detect_illusion().is_some(),
             Self::Lore => cre.lore().is_some(),
+            Self::Alchemy
+            | Self::AnimalEmpathy
+            | Self::Bluff
+            | Self::Concentration
+            | Self::Diplomacy
+            | Self::DisableDevice
+            | Self::Hide
+            | Self::Intimidate
+            | Self::KnowledgeArcana
+            | Self::D20MoveSilently
+            | Self::OpenLock
+            | Self::PickPocket
+            | Self::Search
+            | Self::Spellcraft
+            | Self::UseMagicDevice
+            | Self::WildernessLore => cre.alchemy().is_some(),
             Self::BarbarianLevel
             | Self::BardLevel
             | Self::ClericLevel
@@ -342,6 +425,40 @@ impl EditableField {
                 .map(|v| v.to_string())
                 .unwrap_or_default(),
             Self::Lore => cre.lore().map(|v| v.to_string()).unwrap_or_default(),
+            Self::Alchemy => cre.alchemy().map(|v| v.to_string()).unwrap_or_default(),
+            Self::AnimalEmpathy => cre
+                .animal_empathy()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Bluff => cre.bluff().map(|v| v.to_string()).unwrap_or_default(),
+            Self::Concentration => cre
+                .concentration()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Diplomacy => cre.diplomacy().map(|v| v.to_string()).unwrap_or_default(),
+            Self::DisableDevice => cre
+                .disable_device()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::Hide => cre.hide().map(|v| v.to_string()).unwrap_or_default(),
+            Self::Intimidate => cre.intimidate().map(|v| v.to_string()).unwrap_or_default(),
+            Self::KnowledgeArcana => cre
+                .knowledge_arcana()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::D20MoveSilently => (cre.move_silently() as i8).to_string(),
+            Self::OpenLock => cre.open_lock().map(|v| v.to_string()).unwrap_or_default(),
+            Self::PickPocket => cre.pick_pocket().map(|v| v.to_string()).unwrap_or_default(),
+            Self::Search => cre.search().map(|v| v.to_string()).unwrap_or_default(),
+            Self::Spellcraft => cre.spellcraft().map(|v| v.to_string()).unwrap_or_default(),
+            Self::UseMagicDevice => cre
+                .use_magic_device()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            Self::WildernessLore => cre
+                .wilderness_lore()
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
             Self::BarbarianLevel => cre
                 .barbarian_level()
                 .map(|v| v.to_string())
@@ -501,6 +618,80 @@ impl EditableField {
             Self::XpForKill => write_u32(raw, caps.xp_for_kill, cre.xp_for_kill(), |v| {
                 cre.set_xp_for_kill(v)
             }),
+            Self::Alchemy => write_i8(raw, D20_SKILL_RANGE, cre.alchemy().unwrap_or(0), |v| {
+                cre.set_alchemy(v)
+            }),
+            Self::AnimalEmpathy => write_i8(
+                raw,
+                D20_SKILL_RANGE,
+                cre.animal_empathy().unwrap_or(0),
+                |v| cre.set_animal_empathy(v),
+            ),
+            Self::Bluff => write_i8(raw, D20_SKILL_RANGE, cre.bluff().unwrap_or(0), |v| {
+                cre.set_bluff(v)
+            }),
+            Self::Concentration => write_i8(
+                raw,
+                D20_SKILL_RANGE,
+                cre.concentration().unwrap_or(0),
+                |v| cre.set_concentration(v),
+            ),
+            Self::Diplomacy => write_i8(raw, D20_SKILL_RANGE, cre.diplomacy().unwrap_or(0), |v| {
+                cre.set_diplomacy(v)
+            }),
+            Self::DisableDevice => write_i8(
+                raw,
+                D20_SKILL_RANGE,
+                cre.disable_device().unwrap_or(0),
+                |v| cre.set_disable_device(v),
+            ),
+            Self::Hide => write_i8(raw, D20_SKILL_RANGE, cre.hide().unwrap_or(0), |v| {
+                cre.set_hide(v)
+            }),
+            Self::Intimidate => {
+                write_i8(raw, D20_SKILL_RANGE, cre.intimidate().unwrap_or(0), |v| {
+                    cre.set_intimidate(v)
+                })
+            }
+            Self::KnowledgeArcana => write_i8(
+                raw,
+                D20_SKILL_RANGE,
+                cre.knowledge_arcana().unwrap_or(0),
+                |v| cre.set_knowledge_arcana(v),
+            ),
+            Self::D20MoveSilently => {
+                write_i8(raw, D20_SKILL_RANGE, cre.move_silently() as i8, |v| {
+                    cre.set_move_silently(v as u8)
+                })
+            }
+            Self::OpenLock => write_i8(raw, D20_SKILL_RANGE, cre.open_lock().unwrap_or(0), |v| {
+                cre.set_open_lock(v)
+            }),
+            Self::PickPocket => {
+                write_i8(raw, D20_SKILL_RANGE, cre.pick_pocket().unwrap_or(0), |v| {
+                    cre.set_pick_pocket(v)
+                })
+            }
+            Self::Search => write_i8(raw, D20_SKILL_RANGE, cre.search().unwrap_or(0), |v| {
+                cre.set_search(v)
+            }),
+            Self::Spellcraft => {
+                write_i8(raw, D20_SKILL_RANGE, cre.spellcraft().unwrap_or(0), |v| {
+                    cre.set_spellcraft(v)
+                })
+            }
+            Self::UseMagicDevice => write_i8(
+                raw,
+                D20_SKILL_RANGE,
+                cre.use_magic_device().unwrap_or(0),
+                |v| cre.set_use_magic_device(v),
+            ),
+            Self::WildernessLore => write_i8(
+                raw,
+                D20_SKILL_RANGE,
+                cre.wilderness_lore().unwrap_or(0),
+                |v| cre.set_wilderness_lore(v),
+            ),
             Self::BarbarianLevel => write_class_level(
                 cre,
                 raw,
@@ -613,6 +804,13 @@ fn write_class_level(
     let max_for_field = IWD2_TOTAL_LEVELS_MAX.saturating_sub(others) as u8;
     set(cre, clamped.min(max_for_field));
 }
+
+/// IWD2 d20 skills are signed bytes with no narrower engine cap — the
+/// full `i8` range (−128..=127) is the clamp.
+const D20_SKILL_RANGE: AbilityRange<i8> = AbilityRange {
+    min: i8::MIN,
+    max: i8::MAX,
+};
 
 fn write_u8<F: FnOnce(u8)>(raw: &str, range: AbilityRange<u8>, current: u8, write: F) {
     let parsed: u8 = match raw.trim().parse::<u32>() {

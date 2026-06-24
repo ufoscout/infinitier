@@ -2611,7 +2611,7 @@ impl Cre {
             CreHeader::V10(h) => h.move_silently,
             CreHeader::V12(h) => h.stealth,
             CreHeader::V90(h) => h.stealth,
-            CreHeader::V22(h) => h.move_silently,
+            CreHeader::V22(h) => h.move_silently as u8,
         }
     }
     pub fn set_move_silently(&mut self, value: u8) {
@@ -2619,7 +2619,7 @@ impl Cre {
             CreHeader::V10(h) => h.move_silently = value,
             CreHeader::V12(h) => h.stealth = value,
             CreHeader::V90(h) => h.stealth = value,
-            CreHeader::V22(h) => h.move_silently = value,
+            CreHeader::V22(h) => h.move_silently = value as i8,
         }
     }
     /// UI label for the move-silently row: "Stealth" on V1.2 / V9.0
@@ -2707,6 +2707,25 @@ impl Cre {
     );
     cre_v22_field!(save_vs_reflex, set_save_vs_reflex, save_versus_reflex, u8);
     cre_v22_field!(save_vs_will, set_save_vs_will, save_versus_will, u8);
+
+    // ── IWD2 (V2.2) d20 skills (signed bytes, −128..=127) ─────────────
+    // `move_silently` already has a cross-version accessor above; the
+    // rest are V2.2-only.
+    cre_v22_field!(alchemy, set_alchemy, alchemy, i8);
+    cre_v22_field!(animal_empathy, set_animal_empathy, animal_empathy, i8);
+    cre_v22_field!(bluff, set_bluff, bluff, i8);
+    cre_v22_field!(concentration, set_concentration, concentration, i8);
+    cre_v22_field!(diplomacy, set_diplomacy, diplomacy, i8);
+    cre_v22_field!(disable_device, set_disable_device, disable_device, i8);
+    cre_v22_field!(hide, set_hide, hide, i8);
+    cre_v22_field!(intimidate, set_intimidate, intimidate, i8);
+    cre_v22_field!(knowledge_arcana, set_knowledge_arcana, knowledge_arcana, i8);
+    cre_v22_field!(open_lock, set_open_lock, open_lock, i8);
+    cre_v22_field!(pick_pocket, set_pick_pocket, pick_pocket, i8);
+    cre_v22_field!(search, set_search, search, i8);
+    cre_v22_field!(spellcraft, set_spellcraft, spellcraft, i8);
+    cre_v22_field!(use_magic_device, set_use_magic_device, use_magic_device, i8);
+    cre_v22_field!(wilderness_lore, set_wilderness_lore, wilderness_law, i8);
 }
 
 /// One 16-byte IWD2 sub-section slot. The on-disk layout is the
