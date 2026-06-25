@@ -1,9 +1,15 @@
 //! Read-only rendering for the Journal Entries tab.
 //!
 //! Mirrors EEKeeper's layout: a master table (Journal Type / Journal
-//! Entry / Chapter / Time) over a detail pane that shows the full text
-//! of the selected entry. The table only paints the first line of each
+//! Entry / Chapter / Time) over a detail pane that shows the full text of
+//! the selected entry. The table only paints the first line of each
 //! entry; the rest is reserved for the pane below.
+//!
+//! The columns are fixed-width and the table lives in a horizontal
+//! [`egui::ScrollArea`]: egui_extras tables have no horizontal scrollbar
+//! of their own, so when the table is wider than the tab the outer scroll
+//! area supplies one (the same approach as the Effects tab) rather than
+//! letting the columns spill off-screen with no way to reach them.
 //!
 //! Entry text comes from `dialog.tlk`. Resolving a strref means
 //! re-parsing the whole TLK, so we load it once and memoise every
@@ -53,46 +59,42 @@ pub fn render(ui: &mut egui::Ui, rows: &[JournalRow], game_data: &GameData) {
     let table_h = (full_h - detail_h - 8.0).max(60.0);
 
     let mut clicked: Option<usize> = None;
-    ui.allocate_ui(egui::vec2(ui.available_width(), table_h), |ui| {
-        Table::new("journal_entries")
-            .selectable(true)
-            .column(
-                TableColumn::initial(130.0)
-                    .header("Journal Type"),
-            )
-            .column(TableColumn::remainder().clip(true).header("Journal Entry"))
-            .column(TableColumn::initial(70.0).header("Chapter"))
-            .column(
-                TableColumn::initial(190.0)
-                    .clip(true)
-                    .header("Time"),
-            )
-            .show(ui, |body| {
-                body.rows(rows.len(), |i, mut row| {
-                    row.selected(i == selected);
-                    let r = &rows[i];
-                    let first_line = texts
-                        .get(&r.strref)
-                        .and_then(|t| t.lines().find(|l| !l.trim().is_empty()))
-                        .unwrap_or("");
-                    row.col(|ui| {
-                        ui.add(Label::new(r.type_label));
+    egui::ScrollArea::horizontal()
+        .id_salt("journal_hscroll")
+        .show(ui, |ui| {
+            Table::new("journal_entries")
+                .selectable(true)
+                .max_height(table_h)
+                .column(TableColumn::initial(130.0).clip(true).header("Journal Type"))
+                .column(TableColumn::initial(360.0).clip(true).header("Journal Entry"))
+                .column(TableColumn::initial(70.0).header("Chapter"))
+                .column(TableColumn::initial(190.0).clip(true).header("Time"))
+                .show(ui, |body| {
+                    body.rows(rows.len(), |i, mut row| {
+                        row.selected(i == selected);
+                        let r = &rows[i];
+                        let first_line = texts
+                            .get(&r.strref)
+                            .and_then(|t| t.lines().find(|l| !l.trim().is_empty()))
+                            .unwrap_or("");
+                        row.col(|ui| {
+                            ui.add(Label::new(r.type_label));
+                        });
+                        row.col(|ui| {
+                            ui.add(Label::new(first_line));
+                        });
+                        row.col(|ui| {
+                            ui.add(Label::new(r.chapter.to_string()));
+                        });
+                        row.col(|ui| {
+                            ui.add(Label::new(time_text(calendar.as_ref(), r.time)));
+                        });
+                        if row.response().clicked() {
+                            clicked = Some(i);
+                        }
                     });
-                    row.col(|ui| {
-                        ui.add(Label::new(first_line));
-                    });
-                    row.col(|ui| {
-                        ui.add(Label::new(r.chapter.to_string()));
-                    });
-                    row.col(|ui| {
-                        ui.add(Label::new(time_text(calendar.as_ref(), r.time)));
-                    });
-                    if row.response().clicked() {
-                        clicked = Some(i);
-                    }
                 });
-            });
-    });
+        });
 
     if let Some(i) = clicked {
         selected = i;

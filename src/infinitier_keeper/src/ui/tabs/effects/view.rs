@@ -38,50 +38,16 @@ pub fn render(ui: &mut egui::Ui, rows: &[EffectRow], game_data: &GameData) {
                     .clip(true)
                     .header("Type"),
             )
-            .column(
-                TableColumn::initial(70.0)
-                    .clip(true)
-                    .header("Name"),
-            )
-            .column(
-                TableColumn::initial(78.0)
-                    .header("Parameter 1"),
-            )
-            .column(
-                TableColumn::initial(78.0)
-                    .header("Parameter 2"),
-            )
-            .column(
-                TableColumn::initial(160.0)
-                    .clip(true)
-                    .header("Resource 0"),
-            )
-            .column(
-                TableColumn::initial(110.0)
-                    .clip(true)
-                    .header("Resource 1"),
-            )
-            .column(
-                TableColumn::initial(110.0)
-                    .clip(true)
-                    .header("Resource 2"),
-            )
-            .column(
-                TableColumn::initial(160.0)
-                    .clip(true)
-                    .header("Resource 3"),
-            )
+            .column(TableColumn::initial(70.0).clip(true).header("Name"))
+            .column(TableColumn::initial(78.0).header("Parameter 1"))
+            .column(TableColumn::initial(78.0).header("Parameter 2"))
+            .column(TableColumn::initial(160.0).clip(true).header("Resource 0"))
+            .column(TableColumn::initial(110.0).clip(true).header("Resource 1"))
+            .column(TableColumn::initial(110.0).clip(true).header("Resource 2"))
+            .column(TableColumn::initial(160.0).clip(true).header("Resource 3"))
             .column(TableColumn::initial(80.0).header("Time"))
-            .column(
-                TableColumn::initial(150.0)
-                    .clip(true)
-                    .header("Flags"),
-            )
-            .column(
-                TableColumn::initial(140.0)
-                    .clip(true)
-                    .header("Target"),
-            )
+            .column(TableColumn::initial(150.0).clip(true).header("Flags"))
+            .column(TableColumn::initial(140.0).clip(true).header("Target"))
             .show(ui, |mut body| {
                 for row in rows {
                     body.row(|mut tr| {

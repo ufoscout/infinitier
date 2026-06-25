@@ -10,14 +10,12 @@ use super::data::ProfRow;
 use super::with_selected_cre_mut;
 use crate::state::AppState;
 
-
 const VALUE_COL_W: f32 = 110.0;
 const MAX_TABLE_W: f32 = 480.0;
 /// Proficiency pips max out at 5 (EEKeeper's cap);
 const MAX_POINTS: u8 = 5;
 
 pub fn render(ui: &mut egui::Ui, rows: &[ProfRow], editable: bool, state: &mut AppState) {
-
     let width = MAX_TABLE_W.min(ui.available_width());
     let size = egui::vec2(width, ui.available_height());
     ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
