@@ -64,11 +64,12 @@ pub fn render(ui: &mut egui::Ui, rows: &[JournalRow], game_data: &GameData) {
         .show(ui, |ui| {
             Table::new("journal_entries")
                 .selectable(true)
+                .resizable(true)
                 .max_height(table_h)
                 .column(TableColumn::initial(130.0).clip(true).header("Journal Type"))
-                .column(TableColumn::initial(360.0).clip(true).header("Journal Entry"))
+                .column(TableColumn::initial(480.0).clip(true).header("Journal Entry"))
                 .column(TableColumn::initial(70.0).header("Chapter"))
-                .column(TableColumn::initial(190.0).clip(true).header("Time"))
+                .column(TableColumn::initial(300.0).clip(true).header("Time"))
                 .show(ui, |body| {
                     body.rows(rows.len(), |i, mut row| {
                         row.selected(i == selected);

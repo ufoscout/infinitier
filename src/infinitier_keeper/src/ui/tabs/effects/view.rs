@@ -31,6 +31,7 @@ pub fn render(ui: &mut egui::Ui, rows: &[EffectRow], game_data: &GameData) {
     let max_h = ui.available_height();
     egui::ScrollArea::horizontal().show(ui, |ui| {
         Table::new("effects")
+            .resizable(true)
             .max_height(max_h)
             .column(
                 TableColumn::initial(250.0)
