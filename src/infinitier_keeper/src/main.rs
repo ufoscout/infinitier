@@ -134,11 +134,6 @@ fn main() {
             .with_title(&title)
             .with_clamp_size_to_monitor_size(true)
             .with_inner_size(egui::vec2(1400.0, 1050.0))
-            // Floor the window dimensions so the header strip
-            // (Save button, four field columns, theme toggle) and
-            // the three-column abilities layout always have enough
-            // room to lay out without overflowing into negative
-            // widths (egui panics on those).
             .with_min_inner_size(egui::vec2(900.0, 540.0)),
         renderer: eframe::Renderer::Wgpu,
         wgpu_options,

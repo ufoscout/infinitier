@@ -2,26 +2,35 @@
 //! two-column table (Name · Value), in CRE file order.
 
 use eframe::egui;
-use egui_components::Label;
-use egui_components::scroll_area::ScrollArea;
+use egui_components::{Label, Table, TableColumn};
 use infinitier_core::resource::cre::LocalVariable;
 
-pub fn render(ui: &mut egui::Ui, vars: &[LocalVariable]) {
-    ScrollArea::vertical().show(ui, |ui| {
-        egui::Grid::new("local_variables_table")
-            .num_columns(2)
-            .striped(true)
-            .spacing([24.0, 5.0])
-            .show(ui, |ui| {
-                ui.add(Label::new("Name").strong());
-                ui.add(Label::new("Value").strong());
-                ui.end_row();
+/// Maximum table width, so it doesn't stretch across the whole tab.
+const MAX_TABLE_W: f32 = 480.0;
 
-                for var in vars {
-                    ui.add(Label::new(var.name.as_str()));
-                    ui.add(Label::new(var.value.to_string()));
-                    ui.end_row();
-                }
+pub fn render(ui: &mut egui::Ui, vars: &[LocalVariable]) {
+    let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
+    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
+        Table::new("local_variables")
+            .striped(true)
+            .max_height(ui.available_height())
+            .column(
+                TableColumn::remainder()
+                    .at_least(160.0)
+                    .clip(true)
+                    .header("Name"),
+            )
+            .column(TableColumn::exact(120.0).header("Value"))
+            .show(ui, |body| {
+                body.rows(vars.len(), |i, mut row| {
+                    let var = &vars[i];
+                    row.col(|ui| {
+                        ui.add(Label::new(var.name.as_str()));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(var.value.to_string()));
+                    });
+                });
             });
     });
 }

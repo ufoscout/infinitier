@@ -11,8 +11,7 @@
 use std::collections::HashMap;
 
 use eframe::egui;
-use egui_components::Label;
-use egui_components::scroll_area::ScrollArea;
+use egui_components::{Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::resource::tlk::Tlk;
 
@@ -38,25 +37,46 @@ pub fn render(ui: &mut egui::Ui, rows: &[ClericRow], game_data: &GameData) {
             .then_with(|| a_name.to_lowercase().cmp(&b_name.to_lowercase()))
     });
 
-    ScrollArea::vertical().show(ui, |ui| {
-        egui::Grid::new("cleric_table")
-            .num_columns(4)
-            .striped(true)
-            .spacing([24.0, 5.0])
-            .show(ui, |ui| {
-                ui.add(Label::new("Level").strong());
-                ui.add(Label::new("xMem").strong());
-                ui.add(Label::new("Spell").strong());
-                ui.add(Label::new("Resource").strong());
-                ui.end_row();
+    spell_table(ui, "cleric", &named);
+}
 
-                for (name, row) in &named {
-                    ui.add(Label::new(row.level.to_string()));
-                    ui.add(Label::new(row.x_mem.to_string()));
-                    ui.add(Label::new(name.as_str()));
-                    ui.add(Label::new(row.resource.as_str()));
-                    ui.end_row();
-                }
+/// Maximum table width, so it doesn't stretch across the whole tab.
+const MAX_TABLE_W: f32 = 560.0;
+
+/// Render EEKeeper's four-column spell table (Level · xMem · Spell ·
+/// Resource) from `(display name, row)` pairs already in display order,
+/// inside a width-capped region.
+fn spell_table(ui: &mut egui::Ui, id: &str, named: &[(String, &ClericRow)]) {
+    let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
+    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
+        Table::new(id)
+            .striped(true)
+            .max_height(ui.available_height())
+            .column(TableColumn::exact(70.0).header("Level"))
+            .column(TableColumn::exact(70.0).header("xMem"))
+            .column(
+                TableColumn::remainder()
+                    .at_least(160.0)
+                    .clip(true)
+                    .header("Spell"),
+            )
+            .column(TableColumn::exact(110.0).header("Resource"))
+            .show(ui, |body| {
+                body.rows(named.len(), |i, mut row| {
+                    let (name, r) = &named[i];
+                    row.col(|ui| {
+                        ui.add(Label::new(r.level.to_string()));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(r.x_mem.to_string()));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(name.as_str()));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(r.resource.as_str()));
+                    });
+                });
             });
     });
 }

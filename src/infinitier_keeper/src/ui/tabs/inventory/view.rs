@@ -40,6 +40,8 @@ const ITEM_CACHE: &str = "inventory_item_cache";
 const ICON_CACHE: &str = "inventory_icon_cache";
 /// Height of a table row — tall enough to seat an inventory icon.
 const ROW_H: f32 = 40.0;
+/// Maximum table width, so it doesn't stretch across the whole tab.
+const MAX_TABLE_W: f32 = 640.0;
 
 /// Per-item resolved display info.
 #[derive(Clone)]
@@ -61,61 +63,52 @@ pub fn render(ui: &mut egui::Ui, rows: &[InventoryRow], game_data: &GameData) {
     let items = resolve_items(ui, game_data, rows);
     let icons = resolve_icons(ui, game_data, &items);
 
-    Table::new("inventory")
-        .row_height(ROW_H)
-        .header_height(ROW_H)
-        .column(TableColumn::exact(ROW_H)) // icon
-        .column(
-            TableColumn::initial(110.0)
-                .resizable(true)
-                .header("Position"),
-        )
-        .column(
-            TableColumn::initial(80.0)
-                .resizable(true)
-                .header("Quantity"),
-        )
-        .column(TableColumn::remainder().clip(true).header("Item"))
-        .column(
-            TableColumn::initial(110.0)
-                .clip(true)
-                .resizable(true)
-                .header("Resource"),
-        )
-        .show(ui, |body| {
-            body.rows(rows.len(), |i, mut row| {
-                let r = &rows[i];
-                let resref = row_resref(r);
-                let display = items.get(resref);
+    let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
+    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
+        Table::new("inventory")
+            .row_height(ROW_H)
+            .header_height(ROW_H)
+            .max_height(ui.available_height())
+            .column(TableColumn::exact(ROW_H)) // icon
+            .column(TableColumn::initial(110.0).header("Position"))
+            .column(TableColumn::initial(80.0).header("Quantity"))
+            .column(TableColumn::remainder().clip(true).header("Item"))
+            .column(TableColumn::initial(110.0).clip(true).header("Resource"))
+            .show(ui, |body| {
+                body.rows(rows.len(), |i, mut row| {
+                    let r = &rows[i];
+                    let resref = row_resref(r);
+                    let display = items.get(resref);
 
-                row.col(|ui| {
-                    if let Some(tex) = display
-                        .and_then(|d| icons.get(&d.icon))
-                        .and_then(|t| t.as_ref())
-                    {
-                        ui.add(
-                            egui::Image::new(tex)
-                                .max_height(ROW_H - 4.0)
-                                .max_width(ROW_H - 4.0)
-                                .fit_to_original_size(1.0),
-                        );
-                    }
-                });
-                row.col(|ui| {
-                    ui.add(Label::new(r.position));
-                });
-                row.col(|ui| {
-                    ui.add(Label::new(row_quantity(r)));
-                });
-                row.col(|ui| {
-                    let name = display.map(|d| d.name.as_str()).unwrap_or("");
-                    ui.add(Label::new(name));
-                });
-                row.col(|ui| {
-                    ui.add(Label::new(resref));
+                    row.col(|ui| {
+                        if let Some(tex) = display
+                            .and_then(|d| icons.get(&d.icon))
+                            .and_then(|t| t.as_ref())
+                        {
+                            ui.add(
+                                egui::Image::new(tex)
+                                    .max_height(ROW_H - 4.0)
+                                    .max_width(ROW_H - 4.0)
+                                    .fit_to_original_size(1.0),
+                            );
+                        }
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(r.position));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(row_quantity(r)));
+                    });
+                    row.col(|ui| {
+                        let name = display.map(|d| d.name.as_str()).unwrap_or("");
+                        ui.add(Label::new(name));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(resref));
+                    });
                 });
             });
-        });
+    });
 }
 
 /// Resolve each filled slot's resref to its display info (identified

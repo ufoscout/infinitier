@@ -58,15 +58,13 @@ pub fn render(ui: &mut egui::Ui, rows: &[JournalRow], game_data: &GameData) {
             .selectable(true)
             .column(
                 TableColumn::initial(130.0)
-                    .resizable(true)
                     .header("Journal Type"),
             )
             .column(TableColumn::remainder().clip(true).header("Journal Entry"))
-            .column(TableColumn::initial(70.0).resizable(true).header("Chapter"))
+            .column(TableColumn::initial(70.0).header("Chapter"))
             .column(
                 TableColumn::initial(190.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Time"),
             )
             .show(ui, |body| {

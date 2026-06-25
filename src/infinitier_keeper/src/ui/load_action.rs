@@ -376,7 +376,6 @@ fn save_table(ui: &mut egui::Ui, entries: &[SaveEntry], selected: &mut Option<us
             TableColumn::initial(170.0)
                 .at_least(120.0)
                 .clip(true)
-                .resizable(true)
                 .header("Game Name"),
         )
         .column(TableColumn::remainder().clip(true).header("Time Saved"))

@@ -31,66 +31,55 @@ pub fn render(ui: &mut egui::Ui, rows: &[EffectRow], game_data: &GameData) {
     let max_h = ui.available_height();
     egui::ScrollArea::horizontal().show(ui, |ui| {
         Table::new("effects")
-            .resizable(true)
             .max_height(max_h)
             .column(
                 TableColumn::initial(250.0)
                     .at_least(120.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Type"),
             )
             .column(
                 TableColumn::initial(70.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Name"),
             )
             .column(
                 TableColumn::initial(78.0)
-                    .resizable(true)
                     .header("Parameter 1"),
             )
             .column(
                 TableColumn::initial(78.0)
-                    .resizable(true)
                     .header("Parameter 2"),
             )
             .column(
                 TableColumn::initial(160.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Resource 0"),
             )
             .column(
                 TableColumn::initial(110.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Resource 1"),
             )
             .column(
                 TableColumn::initial(110.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Resource 2"),
             )
             .column(
                 TableColumn::initial(160.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Resource 3"),
             )
-            .column(TableColumn::initial(80.0).resizable(true).header("Time"))
+            .column(TableColumn::initial(80.0).header("Time"))
             .column(
                 TableColumn::initial(150.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Flags"),
             )
             .column(
                 TableColumn::initial(140.0)
                     .clip(true)
-                    .resizable(true)
                     .header("Target"),
             )
             .show(ui, |mut body| {
