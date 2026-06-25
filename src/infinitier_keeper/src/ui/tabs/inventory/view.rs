@@ -41,7 +41,7 @@ const ICON_CACHE: &str = "inventory_icon_cache";
 /// Height of a table row — tall enough to seat an inventory icon.
 const ROW_H: f32 = 40.0;
 /// Maximum table width, so it doesn't stretch across the whole tab.
-const MAX_TABLE_W: f32 = 640.0;
+const MAX_TABLE_W: f32 = 800.0;
 
 /// Per-item resolved display info.
 #[derive(Clone)]
@@ -69,9 +69,9 @@ pub fn render(ui: &mut egui::Ui, rows: &[InventoryRow], game_data: &GameData) {
             .row_height(ROW_H)
             .header_height(ROW_H)
             .max_height(ui.available_height())
-            .column(TableColumn::exact(ROW_H)) // icon
-            .column(TableColumn::initial(110.0).header("Position"))
-            .column(TableColumn::initial(80.0).header("Quantity"))
+            .column(TableColumn::exact(50.0)) // icon
+            .column(TableColumn::initial(120.0).header("Position"))
+            .column(TableColumn::initial(90.0).header("Quantity"))
             .column(TableColumn::remainder().clip(true).header("Item"))
             .column(TableColumn::initial(110.0).clip(true).header("Resource"))
             .show(ui, |body| {
