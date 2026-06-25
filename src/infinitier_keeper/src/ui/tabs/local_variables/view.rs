@@ -5,6 +5,8 @@ use eframe::egui;
 use egui_components::{Label, Table, TableColumn};
 use infinitier_core::resource::cre::LocalVariable;
 
+/// Initial width of the name column.
+const NAME_COL_W: f32 = 300.0;
 /// Maximum table width, so it doesn't stretch across the whole tab.
 const MAX_TABLE_W: f32 = 480.0;
 
@@ -15,12 +17,12 @@ pub fn render(ui: &mut egui::Ui, vars: &[LocalVariable]) {
             .striped(true)
             .max_height(ui.available_height())
             .column(
-                TableColumn::remainder()
-                    .at_least(160.0)
+                TableColumn::initial(NAME_COL_W)
+                    .at_least(120.0)
                     .clip(true)
                     .header("Name"),
             )
-            .column(TableColumn::exact(120.0).header("Value"))
+            .column(TableColumn::remainder().header("Value"))
             .show(ui, |body| {
                 body.rows(vars.len(), |i, mut row| {
                     let var = &vars[i];
