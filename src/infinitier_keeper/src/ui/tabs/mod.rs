@@ -7,7 +7,6 @@
 //! will flesh out in follow-up work.
 
 use eframe::egui;
-use infinitier_core::engine_caps::EngineCaps;
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::cre::ImportedCre;
 use infinitier_core::imported_resource::gam::{ImportedGam, ImportedGamNpc, NpcCre};
@@ -162,8 +161,6 @@ struct CreCtx<'a> {
     game: Game,
     /// Resource access for tabs that resolve names / 2DAs / TLK.
     game_data: &'a GameData,
-    /// Engine ability/skill ranges (Proficiencies).
-    engine_caps: &'a EngineCaps,
     /// `(save-tab, party-slot)` key for the Spells tab's per-character
     /// dropdown memory.
     char_key: u64,
@@ -191,7 +188,6 @@ fn with_cre(state: &AppState, f: impl FnOnce(CreCtx)) {
         member,
         game: state.game_data.game(),
         game_data: &state.game_data,
-        engine_caps: &state.engine_caps,
         char_key: ((state.active_tab as u64) << 32) | idx as u64,
     });
 }
@@ -223,9 +219,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Innate => with_cre(state, |c| InnateTab.show(ui, c.cre, c.game_data)),
         CharacterTab::Wizard => with_cre(state, |c| WizardTab.show(ui, c.cre, c.game_data)),
         CharacterTab::Cleric => with_cre(state, |c| ClericTab.show(ui, c.cre, c.game_data)),
-        CharacterTab::Proficiencies => {
-            with_cre(state, |c| ProficienciesTab.show(ui, c.cre, c.engine_caps))
-        }
+        // Proficiencies edits the CRE in place (EE), so it takes `&mut
+        // AppState` directly.
+        CharacterTab::Proficiencies => ProficienciesTab.show(ui, state),
         // Resistances edits the CRE in place (AD&D), so it takes `&mut
         // AppState` directly.
         CharacterTab::Resistances => ResistancesTab.show(ui, state),

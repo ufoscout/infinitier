@@ -14,9 +14,17 @@ use infinitier_core::resource::cre::Cre;
 
 /// One table row: a proficiency and its first/second-class points.
 pub struct ProfRow {
+    /// The `IE_PROFICIENCY*` stat — the key [`Cre::set_proficiency`]
+    /// edits write back to.
+    pub stat: u8,
     pub name: String,
     pub first: u32,
     pub second: u32,
+    /// Whether this stat has a real second-class value (only a
+    /// dual-classed character's weapons do). When `false` the "Second
+    /// Class" cell stays read-only — a single/multi-class character has
+    /// no second class, and writing it would corrupt the flat byte.
+    pub has_second_class: bool,
 }
 
 /// Build the table rows: each proficiency from `proficiencies` (the
@@ -29,9 +37,11 @@ pub fn proficiency_rows(cre: &Cre, proficiencies: &[Proficiency]) -> Vec<ProfRow
         .map(|p| {
             let points = cre.proficiency(p.stat);
             ProfRow {
+                stat: p.stat,
                 name: p.name.clone(),
                 first: u32::from(points.first_class),
                 second: u32::from(points.second_class),
+                has_second_class: cre.proficiency_has_second_class(p.stat),
             }
         })
         .collect()

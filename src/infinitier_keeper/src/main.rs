@@ -91,10 +91,6 @@ fn main() {
             })
     };
 
-    // Parse the GAM through its DataSource (from the discovered save
-    // folder) then resolve it via `ImportedGam` so every embedded CRE
-    // is pre-parsed and every NPC name is TLK-resolved. Strict mode:
-    // a corrupt embedded CRE aborts the open with a clear error.
     let gam = GamImporter {
         name: core_save.folder_name(),
         engine: game_data.game().engine(),
@@ -137,7 +133,7 @@ fn main() {
         viewport: egui::ViewportBuilder::default()
             .with_title(&title)
             .with_clamp_size_to_monitor_size(true)
-            .with_inner_size(egui::vec2(1400.0, 800.0))
+            .with_inner_size(egui::vec2(1400.0, 1050.0))
             // Floor the window dimensions so the header strip
             // (Save button, four field columns, theme toggle) and
             // the three-column abilities layout always have enough

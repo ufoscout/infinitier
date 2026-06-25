@@ -1565,6 +1565,16 @@ impl Cre {
         }
     }
 
+    /// Whether `stat` carries a distinct second-class proficiency value
+    /// (the high 3-bit slot): true only for a dual-classed character's
+    /// weapons. Single/multi-class characters and fighting styles store a
+    /// single flat value, so their second-class points are meaningless.
+    /// The editor uses this to keep the "Second Class" cell read-only
+    /// where it doesn't apply.
+    pub fn proficiency_has_second_class(&self, stat: u8) -> bool {
+        self.proficiency_slots_swapped(stat)
+    }
+
     /// Whether the packed byte's first/second-class slots are swapped for
     /// `stat`: yes for a dual-classed character's weapons, no for single/
     /// multi-class characters or fighting styles (`111..=114`).
@@ -1594,13 +1604,21 @@ impl Cre {
 
     /// Pack first/second-class points back into the engine's byte for
     /// `stat`, inverting [`Self::orient_proficiency`].
+    ///
+    /// Only a dual-classed character's weapons split the byte into two
+    /// 3-bit slots (the engine unpacks them by class). For single- and
+    /// multi-class characters — and for fighting styles on any character
+    /// — the proficiency is a single flat value: the engine reads the
+    /// whole byte, so writing the second-class points into the high bits
+    /// would inflate it (e.g. `second = 5` → `5 << 3 = 40` proficiency
+    /// points in-game). Such characters have no second class, so the
+    /// second-class points are dropped.
     fn pack_proficiency(&self, stat: u8, value: WeaponProficiency) -> u8 {
-        let (low, high) = if self.proficiency_slots_swapped(stat) {
-            (value.second_class, value.first_class)
+        if self.proficiency_slots_swapped(stat) {
+            (value.second_class & 0x07) | ((value.first_class & 0x07) << 3)
         } else {
-            (value.first_class, value.second_class)
-        };
-        (low & 0x07) | ((high & 0x07) << 3)
+            value.first_class & 0x07
+        }
     }
 
     /// Raw packed proficiency byte from the header.
@@ -3069,10 +3087,45 @@ mod tests {
         let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
         assert!(!cre.is_dual_classed());
         assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(2, 0)); // packed 2
-        cre.set_proficiency(BASTARD_SWORD, prof(4, 1)); // packed 12
-        assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(4, 1));
+        cre.set_proficiency(BASTARD_SWORD, prof(4, 0)); // packed 4
+        assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(4, 0));
         assert_eq!(op233_points(&cre, BASTARD_SWORD), None); // no effect created
-        assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(4, 1));
+        assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(4, 0));
+    }
+
+    /// A single-class character has no second class: its proficiency byte
+    /// is a single flat value the engine reads whole, so the second-class
+    /// points must be dropped — not packed into the high 3 bits. Packing
+    /// them produced the in-game bug where "0 first / 5 second" read as 40
+    /// proficiency points (`5 << 3`) and "5 / 5" as 45. Dual-class
+    /// characters (e.g. Imoen) are unaffected — the engine unpacks them.
+    #[test]
+    fn set_proficiency_drops_second_class_for_single_class_effect() {
+        let mut cre = crate::test_support::import_fixture("v1_0/FIGHTER_HARBASE.cre");
+        assert!(!cre.is_dual_classed());
+        assert!(!cre.proficiency_has_second_class(BASTARD_SWORD));
+
+        // 0 first / 5 second → flat 0 (not 40).
+        cre.set_proficiency(BASTARD_SWORD, prof(0, 5));
+        assert_eq!(op233_points(&cre, BASTARD_SWORD), Some(0));
+        assert_eq!(cre.proficiency(BASTARD_SWORD), prof(0, 0));
+
+        // 5 first / 5 second → flat 5 (not 45).
+        cre.set_proficiency(BASTARD_SWORD, prof(5, 5));
+        assert_eq!(op233_points(&cre, BASTARD_SWORD), Some(5));
+        assert_eq!(cre.proficiency(BASTARD_SWORD), prof(5, 0));
+        assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(5, 0));
+    }
+
+    /// The same on the header path: a single-class standalone CRE never
+    /// writes second-class points into the byte.
+    #[test]
+    fn set_proficiency_drops_second_class_for_single_class_header() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        assert!(!cre.is_dual_classed());
+        cre.set_proficiency(AXE, prof(3, 5)); // packed flat 3, not 43
+        assert_eq!(cre.header_proficiency(AXE), prof(3, 0));
+        assert_eq!(round_trip(&cre).proficiency(AXE), prof(3, 0));
     }
 
     /// Append a raw `op233` proficiency effect (packed `points`) to a

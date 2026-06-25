@@ -1,24 +1,68 @@
-//! Proficiencies tab — read-only weapon-proficiency table.
+//! Proficiencies tab — weapon-proficiency table.
 //!
 //! [`data`] extracts the first/second-class points (CRE header block
 //! plus `op233` proficiency effects); [`view`] paints EEKeeper's
-//! three-column table.
+//! three-column table. On the Enhanced Edition engine the points are
+//! **editable** (writing `op233` effects / the V1.0 header exactly as
+//! EEKeeper does); every other engine is shown read-only.
 
 mod data;
 mod view;
 
 use eframe::egui;
-use infinitier_core::engine_caps::EngineCaps;
+use infinitier_core::imported_resource::gam::NpcCre;
+use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::Cre;
+
+use crate::state::AppState;
 
 pub struct ProficienciesTab;
 
 impl ProficienciesTab {
     /// The proficiency list (stats + display names) is resolved once at
     /// startup into `engine_caps` from the game's `WEAPPROF.2DA`; the tab
-    /// just pairs it with the creature's points.
-    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, engine_caps: &EngineCaps) {
-        let rows = data::proficiency_rows(cre, engine_caps.proficiencies());
-        view::render(ui, &rows);
+    /// pairs it with the creature's points and — on EE — commits edits
+    /// back through [`Cre::set_proficiency`].
+    pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState) {
+        // Only the Enhanced Edition path is wired for editing: EE party
+        // members store proficiencies as `op233` effects, which
+        // `Cre::set_proficiency` updates the way EEKeeper does.
+        let editable = state.game_data.game().engine() == Engine::Ee;
+        // Snapshot the rows (the immutable `cre` borrow ends with the
+        // block); the editable cells write back via `with_selected_cre_mut`.
+        let rows = {
+            let Some(cre) = selected_cre(state) else {
+                ui.label("Empty party slot — no creature record to edit.");
+                return;
+            };
+            data::proficiency_rows(cre, state.engine_caps.proficiencies())
+        };
+        view::render(ui, &rows, editable, state);
+    }
+}
+
+/// The selected party creature, if it's an embedded (parsed) CRE.
+fn selected_cre(state: &AppState) -> Option<&Cre> {
+    let active = state.active();
+    let idx = active.selected_party_index?;
+    let member = active.save.party_npcs.get(idx)?;
+    match member.cre.as_ref()? {
+        NpcCre::Cre(c) => Some(c.cre()),
+        NpcCre::Ref(_) => None,
+    }
+}
+
+/// Run `edit` against the selected party creature's mutable CRE. No-op
+/// when the slot is empty or the creature isn't an embedded record.
+pub(super) fn with_selected_cre_mut(state: &mut AppState, edit: impl FnOnce(&mut Cre)) {
+    let active = state.active_mut();
+    let Some(idx) = active.selected_party_index else {
+        return;
+    };
+    let Some(member) = active.save.party_npcs.get_mut(idx) else {
+        return;
+    };
+    if let Some(NpcCre::Cre(c)) = member.cre.as_mut() {
+        edit(c.cre_mut());
     }
 }
