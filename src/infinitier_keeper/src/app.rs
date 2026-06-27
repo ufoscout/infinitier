@@ -3,7 +3,9 @@ use eframe::egui;
 use crate::components::editable_fields::KeeperEditors;
 use crate::components::party_selector::PartySelector;
 use crate::state::AppState;
-use crate::ui::{CharacterPanel, HeaderPanel, ItemBrowser, LoadAction, SaveAction, SaveTabStrip};
+use crate::ui::{
+    CharacterPanel, HeaderPanel, ItemBrowser, LoadAction, SaveAction, SaveTabStrip, SpellBrowser,
+};
 
 pub struct KeeperApp {
     state: AppState,
@@ -24,6 +26,8 @@ pub struct KeeperApp {
     load_action: LoadAction,
     /// The floating Item Browser window (all its state + rendering).
     item_browser: ItemBrowser,
+    /// The floating Spell Browser window (all its state + rendering).
+    spell_browser: SpellBrowser,
     /// Whether the floating "Items" browser window is open. Toggled by
     /// the header's Items button; the window's own close button clears it.
     items_window_open: bool,
@@ -44,6 +48,7 @@ impl KeeperApp {
             save_action: SaveAction::new(),
             load_action: LoadAction::new(),
             item_browser: ItemBrowser::new(),
+            spell_browser: SpellBrowser::new(),
             items_window_open: false,
             spells_window_open: false,
         }
@@ -52,18 +57,12 @@ impl KeeperApp {
 
 impl KeeperApp {
     /// Paint the movable / resizable / closable "Items" and "Spells"
-    /// browser windows when their header toggles are on. The Items window
-    /// is a full browser; the Spells window is still a placeholder.
+    /// browser windows when their header toggles are on.
     fn show_tool_windows(&mut self, ctx: &egui::Context) {
         self.item_browser
             .show(ctx, &mut self.items_window_open, &self.state.game_data);
-        egui::Window::new("Spells")
-            .open(&mut self.spells_window_open)
-            .default_size([420.0, 320.0])
-            .resizable(true)
-            .show(ctx, |ui| {
-                ui.label("Spell browser — coming soon.");
-            });
+        self.spell_browser
+            .show(ctx, &mut self.spells_window_open, &self.state.game_data);
     }
 }
 

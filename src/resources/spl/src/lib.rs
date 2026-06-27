@@ -135,6 +135,20 @@ impl SplHeader {
             SplHeader::V2(h) => h.description_unidentified,
         }
     }
+    /// Strref of the spell's identified description (usually `0xFFFFFFFF`).
+    pub fn description_identified_strref(&self) -> u32 {
+        match self {
+            SplHeader::V1(h) => h.description_identified,
+            SplHeader::V2(h) => h.description_identified,
+        }
+    }
+    /// BAM resref for the spellbook icon (same offset in every version).
+    pub fn spellbook_icon(&self) -> &str {
+        match self {
+            SplHeader::V1(h) => &h.spellbook_icon,
+            SplHeader::V2(h) => &h.spellbook_icon,
+        }
+    }
     /// Spell-school level (1..=9 in standard rule sets; spells with
     /// no level use 0).
     pub fn spell_level(&self) -> u32 {
