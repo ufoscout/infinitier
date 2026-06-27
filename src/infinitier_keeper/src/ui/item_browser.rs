@@ -230,6 +230,10 @@ impl ItemBrowser {
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
             .show(ui, |ui| {
+                ui.label(format!("Items: {shown}"));
+                ui.add_space(8.0);
+                ui.separator();
+
                 ui.label("Search");
                 ui.add(
                     egui::TextEdit::singleline(&mut self.text)
@@ -240,21 +244,27 @@ impl ItemBrowser {
                 ui.add_space(8.0);
                 ui.separator();
 
-                ui.label("Types");
-                for t in distinct_types(entries) {
-                    let mut on = !self.hidden_types.contains(t);
-                    if ui.add(Checkbox::new(&mut on, t)).changed() {
-                        if on {
-                            self.hidden_types.remove(t);
-                        } else {
-                            self.hidden_types.insert(t);
-                        }
+                // Master "select all types" checkbox heading the list.
+                let mut all = self.hidden_types.is_empty();
+                if ui.add(Checkbox::new(&mut all, "Types")).changed() {
+                    if all {
+                        self.hidden_types.clear();
+                    } else {
+                        self.hidden_types = distinct_types(entries);
                     }
                 }
-
-                ui.add_space(8.0);
-                ui.separator();
-                ui.label(format!("Items: {shown}"));
+                ui.indent("item_types", |ui| {
+                    for t in distinct_types(entries) {
+                        let mut on = !self.hidden_types.contains(t);
+                        if ui.add(Checkbox::new(&mut on, t)).changed() {
+                            if on {
+                                self.hidden_types.remove(t);
+                            } else {
+                                self.hidden_types.insert(t);
+                            }
+                        }
+                    }
+                });
             });
     }
 
