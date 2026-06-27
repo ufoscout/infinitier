@@ -31,10 +31,10 @@ const CALENDAR_CACHE: &str = "journal_calendar";
 /// Fixed column widths (the Journal Entry column takes the rest).
 const TYPE_W: f32 = 120.0;
 const CHAPTER_W: f32 = 60.0;
-const TIME_W: f32 = 200.0;
+const TIME_W: f32 = 275.0;
 /// Min / max width for the wrapping Journal Entry column.
 const MIN_ENTRY_W: f32 = 240.0;
-const MAX_ENTRY_W: f32 = 720.0;
+const MAX_ENTRY_W: f32 = 1200.0;
 /// Room left for the vertical scrollbar so the columns never overflow
 /// (an egui_extras table has no horizontal scrollbar).
 const SCROLLBAR_W: f32 = 16.0;
