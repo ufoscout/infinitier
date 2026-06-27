@@ -1,5 +1,6 @@
 mod character_panel;
 mod header_panel;
+mod item_browser;
 mod load_action;
 mod save_action;
 mod save_tab_strip;
@@ -7,6 +8,7 @@ mod tabs;
 
 pub use character_panel::CharacterPanel;
 pub use header_panel::HeaderPanel;
+pub use item_browser::ItemBrowser;
 pub use load_action::LoadAction;
 pub use save_action::SaveAction;
 pub use save_tab_strip::SaveTabStrip;

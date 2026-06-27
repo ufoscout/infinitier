@@ -1120,7 +1120,7 @@ dependencies = [
 [[package]]
 name = "egui-components"
 version = "0.2.0"
-source = "git+https://github.com/ufoscout/egui-components.git?branch=main#94c44ae6b207248b00e80d728534a90598296ddb"
+source = "git+https://github.com/ufoscout/egui-components.git?branch=main#c363ba94a09d7dd5eacaf0a4eb92015b6b1f2916"
 dependencies = [
  "egui",
  "egui-components-theme",
@@ -1131,7 +1131,7 @@ dependencies = [
 [[package]]
 name = "egui-components-theme"
 version = "0.2.0"
-source = "git+https://github.com/ufoscout/egui-components.git?branch=main#94c44ae6b207248b00e80d728534a90598296ddb"
+source = "git+https://github.com/ufoscout/egui-components.git?branch=main#c363ba94a09d7dd5eacaf0a4eb92015b6b1f2916"
 dependencies = [
  "egui",
  "serde_json",

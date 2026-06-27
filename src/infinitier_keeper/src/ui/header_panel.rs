@@ -17,6 +17,8 @@ use egui_components::theme::{Theme, ThemeMode};
 pub struct HeaderAction {
     pub load_clicked: bool,
     pub save_clicked: bool,
+    pub items_clicked: bool,
+    pub spells_clicked: bool,
 }
 
 pub struct HeaderPanel;
@@ -42,6 +44,15 @@ impl HeaderPanel {
                     }
                     if ui.add(Button::primary("Save").small()).clicked() {
                         action.save_clicked = true;
+                    }
+                    // Divider between the save-game actions (Load/Save) and
+                    // the resource-browser windows (Items/Spells).
+                    ui.separator();
+                    if ui.add(Button::primary("Items").small()).clicked() {
+                        action.items_clicked = true;
+                    }
+                    if ui.add(Button::primary("Spells").small()).clicked() {
+                        action.spells_clicked = true;
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         theme_toggle_button(ui);

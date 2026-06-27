@@ -132,6 +132,30 @@ impl ItmHeader {
             ItmHeader::V2(h) => h.description_unidentified,
         }
     }
+    pub fn description_identified_strref(&self) -> u32 {
+        match self {
+            ItmHeader::V1(h) => h.description_identified,
+            ItmHeader::V1_1(h) => h.description_identified,
+            ItmHeader::V2(h) => h.description_identified,
+        }
+    }
+    /// Item category (sword / staff / shield / armour / …) — the value
+    /// the Item Browser maps to a display "Type".
+    pub fn item_type(&self) -> u16 {
+        match self {
+            ItmHeader::V1(h) => h.item_type,
+            ItmHeader::V1_1(h) => h.item_type,
+            ItmHeader::V2(h) => h.item_type,
+        }
+    }
+    /// BAM resref for the inventory icon (same offset in every version).
+    pub fn inventory_icon(&self) -> &str {
+        match self {
+            ItmHeader::V1(h) => &h.inventory_icon,
+            ItmHeader::V1_1(h) => &h.inventory_icon,
+            ItmHeader::V2(h) => &h.inventory_icon,
+        }
+    }
     pub fn price(&self) -> u32 {
         match self {
             ItmHeader::V1(h) => h.price,
