@@ -1,6 +1,7 @@
 //! Rendering for the Proficiencies tab — EEKeeper's three-column table
-//! (Proficiency · First Class · Second Class). Editable on the Enhanced
-//! Edition engine; read-only elsewhere.
+//! (Proficiency · First Class · Second Class). Editable on every engine
+//! with a header proficiency block (BG, BG2, IWD, PST and the Enhanced
+//! Editions); IWD2 has none and hides the tab.
 
 use eframe::egui;
 use egui_components::{Label, Table, TableColumn};

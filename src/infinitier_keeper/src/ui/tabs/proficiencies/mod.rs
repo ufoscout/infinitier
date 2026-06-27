@@ -1,10 +1,4 @@
 //! Proficiencies tab — weapon-proficiency table.
-//!
-//! [`data`] extracts the first/second-class points (CRE header block
-//! plus `op233` proficiency effects); [`view`] paints EEKeeper's
-//! three-column table. On the Enhanced Edition engine the points are
-//! **editable** (writing `op233` effects / the V1.0 header exactly as
-//! EEKeeper does); every other engine is shown read-only.
 
 mod data;
 mod view;
@@ -21,13 +15,11 @@ pub struct ProficienciesTab;
 impl ProficienciesTab {
     /// The proficiency list (stats + display names) is resolved once at
     /// startup into `engine_caps` from the game's `WEAPPROF.2DA`; the tab
-    /// pairs it with the creature's points and — on EE — commits edits
-    /// back through [`Cre::set_proficiency`].
+    /// pairs it with the creature's points and commits edits back through
+    /// [`Cre::set_proficiency`].
     pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState) {
-        // Only the Enhanced Edition path is wired for editing: EE party
-        // members store proficiencies as `op233` effects, which
-        // `Cre::set_proficiency` updates the way EEKeeper does.
-        let editable = state.game_data.game().engine() == Engine::Ee;
+        // `Cre::set_proficiency`. IWD2 has no block and hides this tab.
+        let editable = state.game_data.game().engine() != Engine::Iwd2;
         // Snapshot the rows (the immutable `cre` borrow ends with the
         // block); the editable cells write back via `with_selected_cre_mut`.
         let rows = {

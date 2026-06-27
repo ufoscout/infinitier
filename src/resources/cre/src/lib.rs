@@ -1549,18 +1549,27 @@ impl Cre {
     /// Set the weapon proficiency for an `IE_PROFICIENCY*` stat, matching
     /// EEKeeper: edits go to an `op233` ("set proficiency") effect when
     /// the creature already stores proficiencies as effects (every
-    /// save-game party member does) — updating the existing effect for
-    /// the stat or **creating** one. Only a standalone CRE that has no
-    /// proficiency effects is edited in its V1.0 header. (Writing the
-    /// header for a party member is the classic "proficiencies vanish on
-    /// save" bug — the effect overrides it.)
+    /// EE save-game party member does) — updating the existing effect for
+    /// the stat or **creating** one. Otherwise the points are written into
+    /// the creature's header proficiency block, dispatched by version:
+    /// V1.0 (BG/BG2/EE), V1.2 (classic PST's six weapon groups) or V9.0
+    /// (classic IWD/HoW's fifteen). V2.2 (IWD2) has no header block and is
+    /// a no-op. (Writing the header for a creature that stores `op233`
+    /// effects is the classic "proficiencies vanish on save" bug — the
+    /// effect overrides it.)
     pub fn set_proficiency(&mut self, stat: u8, value: WeaponProficiency) {
         let packed = self.pack_proficiency(stat, value);
         if self.has_proficiency_effects() {
             self.set_or_add_effect_proficiency(stat, packed);
-        } else if let CreHeader::V10(h) = &mut self.header
-            && let Some(byte) = v10_proficiency_byte_mut(h, stat)
-        {
+            return;
+        }
+        let byte = match &mut self.header {
+            CreHeader::V10(h) => v10_proficiency_byte_mut(h, stat),
+            CreHeader::V12(h) => v12_proficiency_byte_mut(h, stat),
+            CreHeader::V90(h) => v90_proficiency_byte_mut(h, stat),
+            CreHeader::V22(_) => None,
+        };
+        if let Some(byte) = byte {
             *byte = packed;
         }
     }
@@ -1877,6 +1886,45 @@ fn v10_proficiency_byte_mut(h: &mut CreHeaderV10, stat: u8) -> Option<&mut u8> {
         17 => &mut h.bg1_5,
         18 => &mut h.bg1_6,
         _ => &mut h.bg1_7,
+    })
+}
+
+/// Mutable reference to the packed proficiency byte for `stat` in a V1.2
+/// (classic PST) header, or `None` for ids outside the six fixed groups.
+/// Mirrors [`v12_proficiency_byte`].
+fn v12_proficiency_byte_mut(h: &mut CreHeaderV12, stat: u8) -> Option<&mut u8> {
+    Some(match stat {
+        0 => &mut h.fist_proficiency_proficiencies_maybe_be_packed,
+        1 => &mut h.edged_proficiency_proficiencies_maybe_be_packed,
+        2 => &mut h.hammer_proficiency_proficiencies_maybe_be_packed,
+        3 => &mut h.axe_proficiency_proficiencies_maybe_be_packed,
+        4 => &mut h.club_proficiency_proficiencies_maybe_be_packed,
+        5 => &mut h.bow_proficiency_proficiencies_maybe_be_packed,
+        _ => return None,
+    })
+}
+
+/// Mutable reference to the packed proficiency byte for `stat` in a V9.0
+/// (classic IWD/HoW) header, or `None` for stats past the 15 weapon-group
+/// slots. Mirrors [`v90_proficiency_byte`].
+fn v90_proficiency_byte_mut(h: &mut CreHeaderV90, stat: u8) -> Option<&mut u8> {
+    Some(match v10_proficiency_index(stat)? {
+        0 => &mut h.large_swords_proficiency_proficiencies_maybe_be,
+        1 => &mut h.small_swords_proficiency_proficiencies_maybe_be,
+        2 => &mut h.bows_proficiency_proficiencies_maybe_be_packed,
+        3 => &mut h.spears_proficiency_proficiencies_maybe_be_packed,
+        4 => &mut h.axe_proficiency_proficiencies_maybe_be_packed,
+        5 => &mut h.missile_proficiency_proficiencies_maybe_be_packed,
+        6 => &mut h.great_swords_proficiency_proficiencies_maybe_be,
+        7 => &mut h.daggers_proficiency_proficiencies_maybe_be_packed,
+        8 => &mut h.halberd_proficiency_proficiencies_maybe_be_packed,
+        9 => &mut h.mace_proficiency_proficiencies_maybe_be_packed,
+        10 => &mut h.flail_proficiency_proficiencies_maybe_be_packed,
+        11 => &mut h.hammers_proficiency_proficiencies_maybe_be_packed,
+        12 => &mut h.clubs_proficiency_proficiencies_maybe_be_packed,
+        13 => &mut h.quarterstaves_proficiency_proficiencies_maybe_be_packed,
+        14 => &mut h.crossbow_proficiency_proficiencies_maybe_be_packed,
+        _ => return None,
     })
 }
 
@@ -3126,6 +3174,34 @@ mod tests {
         cre.set_proficiency(AXE, prof(3, 5)); // packed flat 3, not 43
         assert_eq!(cre.header_proficiency(AXE), prof(3, 0));
         assert_eq!(round_trip(&cre).proficiency(AXE), prof(3, 0));
+    }
+
+    /// Classic PST (CRE V1.2) stores its six weapon-group proficiencies in
+    /// the header (no `op233` effects); editing writes that block and the
+    /// value survives a round-trip — the PST editing path.
+    #[test]
+    fn set_proficiency_writes_v12_pst_header() {
+        const PST_AXE: u8 = 3; // V1.2 id 3 (Fist/Edged/Hammer/Axe/Club/Bow)
+        let mut cre = crate::test_support::import_fixture("v1_2/THIEF3.cre");
+        assert!(!cre.has_proficiency_effects());
+        cre.set_proficiency(PST_AXE, prof(4, 0));
+        assert_eq!(cre.header_proficiency(PST_AXE), prof(4, 0));
+        assert_eq!(op233_points(&cre, PST_AXE), None); // header path, no effect
+        assert_eq!(round_trip(&cre).proficiency(PST_AXE), prof(4, 0));
+    }
+
+    /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies
+    /// keyed by `stat - 89`; editing writes that block and the value
+    /// survives a round-trip — the IWD editing path. (Stat 89 → the first
+    /// slot, whatever weapon group IWD's `WEAPPROF.2DA` maps there.)
+    #[test]
+    fn set_proficiency_writes_v90_iwd_header() {
+        let mut cre = crate::test_support::import_fixture("v9_0/BARBWAR2.cre");
+        assert!(!cre.has_proficiency_effects());
+        cre.set_proficiency(BASTARD_SWORD, prof(3, 0)); // stat 89 → index 0
+        assert_eq!(cre.header_proficiency(BASTARD_SWORD), prof(3, 0));
+        assert_eq!(op233_points(&cre, BASTARD_SWORD), None); // header path
+        assert_eq!(round_trip(&cre).proficiency(BASTARD_SWORD), prof(3, 0));
     }
 
     /// Append a raw `op233` proficiency effect (packed `points`) to a

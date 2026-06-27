@@ -1,4 +1,33 @@
-# Infinitier
+# Infinitier Keeper
+
+## Tab editability by game
+
+RW = Read/Write
+R = Read
+
+|                  |  BG  | BG2  |  EE  | IWD  | IWD2 | PST  |
+| ---------------- | :--: | :--: | :--: | :--: | :--: | :--: |
+| Abilities        |  RW  |  RW  |  RW  |  RW  |  RW  |  RW  |
+| Levels & Kits    |  —   |  —   |  —   |  —   |  RW  |  —   |
+| Characteristics  |  R   |  R   |  R   |  R   |  R   |  R   |
+| Appearance       |  R   |  R   |  R   |  R   |  R   |  R   |
+| Inventory        |  R   |  R   |  R   |  R   |  R   |  R   |
+| Spells           |  —   |  —   |  —   |  —   |  R   |  —   |
+| Feats            |  —   |  —   |  —   |  —   |  RW  |  —   |
+| Memorization     |  R   |  R   |  R   |  R   |  —   |  R   |
+| Innate           |  R   |  R   |  R   |  R   |  —   |  R   |
+| Wizard           |  R   |  R   |  R   |  R   |  —   |  R   |
+| Cleric           |  R   |  R   |  R   |  R   |  —   |  R   |
+| Proficiencies    |  RW  |  RW  |  RW  |  RW  |  —   |  RW  |
+| Resistances      |  RW  |  RW  |  RW  |  RW  |  RW  |  RW  |
+| Effects          |  R   |  R   |  R   |  R   |  R   |  R   |
+| Local Variables  |  R   |  R   |  R   |  R   |  R   |  R   |
+| Global Variables |  R   |  R   |  R   |  R   |  R   |  R   |
+| Journal Entries  |  R   |  R   |  R   |  R   |  R   |  R   |
+| Miscellaneous    |  R   |  R   |  R   |  R   |  R   |  R   |
+
+
+# Infinitier Explorer
 
 ![Build Status](https://github.com/ufoscout/infinitier/actions/workflows/build_and_test.yml/badge.svg)
 
