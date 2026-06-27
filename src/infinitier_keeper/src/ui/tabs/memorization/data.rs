@@ -1,5 +1,4 @@
-//! Read-only extraction of spell-memorisation slots for the
-//! Memorization tab.
+//! Extraction of spell-memorisation slots for the Memorization tab.
 //!
 //! Each [`SpellMemorizationInfo`] record in the CRE is one row: a
 //! spell type (Cleric / Wizard / Innate), a spell level, and the

@@ -213,9 +213,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Spells => with_cre(state, |c| {
             SpellsTab.show(ui, c.cre, c.char_key, c.game_data)
         }),
-        CharacterTab::Memorization => {
-            with_cre(state, |c| MemorizationTab.show(ui, c.cre, c.gam, c.game))
-        }
+        // Memorization edits the CRE's spell-slot counts in place, so it
+        // takes `&mut AppState` directly.
+        CharacterTab::Memorization => MemorizationTab.show(ui, state),
         CharacterTab::Innate => with_cre(state, |c| InnateTab.show(ui, c.cre, c.game_data)),
         CharacterTab::Wizard => with_cre(state, |c| WizardTab.show(ui, c.cre, c.game_data)),
         CharacterTab::Cleric => with_cre(state, |c| ClericTab.show(ui, c.cre, c.game_data)),

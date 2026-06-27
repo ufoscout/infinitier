@@ -1584,6 +1584,18 @@ impl Cre {
         self.proficiency_slots_swapped(stat)
     }
 
+    /// Set the "Max Can Memorise" count (`num_memorizable_total`) of the
+    /// spell-memorisation slot at `slot_index` — its position in the CRE's
+    /// `spell_memorization_info` list, i.e. the row order the Memorization
+    /// tab renders.
+    pub fn set_spell_memorization_total(&mut self, slot_index: usize, total: u16) {
+        if let SubSections::V1(sub) = &mut self.sub_sections
+            && let Some(info) = sub.spell_memorization_info.get_mut(slot_index)
+        {
+            info.num_memorizable_total = total;
+        }
+    }
+
     /// Whether the packed byte's first/second-class slots are swapped for
     /// `stat`: yes for a dual-classed character's weapons, no for single/
     /// multi-class characters or fighting styles (`111..=114`).
@@ -3188,6 +3200,52 @@ mod tests {
         assert_eq!(cre.header_proficiency(PST_AXE), prof(4, 0));
         assert_eq!(op233_points(&cre, PST_AXE), None); // header path, no effect
         assert_eq!(round_trip(&cre).proficiency(PST_AXE), prof(4, 0));
+    }
+
+    /// Editing a spell slot's "Max Can Memorise" writes `num_memorizable_total`
+    /// (leaving `num_memorizable_current` untouched) and survives a round-trip.
+    #[test]
+    fn set_spell_memorization_total_writes_and_round_trips() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        let SubSections::V1(sub) = &cre.sub_sections else {
+            panic!("expected V1 sub-sections");
+        };
+        assert!(!sub.spell_memorization_info.is_empty());
+        let current_before = sub.spell_memorization_info[0].num_memorizable_current;
+
+        cre.set_spell_memorization_total(0, 7);
+
+        let SubSections::V1(sub) = &cre.sub_sections else {
+            unreachable!()
+        };
+        assert_eq!(sub.spell_memorization_info[0].num_memorizable_total, 7);
+        // The post-effects count is deliberately left as-is.
+        assert_eq!(
+            sub.spell_memorization_info[0].num_memorizable_current,
+            current_before
+        );
+
+        let rt = round_trip(&cre);
+        let SubSections::V1(sub) = &rt.sub_sections else {
+            unreachable!()
+        };
+        assert_eq!(sub.spell_memorization_info[0].num_memorizable_total, 7);
+    }
+
+    /// An out-of-range slot index is a no-op (no panic, nothing changed).
+    #[test]
+    fn set_spell_memorization_total_ignores_bad_index() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        let before = match &cre.sub_sections {
+            SubSections::V1(s) => s.spell_memorization_info.clone(),
+            _ => unreachable!(),
+        };
+        cre.set_spell_memorization_total(9999, 5);
+        let after = match &cre.sub_sections {
+            SubSections::V1(s) => &s.spell_memorization_info,
+            _ => unreachable!(),
+        };
+        assert_eq!(&before, after);
     }
 
     /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies

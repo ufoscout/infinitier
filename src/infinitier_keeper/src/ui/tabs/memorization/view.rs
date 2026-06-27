@@ -1,15 +1,21 @@
-//! Read-only rendering for the Memorization tab — EEKeeper's
-//! three-column table (Type · Level · Max Can Memorise).
+//! Rendering for the Memorization tab — EEKeeper's three-column table
+//! (Type · Level · Max Can Memorise). The "Max Can Memorise" cell is
+//! **editable** (it writes the slot's `num_memorizable_total`); the type
+//! and level are fixed identifiers and stay read-only.
 
 use eframe::egui;
 use egui_components::{Label, Table, TableColumn};
 
 use super::data::MemRow;
+use super::with_selected_cre_mut;
+use crate::state::AppState;
 
 /// Maximum table width, so it doesn't stretch across the whole tab.
 const MAX_TABLE_W: f32 = 480.0;
+/// Width of the editable "Max Can Memorise" drag input.
+const MAX_INPUT_W: f32 = 60.0;
 
-pub fn render(ui: &mut egui::Ui, rows: &[MemRow]) {
+pub fn render(ui: &mut egui::Ui, rows: &[MemRow], state: &mut AppState) {
     let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
     ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
         Table::new("memorization")
@@ -33,7 +39,17 @@ pub fn render(ui: &mut egui::Ui, rows: &[MemRow]) {
                         ui.add(Label::new(r.level.to_string()));
                     });
                     row.col(|ui| {
-                        ui.add(Label::new(r.max.to_string()));
+                        // The row order matches the CRE's
+                        // `spell_memorization_info`, so `i` is the slot index.
+                        let mut max = r.max;
+                        let h = ui.spacing().interact_size.y;
+                        let resp =
+                            ui.add_sized([MAX_INPUT_W, h], egui::DragValue::new(&mut max));
+                        if resp.changed() {
+                            with_selected_cre_mut(state, |c| {
+                                c.set_spell_memorization_total(i, max)
+                            });
+                        }
                     });
                 });
             });

@@ -14,7 +14,7 @@ R = Read
 | Inventory        |  R   |  R   |  R   |  R   |  R   |  R   |
 | Spells           |  —   |  —   |  —   |  —   |  R   |  —   |
 | Feats            |  —   |  —   |  —   |  —   |  RW  |  —   |
-| Memorization     |  R   |  R   |  R   |  R   |  —   |  R   |
+| Memorization     |  RW  |  RW  |  RW  |  RW  |  —   |  RW  |
 | Innate           |  R   |  R   |  R   |  R   |  —   |  R   |
 | Wizard           |  R   |  R   |  R   |  R   |  —   |  R   |
 | Cleric           |  R   |  R   |  R   |  R   |  —   |  R   |
