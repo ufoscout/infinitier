@@ -77,7 +77,7 @@ hound = "3"
 image = { version = "0.25", default-features = false, features = ["bmp", "png"] }
 # Embeds the gemrb `unhardcoded` resource tree into the binary at compile time.
 include_dir = "0.7"
-itertools = "0.14"
+itertools = "0.15"
 # Date/time formatting for the save-game picker's "Time Saved" column
 # (local timezone + weekday/month names). Already in the lock graph.
 jiff = "0.2"
@@ -115,7 +115,10 @@ oxideav-core = "0.1"
 # egui UI
 # `default-features = false` drops eframe's `accesskit` feature which clashes with Xilem.
 eframe = "0.34"
-egui-components = { git = "https://github.com/ufoscout/egui-components", branch = "main" }
+# Local dev: path to the sibling egui-components checkout so table-widget
+# changes take effect without pushing. Restore the git dep (and pin the
+# pushed rev) before committing.
+egui-components = { git = "https://github.com/ufoscout/egui-components.git", branch = "main" }
 # Bundles the Inter typeface (OFL-1.1, https://rsms.me/inter) as a
 # `pub const REGULAR: &[u8]`. The active weight is selected via the
 # crate's Cargo features (`regular`, `bold`, `medium`, …) — only
@@ -154,5 +157,3 @@ opt-level = 2
 opt-level = 2
 [profile.dev.package.infinitier_wbm_decoder]
 opt-level = 2
-
-

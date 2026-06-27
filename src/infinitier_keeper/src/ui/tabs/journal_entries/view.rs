@@ -1,15 +1,11 @@
 //! Read-only rendering for the Journal Entries tab.
 //!
-//! Mirrors EEKeeper's layout: a master table (Journal Type / Journal
-//! Entry / Chapter / Time) over a detail pane that shows the full text of
-//! the selected entry. The table only paints the first line of each
-//! entry; the rest is reserved for the pane below.
-//!
-//! The columns are fixed-width and the table lives in a horizontal
-//! [`egui::ScrollArea`]: egui_extras tables have no horizontal scrollbar
-//! of their own, so when the table is wider than the tab the outer scroll
-//! area supplies one (the same approach as the Effects tab) rather than
-//! letting the columns spill off-screen with no way to reach them.
+//! A four-column table (Journal Type / Journal Entry / Chapter / Time).
+//! The "Journal Entry" cell shows the entry's *full* text, wrapped to the
+//! column width, and each row is sized to fit all of it — done by
+//! measuring every entry's wrapped height and feeding it to the table's
+//! [`heterogeneous_rows`](egui_components::TableBodyUi::heterogeneous_rows)
+//! (the uniform-height `rows` can't grow a row to its content).
 //!
 //! Entry text comes from `dialog.tlk`. Resolving a strref means
 //! re-parsing the whole TLK, so we load it once and memoise every
@@ -31,8 +27,22 @@ use super::data::JournalRow;
 const TEXT_CACHE: &str = "journal_text_cache";
 /// egui frame-store key for the cached calendar.
 const CALENDAR_CACHE: &str = "journal_calendar";
-/// egui frame-store key for the selected row index.
-const SELECTED: &str = "journal_selected_row";
+
+/// Fixed column widths (the Journal Entry column takes the rest).
+const TYPE_W: f32 = 120.0;
+const CHAPTER_W: f32 = 60.0;
+const TIME_W: f32 = 200.0;
+/// Min / max width for the wrapping Journal Entry column.
+const MIN_ENTRY_W: f32 = 240.0;
+const MAX_ENTRY_W: f32 = 720.0;
+/// Room left for the vertical scrollbar so the columns never overflow
+/// (an egui_extras table has no horizontal scrollbar).
+const SCROLLBAR_W: f32 = 16.0;
+/// Inset subtracted from the entry width when measuring wrap height —
+/// conservative (slightly over-tall) so the text is never clipped.
+const ENTRY_TEXT_INSET: f32 = 28.0;
+/// Extra vertical padding added to each measured row height.
+const ROW_VPAD: f32 = 8.0;
 
 pub fn render(ui: &mut egui::Ui, rows: &[JournalRow], game_data: &GameData) {
     if rows.is_empty() {
@@ -43,77 +53,60 @@ pub fn render(ui: &mut egui::Ui, rows: &[JournalRow], game_data: &GameData) {
     let texts = resolve_texts(ui, game_data, rows);
     let calendar = resolve_calendar(ui, game_data);
 
-    let sel_id = egui::Id::new(SELECTED);
-    let mut selected = ui
-        .ctx()
-        .data_mut(|d| d.get_temp::<usize>(sel_id))
-        .unwrap_or(0);
-    if selected >= rows.len() {
-        selected = 0;
-    }
+    // The entry column takes the width left over after the fixed columns,
+    // clamped so it is neither too narrow nor uncomfortably wide.
+    let entry_w = (ui.available_width() - TYPE_W - CHAPTER_W - TIME_W - SCROLLBAR_W)
+        .clamp(MIN_ENTRY_W, MAX_ENTRY_W);
+    let table_w = TYPE_W + entry_w + CHAPTER_W + TIME_W + SCROLLBAR_W;
 
-    // Reserve the lower slice of the tab for the detail pane and give
-    // the master table everything above it.
-    let full_h = ui.available_height();
-    let detail_h = (full_h * 0.3).clamp(90.0, 220.0);
-    let table_h = (full_h - detail_h - 8.0).max(60.0);
+    // Measure each entry's wrapped height at the entry column's text width,
+    // using the same body font the cell renders with, so every row grows
+    // to show its whole text.
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    let wrap_w = (entry_w - ENTRY_TEXT_INSET).max(40.0);
+    let min_row_h = ui.spacing().interact_size.y;
+    let heights: Vec<f32> = rows
+        .iter()
+        .map(|r| {
+            let text = texts.get(&r.strref).map(String::as_str).unwrap_or("");
+            let text_h = ui
+                .painter()
+                .layout(text.to_owned(), font.clone(), egui::Color32::WHITE, wrap_w)
+                .size()
+                .y;
+            (text_h + ROW_VPAD).max(min_row_h)
+        })
+        .collect();
 
-    let mut clicked: Option<usize> = None;
-    egui::ScrollArea::horizontal()
-        .id_salt("journal_hscroll")
-        .show(ui, |ui| {
-            Table::new("journal_entries")
-                .selectable(true)
-                .resizable(true)
-                .max_height(table_h)
-                .column(TableColumn::initial(130.0).clip(true).header("Journal Type"))
-                .column(TableColumn::initial(480.0).clip(true).header("Journal Entry"))
-                .column(TableColumn::initial(70.0).header("Chapter"))
-                .column(TableColumn::initial(300.0).clip(true).header("Time"))
-                .show(ui, |body| {
-                    body.rows(rows.len(), |i, mut row| {
-                        row.selected(i == selected);
-                        let r = &rows[i];
-                        let first_line = texts
-                            .get(&r.strref)
-                            .and_then(|t| t.lines().find(|l| !l.trim().is_empty()))
-                            .unwrap_or("");
-                        row.col(|ui| {
-                            ui.add(Label::new(r.type_label));
-                        });
-                        row.col(|ui| {
-                            ui.add(Label::new(first_line));
-                        });
-                        row.col(|ui| {
-                            ui.add(Label::new(r.chapter.to_string()));
-                        });
-                        row.col(|ui| {
-                            ui.add(Label::new(time_text(calendar.as_ref(), r.time)));
-                        });
-                        if row.response().clicked() {
-                            clicked = Some(i);
-                        }
+    let size = egui::vec2(table_w, ui.available_height());
+    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
+        Table::new("journal_entries")
+            .striped(true)
+            .max_height(ui.available_height())
+            .column(TableColumn::exact(TYPE_W).clip(true).header("Journal Type"))
+            .column(TableColumn::exact(entry_w).header("Journal Entry"))
+            .column(TableColumn::exact(CHAPTER_W).header("Chapter"))
+            .column(TableColumn::exact(TIME_W).clip(true).header("Time"))
+            .show(ui, |body| {
+                body.heterogeneous_rows(heights.into_iter(), |i, mut row| {
+                    let r = &rows[i];
+                    let text = texts.get(&r.strref).map(String::as_str).unwrap_or("");
+                    row.col(|ui| {
+                        ui.add(egui::Label::new(r.type_label));
+                    });
+                    // The full entry text, wrapped — the row was sized to it.
+                    row.col(|ui| {
+                        ui.add(egui::Label::new(text).wrap());
+                    });
+                    row.col(|ui| {
+                        ui.add(egui::Label::new(r.chapter.to_string()));
+                    });
+                    row.col(|ui| {
+                        ui.add(egui::Label::new(time_text(calendar.as_ref(), r.time)));
                     });
                 });
-        });
-
-    if let Some(i) = clicked {
-        selected = i;
-        ui.ctx().data_mut(|d| d.insert_temp(sel_id, i));
-    }
-
-    ui.separator();
-
-    let detail = rows
-        .get(selected)
-        .and_then(|r| texts.get(&r.strref))
-        .map(String::as_str)
-        .unwrap_or("");
-    egui::ScrollArea::vertical()
-        .auto_shrink([false, false])
-        .show(ui, |ui| {
-            ui.add(Label::new(detail));
-        });
+            });
+    });
 }
 
 /// Format an in-game timestamp the way the engine's journal does. When
