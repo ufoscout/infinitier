@@ -130,8 +130,9 @@ impl SpellBrowser {
             .resizable(false)
             .exact_size(FILTER_W)
             .show_inside(ui, |ui| self.filters(ui, &entries, filtered.len()));
-        egui::CentralPanel::default()
-            .show_inside(ui, |ui| self.spell_table(ui, &entries, &filtered, scroll_target));
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            self.spell_table(ui, &entries, &filtered, scroll_target)
+        });
 
         self.entries = Some(entries);
     }
@@ -488,7 +489,11 @@ fn load_icon(ctx: &egui::Context, game_data: &GameData, icon: &str) -> Option<eg
     let frame = bam.render_frame_centered(0, 0)?;
     let size = [frame.width() as usize, frame.height() as usize];
     let color = egui::ColorImage::from_rgba_unmultiplied(size, &frame.into_raw());
-    Some(ctx.load_texture(format!("spell-icon/{icon}"), color, egui::TextureOptions::LINEAR))
+    Some(ctx.load_texture(
+        format!("spell-icon/{icon}"),
+        color,
+        egui::TextureOptions::LINEAR,
+    ))
 }
 
 /// Map an SPL spell-type id to a display "Type". Mirrors EEKeeper, which

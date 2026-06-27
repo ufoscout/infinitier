@@ -43,8 +43,7 @@ pub fn render(ui: &mut egui::Ui, rows: &[MemRow], state: &mut AppState) {
                         // `spell_memorization_info`, so `i` is the slot index.
                         let mut max = r.max;
                         let h = ui.spacing().interact_size.y;
-                        let resp =
-                            ui.add_sized([MAX_INPUT_W, h], egui::DragValue::new(&mut max));
+                        let resp = ui.add_sized([MAX_INPUT_W, h], egui::DragValue::new(&mut max));
                         if resp.changed() {
                             with_selected_cre_mut(state, |c| {
                                 c.set_spell_memorization_total(i, max)

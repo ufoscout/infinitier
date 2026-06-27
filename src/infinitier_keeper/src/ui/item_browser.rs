@@ -128,8 +128,9 @@ impl ItemBrowser {
             .resizable(false)
             .exact_size(FILTER_W)
             .show_inside(ui, |ui| self.filters(ui, &entries, filtered.len()));
-        egui::CentralPanel::default()
-            .show_inside(ui, |ui| self.item_table(ui, &entries, &filtered, scroll_target));
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            self.item_table(ui, &entries, &filtered, scroll_target)
+        });
 
         self.entries = Some(entries);
     }
@@ -143,9 +144,7 @@ impl ItemBrowser {
         entries: &[ItemEntry],
         filtered: &[usize],
     ) -> Option<usize> {
-        let typing = ui
-            .ctx()
-            .memory(|m| m.has_focus(egui::Id::new(SEARCH_ID)));
+        let typing = ui.ctx().memory(|m| m.has_focus(egui::Id::new(SEARCH_ID)));
         if typing || filtered.is_empty() {
             return None;
         }
@@ -384,7 +383,11 @@ fn build_index(game_data: &GameData) -> Vec<ItemEntry> {
         });
     }
 
-    out.sort_by(|a, b| a.type_name.cmp(b.type_name).then_with(|| a.name.cmp(&b.name)));
+    out.sort_by(|a, b| {
+        a.type_name
+            .cmp(b.type_name)
+            .then_with(|| a.name.cmp(&b.name))
+    });
     out
 }
 
@@ -410,7 +413,11 @@ fn load_icon(ctx: &egui::Context, game_data: &GameData, icon: &str) -> Option<eg
     let frame = bam.render_frame_centered(0, 0)?;
     let size = [frame.width() as usize, frame.height() as usize];
     let color = egui::ColorImage::from_rgba_unmultiplied(size, &frame.into_raw());
-    Some(ctx.load_texture(format!("item-icon/{icon}"), color, egui::TextureOptions::LINEAR))
+    Some(ctx.load_texture(
+        format!("item-icon/{icon}"),
+        color,
+        egui::TextureOptions::LINEAR,
+    ))
 }
 
 /// Map an ITM category id to a display "Type", following the standard
