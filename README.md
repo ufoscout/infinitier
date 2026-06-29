@@ -12,12 +12,9 @@ R = Read
 | Characteristics  |  R   |  R   |  R   |  R   |  R   |  R   |
 | Appearance       |  R   |  R   |  R   |  R   |  R   |  R   |
 | Inventory        |  R   |  R   |  R   |  R   |  R   |  R   |
-| Spells           |  —   |  —   |  —   |  —   |  R   |  —   |
+| Spells           |  R   |  R   |  R   |  R   |  R   |  R   |
 | Feats            |  —   |  —   |  —   |  —   |  RW  |  —   |
 | Memorization     |  RW  |  RW  |  RW  |  RW  |  —   |  RW  |
-| Innate           |  R   |  R   |  R   |  R   |  —   |  R   |
-| Wizard           |  R   |  R   |  R   |  R   |  —   |  R   |
-| Cleric           |  R   |  R   |  R   |  R   |  —   |  R   |
 | Proficiencies    |  RW  |  RW  |  RW  |  RW  |  —   |  RW  |
 | Resistances      |  RW  |  RW  |  RW  |  RW  |  RW  |  RW  |
 | Effects          |  R   |  R   |  R   |  R   |  R   |  R   |
@@ -25,6 +22,10 @@ R = Read
 | Global Variables |  R   |  R   |  R   |  R   |  R   |  R   |
 | Journal Entries  |  R   |  R   |  R   |  R   |  R   |  R   |
 | Miscellaneous    |  R   |  R   |  R   |  R   |  R   |  R   |
+
+The **Spells** tab carries an inner tab strip selecting the spell type:
+Innate / Wizard / Cleric on the AD&D games, and the per-class categories
+(Bard, Cleric, Domain, … Wizard) on IWD2.
 
 
 # Infinitier Explorer

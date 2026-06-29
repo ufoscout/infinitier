@@ -15,6 +15,12 @@ use infinitier_core::resource::cre::Cre;
 pub struct ClericTab;
 
 impl ClericTab {
+    /// Number of distinct divine spells the creature knows — shown as the
+    /// count on the Spells tab's "Cleric" inner tab.
+    pub fn count(&self, cre: &Cre) -> usize {
+        data::cleric_rows(cre).len()
+    }
+
     /// Needs `game_data` to resolve spell resrefs to display names via
     /// their SPL files and `dialog.tlk`.
     pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, game_data: &GameData) {

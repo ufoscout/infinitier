@@ -15,6 +15,12 @@ use infinitier_core::resource::cre::Cre;
 pub struct InnateTab;
 
 impl InnateTab {
+    /// Number of distinct innate abilities the creature knows — shown as
+    /// the count on the Spells tab's "Innate" inner tab.
+    pub fn count(&self, cre: &Cre) -> usize {
+        data::innate_rows(cre).len()
+    }
+
     /// Needs `game_data` to resolve spell resrefs to display names via
     /// their SPL files and `dialog.tlk`.
     pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, game_data: &GameData) {

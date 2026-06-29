@@ -38,11 +38,9 @@ mod wizard;
 use abilities::AbilitiesTab;
 use appearance::AppearanceTab;
 use characteristics::CharacteristicsTab;
-use cleric::ClericTab;
 use effects::EffectsTab;
 use feats::FeatsTab;
 use global_variables::GlobalVariablesTab;
-use innate::InnateTab;
 use inventory::InventoryTab;
 use journal_entries::JournalEntriesTab;
 use levels::LevelsTab;
@@ -52,7 +50,9 @@ use miscellaneous::MiscellaneousTab;
 use proficiencies::ProficienciesTab;
 use resistances::ResistancesTab;
 use spells::SpellsTab;
-use wizard::WizardTab;
+
+// `cleric`, `innate` and `wizard` are no longer top-level tabs — the
+// unified `spells` tab renders them as inner tabs (see `spells::SpellsTab`).
 
 /// Identifier for the active per-character tab. Order matches the
 /// EEKeeper tab strip.
@@ -66,9 +66,6 @@ pub enum CharacterTab {
     Spells,
     Feats,
     Memorization,
-    Innate,
-    Wizard,
-    Cleric,
     Proficiencies,
     Resistances,
     Effects,
@@ -86,12 +83,9 @@ impl CharacterTab {
         CharacterTab::Characteristics,
         CharacterTab::Appearance,
         CharacterTab::Inventory,
-        CharacterTab::Spells,
         CharacterTab::Feats,
         CharacterTab::Memorization,
-        CharacterTab::Innate,
-        CharacterTab::Wizard,
-        CharacterTab::Cleric,
+        CharacterTab::Spells,
         CharacterTab::Proficiencies,
         CharacterTab::Resistances,
         CharacterTab::Effects,
@@ -101,22 +95,17 @@ impl CharacterTab {
         CharacterTab::Miscellaneous,
     ];
 
-    /// The human-readable label rendered on the tab strip.
-    /// True when this tab should appear for the given game. Most tabs are
-    /// universal; `Levels` is IWD2-only (CRE V2.2 per-class level editor).
+    /// True when this tab should appear for the given game. The `Spells`
+    /// tab is universal (it carries its own inner spell-type tabs);
+    /// `Levels`/`Feats` are IWD2-only, and `Memorization`/`Proficiencies`
+    /// are AD&D-only (IWD2 stores spells/proficiencies differently).
     pub fn is_visible_for_game(&self, game: Game) -> bool {
         let is_iwd2 = game.engine() == Engine::Iwd2;
         match self {
-            // IWD2-only: per-class levels/kits and the unified spell list.
-            CharacterTab::Levels | CharacterTab::Spells | CharacterTab::Feats => is_iwd2,
-            // IWD2 folds these into the single Spells tab, so hide the
-            // AD&D-style per-spellbook tabs there (they'd be empty
-            // anyway — IWD2 uses the V2.2 per-class spell blocks).
-            CharacterTab::Memorization
-            | CharacterTab::Innate
-            | CharacterTab::Proficiencies
-            | CharacterTab::Wizard
-            | CharacterTab::Cleric => !is_iwd2,
+            // IWD2-only: per-class levels/kits and feats.
+            CharacterTab::Levels | CharacterTab::Feats => is_iwd2,
+            // AD&D-only: the spell-slot table and weapon proficiencies.
+            CharacterTab::Memorization | CharacterTab::Proficiencies => !is_iwd2,
             _ => true,
         }
     }
@@ -131,9 +120,6 @@ impl CharacterTab {
             CharacterTab::Spells => "Spells",
             CharacterTab::Feats => "Feats",
             CharacterTab::Memorization => "Memorization",
-            CharacterTab::Innate => "Innate",
-            CharacterTab::Wizard => "Wizard",
-            CharacterTab::Cleric => "Cleric",
             CharacterTab::Proficiencies => "Proficiencies",
             CharacterTab::Resistances => "Resistances",
             CharacterTab::Effects => "Effects",
@@ -210,15 +196,14 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         CharacterTab::Inventory => {
             with_cre(state, |c| InventoryTab.show(ui, c.imported, c.game_data))
         }
+        // Spells carries its own inner spell-type tabs (Innate/Wizard/Cleric
+        // for AD&D, the per-class categories for IWD2), so it takes `game`.
         CharacterTab::Spells => with_cre(state, |c| {
-            SpellsTab.show(ui, c.cre, c.char_key, c.game_data)
+            SpellsTab.show(ui, c.cre, c.char_key, c.game_data, c.game)
         }),
         // Memorization edits the CRE's spell-slot counts in place, so it
         // takes `&mut AppState` directly.
         CharacterTab::Memorization => MemorizationTab.show(ui, state),
-        CharacterTab::Innate => with_cre(state, |c| InnateTab.show(ui, c.cre, c.game_data)),
-        CharacterTab::Wizard => with_cre(state, |c| WizardTab.show(ui, c.cre, c.game_data)),
-        CharacterTab::Cleric => with_cre(state, |c| ClericTab.show(ui, c.cre, c.game_data)),
         // Proficiencies edits the CRE in place (EE), so it takes `&mut
         // AppState` directly.
         CharacterTab::Proficiencies => ProficienciesTab.show(ui, state),
