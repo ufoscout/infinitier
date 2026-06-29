@@ -14,4 +14,4 @@ pub use load_action::LoadAction;
 pub use save_action::SaveAction;
 pub use save_tab_strip::SaveTabStrip;
 pub use spell_browser::SpellBrowser;
-pub use tabs::CharacterTab;
+pub use tabs::{CharacterTab, inventory_assign_target, inventory_take_browse_request};

@@ -1,10 +1,13 @@
 use eframe::egui;
+use infinitier_core::imported_resource::gam::NpcCre;
+use infinitier_core::resource::cre::{Item, ItemFlags};
 
 use crate::components::editable_fields::KeeperEditors;
 use crate::components::party_selector::PartySelector;
 use crate::state::AppState;
 use crate::ui::{
     CharacterPanel, HeaderPanel, ItemBrowser, LoadAction, SaveAction, SaveTabStrip, SpellBrowser,
+    inventory_assign_target, inventory_take_browse_request,
 };
 
 pub struct KeeperApp {
@@ -57,12 +60,64 @@ impl KeeperApp {
 
 impl KeeperApp {
     /// Paint the movable / resizable / closable "Items" and "Spells"
-    /// browser windows when their header toggles are on.
+    /// browser windows when their header toggles are on. The Item Browser
+    /// can assign its selected item into the inventory slot the Inventory
+    /// tab has selected — its "Add to Inventory" button / double-click
+    /// return the resref to assign, which we write here.
     fn show_tool_windows(&mut self, ctx: &egui::Context) {
-        self.item_browser
-            .show(ctx, &mut self.items_window_open, &self.state.game_data);
+        // Double-clicking a filled inventory slot reveals that item here:
+        // open the browser (if closed) and select it.
+        if let Some(resref) = inventory_take_browse_request(ctx) {
+            self.items_window_open = true;
+            self.item_browser.select(resref);
+        }
+        // The Inventory tab owns the selected-slot state; ask it whether (and
+        // where) the browser's item can be assigned. `Some(slot)` enables the
+        // "Add to Inventory" button / double-click and names the target.
+        let target = inventory_assign_target(ctx, &self.state);
+        let assign = self.item_browser.show(
+            ctx,
+            &mut self.items_window_open,
+            &self.state.game_data,
+            target.is_some(),
+        );
+        if let (Some(resref), Some(slot)) = (assign, target) {
+            self.assign_to_inventory(slot, &resref);
+        }
         self.spell_browser
             .show(ctx, &mut self.spells_window_open, &self.state.game_data);
+    }
+
+    /// Put the item `resref` into inventory `slot` of the selected party
+    /// member's CRE, as a single identified copy whose charges/stack the ITM
+    /// dictates (`Itm::max_charges`). No-op if the selection is no longer
+    /// valid.
+    fn assign_to_inventory(&mut self, slot: usize, resref: &str) {
+        // The ITM decides the starting quantities (full stack / ability
+        // charges); fall back to no charges if it can't be loaded.
+        let [quantity1, quantity2, quantity3] = self
+            .state
+            .game_data
+            .import_itm_by_name(resref)
+            .map(|itm| itm.max_charges())
+            .unwrap_or([0, 0, 0]);
+        let item = Item {
+            item: resref.to_owned(),
+            duration: 0,
+            quantity1,
+            quantity2,
+            quantity3,
+            flags: ItemFlags::Identified,
+        };
+        let tab = self.state.active_mut();
+        let Some(idx) = tab.selected_party_index else {
+            return;
+        };
+        if let Some(member) = tab.save.party_npcs.get_mut(idx)
+            && let Some(NpcCre::Cre(imported)) = member.cre.as_mut()
+        {
+            imported.cre_mut().set_inventory_slot_item(slot, item);
+        }
     }
 }
 

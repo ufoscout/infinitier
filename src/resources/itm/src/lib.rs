@@ -90,6 +90,28 @@ pub struct Itm {
     pub effects: Vec<ItmEffect>,
 }
 
+impl Itm {
+    /// The `quantity1/2/3` (charges) a fresh inventory copy of this item
+    /// should carry, the way the engine and EEKeeper/ShadowKeeper instantiate
+    /// it.
+    ///
+    /// A **stackable** item (`stack_amount > 1` — ammo, potions, gems,
+    /// scrolls) starts as a full stack: `[stack_amount, 0, 0]` (so arrows are
+    /// 20 in BG, 40 in BG2, 80 in the EEs, from each game's own ITM data).
+    /// Otherwise each slot takes the matching extended-header ("ability")
+    /// charge count `[ability0, ability1, ability2]` — so a charged weapon
+    /// like Carsomyr reads `[0, 3, 0]`, a wand its charge count, and a plain
+    /// weapon/armour `[0, 0, 0]`.
+    pub fn max_charges(&self) -> [u16; 3] {
+        let stack = self.header.stack_amount();
+        if stack > 1 {
+            return [stack, 0, 0];
+        }
+        let charge = |i: usize| self.abilities.get(i).map_or(0, |a| a.max_charges);
+        [charge(0), charge(1), charge(2)]
+    }
+}
+
 /// Per-version typed header.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ItmHeader {
@@ -154,6 +176,16 @@ impl ItmHeader {
             ItmHeader::V1(h) => &h.inventory_icon,
             ItmHeader::V1_1(h) => &h.inventory_icon,
             ItmHeader::V2(h) => &h.inventory_icon,
+        }
+    }
+    /// Maximum stack size. `> 1` for stackable items (ammo, potions, gems,
+    /// scrolls); `0`/`1` for everything else. This is the game's per-item
+    /// stack cap (so e.g. arrows read 20 in BG, 40 in BG2, 80 in the EEs).
+    pub fn stack_amount(&self) -> u16 {
+        match self {
+            ItmHeader::V1(h) => h.stack_amount,
+            ItmHeader::V1_1(h) => h.stack_amount,
+            ItmHeader::V2(h) => h.stack_amount,
         }
     }
     pub fn price(&self) -> u32 {
@@ -513,5 +545,53 @@ pub(crate) mod test_support {
         ItmImporter { name: rel_path }
             .import(&DataSource::new(path.as_path()))
             .unwrap_or_else(|e| panic!("import {rel_path}: {e}"))
+    }
+}
+
+#[cfg(test)]
+mod quantity_tests {
+    use super::*;
+
+    fn set_stack(itm: &mut Itm, n: u16) {
+        match &mut itm.header {
+            ItmHeader::V1(h) => h.stack_amount = n,
+            ItmHeader::V1_1(h) => h.stack_amount = n,
+            ItmHeader::V2(h) => h.stack_amount = n,
+        }
+    }
+
+    /// A plain weapon has no charges and no stack, so a fresh copy carries
+    /// `[0, 0, 0]`; charged abilities feed the three slots in order; a
+    /// stackable item fills slot 1 with its stack size, ignoring charges.
+    #[test]
+    fn max_charges_plain_charged_and_stacked() {
+        let mut itm = test_support::import_fixture("v1/bg2ee_AX1H02.itm");
+
+        // Plain enchanted battle axe: melee only, no charges, not stackable.
+        assert_eq!(itm.max_charges(), [0, 0, 0]);
+
+        // Charges come from the first three abilities' `max_charges`
+        // (mirrors Carsomyr's 0/3/0). Clone a real ability as the base.
+        let base = itm.abilities[0].clone();
+        itm.abilities = vec![
+            ItmAbility {
+                max_charges: 0,
+                ..base.clone()
+            },
+            ItmAbility {
+                max_charges: 3,
+                ..base.clone()
+            },
+            ItmAbility {
+                max_charges: 7,
+                ..base
+            },
+        ];
+        assert_eq!(itm.max_charges(), [0, 3, 7]);
+
+        // A stackable item fills slot 1 with the stack size and ignores the
+        // ability charges.
+        set_stack(&mut itm, 80);
+        assert_eq!(itm.max_charges(), [80, 0, 0]);
     }
 }

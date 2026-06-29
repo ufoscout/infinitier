@@ -13,7 +13,7 @@
 use std::collections::BTreeSet;
 
 use eframe::egui;
-use egui_components::{Checkbox, Label, Table, TableColumn};
+use egui_components::{Button, Checkbox, Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
 use infinitier_core::resource::ResourceType;
@@ -63,6 +63,9 @@ pub struct ItemBrowser {
     /// Cached texture for the selected item's icon, keyed by icon resref so
     /// it's only re-decoded when the selection's icon actually changes.
     icon_cache: Option<(String, Option<egui::TextureHandle>)>,
+    /// Set when the selection was changed programmatically (e.g. revealed
+    /// from the Inventory tab): scroll the list to it on the next frame.
+    scroll_to_selected: bool,
 }
 
 impl ItemBrowser {
@@ -73,22 +76,56 @@ impl ItemBrowser {
             hidden_types: BTreeSet::new(),
             selected: None,
             icon_cache: None,
+            scroll_to_selected: false,
         }
+    }
+
+    /// Reveal `resref` in the browser: select it and scroll the list to it on
+    /// the next frame. Clears the text filter and re-shows the item's type so
+    /// it can't stay hidden behind a stale filter. Called by the host when a
+    /// filled inventory slot is double-clicked.
+    ///
+    /// The resref is lower-cased to match the index: the browser keys items by
+    /// the resource name (always lower-case), whereas a CRE item record stores
+    /// the resref in whatever case it was written (often upper-case).
+    pub fn select(&mut self, resref: String) {
+        let resref = resref.to_lowercase();
+        self.text.clear();
+        if let Some(entries) = &self.entries
+            && let Some(entry) = entries.iter().find(|e| e.resref == resref)
+        {
+            self.hidden_types.remove(entry.type_name);
+        }
+        self.selected = Some(resref);
+        self.scroll_to_selected = true;
     }
 
     /// Paint the window when `open` is set. Movable / resizable / closable
     /// (the title-bar X clears `open`). The title is given an explicit small
     /// font: the title-bar height tracks the title's font height, so this
     /// shrinks both the text and the bar.
-    pub fn show(&mut self, ctx: &egui::Context, open: &mut bool, game_data: &GameData) {
+    ///
+    /// `can_assign` is true when the host can take the selected item into an
+    /// inventory slot (the Inventory tab is active with a slot selected); it
+    /// enables the "Add to Inventory" button and double-click-to-assign.
+    /// Returns the resref to assign when the user requests it this frame.
+    pub fn show(
+        &mut self,
+        ctx: &egui::Context,
+        open: &mut bool,
+        game_data: &GameData,
+        can_assign: bool,
+    ) -> Option<String> {
         egui::Window::new(egui::RichText::new("Item Browser").size(TITLE_SIZE))
             .open(open)
             .default_size([780.0, 600.0])
             .resizable(true)
-            .show(ctx, |ui| self.ui(ui, game_data));
+            .show(ctx, |ui| self.ui(ui, game_data, can_assign))
+            .and_then(|r| r.inner)
+            .flatten()
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, game_data: &GameData) {
+    fn ui(&mut self, ui: &mut egui::Ui, game_data: &GameData, can_assign: bool) -> Option<String> {
         if self.entries.is_none() {
             self.entries = Some(build_index(game_data));
         }
@@ -108,7 +145,15 @@ impl ItemBrowser {
         // Up/Down move the selection through the filtered list — unless the
         // user is typing in the search box, where the arrows belong to the
         // text field. Returns the new position so the table can scroll to it.
-        let scroll_target = self.handle_arrow_keys(ui, &entries, &filtered);
+        let mut scroll_target = self.handle_arrow_keys(ui, &entries, &filtered);
+        // A programmatic select (e.g. revealed from the Inventory tab) scrolls
+        // the list to the now-selected item this frame.
+        if self.scroll_to_selected {
+            self.scroll_to_selected = false;
+            if let Some(sel) = self.selected.as_deref() {
+                scroll_target = filtered.iter().position(|&i| entries[i].resref == sel);
+            }
+        }
 
         // Split the window into regions with nested panels (manual
         // `allocate_ui` doesn't constrain the table's egui_extras layout).
@@ -119,20 +164,31 @@ impl ItemBrowser {
         // persists egui memory, so a once-stored panel height would otherwise
         // stick and ignore the default. Item descriptions are long, so this
         // keeps them readable and scales with the window.
+        // Collected this frame: the resref the user asked to add to the
+        // inventory (via the button or a double-click), if any.
+        let mut assign: Option<String> = None;
+
         let desc_h = (ui.available_height() * 0.5).clamp(240.0, 640.0);
         egui::Panel::bottom("item_browser_desc")
             .resizable(false)
             .exact_size(desc_h)
-            .show_inside(ui, |ui| self.description(ui, game_data, &entries));
+            .show_inside(ui, |ui| {
+                if let Some(r) = self.description(ui, game_data, &entries, can_assign) {
+                    assign = Some(r);
+                }
+            });
         egui::Panel::right("item_browser_filters")
             .resizable(false)
             .exact_size(FILTER_W)
             .show_inside(ui, |ui| self.filters(ui, &entries, filtered.len()));
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            self.item_table(ui, &entries, &filtered, scroll_target)
+            if let Some(r) = self.item_table(ui, &entries, &filtered, scroll_target, can_assign) {
+                assign = Some(r);
+            }
         });
 
         self.entries = Some(entries);
+        assign
     }
 
     /// Move the selection up/down through `filtered` on arrow-key presses,
@@ -181,8 +237,12 @@ impl ItemBrowser {
         entries: &[ItemEntry],
         filtered: &[usize],
         scroll_target: Option<usize>,
-    ) {
+        can_assign: bool,
+    ) -> Option<String> {
         let mut clicked: Option<usize> = None;
+        // A double-clicked row (when assignment is possible) requests its item
+        // be added to the inventory.
+        let mut assign: Option<usize> = None;
         let selected = self.selected.clone();
         let mut table = Table::new("item_browser_list")
             .striped(true)
@@ -213,14 +273,19 @@ impl ItemBrowser {
                 row.col(|ui| {
                     ui.add(Label::new(e.resref.as_str()));
                 });
-                if row.response().clicked() {
+                let resp = row.response();
+                if resp.clicked() {
                     clicked = Some(filtered[i]);
+                }
+                if can_assign && resp.double_clicked() {
+                    assign = Some(filtered[i]);
                 }
             });
         });
         if let Some(idx) = clicked {
             self.selected = Some(entries[idx].resref.clone());
         }
+        assign.map(|idx| entries[idx].resref.clone())
     }
 
     /// The right-hand filter column: free-text search, a checkbox per item
@@ -267,16 +332,37 @@ impl ItemBrowser {
             });
     }
 
-    /// The bottom panel: the selected item's icon to the left of its
-    /// scrollable long description.
-    fn description(&mut self, ui: &mut egui::Ui, game_data: &GameData, entries: &[ItemEntry]) {
-        let Some(entry) = self
+    /// The bottom panel: an "Add to Inventory" button, then the selected
+    /// item's icon to the left of its scrollable long description. Returns
+    /// the selected resref when the button is clicked.
+    fn description(
+        &mut self,
+        ui: &mut egui::Ui,
+        game_data: &GameData,
+        entries: &[ItemEntry],
+        can_assign: bool,
+    ) -> Option<String> {
+        let entry = self
             .selected
             .as_deref()
-            .and_then(|sel| entries.iter().find(|e| e.resref == sel))
-        else {
+            .and_then(|sel| entries.iter().find(|e| e.resref == sel));
+
+        // "Add to Inventory": enabled only when the host can take the item
+        // (Inventory tab active + slot selected) and an item is selected.
+        let mut request = None;
+        let enabled = can_assign && entry.is_some();
+        if ui
+            .add_enabled(enabled, Button::primary("Add to Inventory").small())
+            .clicked()
+            && let Some(e) = entry
+        {
+            request = Some(e.resref.clone());
+        }
+        ui.add_space(6.0);
+
+        let Some(entry) = entry else {
             ui.weak("Select an item to see its description.");
-            return;
+            return request;
         };
 
         let texture = self.icon_texture(ui.ctx(), game_data, entry);
@@ -306,6 +392,7 @@ impl ItemBrowser {
                     }
                 });
         });
+        request
     }
 
     /// The selected item's icon texture, decoded/uploaded once and reused

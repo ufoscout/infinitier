@@ -1596,6 +1596,33 @@ impl Cre {
         }
     }
 
+    /// Put `item` into inventory slot `slot` — the slot's index in the
+    /// creature's `item_slots` table, which is the same index the keeper's
+    /// Inventory-tab rows use. A slot that already holds an item has that
+    /// record overwritten in place (so no orphaned, unreferenced item is left
+    /// in the list); an empty slot gets `item` appended, and the slot pointed
+    /// at it. No-op when `slot` is past the `item_slots` table.
+    pub fn set_inventory_slot_item(&mut self, slot: usize, item: Item) {
+        let (items, item_slots) = match &mut self.sub_sections {
+            SubSections::V1(s) => (&mut s.items, &mut s.item_slots),
+            SubSections::V22(s) => (&mut s.items, &mut s.item_slots),
+        };
+        // Each slot is a little-endian `i16` index into `items`; a negative
+        // index means the slot is empty.
+        let byte = slot * 2;
+        if byte + 2 > item_slots.len() {
+            return;
+        }
+        let existing = i16::from_le_bytes([item_slots[byte], item_slots[byte + 1]]);
+        if existing >= 0 && (existing as usize) < items.len() {
+            items[existing as usize] = item;
+        } else {
+            let idx = items.len() as i16;
+            items.push(item);
+            item_slots[byte..byte + 2].copy_from_slice(&idx.to_le_bytes());
+        }
+    }
+
     /// Whether the packed byte's first/second-class slots are swapped for
     /// `stat`: yes for a dual-classed character's weapons, no for single/
     /// multi-class characters or fighting styles (`111..=114`).
@@ -3246,6 +3273,97 @@ mod tests {
             _ => unreachable!(),
         };
         assert_eq!(&before, after);
+    }
+
+    /// Index of the first empty (`< 0`) inventory slot in a V1 creature.
+    fn first_empty_slot(cre: &Cre) -> usize {
+        let SubSections::V1(s) = &cre.sub_sections else {
+            panic!("expected V1 sub-sections");
+        };
+        s.item_slots
+            .chunks_exact(2)
+            .position(|c| i16::from_le_bytes([c[0], c[1]]) < 0)
+            .expect("a V1 creature should have an empty inventory slot")
+    }
+
+    /// A single, identified item record for `resref` (the keeper builds the
+    /// same when assigning from the Item Browser).
+    fn item(resref: &str) -> Item {
+        Item {
+            item: resref.to_string(),
+            duration: 0,
+            quantity1: 1,
+            quantity2: 0,
+            quantity3: 0,
+            flags: ItemFlags::Identified,
+        }
+    }
+
+    /// The packed `i16` slot index, and the items list, of a V1 creature.
+    fn slot_index(cre: &Cre, slot: usize) -> i16 {
+        let SubSections::V1(s) = &cre.sub_sections else {
+            unreachable!()
+        };
+        i16::from_le_bytes([s.item_slots[slot * 2], s.item_slots[slot * 2 + 1]])
+    }
+
+    /// Assigning to an empty slot appends an identified item record and points
+    /// the slot at it; re-assigning an occupied slot overwrites in place (no
+    /// orphan record). Both survive a round-trip.
+    #[test]
+    fn set_inventory_slot_item_fills_then_replaces_and_round_trips() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        let slot = first_empty_slot(&cre);
+        let items_before = match &cre.sub_sections {
+            SubSections::V1(s) => s.items.len(),
+            _ => unreachable!(),
+        };
+
+        // Empty slot → append.
+        cre.set_inventory_slot_item(slot, item("sw1h01"));
+        let idx = slot_index(&cre, slot);
+        let SubSections::V1(s) = &cre.sub_sections else {
+            unreachable!()
+        };
+        assert_eq!(s.items.len(), items_before + 1);
+        assert!(idx >= 0);
+        assert_eq!(s.items[idx as usize].item, "sw1h01");
+        assert_eq!(s.items[idx as usize].quantity1, 1);
+        assert!(s.items[idx as usize].flags.contains(ItemFlags::Identified));
+
+        // Occupied slot → replace in place, no new record, same index.
+        cre.set_inventory_slot_item(slot, item("sw1h02"));
+        assert_eq!(slot_index(&cre, slot), idx);
+        let SubSections::V1(s) = &cre.sub_sections else {
+            unreachable!()
+        };
+        assert_eq!(s.items.len(), items_before + 1);
+        assert_eq!(s.items[idx as usize].item, "sw1h02");
+
+        // Survives export/import.
+        let rt = round_trip(&cre);
+        assert_eq!(slot_index(&rt, slot), idx);
+        let SubSections::V1(s) = &rt.sub_sections else {
+            unreachable!()
+        };
+        assert_eq!(s.items[idx as usize].item, "sw1h02");
+    }
+
+    /// A slot index past the `item_slots` table is a no-op (no panic, no
+    /// item added).
+    #[test]
+    fn set_inventory_slot_item_ignores_out_of_range() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        let before = match &cre.sub_sections {
+            SubSections::V1(s) => s.items.len(),
+            _ => unreachable!(),
+        };
+        cre.set_inventory_slot_item(9999, item("sw1h01"));
+        let after = match &cre.sub_sections {
+            SubSections::V1(s) => s.items.len(),
+            _ => unreachable!(),
+        };
+        assert_eq!(before, after);
     }
 
     /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies

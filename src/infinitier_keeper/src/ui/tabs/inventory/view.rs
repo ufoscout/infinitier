@@ -1,9 +1,11 @@
-//! Read-only rendering for the Inventory tab.
+//! Rendering for the Inventory tab.
 //!
 //! Mirrors EEKeeper's layout: a scrollable table with one row per
 //! equipment slot — an inventory icon, the slot's "Position" name, the
 //! item's charge/quantity triple, its identified name, and its `.itm`
-//! resref. Empty slots show only their position.
+//! resref. Empty slots show only their position. Rows are selectable; a
+//! clicked row's slot index is returned so the host can record it as the
+//! Item Browser's assignment target.
 //!
 //! Each item's name and icon come from its `.itm` file (and, for the
 //! name, `dialog.tlk`). Loading an ITM/BAM and uploading a texture is
@@ -52,63 +54,93 @@ struct ItemDisplay {
     icon: String,
 }
 
-pub fn render(ui: &mut egui::Ui, rows: &[InventoryRow], game_data: &GameData) {
+/// What a frame of the inventory table produced.
+#[derive(Default)]
+pub struct InventoryEvent {
+    /// Row (single-)clicked this frame → the slot to select.
+    pub clicked_slot: Option<usize>,
+    /// A *filled* row double-clicked this frame → its `.itm` resref, to
+    /// reveal in the Item Browser.
+    pub browse: Option<String>,
+}
+
+/// Render the inventory table, reporting the row clicked (to select its slot)
+/// and any filled row double-clicked (to reveal that item in the browser).
+pub fn render(
+    ui: &mut egui::Ui,
+    rows: &[InventoryRow],
+    game_data: &GameData,
+    selected: Option<usize>,
+) -> InventoryEvent {
+    let mut event = InventoryEvent::default();
     if rows.is_empty() {
         ui.add(Label::new(
             "Inventory is unavailable for this creature's format.",
         ));
-        return;
+        return event;
     }
 
     let items = resolve_items(ui, game_data, rows);
     let icons = resolve_icons(ui, game_data, &items);
 
-    let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
-    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
-        Table::new("inventory")
-            .row_height(ROW_H)
-            .header_height(ROW_H)
-            .max_height(ui.available_height())
-            .column(TableColumn::exact(50.0)) // icon
-            .column(TableColumn::initial(120.0).header("Position"))
-            .column(TableColumn::initial(90.0).header("Quantity"))
-            .column(TableColumn::remainder().clip(true).header("Item"))
-            .column(TableColumn::initial(110.0).clip(true).header("Resource"))
-            .show(ui, |body| {
-                body.rows(rows.len(), |i, mut row| {
-                    let r = &rows[i];
-                    let resref = row_resref(r);
-                    let display = items.get(resref);
+    // Cap the table width without wrapping it in `allocate_ui_with_layout`:
+    // that wrapper breaks the egui_extras row click-sense, so the selectable
+    // rows never report clicks.
+    ui.set_max_width(MAX_TABLE_W);
+    Table::new("inventory")
+        .selectable(true)
+        .row_height(ROW_H)
+        .header_height(ROW_H)
+        .max_height(ui.available_height())
+        .column(TableColumn::exact(50.0)) // icon
+        .column(TableColumn::initial(120.0).header("Position"))
+        .column(TableColumn::initial(90.0).header("Quantity"))
+        .column(TableColumn::remainder().clip(true).header("Item"))
+        .column(TableColumn::initial(110.0).clip(true).header("Resource"))
+        .show(ui, |body| {
+            body.rows(rows.len(), |i, mut row| {
+                let r = &rows[i];
+                let resref = row_resref(r);
+                let display = items.get(resref);
 
-                    row.col(|ui| {
-                        if let Some(tex) = display
-                            .and_then(|d| icons.get(&d.icon))
-                            .and_then(|t| t.as_ref())
-                        {
-                            ui.add(
-                                egui::Image::new(tex)
-                                    .max_height(ROW_H - 4.0)
-                                    .max_width(ROW_H - 4.0)
-                                    .fit_to_original_size(1.0),
-                            );
-                        }
-                    });
-                    row.col(|ui| {
-                        ui.add(Label::new(r.position));
-                    });
-                    row.col(|ui| {
-                        ui.add(Label::new(row_quantity(r)));
-                    });
-                    row.col(|ui| {
-                        let name = display.map(|d| d.name.as_str()).unwrap_or("");
-                        ui.add(Label::new(name));
-                    });
-                    row.col(|ui| {
-                        ui.add(Label::new(resref));
-                    });
+                row.selected(selected == Some(i));
+                row.col(|ui| {
+                    if let Some(tex) = display
+                        .and_then(|d| icons.get(&d.icon))
+                        .and_then(|t| t.as_ref())
+                    {
+                        ui.add(
+                            egui::Image::new(tex)
+                                .max_height(ROW_H - 4.0)
+                                .max_width(ROW_H - 4.0)
+                                .fit_to_original_size(1.0),
+                        );
+                    }
                 });
+                row.col(|ui| {
+                    ui.add(Label::new(r.position));
+                });
+                row.col(|ui| {
+                    ui.add(Label::new(row_quantity(r)));
+                });
+                row.col(|ui| {
+                    let name = display.map(|d| d.name.as_str()).unwrap_or("");
+                    ui.add(Label::new(name));
+                });
+                row.col(|ui| {
+                    ui.add(Label::new(resref));
+                });
+                let resp = row.response();
+                if resp.clicked() {
+                    event.clicked_slot = Some(i);
+                }
+                // Double-clicking a filled slot reveals it in the Item Browser.
+                if resp.double_clicked() && !resref.is_empty() {
+                    event.browse = Some(resref.to_owned());
+                }
             });
-    });
+        });
+    event
 }
 
 /// Resolve each filled slot's resref to its display info (identified

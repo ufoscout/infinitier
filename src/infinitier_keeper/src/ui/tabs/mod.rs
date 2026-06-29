@@ -42,6 +42,9 @@ use effects::EffectsTab;
 use feats::FeatsTab;
 use global_variables::GlobalVariablesTab;
 use inventory::InventoryTab;
+pub use inventory::{
+    assign_target as inventory_assign_target, take_browse_request as inventory_take_browse_request,
+};
 use journal_entries::JournalEntriesTab;
 use levels::LevelsTab;
 use local_variables::LocalVariablesTab;
@@ -193,9 +196,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
             CharacteristicsTab.show(ui, c.imported, c.member, c.game_data)
         }),
         CharacterTab::Appearance => with_cre(state, |c| AppearanceTab.show(ui, c.cre, c.game_data)),
-        CharacterTab::Inventory => {
-            with_cre(state, |c| InventoryTab.show(ui, c.imported, c.game_data))
-        }
+        // Inventory selects a slot (the Item Browser's assignment target),
+        // so it takes `&mut AppState` directly.
+        CharacterTab::Inventory => InventoryTab.show(ui, state),
         // Spells carries its own inner spell-type tabs (Innate/Wizard/Cleric
         // for AD&D, the per-class categories for IWD2), so it takes `game`.
         CharacterTab::Spells => with_cre(state, |c| {
