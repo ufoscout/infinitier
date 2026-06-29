@@ -20,11 +20,11 @@
 use infinitier_core::resource::cre::{Cre, Iwd2Spellbook, Iwd2Table, SpellType, SubSections};
 use infinitier_core::resource::two_da::TwoDA;
 
-/// How to remove a displayed spell from the creature. Carried by each
-/// [`SpellRow`] so the view can request a deletion without knowing the
-/// game's storage model.
+/// Identifies a spell within the creature, regardless of the game's storage
+/// model. Carried by each [`SpellRow`] so the view can request an edit
+/// (delete / set memorised count) without that knowledge.
 #[derive(Clone)]
-pub enum SpellDelete {
+pub enum SpellRef {
     /// An AD&D known spell, identified by its spellbook type and resref.
     Adnd { spell_type: SpellType, resref: String },
     /// An IWD2 spell slot, identified by its book, level and list-2DA index.
@@ -35,17 +35,26 @@ pub enum SpellDelete {
     },
 }
 
+/// An edit a table row requested this frame, applied to the creature by the
+/// caller.
+pub enum SpellEvent {
+    /// Remove the spell from the creature.
+    Delete(SpellRef),
+    /// Set the spell's memorised count ("Memorized" column).
+    SetMemorized(SpellRef, u32),
+}
+
 /// One displayed spell row, before name resolution (done in the view).
 pub struct SpellRow {
     /// Spell level shown in the table (1-based).
     pub level: u16,
-    /// How many copies are currently memorised ("xMem").
-    pub x_mem: u32,
+    /// How many copies are currently memorised ("Memorized" column).
+    pub memorized: u32,
     /// The SPL resref — shown in the Resource column and resolved to a
     /// display name by the view.
     pub resref: String,
-    /// The action that removes this spell.
-    pub delete: SpellDelete,
+    /// Identifies this spell for delete / memorised-count edits.
+    pub spell: SpellRef,
 }
 
 /// The IWD2 spell categories selectable from the inner tabs, in display
@@ -145,7 +154,7 @@ pub fn adnd_rows(cre: &Cre, spell_type: SpellType) -> Vec<SpellRow> {
         if rows.iter().any(|r| r.resref.eq_ignore_ascii_case(&known.spell)) {
             continue;
         }
-        let x_mem = sub
+        let memorized = sub
             .memorized_spells
             .iter()
             .filter(|m| m.spell.eq_ignore_ascii_case(&known.spell))
@@ -154,9 +163,9 @@ pub fn adnd_rows(cre: &Cre, spell_type: SpellType) -> Vec<SpellRow> {
             // The on-disk level is 0-based (a level-1 spell stores 0), so
             // show `level + 1`; innates store 0 and display as 1.
             level: known.level.saturating_add(1),
-            x_mem,
+            memorized,
             resref: known.spell.clone(),
-            delete: SpellDelete::Adnd {
+            spell: SpellRef::Adnd {
                 spell_type,
                 resref: known.spell.clone(),
             },
@@ -196,9 +205,9 @@ pub fn iwd2_rows(cre: &Cre, category: SpellCategory, list: Option<&TwoDA>) -> Ve
             for slot in &table.entries {
                 rows.push(SpellRow {
                     level,
-                    x_mem: slot.memorized,
+                    memorized: slot.memorized,
                     resref: resref(slot.index),
-                    delete: SpellDelete::Iwd2 {
+                    spell: SpellRef::Iwd2 {
                         book,
                         level,
                         index: slot.index,
@@ -212,9 +221,9 @@ pub fn iwd2_rows(cre: &Cre, category: SpellCategory, list: Option<&TwoDA>) -> Ve
         for slot in &table.entries {
             rows.push(SpellRow {
                 level: 1,
-                x_mem: slot.memorized,
+                memorized: slot.memorized,
                 resref: resref(slot.index),
-                delete: SpellDelete::Iwd2 {
+                spell: SpellRef::Iwd2 {
                     book,
                     level: 1,
                     index: slot.index,

@@ -17,15 +17,15 @@ use egui_components::{Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::resource::tlk::Tlk;
 
-use super::data::{SpellDelete, SpellRow};
+use super::data::{SpellEvent, SpellRow};
 
 /// Maximum table width, so it doesn't stretch across the whole tab.
 const MAX_TABLE_W: f32 = 560.0;
 
 /// Render the spell table for the already-filtered `rows`. Returns the
-/// [`SpellDelete`] of a spell whose row "Delete" action was chosen this
-/// frame, for the caller to apply.
-pub fn render(ui: &mut egui::Ui, rows: Vec<SpellRow>, game_data: &GameData) -> Option<SpellDelete> {
+/// [`SpellEvent`] (delete / set-memorised) a row requested this frame, for
+/// the caller to apply.
+pub fn render(ui: &mut egui::Ui, rows: Vec<SpellRow>, game_data: &GameData) -> Option<SpellEvent> {
     if rows.is_empty() {
         ui.add(Label::new("No spells of this type.").strong());
         return None;
@@ -53,18 +53,18 @@ pub fn render(ui: &mut egui::Ui, rows: Vec<SpellRow>, game_data: &GameData) -> O
     spell_table(ui, &named)
 }
 
-/// Paint the four-column table (Level · xMem · Spell · Resource) plus the
-/// per-row actions menu, from `(display name, row)` pairs in display order.
-/// Returns the chosen row's [`SpellDelete`].
-fn spell_table(ui: &mut egui::Ui, named: &[(String, SpellRow)]) -> Option<SpellDelete> {
-    let mut to_delete = None;
+/// Paint the table (Level · Memorized · Spell · Resource) plus the per-row
+/// actions menu, from `(display name, row)` pairs in display order. The
+/// Memorized count is editable. Returns the row's requested [`SpellEvent`].
+fn spell_table(ui: &mut egui::Ui, named: &[(String, SpellRow)]) -> Option<SpellEvent> {
+    let mut event = None;
     let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
     ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
         Table::new("spells")
             .striped(true)
             .max_height(ui.available_height())
             .column(TableColumn::exact(70.0).header("Level"))
-            .column(TableColumn::exact(70.0).header("xMem"))
+            .column(TableColumn::exact(90.0).header("Memorized"))
             .column(
                 TableColumn::remainder()
                     .at_least(160.0)
@@ -80,7 +80,19 @@ fn spell_table(ui: &mut egui::Ui, named: &[(String, SpellRow)]) -> Option<SpellD
                         ui.add(Label::new(r.level.to_string()));
                     });
                     row.col(|ui| {
-                        ui.add(Label::new(r.x_mem.to_string()));
+                        // Editable memorised count. Size the box to the
+                        // DragValue's natural height so it stays vertically
+                        // centred (see the Inventory tab for the same fix).
+                        let mut mem = r.memorized;
+                        let h = ui.text_style_height(&egui::TextStyle::Button)
+                            + 2.0 * ui.spacing().button_padding.y;
+                        let resp = ui.add_sized(
+                            [60.0, h],
+                            egui::DragValue::new(&mut mem).range(0..=99),
+                        );
+                        if resp.changed() {
+                            event = Some(SpellEvent::SetMemorized(r.spell.clone(), mem));
+                        }
                     });
                     row.col(|ui| {
                         ui.add(Label::new(name.as_str()));
@@ -90,13 +102,13 @@ fn spell_table(ui: &mut egui::Ui, named: &[(String, SpellRow)]) -> Option<SpellD
                     });
                     row.col(|ui| {
                         if crate::ui::tabs::row_delete_menu(ui) {
-                            to_delete = Some(r.delete.clone());
+                            event = Some(SpellEvent::Delete(r.spell.clone()));
                         }
                     });
                 });
             });
     });
-    to_delete
+    event
 }
 
 /// Build the resref → display-name map for every spell in `rows`, memoised

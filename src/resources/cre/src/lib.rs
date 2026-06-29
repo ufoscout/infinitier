@@ -1643,6 +1643,132 @@ impl Cre {
         }
     }
 
+    /// Set how many copies of the AD&D (V1) known spell `resref` (in the
+    /// memorisation slot for its `spell_type` and level) are memorised, to
+    /// `count`. No-op (returns false) for a non-V1
+    /// creature, an unknown spell, or a missing memorisation slot.
+    pub fn set_known_spell_memorized_count(
+        &mut self,
+        spell_type: SpellType,
+        resref: &str,
+        count: u32,
+    ) -> bool {
+        let SubSections::V1(sub) = &mut self.sub_sections else {
+            return false;
+        };
+        // The known spell's on-disk level identifies its memorisation slot
+        // (both use the same 0-based encoding).
+        let Some(level) = sub
+            .known_spells
+            .iter()
+            .find(|k| k.spell_type == spell_type && k.spell.eq_ignore_ascii_case(resref))
+            .map(|k| k.level)
+        else {
+            return false;
+        };
+        let Some(slot_idx) = sub
+            .spell_memorization_info
+            .iter()
+            .position(|m| m.spell_type == spell_type && m.level == level)
+        else {
+            return false;
+        };
+
+        let info = &sub.spell_memorization_info[slot_idx];
+        let start = info.spell_table_index as usize;
+        let cnt = info.spell_count as usize;
+        let end = start + cnt;
+        if end > sub.memorized_spells.len() {
+            return false; // inconsistent cursors — refuse rather than corrupt
+        }
+
+        // This spell's current memorised copies live within the slot's range.
+        let matches: Vec<usize> = (start..end)
+            .filter(|&i| sub.memorized_spells[i].spell.eq_ignore_ascii_case(resref))
+            .collect();
+        let have = matches.len();
+        let want = count as usize;
+        if want == have {
+            return true;
+        }
+
+        // Slot-index order (not offset) decides which cursors shift, so empty
+        // slots sharing an offset are handled unambiguously.
+        let shift_later = |sub: &mut V1SubSections, slot_idx: usize, by: i64| {
+            for (j, m) in sub.spell_memorization_info.iter_mut().enumerate() {
+                if j > slot_idx {
+                    m.spell_table_index = (m.spell_table_index as i64 + by) as u32;
+                }
+            }
+        };
+
+        if want > have {
+            let add = want - have;
+            // Reuse an existing copy's flags (memorised / cast state), or mark
+            // freshly memorised.
+            let flags = matches
+                .first()
+                .map(|&i| sub.memorized_spells[i].memorization_flags)
+                .unwrap_or(1);
+            let new = MemorizedSpell {
+                spell: resref.to_string(),
+                memorization_flags: flags,
+                padding: 0,
+            };
+            sub.memorized_spells
+                .splice(end..end, std::iter::repeat_n(new, add));
+            sub.spell_memorization_info[slot_idx].spell_count += add as u32;
+            shift_later(sub, slot_idx, add as i64);
+        } else {
+            let remove = have - want;
+            // Drop the last `remove` matching copies (highest indices first so
+            // earlier positions stay valid).
+            for &pos in matches.iter().rev().take(remove) {
+                sub.memorized_spells.remove(pos);
+            }
+            sub.spell_memorization_info[slot_idx].spell_count -= remove as u32;
+            shift_later(sub, slot_idx, -(remove as i64));
+        }
+        true
+    }
+
+    /// Set the memorised count (`xMem`) of the IWD2 (V2.2) spell slot
+    /// referencing list-2DA row `index` in the `book`'s table. `level`
+    /// (1-based) selects the per-level table for leveled books; it is ignored
+    /// for the flat innate / song / shape books. Returns whether a slot was
+    /// updated; a non-V2.2 creature or missing slot is a no-op.
+    pub fn set_iwd2_spell_memorized(
+        &mut self,
+        book: Iwd2Spellbook,
+        level: usize,
+        index: u32,
+        memorized: u32,
+    ) -> bool {
+        let SubSections::V22(sub) = &mut self.sub_sections else {
+            return false;
+        };
+        let lv = level.saturating_sub(1).min(8);
+        let table = match book {
+            Iwd2Spellbook::Bard => &mut sub.bard_spells[lv],
+            Iwd2Spellbook::Cleric => &mut sub.cleric_spells[lv],
+            Iwd2Spellbook::Druid => &mut sub.druid_spells[lv],
+            Iwd2Spellbook::Paladin => &mut sub.paladin_spells[lv],
+            Iwd2Spellbook::Ranger => &mut sub.ranger_spells[lv],
+            Iwd2Spellbook::Sorcerer => &mut sub.sorcerer_spells[lv],
+            Iwd2Spellbook::Wizard => &mut sub.wizard_spells[lv],
+            Iwd2Spellbook::Domain => &mut sub.domain_spells[lv],
+            Iwd2Spellbook::Innate => &mut sub.abilities,
+            Iwd2Spellbook::Song => &mut sub.songs,
+            Iwd2Spellbook::ShapeChange => &mut sub.shapes,
+        };
+        if let Some(slot) = table.entries.iter_mut().find(|e| e.index == index) {
+            slot.memorized = memorized;
+            true
+        } else {
+            false
+        }
+    }
+
     /// Put `item` into inventory slot `slot` — the slot's index in the
     /// creature's `item_slots` table, which is the same index the keeper's
     /// Inventory-tab rows use. A slot that already holds an item has that
@@ -3677,6 +3803,117 @@ mod tests {
 
         // An index that isn't present is a no-op.
         assert!(!cre.remove_iwd2_spell(Iwd2Spellbook::Wizard, 3, u32::MAX));
+    }
+
+    /// The `memorized_spells` partitions are contiguous and in slot order:
+    /// each slot's `spell_table_index` equals the running total and the sum
+    /// of `spell_count` covers the whole list. Editing must preserve this.
+    fn memorized_partitions_contiguous(cre: &Cre) -> bool {
+        let SubSections::V1(s) = &cre.sub_sections else {
+            return false;
+        };
+        let mut expected = 0u32;
+        for info in &s.spell_memorization_info {
+            if info.spell_table_index != expected {
+                return false;
+            }
+            expected += info.spell_count;
+        }
+        expected as usize == s.memorized_spells.len()
+    }
+
+    /// Count of `memorized_spells` records with `resref` (case-insensitive).
+    fn count_memorized(cre: &Cre, resref: &str) -> usize {
+        let SubSections::V1(s) = &cre.sub_sections else {
+            return 0;
+        };
+        s.memorized_spells
+            .iter()
+            .filter(|m| m.spell.eq_ignore_ascii_case(resref))
+            .count()
+    }
+
+    /// Editing a known spell's memorised count adds/removes `memorized_spells`
+    /// records while keeping the partition cursors contiguous, and survives a
+    /// round-trip; an unknown spell is a no-op.
+    #[test]
+    fn set_known_spell_memorized_count_adjusts_and_round_trips() {
+        let mut cre = crate::test_support::import_fixture("v1_0/EVERARD2.cre");
+        assert!(memorized_partitions_contiguous(&cre));
+
+        // The first non-empty memorisation slot's spell (its type + resref).
+        let (spell_type, resref) = {
+            let SubSections::V1(s) = &cre.sub_sections else {
+                unreachable!()
+            };
+            let info = s
+                .spell_memorization_info
+                .iter()
+                .find(|m| m.spell_count > 0)
+                .expect("fixture should have a memorised spell");
+            (
+                info.spell_type,
+                s.memorized_spells[info.spell_table_index as usize].spell.clone(),
+            )
+        };
+        let have = count_memorized(&cre, &resref);
+        assert!(have >= 1);
+
+        // Increase by two: two new records, cursors stay contiguous.
+        assert!(cre.set_known_spell_memorized_count(spell_type, &resref, have as u32 + 2));
+        assert_eq!(count_memorized(&cre, &resref), have + 2);
+        assert!(memorized_partitions_contiguous(&cre));
+
+        // Survives a round-trip.
+        let rt = round_trip(&cre);
+        assert_eq!(count_memorized(&rt, &resref), have + 2);
+        assert!(memorized_partitions_contiguous(&rt));
+
+        // Down to zero: all copies removed, still contiguous.
+        assert!(cre.set_known_spell_memorized_count(spell_type, &resref, 0));
+        assert_eq!(count_memorized(&cre, &resref), 0);
+        assert!(memorized_partitions_contiguous(&cre));
+
+        // An unknown spell is a no-op.
+        assert!(!cre.set_known_spell_memorized_count(spell_type, "zzznope", 1));
+    }
+
+    /// Editing an IWD2 spell slot's memorised count writes the slot's
+    /// `memorized` field and survives a round-trip; a missing index is a
+    /// no-op.
+    #[test]
+    fn set_iwd2_spell_memorized_writes_field() {
+        let mut cre = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        {
+            let SubSections::V22(s) = &mut cre.sub_sections else {
+                unreachable!()
+            };
+            s.wizard_spells[2].present = true;
+            s.wizard_spells[2].entries.push(Iwd2Slot {
+                index: 17,
+                memorized: 1,
+                memorizable: 2,
+                flags: 0,
+            });
+        }
+
+        assert!(cre.set_iwd2_spell_memorized(Iwd2Spellbook::Wizard, 3, 17, 5));
+        let memorized = |c: &Cre| -> u32 {
+            let SubSections::V22(s) = &c.sub_sections else {
+                unreachable!()
+            };
+            s.wizard_spells[2]
+                .entries
+                .iter()
+                .find(|e| e.index == 17)
+                .unwrap()
+                .memorized
+        };
+        assert_eq!(memorized(&cre), 5);
+        assert_eq!(memorized(&round_trip(&cre)), 5);
+
+        // A missing index is a no-op.
+        assert!(!cre.set_iwd2_spell_memorized(Iwd2Spellbook::Wizard, 3, u32::MAX, 9));
     }
 
     /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies

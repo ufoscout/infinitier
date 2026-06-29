@@ -22,19 +22,19 @@ use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::Engine;
 use infinitier_core::resource::cre::Cre;
 
-use self::data::{SpellCategory, SpellDelete};
+use self::data::{SpellCategory, SpellEvent, SpellRef};
 use crate::state::AppState;
 
 pub struct SpellsTab;
 
 impl SpellsTab {
-    /// Takes `&mut AppState` so a row's "Delete" action can remove the spell
-    /// from the creature: the table is rendered against an immutable borrow
-    /// that yields an optional [`SpellDelete`], which is then applied through
-    /// a fresh mutable borrow.
+    /// Takes `&mut AppState` so a row's edit (Delete / set Memorized count)
+    /// can change the creature: the table is rendered against an immutable
+    /// borrow that yields an optional [`SpellEvent`], which is then applied
+    /// through a fresh mutable borrow.
     pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState) {
         let game = state.game_data.game();
-        let delete = {
+        let event = {
             let Some(char_key) = char_key(state) else {
                 return;
             };
@@ -47,8 +47,8 @@ impl SpellsTab {
                 show_adnd(ui, cre, char_key, &state.game_data)
             }
         };
-        if let Some(req) = delete {
-            apply_delete(state, req);
+        if let Some(event) = event {
+            apply_event(state, event);
         }
     }
 }
@@ -60,7 +60,7 @@ fn show_adnd(
     cre: &Cre,
     char_key: u64,
     game_data: &GameData,
-) -> Option<SpellDelete> {
+) -> Option<SpellEvent> {
     let counts: Vec<usize> = data::ADND_TABS
         .iter()
         .map(|(_, ty)| data::adnd_count(cre, *ty))
@@ -84,7 +84,7 @@ fn show_iwd2(
     cre: &Cre,
     char_key: u64,
     game_data: &GameData,
-) -> Option<SpellDelete> {
+) -> Option<SpellEvent> {
     // How many spells the creature has of each category — shown on each
     // tab and used to default the selection.
     let counts: Vec<usize> = SpellCategory::ALL
@@ -125,8 +125,9 @@ fn char_key(state: &AppState) -> Option<u64> {
     Some(((state.active_tab as u64) << 32) | idx as u64)
 }
 
-/// Apply a delete request to the selected creature's mutable CRE.
-fn apply_delete(state: &mut AppState, req: SpellDelete) {
+/// Apply a row's edit (delete / set memorised count) to the selected
+/// creature's mutable CRE.
+fn apply_event(state: &mut AppState, event: SpellEvent) {
     let active = state.active_mut();
     let Some(idx) = active.selected_party_index else {
         return;
@@ -135,12 +136,18 @@ fn apply_delete(state: &mut AppState, req: SpellDelete) {
         && let Some(NpcCre::Cre(c)) = member.cre.as_mut()
     {
         let cre = c.cre_mut();
-        match req {
-            SpellDelete::Adnd { spell_type, resref } => {
+        match event {
+            SpellEvent::Delete(SpellRef::Adnd { spell_type, resref }) => {
                 cre.remove_known_spell(spell_type, &resref);
             }
-            SpellDelete::Iwd2 { book, level, index } => {
+            SpellEvent::Delete(SpellRef::Iwd2 { book, level, index }) => {
                 cre.remove_iwd2_spell(book, level as usize, index);
+            }
+            SpellEvent::SetMemorized(SpellRef::Adnd { spell_type, resref }, count) => {
+                cre.set_known_spell_memorized_count(spell_type, &resref, count);
+            }
+            SpellEvent::SetMemorized(SpellRef::Iwd2 { book, level, index }, count) => {
+                cre.set_iwd2_spell_memorized(book, level as usize, index, count);
             }
         }
     }
