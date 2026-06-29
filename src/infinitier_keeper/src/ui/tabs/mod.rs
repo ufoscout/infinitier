@@ -19,11 +19,9 @@ use crate::state::AppState;
 mod abilities;
 mod appearance;
 mod characteristics;
-mod cleric;
 mod effects;
 mod feats;
 mod global_variables;
-mod innate;
 mod inventory;
 mod journal_entries;
 mod levels;
@@ -33,7 +31,6 @@ mod miscellaneous;
 mod proficiencies;
 mod resistances;
 mod spells;
-mod wizard;
 
 use abilities::AbilitiesTab;
 use appearance::AppearanceTab;
@@ -53,9 +50,6 @@ use miscellaneous::MiscellaneousTab;
 use proficiencies::ProficienciesTab;
 use resistances::ResistancesTab;
 use spells::SpellsTab;
-
-// `cleric`, `innate` and `wizard` are no longer top-level tabs — the
-// unified `spells` tab renders them as inner tabs (see `spells::SpellsTab`).
 
 /// Render a per-row actions "…" menu whose only entry is **Delete**,
 /// returning `true` the frame Delete is chosen. Shared by the Inventory and
