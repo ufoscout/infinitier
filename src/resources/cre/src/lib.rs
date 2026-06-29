@@ -1644,6 +1644,39 @@ impl Cre {
         }
     }
 
+    /// Remove the item in inventory slot `slot` (its index in the `item_slots`
+    /// table — the keeper's Inventory-tab row order), emptying it. The item's
+    /// record is dropped from the `items` list and every other slot's index is
+    /// fixed up for the shift, so no orphaned, unreferenced item is left behind
+    /// (mirroring [`Cre::set_inventory_slot_item`]). No-op when `slot` is out of
+    /// range or already empty.
+    pub fn clear_inventory_slot(&mut self, slot: usize) {
+        let (items, item_slots) = match &mut self.sub_sections {
+            SubSections::V1(s) => (&mut s.items, &mut s.item_slots),
+            SubSections::V22(s) => (&mut s.items, &mut s.item_slots),
+        };
+        let byte = slot * 2;
+        if byte + 2 > item_slots.len() {
+            return;
+        }
+        let removed = i16::from_le_bytes([item_slots[byte], item_slots[byte + 1]]);
+        if removed < 0 || (removed as usize) >= items.len() {
+            return;
+        }
+        items.remove(removed as usize);
+        // Dropping a record shifts every later index down by one; the cleared
+        // slot itself becomes empty.
+        for chunk in item_slots.chunks_exact_mut(2) {
+            let idx = i16::from_le_bytes([chunk[0], chunk[1]]);
+            let new = match idx {
+                _ if idx == removed => -1,
+                _ if idx > removed => idx - 1,
+                _ => idx,
+            };
+            chunk.copy_from_slice(&new.to_le_bytes());
+        }
+    }
+
     /// Whether the packed byte's first/second-class slots are swapped for
     /// `stat`: yes for a dual-classed character's weapons, no for single/
     /// multi-class characters or fighting styles (`111..=114`).
@@ -3416,6 +3449,61 @@ mod tests {
         let mut cre2 = rt;
         cre2.set_inventory_slot_quantities(other, [9, 9, 9]);
         assert!(slot_index(&cre2, other) < 0);
+    }
+
+    /// Clearing a slot empties it, drops the item record, and renumbers the
+    /// remaining slots so they still point at their original items; an empty
+    /// slot is a no-op. Survives a round-trip.
+    #[test]
+    fn clear_inventory_slot_removes_item_and_renumbers() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+
+        // Put two distinct items into two empty slots.
+        let slot_a = first_empty_slot(&cre);
+        cre.set_inventory_slot_item(slot_a, item("sw1h01"));
+        // The second empty slot (slot_a is now filled).
+        let slot_b = first_empty_slot(&cre);
+        cre.set_inventory_slot_item(slot_b, item("sw1h02"));
+        let items_before = match &cre.sub_sections {
+            SubSections::V1(s) => s.items.len(),
+            _ => unreachable!(),
+        };
+
+        // Clear the first: it empties, the record is dropped, and slot_b still
+        // resolves to its own item despite the index shift.
+        cre.clear_inventory_slot(slot_a);
+        assert!(slot_index(&cre, slot_a) < 0);
+        let SubSections::V1(s) = &cre.sub_sections else {
+            unreachable!()
+        };
+        assert_eq!(s.items.len(), items_before - 1);
+        let idx_b = slot_index(&cre, slot_b);
+        assert!(idx_b >= 0);
+        assert_eq!(s.items[idx_b as usize].item, "sw1h02");
+        // No record still references "sw1h01".
+        assert!(s.items.iter().all(|it| it.item != "sw1h01"));
+
+        // Survives a round-trip.
+        let rt = round_trip(&cre);
+        assert!(slot_index(&rt, slot_a) < 0);
+        let idx_b = slot_index(&rt, slot_b);
+        let SubSections::V1(s) = &rt.sub_sections else {
+            unreachable!()
+        };
+        assert_eq!(s.items[idx_b as usize].item, "sw1h02");
+
+        // Clearing the now-empty slot again is a no-op.
+        let mut cre3 = rt;
+        let len_before = match &cre3.sub_sections {
+            SubSections::V1(s) => s.items.len(),
+            _ => unreachable!(),
+        };
+        cre3.clear_inventory_slot(slot_a);
+        let len_after = match &cre3.sub_sections {
+            SubSections::V1(s) => s.items.len(),
+            _ => unreachable!(),
+        };
+        assert_eq!(len_before, len_after);
     }
 
     /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies

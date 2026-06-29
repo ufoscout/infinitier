@@ -54,6 +54,9 @@ impl InventoryTab {
                 cre.set_inventory_slot_quantities(slot, quantities)
             });
         }
+        if let Some(slot) = event.delete_slot {
+            with_selected_cre_mut(state, |cre| cre.clear_inventory_slot(slot));
+        }
     }
 }
 

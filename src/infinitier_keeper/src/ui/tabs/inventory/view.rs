@@ -58,6 +58,9 @@ pub struct InventoryEvent {
     /// A slot whose `quantity1/2/3` were edited this frame, with the new
     /// values to write back.
     pub quantity_edit: Option<(usize, [u16; 3])>,
+    /// A slot whose "Delete" action was chosen this frame — its item is to be
+    /// removed from the inventory.
+    pub delete_slot: Option<usize>,
 }
 
 /// Render the inventory table, reporting the row clicked (to select its slot)
@@ -93,6 +96,8 @@ pub fn render(
         .column(TableColumn::initial(140.0).header("Quantity"))
         .column(TableColumn::remainder().clip(true).header("Item"))
         .column(TableColumn::initial(110.0).clip(true).header("Resource"))
+        .column(TableColumn::exact(64.0)) // per-row actions menu (extra width
+        // keeps the left-aligned button clear of the table border/scrollbar)
         .show(ui, |body| {
             body.rows(rows.len(), |i, mut row| {
                 let r = &rows[i];
@@ -145,6 +150,19 @@ pub fn render(
                 });
                 row.col(|ui| {
                     ui.add(Label::new(resref));
+                });
+                row.col(|ui| {
+                    // Per-row actions menu — only filled slots have an item to
+                    // act on. A single "Delete" entry for now; deleting needs
+                    // no confirmation.
+                    if r.item.is_some() {
+                        ui.menu_button("…", |ui| {
+                            if ui.button("Delete").clicked() {
+                                event.delete_slot = Some(i);
+                                ui.close();
+                            }
+                        });
+                    }
                 });
                 let resp = row.response();
                 if resp.clicked() {
