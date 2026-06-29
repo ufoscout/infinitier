@@ -15,8 +15,7 @@
 //! shown alphabetically like DaleKeeper2.
 
 use eframe::egui;
-use egui_components::scroll_area::ScrollArea;
-use egui_components::{Checkbox, Label};
+use egui_components::{Checkbox, Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::cre::Cre;
@@ -100,49 +99,58 @@ impl FeatsTab {
                 .collect()
         };
 
-        ScrollArea::vertical().show(ui, |ui| {
-            egui::Grid::new("iwd2_feats_table")
-                .num_columns(3)
+        let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
+        ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
+            Table::new("iwd2_feats")
                 .striped(true)
-                .spacing([24.0, 4.0])
-                .show(ui, |ui| {
-                    ui.add(Label::new("Feat").strong());
-                    ui.add(Label::new("Known").strong());
-                    ui.add(Label::new("Level").strong());
-                    ui.end_row();
-
-                    for (feat, (known0, level0)) in feats.iter().zip(&snapshot) {
-                        ui.add(Label::new(feat.name.as_str()));
-
-                        let mut known = *known0;
-                        if ui.add(Checkbox::without_label(&mut known)).changed() {
-                            with_selected_cre_mut(state, |c| {
-                                c.set_iwd2_feat_known(feat.feat_index, known)
-                            });
-                        }
-
-                        // Level only exists for stackable feats, and is
-                        // editable only once the feat is known.
-                        if let Some(slot) = feat.count_slot {
-                            let mut level = u32::from(level0.unwrap_or(0));
-                            let resp = ui.add_enabled(
-                                known,
-                                egui::DragValue::new(&mut level).range(0..=u32::from(u8::MAX)),
-                            );
-                            if resp.changed() {
+                .max_height(ui.available_height())
+                .column(
+                    TableColumn::remainder()
+                        .at_least(240.0)
+                        .clip(true)
+                        .header("Feat"),
+                )
+                .column(TableColumn::exact(80.0).header("Known"))
+                .column(TableColumn::exact(90.0).header("Level"))
+                .show(ui, |body| {
+                    body.rows(feats.len(), |i, mut row| {
+                        let feat = &feats[i];
+                        let (known0, level0) = snapshot[i];
+                        let mut known = known0;
+                        row.col(|ui| {
+                            ui.add(Label::new(feat.name.as_str()));
+                        });
+                        row.col(|ui| {
+                            if ui.add(Checkbox::without_label(&mut known)).changed() {
                                 with_selected_cre_mut(state, |c| {
-                                    c.set_iwd2_feat_count(slot, level as u8)
+                                    c.set_iwd2_feat_known(feat.feat_index, known)
                                 });
                             }
-                        } else {
-                            ui.label("");
-                        }
-                        ui.end_row();
-                    }
+                        });
+                        // Level only exists for stackable feats, and is
+                        // editable only once the feat is known.
+                        row.col(|ui| {
+                            if let Some(slot) = feat.count_slot {
+                                let mut level = u32::from(level0.unwrap_or(0));
+                                let resp = ui.add_enabled(
+                                    known,
+                                    egui::DragValue::new(&mut level).range(0..=u32::from(u8::MAX)),
+                                );
+                                if resp.changed() {
+                                    with_selected_cre_mut(state, |c| {
+                                        c.set_iwd2_feat_count(slot, level as u8)
+                                    });
+                                }
+                            }
+                        });
+                    });
                 });
         });
     }
 }
+
+/// Maximum table width, so it doesn't stretch across the whole tab.
+const MAX_TABLE_W: f32 = 480.0;
 
 /// Build (and frame-cache) the alphabetical feat list, resolving each
 /// display name from `FEATS.IDS` → `feats.2da` `NAMEREF` → `dialog.tlk`.

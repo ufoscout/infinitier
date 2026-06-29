@@ -17,7 +17,9 @@ use infinitier_core::resource::tlk::Tlk;
 
 use super::data::ClericRow;
 
-pub fn render(ui: &mut egui::Ui, rows: &[ClericRow], game_data: &GameData) {
+/// Render the Cleric spellbook table. Returns the resref of a spell whose
+/// row "Delete" action was chosen this frame, for the caller to remove.
+pub fn render(ui: &mut egui::Ui, rows: &[ClericRow], game_data: &GameData) -> Option<String> {
     // Resolve names first (loading dialog.tlk at most once), then sort
     // by (level, name) to match EEKeeper.
     let names = resolved_names(ui, game_data, rows);
@@ -37,7 +39,7 @@ pub fn render(ui: &mut egui::Ui, rows: &[ClericRow], game_data: &GameData) {
             .then_with(|| a_name.to_lowercase().cmp(&b_name.to_lowercase()))
     });
 
-    spell_table(ui, "cleric", &named);
+    spell_table(ui, "cleric", &named)
 }
 
 /// Maximum table width, so it doesn't stretch across the whole tab.
@@ -46,7 +48,8 @@ const MAX_TABLE_W: f32 = 560.0;
 /// Render EEKeeper's four-column spell table (Level · xMem · Spell ·
 /// Resource) from `(display name, row)` pairs already in display order,
 /// inside a width-capped region.
-fn spell_table(ui: &mut egui::Ui, id: &str, named: &[(String, &ClericRow)]) {
+fn spell_table(ui: &mut egui::Ui, id: &str, named: &[(String, &ClericRow)]) -> Option<String> {
+    let mut to_delete = None;
     let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
     ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
         Table::new(id)
@@ -61,6 +64,7 @@ fn spell_table(ui: &mut egui::Ui, id: &str, named: &[(String, &ClericRow)]) {
                     .header("Spell"),
             )
             .column(TableColumn::exact(110.0).header("Resource"))
+            .column(TableColumn::exact(60.0)) // per-row actions menu
             .show(ui, |body| {
                 body.rows(named.len(), |i, mut row| {
                     let (name, r) = &named[i];
@@ -76,9 +80,15 @@ fn spell_table(ui: &mut egui::Ui, id: &str, named: &[(String, &ClericRow)]) {
                     row.col(|ui| {
                         ui.add(Label::new(r.resource.as_str()));
                     });
+                    row.col(|ui| {
+                        if crate::ui::tabs::row_delete_menu(ui) {
+                            to_delete = Some(r.resource.clone());
+                        }
+                    });
                 });
             });
     });
+    to_delete
 }
 
 /// Build the resref → display-name map for every spell in `rows`,

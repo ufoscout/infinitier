@@ -57,6 +57,21 @@ use spells::SpellsTab;
 // `cleric`, `innate` and `wizard` are no longer top-level tabs — the
 // unified `spells` tab renders them as inner tabs (see `spells::SpellsTab`).
 
+/// Render a per-row actions "…" menu whose only entry is **Delete**,
+/// returning `true` the frame Delete is chosen. Shared by the Inventory and
+/// Spells tables; pair it with a wide-enough (≈60px) actions column so the
+/// left-aligned button stays clear of the table border / scrollbar.
+pub(crate) fn row_delete_menu(ui: &mut egui::Ui) -> bool {
+    let mut delete = false;
+    ui.menu_button("…", |ui| {
+        if ui.button("Delete").clicked() {
+            delete = true;
+            ui.close();
+        }
+    });
+    delete
+}
+
 /// Identifier for the active per-character tab. Order matches the
 /// EEKeeper tab strip.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -150,9 +165,6 @@ struct CreCtx<'a> {
     game: Game,
     /// Resource access for tabs that resolve names / 2DAs / TLK.
     game_data: &'a GameData,
-    /// `(save-tab, party-slot)` key for the Spells tab's per-character
-    /// dropdown memory.
-    char_key: u64,
 }
 
 /// Resolve the selected party creature and run `f` with its immutable
@@ -177,7 +189,6 @@ fn with_cre(state: &AppState, f: impl FnOnce(CreCtx)) {
         member,
         game: state.game_data.game(),
         game_data: &state.game_data,
-        char_key: ((state.active_tab as u64) << 32) | idx as u64,
     });
 }
 
@@ -200,10 +211,9 @@ pub fn show_tab(ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEdi
         // so it takes `&mut AppState` directly.
         CharacterTab::Inventory => InventoryTab.show(ui, state),
         // Spells carries its own inner spell-type tabs (Innate/Wizard/Cleric
-        // for AD&D, the per-class categories for IWD2), so it takes `game`.
-        CharacterTab::Spells => with_cre(state, |c| {
-            SpellsTab.show(ui, c.cre, c.char_key, c.game_data, c.game)
-        }),
+        // for AD&D, the per-class categories for IWD2), and a per-row Delete
+        // action, so it takes `&mut AppState` directly.
+        CharacterTab::Spells => SpellsTab.show(ui, state),
         // Memorization edits the CRE's spell-slot counts in place, so it
         // takes `&mut AppState` directly.
         CharacterTab::Memorization => MemorizationTab.show(ui, state),

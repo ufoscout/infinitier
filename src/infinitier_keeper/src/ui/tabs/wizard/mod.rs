@@ -22,9 +22,10 @@ impl WizardTab {
     }
 
     /// Needs `game_data` to resolve spell resrefs to display names via
-    /// their SPL files and `dialog.tlk`.
-    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, game_data: &GameData) {
+    /// their SPL files and `dialog.tlk`. Returns the resref of a spell whose
+    /// "Delete" action was chosen this frame.
+    pub fn show(&self, ui: &mut egui::Ui, cre: &Cre, game_data: &GameData) -> Option<String> {
         let rows = data::wizard_rows(cre);
-        view::render(ui, &rows, game_data);
+        view::render(ui, &rows, game_data)
     }
 }

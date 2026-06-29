@@ -1596,6 +1596,53 @@ impl Cre {
         }
     }
 
+    /// Remove every known-spell record matching `spell_type` and `resref`
+    /// (case-insensitive) from an AD&D (V1) creature's `known_spells` list.
+    /// Memorised copies in `memorized_spells` are left untouched — they are a
+    /// separate list with their own cursors. Returns whether anything was
+    /// removed; a non-V1 creature is a no-op.
+    pub fn remove_known_spell(&mut self, spell_type: SpellType, resref: &str) -> bool {
+        let SubSections::V1(sub) = &mut self.sub_sections else {
+            return false;
+        };
+        let before = sub.known_spells.len();
+        sub.known_spells.retain(|k| {
+            k.spell_type != spell_type || !k.spell.eq_ignore_ascii_case(resref)
+        });
+        sub.known_spells.len() != before
+    }
+
+    /// Remove the first IWD2 (V2.2) spell slot referencing list-2DA row
+    /// `index` from the `book`'s table. `level` (1-based) selects which of the
+    /// nine per-level tables for the leveled class/domain books; it is ignored
+    /// for the flat innate / song / shape books. Returns whether a slot was
+    /// removed; a non-V2.2 creature is a no-op.
+    pub fn remove_iwd2_spell(&mut self, book: Iwd2Spellbook, level: usize, index: u32) -> bool {
+        let SubSections::V22(sub) = &mut self.sub_sections else {
+            return false;
+        };
+        let lv = level.saturating_sub(1).min(8);
+        let table = match book {
+            Iwd2Spellbook::Bard => &mut sub.bard_spells[lv],
+            Iwd2Spellbook::Cleric => &mut sub.cleric_spells[lv],
+            Iwd2Spellbook::Druid => &mut sub.druid_spells[lv],
+            Iwd2Spellbook::Paladin => &mut sub.paladin_spells[lv],
+            Iwd2Spellbook::Ranger => &mut sub.ranger_spells[lv],
+            Iwd2Spellbook::Sorcerer => &mut sub.sorcerer_spells[lv],
+            Iwd2Spellbook::Wizard => &mut sub.wizard_spells[lv],
+            Iwd2Spellbook::Domain => &mut sub.domain_spells[lv],
+            Iwd2Spellbook::Innate => &mut sub.abilities,
+            Iwd2Spellbook::Song => &mut sub.songs,
+            Iwd2Spellbook::ShapeChange => &mut sub.shapes,
+        };
+        if let Some(pos) = table.entries.iter().position(|e| e.index == index) {
+            table.entries.remove(pos);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Put `item` into inventory slot `slot` — the slot's index in the
     /// creature's `item_slots` table, which is the same index the keeper's
     /// Inventory-tab rows use. A slot that already holds an item has that
@@ -2887,6 +2934,25 @@ impl Cre {
     cre_v22_field!(wilderness_lore, set_wilderness_lore, wilderness_law, i8);
 }
 
+/// Which IWD2 (V2.2) spell block a slot belongs to — selects the field on
+/// [`V22SubSections`] addressed by [`Cre::remove_iwd2_spell`]. The first
+/// eight are leveled (one [`Iwd2Table`] per spell level); the last three are
+/// flat single-table books.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Iwd2Spellbook {
+    Bard,
+    Cleric,
+    Druid,
+    Paladin,
+    Ranger,
+    Sorcerer,
+    Wizard,
+    Domain,
+    Innate,
+    Song,
+    ShapeChange,
+}
+
 /// One 16-byte IWD2 sub-section slot. The on-disk layout is the
 /// same for class spells, domain spells, abilities, songs and
 /// shapes — NI uses four distinct Java classes for UI labelling but
@@ -3504,6 +3570,113 @@ mod tests {
             _ => unreachable!(),
         };
         assert_eq!(len_before, len_after);
+    }
+
+    /// Removing a known spell drops every matching (type, resref) record from
+    /// `known_spells`, survives a round-trip, and a non-existent spell is a
+    /// no-op (returns false).
+    #[test]
+    fn remove_known_spell_drops_matching_records() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IMOEN_DUAL.cre");
+        let target = {
+            let SubSections::V1(s) = &cre.sub_sections else {
+                unreachable!()
+            };
+            s.known_spells
+                .first()
+                .cloned()
+                .expect("fixture should know at least one spell")
+        };
+        let matches = |c: &Cre| -> usize {
+            let SubSections::V1(s) = &c.sub_sections else {
+                unreachable!()
+            };
+            s.known_spells
+                .iter()
+                .filter(|k| {
+                    k.spell_type == target.spell_type && k.spell.eq_ignore_ascii_case(&target.spell)
+                })
+                .count()
+        };
+        assert!(matches(&cre) >= 1);
+
+        assert!(cre.remove_known_spell(target.spell_type, &target.spell));
+        assert_eq!(matches(&cre), 0);
+        assert_eq!(matches(&round_trip(&cre)), 0);
+
+        // A spell that isn't known is a no-op.
+        assert!(!cre.remove_known_spell(target.spell_type, "zzznope"));
+    }
+
+    /// Sum of every IWD2 spell-slot entry across all books/levels.
+    fn total_iwd2_entries(cre: &Cre) -> usize {
+        let SubSections::V22(s) = &cre.sub_sections else {
+            return 0;
+        };
+        let leveled: usize = [
+            &s.bard_spells,
+            &s.cleric_spells,
+            &s.druid_spells,
+            &s.paladin_spells,
+            &s.ranger_spells,
+            &s.sorcerer_spells,
+            &s.wizard_spells,
+            &s.domain_spells,
+        ]
+        .iter()
+        .map(|tables| tables.iter().map(|t| t.entries.len()).sum::<usize>())
+        .sum();
+        leveled + s.abilities.entries.len() + s.songs.entries.len() + s.shapes.entries.len()
+    }
+
+    /// Removing an IWD2 spell drops exactly one slot from the addressed book,
+    /// survives a round-trip, and a missing index is a no-op.
+    #[test]
+    fn remove_iwd2_spell_drops_one_slot() {
+        let mut cre = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+
+        // The fixture knows no spells, so inject two level-3 wizard slots
+        // (the class-spell tables are always `present` on an IWD2 creature,
+        // so the injected slots round-trip).
+        {
+            let SubSections::V22(s) = &mut cre.sub_sections else {
+                unreachable!()
+            };
+            let table = &mut s.wizard_spells[2];
+            table.present = true;
+            table.entries.push(Iwd2Slot {
+                index: 17,
+                memorized: 1,
+                memorizable: 1,
+                flags: 0,
+            });
+            table.entries.push(Iwd2Slot {
+                index: 42,
+                memorized: 0,
+                memorizable: 1,
+                flags: 0,
+            });
+        }
+
+        let before = total_iwd2_entries(&cre);
+        assert!(cre.remove_iwd2_spell(Iwd2Spellbook::Wizard, 3, 17));
+        assert_eq!(total_iwd2_entries(&cre), before - 1);
+
+        // The other level-3 wizard slot is untouched; the removed one is gone.
+        {
+            let SubSections::V22(s) = &cre.sub_sections else {
+                unreachable!()
+            };
+            let idxs: Vec<u32> = s.wizard_spells[2].entries.iter().map(|e| e.index).collect();
+            assert!(idxs.contains(&42));
+            assert!(!idxs.contains(&17));
+        }
+
+        // The removal survives a round-trip.
+        assert_eq!(total_iwd2_entries(&round_trip(&cre)), before - 1);
+
+        // An index that isn't present is a no-op.
+        assert!(!cre.remove_iwd2_spell(Iwd2Spellbook::Wizard, 3, u32::MAX));
     }
 
     /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies

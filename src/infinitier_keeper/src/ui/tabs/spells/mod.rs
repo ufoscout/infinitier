@@ -14,38 +14,64 @@ mod view;
 use eframe::egui;
 use egui_components::Tabs;
 use infinitier_core::game::GameData;
+use infinitier_core::imported_resource::gam::NpcCre;
 use infinitier_core::resource::Engine;
-use infinitier_core::resource::{Game, cre::Cre};
+use infinitier_core::resource::cre::{Cre, Iwd2Spellbook, SpellType};
 
 use self::data::SpellCategory;
+use crate::state::AppState;
+
+/// A spell-removal request raised by a row's "Delete" action, applied to
+/// the selected creature after rendering (rendering only borrows the CRE
+/// immutably).
+enum SpellDelete {
+    /// An AD&D known spell, identified by its spellbook type and resref.
+    Adnd { spell_type: SpellType, resref: String },
+    /// An IWD2 spell slot, identified by its book, level and list-2DA index.
+    Iwd2 {
+        book: Iwd2Spellbook,
+        level: u16,
+        index: u32,
+    },
+}
 
 pub struct SpellsTab;
 
 impl SpellsTab {
-    /// Needs `game` to choose the inner-tab set (AD&D vs IWD2),
-    /// `game_data` to resolve spell resrefs to display names via their
-    /// SPL files and `dialog.tlk`, and `char_key` to remember the
-    /// selected inner tab per character (re-defaulted when a different
-    /// creature is shown).
-    pub fn show(
+    /// Takes `&mut AppState` so a row's "Delete" action can remove the spell
+    /// from the creature: the tables are rendered against an immutable borrow
+    /// that yields an optional [`SpellDelete`], which is then applied through
+    /// a fresh mutable borrow.
+    pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState) {
+        let game = state.game_data.game();
+        let delete = {
+            let Some(char_key) = char_key(state) else {
+                return;
+            };
+            let Some(cre) = selected_cre(state) else {
+                return;
+            };
+            if game.engine() == Engine::Iwd2 {
+                self.show_iwd2(ui, cre, char_key, &state.game_data)
+            } else {
+                self.show_adnd(ui, cre, char_key, &state.game_data)
+            }
+        };
+        if let Some(req) = delete {
+            apply_delete(state, req);
+        }
+    }
+
+    /// AD&D spellbooks: Innate / Wizard / Cleric inner tabs, each
+    /// delegating to that spellbook's own view. Each tab shows its
+    /// known-spell count, like the IWD2 categories.
+    fn show_adnd(
         &self,
         ui: &mut egui::Ui,
         cre: &Cre,
         char_key: u64,
         game_data: &GameData,
-        game: Game,
-    ) {
-        if game.engine() == Engine::Iwd2 {
-            self.show_iwd2(ui, cre, char_key, game_data);
-        } else {
-            self.show_adnd(ui, cre, char_key, game_data);
-        }
-    }
-
-    /// AD&D spellbooks: Innate / Wizard / Cleric inner tabs, each
-    /// delegating to that spellbook's own read-only view. Each tab shows
-    /// its known-spell count, like the IWD2 categories.
-    fn show_adnd(&self, ui: &mut egui::Ui, cre: &Cre, char_key: u64, game_data: &GameData) {
+    ) -> Option<SpellDelete> {
         const TYPES: [&str; 3] = ["Innate", "Wizard", "Cleric"];
         let counts = [
             super::innate::InnateTab.count(cre),
@@ -57,16 +83,23 @@ impl SpellsTab {
         store_index(ui, "adnd_spell_type", char_key, selected);
 
         ui.add_space(8.0);
-        match selected {
-            0 => super::innate::InnateTab.show(ui, cre, game_data),
-            1 => super::wizard::WizardTab.show(ui, cre, game_data),
-            _ => super::cleric::ClericTab.show(ui, cre, game_data),
-        }
+        let (spell_type, resref) = match selected {
+            0 => (SpellType::Innate, super::innate::InnateTab.show(ui, cre, game_data)),
+            1 => (SpellType::Wizard, super::wizard::WizardTab.show(ui, cre, game_data)),
+            _ => (SpellType::Priest, super::cleric::ClericTab.show(ui, cre, game_data)),
+        };
+        resref.map(|resref| SpellDelete::Adnd { spell_type, resref })
     }
 
     /// IWD2 (V2.2) per-class spell categories — one inner tab each, with a
     /// spell count, replacing the old dropdown.
-    fn show_iwd2(&self, ui: &mut egui::Ui, cre: &Cre, char_key: u64, game_data: &GameData) {
+    fn show_iwd2(
+        &self,
+        ui: &mut egui::Ui,
+        cre: &Cre,
+        char_key: u64,
+        game_data: &GameData,
+    ) -> Option<SpellDelete> {
         // How many spells the creature has of each category — shown on each
         // tab and used to default the selection.
         let counts: Vec<usize> = SpellCategory::ALL
@@ -86,7 +119,48 @@ impl SpellsTab {
         ui.add_space(8.0);
         let category = SpellCategory::ALL[selected].0;
         let rows = data::spell_rows(cre, category);
-        view::render(ui, &rows, category, game_data);
+        view::render(ui, &rows, category, game_data).map(|(level, index)| SpellDelete::Iwd2 {
+            book: category.spellbook(),
+            level,
+            index,
+        })
+    }
+}
+
+/// The selected party creature, if it's an embedded (parsed) CRE.
+fn selected_cre(state: &AppState) -> Option<&Cre> {
+    let active = state.active();
+    let member = active.save.party_npcs.get(active.selected_party_index?)?;
+    match member.cre.as_ref()? {
+        NpcCre::Cre(c) => Some(c.cre()),
+        NpcCre::Ref(_) => None,
+    }
+}
+
+/// `(save-tab, party-slot)` key for the per-character inner-tab memory.
+fn char_key(state: &AppState) -> Option<u64> {
+    let idx = state.active().selected_party_index?;
+    Some(((state.active_tab as u64) << 32) | idx as u64)
+}
+
+/// Apply a delete request to the selected creature's mutable CRE.
+fn apply_delete(state: &mut AppState, req: SpellDelete) {
+    let active = state.active_mut();
+    let Some(idx) = active.selected_party_index else {
+        return;
+    };
+    if let Some(member) = active.save.party_npcs.get_mut(idx)
+        && let Some(NpcCre::Cre(c)) = member.cre.as_mut()
+    {
+        let cre = c.cre_mut();
+        match req {
+            SpellDelete::Adnd { spell_type, resref } => {
+                cre.remove_known_spell(spell_type, &resref);
+            }
+            SpellDelete::Iwd2 { book, level, index } => {
+                cre.remove_iwd2_spell(book, level as usize, index);
+            }
+        }
     }
 }
 

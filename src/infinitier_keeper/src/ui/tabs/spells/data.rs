@@ -18,7 +18,7 @@
 //!   name in the view layer (it needs `GameData` + `dialog.tlk`); this
 //!   module stays pure so it is cheap to call every repaint.
 
-use infinitier_core::resource::cre::{Cre, Iwd2Table, SubSections};
+use infinitier_core::resource::cre::{Cre, Iwd2Spellbook, Iwd2Table, SubSections};
 
 /// The spell categories selectable from the tab's dropdown, in display
 /// order. Each maps to one IWD2 spell block (or array of per-level
@@ -55,6 +55,23 @@ impl SpellCategory {
             SpellCategory::Innate => "listinnt",
             SpellCategory::Song => "listsong",
             SpellCategory::ShapeChange => "listshap",
+        }
+    }
+
+    /// The core [`Iwd2Spellbook`] this category removes from.
+    pub fn spellbook(self) -> Iwd2Spellbook {
+        match self {
+            SpellCategory::Bard => Iwd2Spellbook::Bard,
+            SpellCategory::Cleric => Iwd2Spellbook::Cleric,
+            SpellCategory::Domain => Iwd2Spellbook::Domain,
+            SpellCategory::Druid => Iwd2Spellbook::Druid,
+            SpellCategory::Innate => Iwd2Spellbook::Innate,
+            SpellCategory::Paladin => Iwd2Spellbook::Paladin,
+            SpellCategory::Ranger => Iwd2Spellbook::Ranger,
+            SpellCategory::ShapeChange => Iwd2Spellbook::ShapeChange,
+            SpellCategory::Song => Iwd2Spellbook::Song,
+            SpellCategory::Sorcerer => Iwd2Spellbook::Sorcerer,
+            SpellCategory::Wizard => Iwd2Spellbook::Wizard,
         }
     }
 

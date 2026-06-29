@@ -13,17 +13,27 @@
 use std::collections::HashMap;
 
 use eframe::egui;
-use egui_components::Label;
-use egui_components::scroll_area::ScrollArea;
+use egui_components::{Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::resource::tlk::Tlk;
 
 use super::data::{SpellCategory, SpellRow};
 
-pub fn render(ui: &mut egui::Ui, rows: &[SpellRow], category: SpellCategory, game_data: &GameData) {
+/// Maximum table width, so it doesn't stretch across the whole tab.
+const MAX_TABLE_W: f32 = 560.0;
+
+/// Render the IWD2 spell table for `category`. Returns `(level, list-2DA
+/// index)` of a spell whose row "Delete" action was chosen this frame, for
+/// the caller to remove from the creature.
+pub fn render(
+    ui: &mut egui::Ui,
+    rows: &[SpellRow],
+    category: SpellCategory,
+    game_data: &GameData,
+) -> Option<(u16, u32)> {
     if rows.is_empty() {
         ui.add(Label::new("No spells of this type.").strong());
-        return;
+        return None;
     }
 
     // Resolve each slot's list-2DA row index to a SPL resref, then to a
@@ -48,27 +58,46 @@ pub fn render(ui: &mut egui::Ui, rows: &[SpellRow], category: SpellCategory, gam
             .then_with(|| a_name.to_lowercase().cmp(&b_name.to_lowercase()))
     });
 
-    ScrollArea::vertical().show(ui, |ui| {
-        egui::Grid::new("iwd2_spells_table")
-            .num_columns(4)
+    let mut to_delete = None;
+    let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
+    ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
+        Table::new("iwd2_spells")
             .striped(true)
-            .spacing([24.0, 5.0])
-            .show(ui, |ui| {
-                ui.add(Label::new("Level").strong());
-                ui.add(Label::new("xMem").strong());
-                ui.add(Label::new("Spell").strong());
-                ui.add(Label::new("Resource").strong());
-                ui.end_row();
-
-                for (name, resref, row) in &named {
-                    ui.add(Label::new(row.level.to_string()));
-                    ui.add(Label::new(row.x_mem.to_string()));
-                    ui.add(Label::new(name.as_str()));
-                    ui.add(Label::new(resref.as_str()));
-                    ui.end_row();
-                }
+            .max_height(ui.available_height())
+            .column(TableColumn::exact(70.0).header("Level"))
+            .column(TableColumn::exact(70.0).header("xMem"))
+            .column(
+                TableColumn::remainder()
+                    .at_least(160.0)
+                    .clip(true)
+                    .header("Spell"),
+            )
+            .column(TableColumn::exact(110.0).header("Resource"))
+            .column(TableColumn::exact(60.0)) // per-row actions menu
+            .show(ui, |body| {
+                body.rows(named.len(), |i, mut row| {
+                    let (name, resref, r) = &named[i];
+                    row.col(|ui| {
+                        ui.add(Label::new(r.level.to_string()));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(r.x_mem.to_string()));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(name.as_str()));
+                    });
+                    row.col(|ui| {
+                        ui.add(Label::new(resref.as_str()));
+                    });
+                    row.col(|ui| {
+                        if crate::ui::tabs::row_delete_menu(ui) {
+                            to_delete = Some((r.level, r.index));
+                        }
+                    });
+                });
             });
     });
+    to_delete
 }
 
 /// Map each distinct slot index to its SPL resref via the category's
