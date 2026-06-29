@@ -29,13 +29,6 @@ fn row_resref(row: &InventoryRow) -> &str {
     row.item.as_ref().map_or("", |it| it.item.as_str())
 }
 
-/// The slot's charge/quantity triple (`q1/q2/q3`), or `""` when empty.
-fn row_quantity(row: &InventoryRow) -> String {
-    row.item.as_ref().map_or(String::new(), |it| {
-        format!("{}/{}/{}", it.quantity1, it.quantity2, it.quantity3)
-    })
-}
-
 /// egui frame-store key for the resref → display-info cache.
 const ITEM_CACHE: &str = "inventory_item_cache";
 /// egui frame-store key for the icon-resref → texture cache.
@@ -62,6 +55,9 @@ pub struct InventoryEvent {
     /// A *filled* row double-clicked this frame → its `.itm` resref, to
     /// reveal in the Item Browser.
     pub browse: Option<String>,
+    /// A slot whose `quantity1/2/3` were edited this frame, with the new
+    /// values to write back.
+    pub quantity_edit: Option<(usize, [u16; 3])>,
 }
 
 /// Render the inventory table, reporting the row clicked (to select its slot)
@@ -94,7 +90,7 @@ pub fn render(
         .max_height(ui.available_height())
         .column(TableColumn::exact(50.0)) // icon
         .column(TableColumn::initial(120.0).header("Position"))
-        .column(TableColumn::initial(90.0).header("Quantity"))
+        .column(TableColumn::initial(140.0).header("Quantity"))
         .column(TableColumn::remainder().clip(true).header("Item"))
         .column(TableColumn::initial(110.0).clip(true).header("Resource"))
         .show(ui, |body| {
@@ -121,7 +117,27 @@ pub fn render(
                     ui.add(Label::new(r.position));
                 });
                 row.col(|ui| {
-                    ui.add(Label::new(row_quantity(r)));
+                    // Editable quantity/charges triple for a filled slot.
+                    // Added straight into the cell's left-to-right, vertically
+                    // centered layout (no nested `horizontal`, which would
+                    // top-align the inputs against the tall icon row).
+                    if let Some(it) = &r.item {
+                        let mut q = [it.quantity1, it.quantity2, it.quantity3];
+                        // Size each box to the DragValue's *natural* height
+                        // (text + button padding). Using a smaller height made
+                        // the box overflow downwards past its centered slot, so
+                        // it sat below the row's vertical centre.
+                        let h = ui.text_style_height(&egui::TextStyle::Button)
+                            + 2.0 * ui.spacing().button_padding.y;
+                        ui.spacing_mut().item_spacing.x = 3.0;
+                        let mut changed = false;
+                        for v in &mut q {
+                            changed |= ui.add_sized([34.0, h], egui::DragValue::new(v)).changed();
+                        }
+                        if changed {
+                            event.quantity_edit = Some((i, q));
+                        }
+                    }
                 });
                 row.col(|ui| {
                     let name = display.map(|d| d.name.as_str()).unwrap_or("");

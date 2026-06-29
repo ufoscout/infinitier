@@ -14,6 +14,7 @@ use eframe::egui;
 
 use infinitier_core::imported_resource::cre::InventoryRow;
 use infinitier_core::imported_resource::gam::NpcCre;
+use infinitier_core::resource::cre::Cre;
 
 use super::CharacterTab;
 use crate::state::AppState;
@@ -48,6 +49,25 @@ impl InventoryTab {
             ui.ctx()
                 .data_mut(|d| d.insert_temp(egui::Id::new(BROWSE_KEY), resref));
         }
+        if let Some((slot, quantities)) = event.quantity_edit {
+            with_selected_cre_mut(state, |cre| {
+                cre.set_inventory_slot_quantities(slot, quantities)
+            });
+        }
+    }
+}
+
+/// Run `edit` against the selected party creature's mutable CRE. No-op when
+/// the slot is empty or the creature isn't an embedded record.
+fn with_selected_cre_mut(state: &mut AppState, edit: impl FnOnce(&mut Cre)) {
+    let active = state.active_mut();
+    let Some(idx) = active.selected_party_index else {
+        return;
+    };
+    if let Some(member) = active.save.party_npcs.get_mut(idx)
+        && let Some(NpcCre::Cre(imported)) = member.cre.as_mut()
+    {
+        edit(imported.cre_mut());
     }
 }
 

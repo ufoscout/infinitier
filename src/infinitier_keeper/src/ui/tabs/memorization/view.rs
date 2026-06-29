@@ -42,7 +42,11 @@ pub fn render(ui: &mut egui::Ui, rows: &[MemRow], state: &mut AppState) {
                         // The row order matches the CRE's
                         // `spell_memorization_info`, so `i` is the slot index.
                         let mut max = r.max;
-                        let h = ui.spacing().interact_size.y;
+                        // Size the box to the DragValue's natural height so it
+                        // doesn't overflow its centered slot and sit below the
+                        // row centre (see the Inventory tab for the same fix).
+                        let h = ui.text_style_height(&egui::TextStyle::Button)
+                            + 2.0 * ui.spacing().button_padding.y;
                         let resp = ui.add_sized([MAX_INPUT_W, h], egui::DragValue::new(&mut max));
                         if resp.changed() {
                             with_selected_cre_mut(state, |c| {

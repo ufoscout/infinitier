@@ -1623,6 +1623,27 @@ impl Cre {
         }
     }
 
+    /// Set the `quantity1/2/3` (charges / stack count) of the item in
+    /// inventory slot `slot` (the slot's index in the `item_slots` table — the
+    /// keeper's Inventory-tab row order). No-op when `slot` is out of range or
+    /// empty.
+    pub fn set_inventory_slot_quantities(&mut self, slot: usize, quantities: [u16; 3]) {
+        let (items, item_slots) = match &mut self.sub_sections {
+            SubSections::V1(s) => (&mut s.items, &mut s.item_slots),
+            SubSections::V22(s) => (&mut s.items, &mut s.item_slots),
+        };
+        let byte = slot * 2;
+        if byte + 2 > item_slots.len() {
+            return;
+        }
+        let idx = i16::from_le_bytes([item_slots[byte], item_slots[byte + 1]]);
+        if idx >= 0
+            && let Some(item) = items.get_mut(idx as usize)
+        {
+            [item.quantity1, item.quantity2, item.quantity3] = quantities;
+        }
+    }
+
     /// Whether the packed byte's first/second-class slots are swapped for
     /// `stat`: yes for a dual-classed character's weapons, no for single/
     /// multi-class characters or fighting styles (`111..=114`).
@@ -3364,6 +3385,37 @@ mod tests {
             _ => unreachable!(),
         };
         assert_eq!(before, after);
+    }
+
+    /// Editing a slot's quantities updates that item's `quantity1/2/3` and
+    /// survives a round-trip; an empty slot is a no-op.
+    #[test]
+    fn set_inventory_slot_quantities_updates_and_round_trips() {
+        let mut cre = crate::test_support::import_fixture("v1_0/IRONGU.cre");
+        let slot = first_empty_slot(&cre);
+        cre.set_inventory_slot_item(slot, item("arow01"));
+        let idx = slot_index(&cre, slot);
+
+        cre.set_inventory_slot_quantities(slot, [40, 0, 0]);
+        let SubSections::V1(s) = &cre.sub_sections else {
+            unreachable!()
+        };
+        let it = &s.items[idx as usize];
+        assert_eq!([it.quantity1, it.quantity2, it.quantity3], [40, 0, 0]);
+
+        let rt = round_trip(&cre);
+        let idx = slot_index(&rt, slot);
+        let SubSections::V1(s) = &rt.sub_sections else {
+            unreachable!()
+        };
+        let it = &s.items[idx as usize];
+        assert_eq!([it.quantity1, it.quantity2, it.quantity3], [40, 0, 0]);
+
+        // An empty slot can't take quantities — no panic, nothing changes.
+        let other = first_empty_slot(&rt);
+        let mut cre2 = rt;
+        cre2.set_inventory_slot_quantities(other, [9, 9, 9]);
+        assert!(slot_index(&cre2, other) < 0);
     }
 
     /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies
