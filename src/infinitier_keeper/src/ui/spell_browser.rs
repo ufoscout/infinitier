@@ -17,7 +17,22 @@ use eframe::egui;
 use egui_components::{Button, Checkbox, Label, Table, TableColumn};
 use infinitier_core::game::GameData;
 use infinitier_core::imported_resource::ImportedResource;
+use infinitier_core::imported_resource::spl::ImportedSpl;
+use infinitier_core::resource::Engine;
 use infinitier_core::resource::ResourceType;
+use infinitier_core::resource::cre::Iwd2Spellbook;
+
+/// What the user asked to add this frame. AD&D games carry just the resref
+/// (the host derives the spellbook/level from the SPL); IWD2 carries the
+/// exact placement the user picked from the per-book menu.
+pub enum SpellAssign {
+    Adnd(String),
+    Iwd2 {
+        book: Iwd2Spellbook,
+        level: u16,
+        index: u32,
+    },
+}
 
 /// Width reserved for the right-hand filter column.
 const FILTER_W: f32 = 220.0;
@@ -113,10 +128,11 @@ impl SpellBrowser {
     /// shrinks both the text and the bar.
     ///
     /// `can_assign` is true when the host can add the selected spell to the
-    /// current character (an AD&D creature is selected); it enables the add
-    /// button and double-click-to-add. `add_label` is the button's caption
-    /// (e.g. "Add to Xan"). Returns the resref to add when the user requests
-    /// it this frame.
+    /// current character (a creature is selected). `add_label` is the button's
+    /// caption (e.g. "Add to Xan"). For AD&D a single button adds the spell;
+    /// for IWD2 the button is a menu that lets the user pick the spellbook
+    /// (Cleric / Paladin / Domain / …). Returns the assignment requested this
+    /// frame.
     pub fn show(
         &mut self,
         ctx: &egui::Context,
@@ -124,7 +140,7 @@ impl SpellBrowser {
         game_data: &GameData,
         can_assign: bool,
         add_label: &str,
-    ) -> Option<String> {
+    ) -> Option<SpellAssign> {
         egui::Window::new(egui::RichText::new("Spell Browser").size(TITLE_SIZE))
             .open(open)
             .default_size([820.0, 600.0])
@@ -140,7 +156,7 @@ impl SpellBrowser {
         game_data: &GameData,
         can_assign: bool,
         add_label: &str,
-    ) -> Option<String> {
+    ) -> Option<SpellAssign> {
         if self.entries.is_none() {
             self.entries = Some(build_index(game_data));
         }
@@ -174,9 +190,9 @@ impl SpellBrowser {
         // gets ~half the window height, sized explicitly each frame rather
         // than via a resizable panel's `default_size` (eframe persists egui
         // memory, so a once-stored panel height would otherwise stick).
-        // Collected this frame: the resref the user asked to add to the
-        // character (via the button or a double-click), if any.
-        let mut assign: Option<String> = None;
+        // Collected this frame: the assignment the user asked for (via the
+        // button/menu or a double-click), if any.
+        let mut assign: Option<SpellAssign> = None;
 
         let desc_h = (ui.available_height() * 0.5).clamp(240.0, 640.0);
         egui::Panel::bottom("spell_browser_desc")
@@ -192,8 +208,12 @@ impl SpellBrowser {
             .exact_size(FILTER_W)
             .show_inside(ui, |ui| self.filters(ui, &entries, filtered.len()));
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            if let Some(r) = self.spell_table(ui, &entries, &filtered, scroll_target, can_assign) {
-                assign = Some(r);
+            // Double-click-to-add only applies to AD&D (one unambiguous
+            // spellbook); IWD2 needs the explicit book menu in `description`.
+            if let Some(resref) = self.spell_table(ui, &entries, &filtered, scroll_target, can_assign)
+                && game_data.game().engine() != Engine::Iwd2
+            {
+                assign = Some(SpellAssign::Adnd(resref));
             }
         });
 
@@ -355,9 +375,11 @@ impl SpellBrowser {
             });
     }
 
-    /// The bottom panel: the add-to-character button, then the selected
-    /// spell's icon to the left of its scrollable description. Returns the
-    /// selected resref when the button is clicked.
+    /// The bottom panel: the add-to-character control, then the selected
+    /// spell's icon to the left of its scrollable description. For AD&D the
+    /// control is a button; for IWD2 it's a menu listing every spellbook the
+    /// spell can go into (Cleric / Paladin / Domain / …). Returns the
+    /// assignment when the user requests one.
     fn description(
         &mut self,
         ui: &mut egui::Ui,
@@ -365,22 +387,44 @@ impl SpellBrowser {
         entries: &[SpellEntry],
         can_assign: bool,
         add_label: &str,
-    ) -> Option<String> {
+    ) -> Option<SpellAssign> {
         let entry = self
             .selected
             .as_deref()
             .and_then(|sel| entries.iter().find(|e| e.resref == sel));
 
-        // The add button: enabled only when the host can add the spell (an
-        // AD&D character is selected) and a spell is selected.
         let mut request = None;
-        let enabled = can_assign && entry.is_some();
-        if ui
-            .add_enabled(enabled, Button::primary(add_label).small())
-            .clicked()
-            && let Some(e) = entry
-        {
-            request = Some(e.resref.clone());
+        if game_data.game().engine() == Engine::Iwd2 {
+            // IWD2: one entry per spellbook the spell belongs to — let the
+            // user pick (a wizard spell, a cleric/paladin/domain spell, …).
+            let placements = entry
+                .map(|e| ImportedSpl::iwd2_placements(game_data, &e.resref))
+                .unwrap_or_default();
+            ui.add_enabled_ui(can_assign && !placements.is_empty(), |ui| {
+                ui.menu_button(add_label, |ui| {
+                    for p in &placements {
+                        let label = format!("{} — Lvl {}", book_name(p.book), p.level);
+                        if ui.button(label).clicked() {
+                            request = Some(SpellAssign::Iwd2 {
+                                book: p.book,
+                                level: p.level,
+                                index: p.index,
+                            });
+                            ui.close();
+                        }
+                    }
+                });
+            });
+        } else {
+            // AD&D: one unambiguous spellbook (derived from the SPL).
+            let enabled = can_assign && entry.is_some();
+            if ui
+                .add_enabled(enabled, Button::primary(add_label).small())
+                .clicked()
+                && let Some(e) = entry
+            {
+                request = Some(SpellAssign::Adnd(e.resref.clone()));
+            }
         }
         ui.add_space(6.0);
 
@@ -590,6 +634,23 @@ fn load_icon(ctx: &egui::Context, game_data: &GameData, icon: &str) -> Option<eg
         color,
         egui::TextureOptions::LINEAR,
     ))
+}
+
+/// Display name of an IWD2 spellbook, for the per-book add menu.
+fn book_name(book: Iwd2Spellbook) -> &'static str {
+    match book {
+        Iwd2Spellbook::Bard => "Bard",
+        Iwd2Spellbook::Cleric => "Cleric",
+        Iwd2Spellbook::Druid => "Druid",
+        Iwd2Spellbook::Paladin => "Paladin",
+        Iwd2Spellbook::Ranger => "Ranger",
+        Iwd2Spellbook::Sorcerer => "Sorcerer",
+        Iwd2Spellbook::Wizard => "Wizard",
+        Iwd2Spellbook::Domain => "Domain",
+        Iwd2Spellbook::Innate => "Innate",
+        Iwd2Spellbook::Song => "Song",
+        Iwd2Spellbook::ShapeChange => "Shape",
+    }
 }
 
 /// Map an SPL spell-type id to a display "Type". Mirrors EEKeeper, which

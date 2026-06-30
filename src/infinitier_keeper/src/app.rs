@@ -1,14 +1,13 @@
 use eframe::egui;
 use infinitier_core::imported_resource::gam::NpcCre;
-use infinitier_core::resource::Engine;
-use infinitier_core::resource::cre::{Item, ItemFlags, SpellType};
+use infinitier_core::resource::cre::{Cre, Item, ItemFlags, SpellType};
 
 use crate::components::editable_fields::KeeperEditors;
 use crate::components::party_selector::PartySelector;
 use crate::state::AppState;
 use crate::ui::{
-    CharacterPanel, HeaderPanel, ItemBrowser, LoadAction, SaveAction, SaveTabStrip, SpellBrowser,
-    inventory_assign_target, inventory_take_browse_request, spell_take_browse_request,
+    CharacterPanel, HeaderPanel, ItemBrowser, LoadAction, SaveAction, SaveTabStrip, SpellAssign,
+    SpellBrowser, inventory_assign_target, inventory_take_browse_request, spell_take_browse_request,
 };
 
 pub struct KeeperApp {
@@ -101,8 +100,9 @@ impl KeeperApp {
             self.assign_to_inventory(slot, &resref);
         }
 
-        // Spell browser: add the selected spell to the current character (the
-        // AD&D known-spells model only — see `can_add_spell`).
+        // Spell browser: add the selected spell to the current character.
+        // AD&D adds to the one spellbook the SPL implies; IWD2 lets the user
+        // pick the book from the menu (the browser returns the resolved one).
         let can_add_spell = self.can_add_spell();
         let spell_label = match &member_name {
             Some(name) => format!("Add to {name}"),
@@ -115,8 +115,8 @@ impl KeeperApp {
             can_add_spell,
             &spell_label,
         );
-        if let Some(resref) = add_spell {
-            self.add_spell_to_character(&resref);
+        if let Some(assign) = add_spell {
+            self.add_spell_to_character(assign);
         }
     }
 
@@ -132,10 +132,10 @@ impl KeeperApp {
     }
 
     /// Whether the selected party member can take a spell from the browser:
-    /// an embedded CRE on a non-IWD2 game (IWD2 stores spells in per-class
-    /// list-2DA blocks, not the `known_spells` model this adds to).
+    /// an embedded CRE is selected. Both spell models are supported — AD&D
+    /// `known_spells` and IWD2's per-book list-2DA blocks.
     fn can_add_spell(&self) -> bool {
-        if self.state.tabs.is_empty() || self.state.game_data.game().engine() == Engine::Iwd2 {
+        if self.state.tabs.is_empty() {
             return false;
         }
         let tab = self.state.active();
@@ -144,37 +144,45 @@ impl KeeperApp {
             .is_some_and(|m| matches!(m.cre, Some(NpcCre::Cre(_))))
     }
 
-    /// Add the spell `resref` to the selected member's known spells as a
-    /// fresh, un-memorised entry (memorised count 0). Its spellbook and level
-    /// come from the SPL header. No-op when the selection is invalid, the SPL
-    /// can't be loaded, or the spell is already known.
-    fn add_spell_to_character(&mut self, resref: &str) {
-        // Read the spell's book + level, then drop the SPL borrow before
-        // taking `&mut state`.
-        let (spell_type, level) = {
-            let Ok(spl) = self.state.game_data.import_spl_by_name(resref) else {
-                return;
-            };
-            let spell_type = match spl.header.spell_type() {
-                1 => SpellType::Wizard,
-                2 => SpellType::Priest,
-                // Innate / special / psionic / bard / other → the Innate book.
-                _ => SpellType::Innate,
-            };
-            // SPL levels are 1-based; known spells store them 0-based.
-            let level = (spl.header.spell_level() as u16).saturating_sub(1);
-            (spell_type, level)
-        };
-
-        let tab = self.state.active_mut();
-        let Some(idx) = tab.selected_party_index else {
-            return;
-        };
-        if let Some(member) = tab.save.party_npcs.get_mut(idx)
-            && let Some(NpcCre::Cre(imported)) = member.cre.as_mut()
-        {
-            imported.cre_mut().add_known_spell(spell_type, level, resref);
+    /// Add a spell to the selected member as a fresh, un-memorised entry. For
+    /// AD&D the spellbook/level come from the SPL header; for IWD2 the browser
+    /// already resolved the exact book/level/list-index the user picked. No-op
+    /// when the selection is invalid, the SPL can't be loaded, or it's already
+    /// known.
+    fn add_spell_to_character(&mut self, assign: SpellAssign) {
+        match assign {
+            SpellAssign::Adnd(resref) => {
+                // Resolve the book/level from the SPL (immutable borrow) before
+                // taking `&mut state` to write the CRE.
+                let Some((spell_type, level)) = self.adnd_spell_book(&resref) else {
+                    return;
+                };
+                self.with_selected_cre_mut(|cre| {
+                    cre.add_known_spell(spell_type, level, &resref);
+                });
+            }
+            // The browser resolved the book/level/index; add with 0 copies.
+            SpellAssign::Iwd2 { book, level, index } => {
+                self.with_selected_cre_mut(|cre| {
+                    cre.add_iwd2_spell(book, level as usize, index, 0);
+                });
+            }
         }
+    }
+
+    /// The AD&D spellbook type and on-disk (0-based) level for `resref`, read
+    /// from its SPL header. `None` if the SPL can't be loaded.
+    fn adnd_spell_book(&self, resref: &str) -> Option<(SpellType, u16)> {
+        let spl = self.state.game_data.import_spl_by_name(resref).ok()?;
+        let spell_type = match spl.header.spell_type() {
+            1 => SpellType::Wizard,
+            2 => SpellType::Priest,
+            // Innate / special / psionic / bard / other → the Innate book.
+            _ => SpellType::Innate,
+        };
+        // SPL levels are 1-based; known spells store them 0-based.
+        let level = (spl.header.spell_level() as u16).saturating_sub(1);
+        Some((spell_type, level))
     }
 
     /// Put the item `resref` into inventory `slot` of the selected party
@@ -198,6 +206,12 @@ impl KeeperApp {
             quantity3,
             flags: ItemFlags::Identified,
         };
+        self.with_selected_cre_mut(|cre| cre.set_inventory_slot_item(slot, item));
+    }
+
+    /// Run `edit` against the selected party member's mutable CRE. No-op when
+    /// no slot is selected or it isn't an embedded creature.
+    fn with_selected_cre_mut(&mut self, edit: impl FnOnce(&mut Cre)) {
         let tab = self.state.active_mut();
         let Some(idx) = tab.selected_party_index else {
             return;
@@ -205,7 +219,7 @@ impl KeeperApp {
         if let Some(member) = tab.save.party_npcs.get_mut(idx)
             && let Some(NpcCre::Cre(imported)) = member.cre.as_mut()
         {
-            imported.cre_mut().set_inventory_slot_item(slot, item);
+            edit(imported.cre_mut());
         }
     }
 }

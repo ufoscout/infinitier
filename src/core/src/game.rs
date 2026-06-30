@@ -16,7 +16,9 @@ use log::{debug, error, warn};
 
 use crate::{
     game_detect::detect_game,
-    imported_resource::{ImportedResource, cre::ImportedCre, movie, sound::SoundDecoder},
+    imported_resource::{
+        ImportedResource, cre::ImportedCre, movie, sound::SoundDecoder, spl::ImportedSpl,
+    },
 };
 
 pub type ResourceId = usize;
@@ -168,7 +170,7 @@ impl GameData {
     pub fn import_spl_by_name(
         &self,
         name: &str,
-    ) -> io::Result<Cow<'_, infinitier_spl_resource::Spl>> {
+    ) -> io::Result<Cow<'_, ImportedSpl>> {
         match self.import_by_name_and_type(name, ResourceType::Spl)? {
             Cow::Borrowed(ImportedResource::Spl(spl)) => Ok(Cow::Borrowed(spl)),
             Cow::Owned(ImportedResource::Spl(spl)) => Ok(Cow::Owned(spl)),
@@ -440,6 +442,7 @@ impl GameResource {
                 .map(ImportedResource::Sav),
             ResourceType::Spl => SplImporter { name: &self.name }
                 .import(ds)
+                .map(ImportedSpl::new)
                 .map(ImportedResource::Spl),
             ResourceType::Sql => Ok(ImportedResource::Sql),
             ResourceType::Src => Ok(ImportedResource::Src),

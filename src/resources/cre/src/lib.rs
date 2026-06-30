@@ -1792,6 +1792,52 @@ impl Cre {
         }
     }
 
+    /// Add an IWD2 (V2.2) spell to `book`'s table: a new slot referencing
+    /// list-2DA row `index`, at `level` (1-based; ignored for the flat innate
+    /// / song / shape books), with `count` copies (both the total and the
+    /// memorised count are set to `count` — DaleKeeper2 keeps them equal, and
+    /// "add" uses 0). Returns whether it was added; a no-op (false) when the
+    /// slot is already present at that book/level or the creature isn't V2.2.
+    pub fn add_iwd2_spell(
+        &mut self,
+        book: Iwd2Spellbook,
+        level: usize,
+        index: u32,
+        count: u32,
+    ) -> bool {
+        let SubSections::V22(sub) = &mut self.sub_sections else {
+            return false;
+        };
+        let lv = level.saturating_sub(1).min(8);
+        let table = match book {
+            Iwd2Spellbook::Bard => &mut sub.bard_spells[lv],
+            Iwd2Spellbook::Cleric => &mut sub.cleric_spells[lv],
+            Iwd2Spellbook::Druid => &mut sub.druid_spells[lv],
+            Iwd2Spellbook::Paladin => &mut sub.paladin_spells[lv],
+            Iwd2Spellbook::Ranger => &mut sub.ranger_spells[lv],
+            Iwd2Spellbook::Sorcerer => &mut sub.sorcerer_spells[lv],
+            Iwd2Spellbook::Wizard => &mut sub.wizard_spells[lv],
+            Iwd2Spellbook::Domain => &mut sub.domain_spells[lv],
+            Iwd2Spellbook::Innate => &mut sub.abilities,
+            Iwd2Spellbook::Song => &mut sub.songs,
+            Iwd2Spellbook::ShapeChange => &mut sub.shapes,
+        };
+        if table.entries.iter().any(|e| e.index == index) {
+            return false; // already known in this book/level
+        }
+        // The per-level trailer (num_memorizable / num_remaining) tracks the
+        // character's memorisation slots from class progression, not the known
+        // spells, so it is left untouched (verified against DaleKeeper2).
+        table.present = true;
+        table.entries.push(Iwd2Slot {
+            index,
+            memorized: count,
+            memorizable: count,
+            flags: 0,
+        });
+        true
+    }
+
     /// Put `item` into inventory slot `slot` — the slot's index in the
     /// creature's `item_slots` table, which is the same index the keeper's
     /// Inventory-tab rows use. A slot that already holds an item has that
@@ -3969,6 +4015,47 @@ mod tests {
 
         // A missing index is a no-op.
         assert!(!cre.set_iwd2_spell_memorized(Iwd2Spellbook::Wizard, 3, u32::MAX, 9));
+    }
+
+    /// Adding an IWD2 spell appends a slot with equal total/memorised counts
+    /// and zero flags (matching DaleKeeper2), leaves the trailer untouched,
+    /// survives a round-trip, and is idempotent per book/level.
+    #[test]
+    fn add_iwd2_spell_appends_slot() {
+        let mut cre = crate::test_support::import_fixture("v2_2/52SERSA.cre");
+        let before = total_iwd2_entries(&cre);
+
+        // Add Magic Missile to Wizard L1 (DaleKeeper2: index 178, counts 0).
+        assert!(cre.add_iwd2_spell(Iwd2Spellbook::Wizard, 1, 178, 0));
+        let slot = |c: &Cre| -> Iwd2Slot {
+            let SubSections::V22(s) = &c.sub_sections else {
+                unreachable!()
+            };
+            s.wizard_spells[0]
+                .entries
+                .iter()
+                .find(|e| e.index == 178)
+                .cloned()
+                .expect("added slot")
+        };
+        let s = slot(&cre);
+        assert_eq!((s.memorized, s.memorizable, s.flags), (0, 0, 0));
+        assert_eq!(total_iwd2_entries(&cre), before + 1);
+
+        // Round-trips byte-stably.
+        assert_eq!(slot(&round_trip(&cre)), s);
+
+        // Idempotent: re-adding the same index at the same book/level no-ops.
+        assert!(!cre.add_iwd2_spell(Iwd2Spellbook::Wizard, 1, 178, 0));
+        assert_eq!(total_iwd2_entries(&cre), before + 1);
+
+        // A non-zero count sets both the total and memorised fields.
+        assert!(cre.add_iwd2_spell(Iwd2Spellbook::Cleric, 1, 21, 5));
+        let SubSections::V22(s) = &cre.sub_sections else {
+            unreachable!()
+        };
+        let bless = s.cleric_spells[0].entries.iter().find(|e| e.index == 21).unwrap();
+        assert_eq!((bless.memorized, bless.memorizable), (5, 5));
     }
 
     /// Classic IWD/HoW (CRE V9.0) stores fifteen weapon-group proficiencies
