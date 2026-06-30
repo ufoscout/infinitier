@@ -1606,9 +1606,8 @@ impl Cre {
             return false;
         };
         let before = sub.known_spells.len();
-        sub.known_spells.retain(|k| {
-            k.spell_type != spell_type || !k.spell.eq_ignore_ascii_case(resref)
-        });
+        sub.known_spells
+            .retain(|k| k.spell_type != spell_type || !k.spell.eq_ignore_ascii_case(resref));
         sub.known_spells.len() != before
     }
 
@@ -3815,9 +3814,9 @@ mod tests {
             let SubSections::V1(s) = &c.sub_sections else {
                 unreachable!()
             };
-            s.known_spells
-                .iter()
-                .any(|k| k.spell_type == SpellType::Wizard && k.spell.eq_ignore_ascii_case("SPWI101"))
+            s.known_spells.iter().any(|k| {
+                k.spell_type == SpellType::Wizard && k.spell.eq_ignore_ascii_case("SPWI101")
+            })
         };
         assert!(!knows(&cre));
 
@@ -3954,7 +3953,9 @@ mod tests {
                 .expect("fixture should have a memorised spell");
             (
                 info.spell_type,
-                s.memorized_spells[info.spell_table_index as usize].spell.clone(),
+                s.memorized_spells[info.spell_table_index as usize]
+                    .spell
+                    .clone(),
             )
         };
         let have = count_memorized(&cre, &resref);
@@ -4054,7 +4055,11 @@ mod tests {
         let SubSections::V22(s) = &cre.sub_sections else {
             unreachable!()
         };
-        let bless = s.cleric_spells[0].entries.iter().find(|e| e.index == 21).unwrap();
+        let bless = s.cleric_spells[0]
+            .entries
+            .iter()
+            .find(|e| e.index == 21)
+            .unwrap();
         assert_eq!((bless.memorized, bless.memorizable), (5, 5));
     }
 

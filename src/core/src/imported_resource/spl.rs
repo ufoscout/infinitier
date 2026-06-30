@@ -87,7 +87,11 @@ impl ImportedSpl {
         }
 
         // Flat books — the row key is the stored index, level is always 1.
-        for (table, book) in [("listinnt", Innate), ("listsong", Song), ("listshap", ShapeChange)] {
+        for (table, book) in [
+            ("listinnt", Innate),
+            ("listsong", Song),
+            ("listshap", ShapeChange),
+        ] {
             if let Some(index) = Self::iwd2_flat_index(game_data, table, resref) {
                 out.push(Iwd2Placement {
                     book,

@@ -90,10 +90,8 @@ fn spell_table(ui: &mut egui::Ui, named: &[(String, SpellRow)]) -> Option<SpellE
                         let mut mem = r.memorized;
                         let h = ui.text_style_height(&egui::TextStyle::Button)
                             + 2.0 * ui.spacing().button_padding.y;
-                        let resp = ui.add_sized(
-                            [60.0, h],
-                            egui::DragValue::new(&mut mem).range(0..=99),
-                        );
+                        let resp =
+                            ui.add_sized([60.0, h], egui::DragValue::new(&mut mem).range(0..=99));
                         if resp.changed() {
                             event = Some(SpellEvent::SetMemorized(r.spell.clone(), mem));
                         }

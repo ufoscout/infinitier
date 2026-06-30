@@ -7,7 +7,8 @@ use crate::components::party_selector::PartySelector;
 use crate::state::AppState;
 use crate::ui::{
     CharacterPanel, HeaderPanel, ItemBrowser, LoadAction, SaveAction, SaveTabStrip, SpellAssign,
-    SpellBrowser, inventory_assign_target, inventory_take_browse_request, spell_take_browse_request,
+    SpellBrowser, inventory_assign_target, inventory_take_browse_request,
+    spell_take_browse_request,
 };
 
 pub struct KeeperApp {

@@ -86,7 +86,11 @@ fn show_adnd(
 
     let mut selected =
         remembered_index(ui, "adnd_spell_type", char_key, 0).min(data::ADND_TABS.len() - 1);
-    ui.add(Tabs::new(&mut selected).tabs(tab_labels(&names, &counts)).segmented());
+    ui.add(
+        Tabs::new(&mut selected)
+            .tabs(tab_labels(&names, &counts))
+            .segmented(),
+    );
     store_index(ui, "adnd_spell_type", char_key, selected);
 
     ui.add_space(8.0);
@@ -115,7 +119,11 @@ fn show_iwd2(
         .min(SpellCategory::ALL.len() - 1);
 
     let names: Vec<&str> = SpellCategory::ALL.iter().map(|(_, label)| *label).collect();
-    ui.add(Tabs::new(&mut selected).tabs(tab_labels(&names, &counts)).segmented());
+    ui.add(
+        Tabs::new(&mut selected)
+            .tabs(tab_labels(&names, &counts))
+            .segmented(),
+    );
     store_index(ui, "iwd2_spell_category", char_key, selected);
 
     ui.add_space(8.0);
@@ -123,7 +131,11 @@ fn show_iwd2(
     // Resolve the category's list 2DA once, so `data` can turn slot indices
     // into resrefs.
     let list = game_data.import_2da_by_name(category.list_2da()).ok();
-    view::render(ui, data::iwd2_rows(cre, category, list.as_deref()), game_data)
+    view::render(
+        ui,
+        data::iwd2_rows(cre, category, list.as_deref()),
+        game_data,
+    )
 }
 
 /// The selected party creature, if it's an embedded (parsed) CRE.

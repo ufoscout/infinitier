@@ -26,7 +26,10 @@ use infinitier_core::resource::two_da::TwoDA;
 #[derive(Clone)]
 pub enum SpellRef {
     /// An AD&D known spell, identified by its spellbook type and resref.
-    Adnd { spell_type: SpellType, resref: String },
+    Adnd {
+        spell_type: SpellType,
+        resref: String,
+    },
     /// An IWD2 spell slot, identified by its book, level and list-2DA index.
     Iwd2 {
         book: Iwd2Spellbook,
@@ -151,7 +154,10 @@ pub fn adnd_rows(cre: &Cre, spell_type: SpellType) -> Vec<SpellRow> {
         }
         // Collapse duplicate known-spell entries — resrefs are unique per
         // spell.
-        if rows.iter().any(|r| r.resref.eq_ignore_ascii_case(&known.spell)) {
+        if rows
+            .iter()
+            .any(|r| r.resref.eq_ignore_ascii_case(&known.spell))
+        {
             continue;
         }
         let memorized = sub
