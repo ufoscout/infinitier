@@ -67,7 +67,11 @@ impl AppState {
     /// per-save data (save name) lives in the tab strip below the
     /// header.
     pub fn window_title(&self) -> String {
-        format!("Infinitier Keeper - {:?}", self.game_data.game())
+        format!(
+            "Infinitier Keeper {} - {:?}",
+            crate::build_version(),
+            self.game_data.game()
+        )
     }
 
     pub fn new(game_data: GameData, engine_caps: EngineCaps) -> Self {

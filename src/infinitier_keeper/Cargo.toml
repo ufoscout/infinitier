@@ -25,3 +25,6 @@ log = { workspace = true }
 [dev-dependencies]
 infinitier_test_utils = { workspace = true }
 tempfile = { workspace = true }
+
+[build-dependencies]
+vergen-gix = { workspace = true }

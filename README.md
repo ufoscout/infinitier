@@ -11,8 +11,8 @@ R = Read
 | Levels & Kits    |  —   |  —   |  —   |  —   |  RW  |  —   |
 | Characteristics  |  R   |  R   |  R   |  R   |  R   |  R   |
 | Appearance       |  R   |  R   |  R   |  R   |  R   |  R   |
-| Inventory        |  R   |  R   |  R   |  R   |  R   |  R   |
-| Spells           |  R   |  R   |  R   |  R   |  R   |  R   |
+| Inventory        |  RW  |  RW  |  RW  |  RW  |  RW  |  RW  |
+| Spells           |  RW  |  RW  |  RW  |  RW  |  RW  |  RW  |
 | Feats            |  —   |  —   |  —   |  —   |  RW  |  —   |
 | Memorization     |  RW  |  RW  |  RW  |  RW  |  —   |  RW  |
 | Proficiencies    |  RW  |  RW  |  RW  |  RW  |  —   |  RW  |

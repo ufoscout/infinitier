@@ -125,6 +125,12 @@ egui-components = { git = "https://github.com/ufoscout/egui-components.git", bra
 # one may be enabled at a time; the constant name stays the same.
 ttf-inter = { version = "0.1", default-features = false, features = ["regular"] }
 
+# Build-time git info (tag/branch) baked into the binary. `default-features
+# = false` keeps only the git emitter — the build/cargo/rustc/si emitters
+# stay off. Uses the pure-Rust `gix` backend, so no system `git` is required
+# at build time.
+vergen-gix = { version = "10", default-features = false }
+
 
 [profile.dev]
 debug = "line-tables-only"

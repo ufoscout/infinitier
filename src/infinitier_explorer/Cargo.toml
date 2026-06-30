@@ -20,3 +20,6 @@ eframe = { workspace = true }
 egui-components = { workspace = true }
 rodio = { workspace = true }
 ttf-inter = { workspace = true }
+
+[build-dependencies]
+vergen-gix = { workspace = true }

@@ -1,4 +1,5 @@
 mod app;
+mod build_data;
 mod components;
 mod state;
 mod ui;
@@ -14,6 +15,7 @@ use infinitier_core::imported_resource::gam::ImportedGam;
 use infinitier_core::resource::gam::GamImporter;
 
 use crate::app::KeeperApp;
+use crate::build_data::build_version;
 use crate::state::{AppState, SaveTab};
 
 /// Infinitier Keeper — cross-engine Infinity Engine save-game editor.
@@ -51,6 +53,8 @@ fn display_paths(paths: &[PathBuf]) -> String {
 fn main() {
     let args = Args::parse();
     env_logger::Builder::new().parse_filters(&args.log).init();
+
+    log::info!("Infinitier Keeper {}", build_version());
 
     let game_data = GameDataBuilder::new(args.game_path.as_slice(), None)
         .and_then(|b| b.build())

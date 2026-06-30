@@ -1,4 +1,5 @@
 mod app;
+mod build_data;
 mod components;
 mod state;
 mod ui;
@@ -7,6 +8,8 @@ use clap::Parser;
 use eframe::egui;
 use infinitier_core::game::GameDataBuilder;
 use std::path::PathBuf;
+
+use crate::build_data::build_version;
 
 /// Infinitier Explorer — browse resources from Infinity Engine games.
 #[derive(Parser)]
@@ -39,6 +42,8 @@ fn main() {
 
     env_logger::Builder::new().parse_filters(&args.log).init();
 
+    log::info!("Infinitier Explorer {}", build_version());
+
     let game_data = GameDataBuilder::new(args.game_path.as_slice(), None)
         .and_then(|b| b.build())
         .unwrap_or_else(|e| {
@@ -49,7 +54,11 @@ fn main() {
             std::process::exit(1);
         });
 
-    let title = format!("Infinitier Explorer - {:?}", game_data.game());
+    let title = format!(
+        "Infinitier Explorer {} - {:?}",
+        build_version(),
+        game_data.game()
+    );
 
     // Force the wgpu GL backend. On Linux the default would be
     // Vulkan, which has shown rendering glitches during window
