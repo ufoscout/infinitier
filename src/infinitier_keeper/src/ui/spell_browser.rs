@@ -88,6 +88,9 @@ pub struct SpellBrowser {
     /// Set when the selection was changed programmatically (revealed from a
     /// Spells-tab row): scroll the list to it on the next frame.
     scroll_to_selected: bool,
+    /// An open IWD2 "pick a spellbook" menu, raised by double-clicking a row:
+    /// the spell's resref and the screen position to anchor the menu at.
+    book_menu: Option<(String, egui::Pos2)>,
 }
 
 impl SpellBrowser {
@@ -99,6 +102,7 @@ impl SpellBrowser {
             selected: None,
             icon_cache: None,
             scroll_to_selected: false,
+            book_menu: None,
         }
     }
 
@@ -207,18 +211,81 @@ impl SpellBrowser {
             .resizable(false)
             .exact_size(FILTER_W)
             .show_inside(ui, |ui| self.filters(ui, &entries, filtered.len()));
+        let iwd2 = game_data.game().engine() == Engine::Iwd2;
+        // A row double-clicked this frame opens its book menu (IWD2) at the
+        // pointer; the trigger frame is flagged so the popup opens then.
+        let mut opened_book_menu = false;
         egui::CentralPanel::default().show_inside(ui, |ui| {
-            // Double-click-to-add only applies to AD&D (one unambiguous
-            // spellbook); IWD2 needs the explicit book menu in `description`.
-            if let Some(resref) = self.spell_table(ui, &entries, &filtered, scroll_target, can_assign)
-                && game_data.game().engine() != Engine::Iwd2
+            if let Some((resref, pos)) =
+                self.spell_table(ui, &entries, &filtered, scroll_target, can_assign)
             {
-                assign = Some(SpellAssign::Adnd(resref));
+                if iwd2 {
+                    // Ambiguous spellbook → show the same per-book menu the
+                    // "Add" button uses, anchored at the double-click.
+                    self.book_menu = Some((resref, pos));
+                    opened_book_menu = true;
+                } else {
+                    // AD&D: one unambiguous spellbook, add straight away.
+                    assign = Some(SpellAssign::Adnd(resref));
+                }
             }
         });
+        if let Some(picked) = self.book_menu_popup(ui, game_data, opened_book_menu) {
+            assign = Some(picked);
+        }
 
         self.entries = Some(entries);
         assign
+    }
+
+    /// Render the at-pointer "pick a spellbook" popup for a double-clicked IWD2
+    /// row (when [`Self::book_menu`] is set). `just_opened` requests the popup
+    /// open this frame. Returns the chosen placement; the popup closes on a
+    /// pick or a click outside.
+    fn book_menu_popup(
+        &mut self,
+        ui: &egui::Ui,
+        game_data: &GameData,
+        just_opened: bool,
+    ) -> Option<SpellAssign> {
+        let (resref, pos) = self.book_menu.clone()?;
+        let placements = ImportedSpl::iwd2_placements(game_data, &resref);
+        let popup_id = egui::Id::new("spell_book_menu");
+        let open = just_opened.then_some(egui::SetOpenCommand::Bool(true));
+
+        let mut picked = None;
+        egui::Popup::new(
+            popup_id,
+            ui.ctx().clone(),
+            egui::PopupAnchor::Position(pos),
+            ui.layer_id(),
+        )
+        .open_memory(open)
+        .kind(egui::PopupKind::Menu)
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .layout(egui::Layout::top_down_justified(egui::Align::Min))
+        .show(|ui| {
+            for p in &placements {
+                if ui
+                    .button(format!("{} — Lvl {}", book_name(p.book), p.level))
+                    .clicked()
+                {
+                    picked = Some(SpellAssign::Iwd2 {
+                        book: p.book,
+                        level: p.level,
+                        index: p.index,
+                    });
+                }
+            }
+        });
+
+        // Forget the menu once a placement is chosen or it's closed (outside
+        // click), so it doesn't re-render stale next frame. Don't clear on the
+        // opening frame (the open command only takes effect during `show`).
+        if picked.is_some() || (!just_opened && !egui::Popup::is_id_open(ui.ctx(), popup_id)) {
+            self.book_menu = None;
+        }
+        picked
     }
 
     /// Move the selection up/down through `filtered` on arrow-key presses,
@@ -268,11 +335,12 @@ impl SpellBrowser {
         filtered: &[usize],
         scroll_target: Option<usize>,
         can_assign: bool,
-    ) -> Option<String> {
+    ) -> Option<(String, egui::Pos2)> {
         let mut clicked: Option<usize> = None;
         // A double-clicked row (when assignment is possible) requests its
-        // spell be added to the character.
-        let mut assign: Option<usize> = None;
+        // spell be added — with the pointer position, so IWD2 can open its
+        // book menu right there.
+        let mut assign: Option<(usize, egui::Pos2)> = None;
         let selected = self.selected.clone();
         let mut table = Table::new("spell_browser_list")
             .striped(true)
@@ -321,14 +389,17 @@ impl SpellBrowser {
                     clicked = Some(filtered[i]);
                 }
                 if can_assign && resp.double_clicked() {
-                    assign = Some(filtered[i]);
+                    let pos = resp
+                        .interact_pointer_pos()
+                        .unwrap_or_else(|| resp.rect.center());
+                    assign = Some((filtered[i], pos));
                 }
             });
         });
         if let Some(idx) = clicked {
             self.selected = Some(entries[idx].resref.clone());
         }
-        assign.map(|idx| entries[idx].resref.clone())
+        assign.map(|(idx, pos)| (entries[idx].resref.clone(), pos))
     }
 
     /// The right-hand filter column: free-text search, a checkbox per spell
