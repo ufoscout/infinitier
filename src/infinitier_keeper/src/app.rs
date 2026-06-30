@@ -1,13 +1,14 @@
 use eframe::egui;
 use infinitier_core::imported_resource::gam::NpcCre;
-use infinitier_core::resource::cre::{Item, ItemFlags};
+use infinitier_core::resource::Engine;
+use infinitier_core::resource::cre::{Item, ItemFlags, SpellType};
 
 use crate::components::editable_fields::KeeperEditors;
 use crate::components::party_selector::PartySelector;
 use crate::state::AppState;
 use crate::ui::{
     CharacterPanel, HeaderPanel, ItemBrowser, LoadAction, SaveAction, SaveTabStrip, SpellBrowser,
-    inventory_assign_target, inventory_take_browse_request,
+    inventory_assign_target, inventory_take_browse_request, spell_take_browse_request,
 };
 
 pub struct KeeperApp {
@@ -71,21 +72,109 @@ impl KeeperApp {
             self.items_window_open = true;
             self.item_browser.select(resref);
         }
-        // The Inventory tab owns the selected-slot state; ask it whether (and
-        // where) the browser's item can be assigned. `Some(slot)` enables the
-        // "Add to Inventory" button / double-click and names the target.
+        // Likewise, double-clicking a Spells-tab row reveals that spell in the
+        // Spell Browser.
+        if let Some(resref) = spell_take_browse_request(ctx) {
+            self.spells_window_open = true;
+            self.spell_browser.select(resref);
+        }
+
+        // The selected member names both browsers' add buttons.
+        let member_name = self.selected_member_name();
+
+        // Item browser: the Inventory tab owns the selected-slot state; ask it
+        // whether (and where) the browser's item can be assigned. `Some(slot)`
+        // enables the add button / double-click and names the target.
         let target = inventory_assign_target(ctx, &self.state);
+        let item_label = match &member_name {
+            Some(name) => format!("Add to {name} inventory"),
+            None => "Add to inventory".to_string(),
+        };
         let assign = self.item_browser.show(
             ctx,
             &mut self.items_window_open,
             &self.state.game_data,
             target.is_some(),
+            &item_label,
         );
         if let (Some(resref), Some(slot)) = (assign, target) {
             self.assign_to_inventory(slot, &resref);
         }
-        self.spell_browser
-            .show(ctx, &mut self.spells_window_open, &self.state.game_data);
+
+        // Spell browser: add the selected spell to the current character (the
+        // AD&D known-spells model only — see `can_add_spell`).
+        let can_add_spell = self.can_add_spell();
+        let spell_label = match &member_name {
+            Some(name) => format!("Add to {name}"),
+            None => "Add to character".to_string(),
+        };
+        let add_spell = self.spell_browser.show(
+            ctx,
+            &mut self.spells_window_open,
+            &self.state.game_data,
+            can_add_spell,
+            &spell_label,
+        );
+        if let Some(resref) = add_spell {
+            self.add_spell_to_character(&resref);
+        }
+    }
+
+    /// The selected party member's display name, or `None` when no save is
+    /// open or the slot has no name.
+    fn selected_member_name(&self) -> Option<String> {
+        if self.state.tabs.is_empty() {
+            return None;
+        }
+        let tab = self.state.active();
+        let member = tab.save.party_npcs.get(tab.selected_party_index?)?;
+        (!member.display_name.is_empty()).then(|| member.display_name.clone())
+    }
+
+    /// Whether the selected party member can take a spell from the browser:
+    /// an embedded CRE on a non-IWD2 game (IWD2 stores spells in per-class
+    /// list-2DA blocks, not the `known_spells` model this adds to).
+    fn can_add_spell(&self) -> bool {
+        if self.state.tabs.is_empty() || self.state.game_data.game().engine() == Engine::Iwd2 {
+            return false;
+        }
+        let tab = self.state.active();
+        tab.selected_party_index
+            .and_then(|idx| tab.save.party_npcs.get(idx))
+            .is_some_and(|m| matches!(m.cre, Some(NpcCre::Cre(_))))
+    }
+
+    /// Add the spell `resref` to the selected member's known spells as a
+    /// fresh, un-memorised entry (memorised count 0). Its spellbook and level
+    /// come from the SPL header. No-op when the selection is invalid, the SPL
+    /// can't be loaded, or the spell is already known.
+    fn add_spell_to_character(&mut self, resref: &str) {
+        // Read the spell's book + level, then drop the SPL borrow before
+        // taking `&mut state`.
+        let (spell_type, level) = {
+            let Ok(spl) = self.state.game_data.import_spl_by_name(resref) else {
+                return;
+            };
+            let spell_type = match spl.header.spell_type() {
+                1 => SpellType::Wizard,
+                2 => SpellType::Priest,
+                // Innate / special / psionic / bard / other → the Innate book.
+                _ => SpellType::Innate,
+            };
+            // SPL levels are 1-based; known spells store them 0-based.
+            let level = (spl.header.spell_level() as u16).saturating_sub(1);
+            (spell_type, level)
+        };
+
+        let tab = self.state.active_mut();
+        let Some(idx) = tab.selected_party_index else {
+            return;
+        };
+        if let Some(member) = tab.save.party_npcs.get_mut(idx)
+            && let Some(NpcCre::Cre(imported)) = member.cre.as_mut()
+        {
+            imported.cre_mut().add_known_spell(spell_type, level, resref);
+        }
     }
 
     /// Put the item `resref` into inventory `slot` of the selected party

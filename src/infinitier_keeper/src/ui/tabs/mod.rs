@@ -50,6 +50,7 @@ use miscellaneous::MiscellaneousTab;
 use proficiencies::ProficienciesTab;
 use resistances::ResistancesTab;
 use spells::SpellsTab;
+pub use spells::take_browse_request as spell_take_browse_request;
 
 /// Render a per-row actions "…" menu whose only entry is **Delete**,
 /// returning `true` the frame Delete is chosen. Shared by the Inventory and

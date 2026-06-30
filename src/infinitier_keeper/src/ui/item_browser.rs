@@ -107,25 +107,33 @@ impl ItemBrowser {
     ///
     /// `can_assign` is true when the host can take the selected item into an
     /// inventory slot (the Inventory tab is active with a slot selected); it
-    /// enables the "Add to Inventory" button and double-click-to-assign.
-    /// Returns the resref to assign when the user requests it this frame.
+    /// enables the add button and double-click-to-assign. `add_label` is the
+    /// button's caption (e.g. "Add to Xan inventory"). Returns the resref to
+    /// assign when the user requests it this frame.
     pub fn show(
         &mut self,
         ctx: &egui::Context,
         open: &mut bool,
         game_data: &GameData,
         can_assign: bool,
+        add_label: &str,
     ) -> Option<String> {
         egui::Window::new(egui::RichText::new("Item Browser").size(TITLE_SIZE))
             .open(open)
             .default_size([780.0, 600.0])
             .resizable(true)
-            .show(ctx, |ui| self.ui(ui, game_data, can_assign))
+            .show(ctx, |ui| self.ui(ui, game_data, can_assign, add_label))
             .and_then(|r| r.inner)
             .flatten()
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, game_data: &GameData, can_assign: bool) -> Option<String> {
+    fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        game_data: &GameData,
+        can_assign: bool,
+        add_label: &str,
+    ) -> Option<String> {
         if self.entries.is_none() {
             self.entries = Some(build_index(game_data));
         }
@@ -173,7 +181,7 @@ impl ItemBrowser {
             .resizable(false)
             .exact_size(desc_h)
             .show_inside(ui, |ui| {
-                if let Some(r) = self.description(ui, game_data, &entries, can_assign) {
+                if let Some(r) = self.description(ui, game_data, &entries, can_assign, add_label) {
                     assign = Some(r);
                 }
             });
@@ -332,7 +340,7 @@ impl ItemBrowser {
             });
     }
 
-    /// The bottom panel: an "Add to Inventory" button, then the selected
+    /// The bottom panel: the add-to-inventory button, then the selected
     /// item's icon to the left of its scrollable long description. Returns
     /// the selected resref when the button is clicked.
     fn description(
@@ -341,18 +349,19 @@ impl ItemBrowser {
         game_data: &GameData,
         entries: &[ItemEntry],
         can_assign: bool,
+        add_label: &str,
     ) -> Option<String> {
         let entry = self
             .selected
             .as_deref()
             .and_then(|sel| entries.iter().find(|e| e.resref == sel));
 
-        // "Add to Inventory": enabled only when the host can take the item
+        // The add button: enabled only when the host can take the item
         // (Inventory tab active + slot selected) and an item is selected.
         let mut request = None;
         let enabled = can_assign && entry.is_some();
         if ui
-            .add_enabled(enabled, Button::primary("Add to Inventory").small())
+            .add_enabled(enabled, Button::primary(add_label).small())
             .clicked()
             && let Some(e) = entry
         {

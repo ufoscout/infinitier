@@ -58,10 +58,14 @@ pub fn render(ui: &mut egui::Ui, rows: Vec<SpellRow>, game_data: &GameData) -> O
 /// Memorized count is editable. Returns the row's requested [`SpellEvent`].
 fn spell_table(ui: &mut egui::Ui, named: &[(String, SpellRow)]) -> Option<SpellEvent> {
     let mut event = None;
+    // A row double-clicked this frame → reveal its spell in the Spell Browser.
+    let mut reveal: Option<String> = None;
     let size = egui::vec2(MAX_TABLE_W.min(ui.available_width()), ui.available_height());
     ui.allocate_ui_with_layout(size, egui::Layout::top_down(egui::Align::Min), |ui| {
         Table::new("spells")
             .striped(true)
+            // Selectable so the row senses clicks (for double-click-to-reveal).
+            .selectable(true)
             .max_height(ui.available_height())
             .column(TableColumn::exact(70.0).header("Level"))
             .column(TableColumn::exact(90.0).header("Memorized"))
@@ -105,9 +109,17 @@ fn spell_table(ui: &mut egui::Ui, named: &[(String, SpellRow)]) -> Option<SpellE
                             event = Some(SpellEvent::Delete(r.spell.clone()));
                         }
                     });
+                    // Double-clicking the row (anywhere but the interactive
+                    // Memorized / menu cells) reveals the spell in the browser.
+                    if row.response().double_clicked() {
+                        reveal = Some(r.resref.clone());
+                    }
                 });
             });
     });
+    if let Some(resref) = reveal {
+        super::set_browse_request(ui.ctx(), resref);
+    }
     event
 }
 

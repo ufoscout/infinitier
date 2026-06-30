@@ -25,6 +25,23 @@ use infinitier_core::resource::cre::Cre;
 use self::data::{SpellCategory, SpellEvent, SpellRef};
 use crate::state::AppState;
 
+/// Frame-store key for a pending "reveal this spell in the Spell Browser"
+/// request, raised by double-clicking a Spells-tab row and consumed by the
+/// host (mirrors the Inventory tab's browse request).
+const BROWSE_KEY: &str = "spell_browse_request";
+
+/// Raise a request to reveal `resref` in the Spell Browser.
+pub(super) fn set_browse_request(ctx: &egui::Context, resref: String) {
+    ctx.data_mut(|d| d.insert_temp(egui::Id::new(BROWSE_KEY), resref));
+}
+
+/// Take (read and clear) a pending request to reveal a spell in the Spell
+/// Browser. The host consumes this to open the browser (if closed) and
+/// select the spell.
+pub fn take_browse_request(ctx: &egui::Context) -> Option<String> {
+    ctx.data_mut(|d| d.remove_temp::<String>(egui::Id::new(BROWSE_KEY)))
+}
+
 pub struct SpellsTab;
 
 impl SpellsTab {

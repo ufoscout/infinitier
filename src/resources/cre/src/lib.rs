@@ -1612,6 +1612,29 @@ impl Cre {
         sub.known_spells.len() != before
     }
 
+    /// Add `resref` to an AD&D (V1) creature's known spells as a `spell_type`
+    /// spell at on-disk `level` (0-based), unless it is already known. No
+    /// memorised copies are added — the memorised count starts at 0. Returns
+    /// whether it was added (false if already known or a non-V1 creature).
+    pub fn add_known_spell(&mut self, spell_type: SpellType, level: u16, resref: &str) -> bool {
+        let SubSections::V1(sub) = &mut self.sub_sections else {
+            return false;
+        };
+        if sub
+            .known_spells
+            .iter()
+            .any(|k| k.spell_type == spell_type && k.spell.eq_ignore_ascii_case(resref))
+        {
+            return false;
+        }
+        sub.known_spells.push(KnownSpell {
+            spell: resref.to_string(),
+            level,
+            spell_type,
+        });
+        true
+    }
+
     /// Remove the first IWD2 (V2.2) spell slot referencing list-2DA row
     /// `index` from the `book`'s table. `level` (1-based) selects which of the
     /// nine per-level tables for the leveled class/domain books; it is ignored
@@ -3732,6 +3755,38 @@ mod tests {
 
         // A spell that isn't known is a no-op.
         assert!(!cre.remove_known_spell(target.spell_type, "zzznope"));
+    }
+
+    /// Adding a known spell appends a `known_spells` record with zero
+    /// memorised copies, survives a round-trip, and is idempotent (adding the
+    /// same spell again is a no-op).
+    #[test]
+    fn add_known_spell_appends_unmemorized_and_is_idempotent() {
+        let mut cre = crate::test_support::import_fixture("v1_0/EVERARD2.cre");
+        // A spell the priest fixture doesn't already know.
+        assert_eq!(count_memorized(&cre, "SPWI101"), 0);
+        let knows = |c: &Cre| -> bool {
+            let SubSections::V1(s) = &c.sub_sections else {
+                unreachable!()
+            };
+            s.known_spells
+                .iter()
+                .any(|k| k.spell_type == SpellType::Wizard && k.spell.eq_ignore_ascii_case("SPWI101"))
+        };
+        assert!(!knows(&cre));
+
+        // Add a level-1 (on-disk 0) wizard spell.
+        assert!(cre.add_known_spell(SpellType::Wizard, 0, "SPWI101"));
+        assert!(knows(&cre));
+        // No memorised copies were created.
+        assert_eq!(count_memorized(&cre, "SPWI101"), 0);
+
+        // Survives a round-trip.
+        let rt = round_trip(&cre);
+        assert!(knows(&rt));
+
+        // Adding the same spell again is a no-op.
+        assert!(!cre.add_known_spell(SpellType::Wizard, 0, "SPWI101"));
     }
 
     /// Sum of every IWD2 spell-slot entry across all books/levels.
