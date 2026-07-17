@@ -24,7 +24,7 @@ impl ResourceViewerTrait for BcsViewer {
         let cr_count = self.bcs.bcs.condition_responses.len();
         let baf_lines = self.bcs.baf.lines().count();
 
-        egui::Panel::bottom("bcs_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("bcs_info_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("{cr_count} CR blocks"));
                 ui.separator();

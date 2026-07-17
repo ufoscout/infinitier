@@ -180,7 +180,7 @@ impl ItemBrowser {
         egui::Panel::bottom("item_browser_desc")
             .resizable(false)
             .exact_size(desc_h)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 if let Some(r) = self.description(ui, game_data, &entries, can_assign, add_label) {
                     assign = Some(r);
                 }
@@ -188,8 +188,8 @@ impl ItemBrowser {
         egui::Panel::right("item_browser_filters")
             .resizable(false)
             .exact_size(FILTER_W)
-            .show_inside(ui, |ui| self.filters(ui, &entries, filtered.len()));
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+            .show(ui, |ui| self.filters(ui, &entries, filtered.len()));
+        egui::CentralPanel::default().show(ui, |ui| {
             if let Some(r) = self.item_table(ui, &entries, &filtered, scroll_target, can_assign) {
                 assign = Some(r);
             }

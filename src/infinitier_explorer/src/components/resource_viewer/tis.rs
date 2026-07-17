@@ -169,7 +169,7 @@ impl ResourceViewerTrait for TisViewer {
         // ── Bottom info bar (rendered first so the central area takes
         //     the rest of the space) ──────────────────────────────────
         let composed_size = self.texture.size();
-        egui::Panel::bottom("tis_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("tis_info_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("{} × {} px", composed_size[0], composed_size[1]));
                 ui.separator();
@@ -223,7 +223,7 @@ impl ResourceViewerTrait for TisViewer {
         });
 
         // ── Top control bar: tiles-per-row slider + grid toggle ──────
-        egui::Panel::top("tis_controls_panel").show_inside(ui, |ui| {
+        egui::Panel::top("tis_controls_panel").show(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 ui.label("Tiles per row:");

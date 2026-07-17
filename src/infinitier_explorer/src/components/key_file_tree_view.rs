@@ -7,7 +7,7 @@ use infinitier_core::game::{DataOrigin, GameData};
 
 use crate::state::AppState;
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TreeNodeId {
     TypeGroup(&'static str),
     Resource(usize),

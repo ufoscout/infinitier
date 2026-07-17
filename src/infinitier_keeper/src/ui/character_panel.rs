@@ -18,7 +18,7 @@ pub struct CharacterPanel;
 
 impl CharacterPanel {
     pub fn show(&self, ui: &mut egui::Ui, state: &mut AppState, editors: &mut KeeperEditors) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let active = state.active();
             let Some(idx) = active.selected_party_index else {
                 ui.label("Select a party member on the left to view their data.");

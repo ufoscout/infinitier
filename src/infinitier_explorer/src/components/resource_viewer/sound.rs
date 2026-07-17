@@ -369,7 +369,7 @@ impl ResourceViewerTrait for SoundViewer {
         self.poll_for_eos();
 
         // ── Bottom info bar ────────────────────────────────────────────────
-        egui::Panel::bottom("sound_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("sound_info_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(&self.name);
                 ui.separator();
@@ -404,7 +404,7 @@ impl ResourceViewerTrait for SoundViewer {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 // Vertically center the player cluster within the
                 // remaining space. The content height is bounded —
                 // title + spacers + bar + time + buttons — so a

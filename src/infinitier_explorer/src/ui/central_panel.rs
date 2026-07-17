@@ -15,7 +15,7 @@ impl CentralPanel {
     }
 
     pub fn show(&mut self, ui: &mut egui::Ui, state: &AppState) {
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             self.viewer.show(ui, state);
         });
     }

@@ -543,7 +543,7 @@ impl ResourceViewerTrait for MovieViewer {
         self.poll_for_eos();
 
         // ── Bottom info bar ────────────────────────────────────────────────
-        egui::Panel::bottom("movie_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("movie_info_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(&self.source.name);
                 ui.separator();
@@ -572,7 +572,7 @@ impl ResourceViewerTrait for MovieViewer {
         let mut click_play_pause = false;
         let mut click_stop = false;
 
-        egui::Panel::bottom("movie_transport_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("movie_transport_panel").show(ui, |ui| {
             ui.add_space(6.0);
             ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                 ui.allocate_ui_with_layout(
@@ -629,7 +629,7 @@ impl ResourceViewerTrait for MovieViewer {
 
         egui::CentralPanel::default()
             .frame(egui::Frame::NONE)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
                     ui.add_space(8.0);
                     if let Some(err) = decode_error.as_deref() {

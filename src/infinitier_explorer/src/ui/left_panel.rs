@@ -38,7 +38,7 @@ impl LeftPanel {
                     .fill(theme.colors.muted_background)
                     .inner_margin(egui::Margin::same(8)),
             )
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     theme_toggle_button(ui);
                     ui.add(Heading::new("Resources").level(HeadingLevel::H3));

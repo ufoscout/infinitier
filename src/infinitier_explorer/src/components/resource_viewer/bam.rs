@@ -145,7 +145,7 @@ impl ResourceViewerTrait for BamViewer {
             Type::BamC => "BAMC",
         };
 
-        egui::Panel::bottom("bam_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("bam_info_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("{frame_w} × {frame_h} px"));
                 ui.separator();
@@ -185,7 +185,7 @@ impl ResourceViewerTrait for BamViewer {
 
         // ── Selector bar (above the info bar) ─────────────────────────────────
         let mut toggle_play = false;
-        egui::Panel::bottom("bam_selector_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("bam_selector_panel").show(ui, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
                 // Force every control in this toolbar to one uniform

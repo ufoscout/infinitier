@@ -42,7 +42,7 @@ impl SaveTabStrip {
                     .fill(theme.colors.background)
                     .inner_margin(egui::Margin::symmetric(12, 4)),
             )
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 if state.tabs.is_empty() {
                     return;
                 }

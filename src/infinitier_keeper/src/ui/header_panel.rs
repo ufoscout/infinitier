@@ -36,7 +36,7 @@ impl HeaderPanel {
                     .fill(theme.colors.muted_background)
                     .inner_margin(egui::Margin::symmetric(14, 10)),
             )
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 8.0;
                     if ui.add(Button::primary("Load").small()).clicked() {

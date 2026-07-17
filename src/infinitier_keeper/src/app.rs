@@ -281,7 +281,7 @@ impl eframe::App for KeeperApp {
 /// Placeholder shown when every save tab has been closed, inviting the
 /// user to open one via the header's Load button.
 fn empty_state(ui: &mut egui::Ui) {
-    egui::CentralPanel::default().show_inside(ui, |ui| {
+    egui::CentralPanel::default().show(ui, |ui| {
         ui.vertical_centered(|ui| {
             ui.add_space(48.0);
             ui.heading("No save loaded");

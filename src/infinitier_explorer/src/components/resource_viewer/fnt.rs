@@ -41,7 +41,7 @@ impl FntViewer {
 impl ResourceViewerTrait for FntViewer {
     fn show(&mut self, ui: &mut egui::Ui, _resource_id: ResourceId, resource: &GameResource) {
         // ── Bottom info bar ────────────────────────────────────────
-        egui::Panel::bottom("fnt_info_panel").show_inside(ui, |ui| {
+        egui::Panel::bottom("fnt_info_panel").show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("FNT");
                 ui.separator();

@@ -74,7 +74,7 @@ impl PartySelector {
                     .fill(theme.colors.muted_background)
                     .inner_margin(egui::Margin::same(10)),
             )
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 let party_count = state.active().save.party_npcs.len();
                 if party_count == 0 {
                     self.show_empty(ui);

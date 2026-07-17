@@ -202,7 +202,7 @@ impl SpellBrowser {
         egui::Panel::bottom("spell_browser_desc")
             .resizable(false)
             .exact_size(desc_h)
-            .show_inside(ui, |ui| {
+            .show(ui, |ui| {
                 if let Some(r) = self.description(ui, game_data, &entries, can_assign, add_label) {
                     assign = Some(r);
                 }
@@ -210,12 +210,12 @@ impl SpellBrowser {
         egui::Panel::right("spell_browser_filters")
             .resizable(false)
             .exact_size(FILTER_W)
-            .show_inside(ui, |ui| self.filters(ui, &entries, filtered.len()));
+            .show(ui, |ui| self.filters(ui, &entries, filtered.len()));
         let iwd2 = game_data.game().engine() == Engine::Iwd2;
         // A row double-clicked this frame opens its book menu (IWD2) at the
         // pointer; the trigger frame is flagged so the popup opens then.
         let mut opened_book_menu = false;
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             if let Some((resref, pos)) =
                 self.spell_table(ui, &entries, &filtered, scroll_target, can_assign)
             {
