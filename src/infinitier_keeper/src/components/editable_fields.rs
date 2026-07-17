@@ -8,8 +8,9 @@
 //!
 //! 1. [`KeeperEditors::prepare`] re-mirrors every buffer from the
 //!    current CRE / GAM, so the displayed values always track the
-//!    active save / party slot. Only the field with keyboard focus is
-//!    skipped, so in-flight typing isn't clobbered.
+//!    active save / party slot. The field with keyboard focus — and any
+//!    field whose edit hasn't committed yet — are skipped, so in-flight
+//!    typing isn't clobbered.
 //! 2. The abilities tab renders one [`KeeperEditors::show_input`]
 //!    per visible row, which wraps `egui::TextEdit::singleline`
 //!    around the buffer and commits on focus-loss / Enter.
@@ -936,6 +937,8 @@ pub struct KeeperEditors {
     /// [`Self::prepare`] leaves this one buffer alone so in-flight text
     /// isn't clobbered while every other field re-mirrors the model.
     focused_field: Option<EditableField>,
+    /// A field whose text was edited but not yet committed.
+    pending_field: Option<EditableField>,
 }
 
 impl KeeperEditors {
@@ -945,9 +948,10 @@ impl KeeperEditors {
 
     /// Per-frame sync. Mirror every editable field's buffer from the
     /// active CRE / GAM so the view always reflects the current save —
-    /// no cache invalidation to get wrong. The only field left untouched
-    /// is the one being edited right now ([`Self::focused_field`]),
-    /// whose in-flight text stands until it commits on focus loss.
+    /// no cache invalidation to get wrong. Two buffers are left untouched:
+    /// the one being edited right now ([`Self::focused_field`]) and one
+    /// with an uncommitted edit ([`Self::pending_field`]) — their in-flight
+    /// text stands until it commits on focus loss.
     ///
     /// Because it reads the model directly every frame, any change to
     /// what's active (switching party slot, switching save tab, opening
@@ -960,7 +964,13 @@ impl KeeperEditors {
             return;
         };
         for &field in EditableField::ALL {
-            if field == EditableField::Attacks || self.focused_field == Some(field) {
+            // Leave alone the field being typed in *and* one whose edit hasn't
+            // committed yet (focus may already have moved on — see
+            // [`Self::pending_field`]).
+            if field == EditableField::Attacks
+                || self.focused_field == Some(field)
+                || self.pending_field == Some(field)
+            {
                 continue;
             }
             self.inputs
@@ -998,9 +1008,15 @@ impl KeeperEditors {
         } else if self.focused_field == Some(field) {
             self.focused_field = None;
         }
+        if response.changed() {
+            self.pending_field = Some(field);
+        }
         let committed = response.lost_focus();
         if committed {
             commit(field, &buf, state);
+            if self.pending_field == Some(field) {
+                self.pending_field = None;
+            }
             if let Some(cre) = selected_cre(state) {
                 buf = field.read_text(cre, &state.active().save);
             }

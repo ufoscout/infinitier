@@ -114,7 +114,10 @@ oxideav-core = "0.1"
 
 # egui UI
 # `default-features = false` drops eframe's `accesskit` feature which clashes with Xilem.
-eframe = "0.35"
+# `inspection` opens a TCP port for the `egui_mcp` server / AccessKit tree
+# introspection + input injection, but only when the `EGUI_INSPECTION` env
+# var is set at runtime — otherwise it is inert.
+eframe = { version = "0.35", features = ["inspection"] }
 # Local dev: path to the sibling egui-components checkout so table-widget
 # changes take effect without pushing. Restore the git dep (and pin the
 # pushed rev) before committing.
